@@ -31,7 +31,7 @@ void Log::Init()
     s_ClientLogger->set_level(spdlog::level::trace);
 }
 
-void Log::Shutdown()
+void Log::Nuke()
 {
     s_EngineLogger->flush();
     s_ClientLogger->flush();

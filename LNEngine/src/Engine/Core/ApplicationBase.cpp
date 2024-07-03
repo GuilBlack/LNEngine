@@ -4,8 +4,6 @@
 
 namespace lne
 {
-
-
 void ApplicationBase::Run()
 {
     Profiler::Get().BeginSession("Run");
@@ -18,6 +16,7 @@ void ApplicationBase::Run()
     LNE_PROFILE_FUNCTION_END();
     Profiler::Get().EndSession();
 }
+
 void ApplicationBase::Init()
 {
     Profiler::Get().BeginSession("Init");
@@ -28,6 +27,9 @@ void ApplicationBase::Init()
     LNE_INFO("Application {0} initialized", m_Settings.Name);
     Profiler::Get().EndSession();
 }
-void ApplicationBase::Shutdown()
-{}
+
+void ApplicationBase::Nuke()
+{
+    Log::Nuke();
+}
 }

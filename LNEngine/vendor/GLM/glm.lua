@@ -7,14 +7,14 @@ project "GLM"
 
     files 
     {
-        "glm/**.hpp",
-        "glm/**.inl",
-        "glm/**.cpp",
+        "GLM/glm/**.hpp",
+        "GLM/glm/**.inl",
+        "GLM/glm/**.cpp",
     }
 
     includedirs
     {
-        "glm"
+        "./"
     }
 
     filter "system:windows"

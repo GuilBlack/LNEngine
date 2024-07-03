@@ -10,7 +10,7 @@ public:
     static std::shared_ptr<spdlog::logger> s_ClientLogger;
 public:
     static void Init();
-    static void Shutdown();
+    static void Nuke();
 };
 
 #define LNE_TRACE(...)      lne::Log::s_EngineLogger->trace(__VA_ARGS__)

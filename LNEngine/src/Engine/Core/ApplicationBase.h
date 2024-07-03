@@ -13,12 +13,14 @@ class ApplicationBase
 {
 public:
     explicit ApplicationBase(ApplicationSettings settings)
-        : m_Settings(settings)
+        : m_Settings(std::move(settings))
     {
         Init();
     }
-    virtual ~ApplicationBase() = default;
-
+    virtual ~ApplicationBase()
+    {
+        Nuke();
+    }
 
     void Run();
 
@@ -27,7 +29,7 @@ private:
 
 private:
     void Init();
-    void Shutdown();
+    void Nuke();
 };
 
 ApplicationBase* CreateApplication();

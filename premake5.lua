@@ -11,12 +11,14 @@ workspace "LNEngine"
 OutputDir = "%{cfg.buildcfg}/%{cfg.system}-%{cfg.architecture}"
 
 IncludeDir = {}
-IncludeDir["GLM"] = "%{wks.location}\\LNEngine\\vendor\\GLM"
-IncludeDir["SPDLOG"] = "%{wks.location}\\LNEngine\\vendor\\SPDLOG\\spdlog\\include"
+IncludeDir["GLM"] = "%{wks.location}/LNEngine/vendor/GLM"
+IncludeDir["SPDLOG"] = "%{wks.location}/LNEngine/vendor/SPDLOG/spdlog/include"
+IncludeDir["GLFW"] = "%{wks.location}/LNEngine/vendor/GLFW/glfw/include"
 
 group "Dependencies"
     include "LNEngine/vendor/GLM/glm.lua"
     include "LNEngine/vendor/SPDLOG/spdlog.lua"
+    include "LNEngine/vendor/GLFW/glfw.lua"
 group""
 
 include "LNEngine"

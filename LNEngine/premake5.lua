@@ -16,13 +16,17 @@ project "LNEngine"
         "src",
         "src/Engine",
         "%{IncludeDir.GLM}",
-        "%{IncludeDir.SPDLOG}"
+        "%{IncludeDir.SPDLOG}",
+        "%{IncludeDir.GLFW}"
     }
 
     links
     {
         "vulkan-1",
-        "volk"
+        "volk",
+        "GLFW",
+        "GLM",
+        "SPDLOG"
     }
 
     pchheader "lnepch.h"
