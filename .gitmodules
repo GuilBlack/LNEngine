@@ -1,0 +1,3 @@
+[submodule "LNEngine/vendor/SPDLOG/spdlog"]
+	path = LNEngine/vendor/SPDLOG/spdlog
+	url = https://github.com/gabime/spdlog.git
