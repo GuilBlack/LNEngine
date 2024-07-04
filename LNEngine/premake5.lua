@@ -4,6 +4,8 @@ project "LNEngine"
 
     targetdir ("%{wks.location}/bin/" .. OutputDir .. "/%{prj.name}")
     objdir ("%{wks.location}/bin-inter/" .. OutputDir .. "/%{prj.name}")
+    
+    vectorextensions "SSE2"
 
     files 
     {
@@ -33,6 +35,25 @@ project "LNEngine"
     pchsource "src/lnepch.cpp"
 
     forceincludes "LNEpch.h"
+    
+    filter "system:linux"
+        cppdialect "C++20"
+        staticruntime "On"
+        systemversion "latest"
+        defines 
+        {
+            "LNE_PLATFORM_LINUX"
+        }
+
+        includedirs
+        {
+            "/usr/include/vulkan"
+        }
+
+        libdirs
+        {
+            "/usr/lib"
+        }
 
     filter "system:windows"
         cppdialect "C++20"

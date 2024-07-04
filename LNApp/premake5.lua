@@ -4,6 +4,8 @@ project "LNApp"
 
     targetdir ("%{wks.location}/bin/" .. OutputDir .. "/%{prj.name}")
     objdir ("%{wks.location}/bin-inter/" .. OutputDir .. "/%{prj.name}")
+    
+    vectorextensions "SSE2"
 
     files 
     {
@@ -26,6 +28,26 @@ project "LNApp"
     pchsource "src/pch.cpp"
 
     forceincludes "pch.h"
+    
+    filter "system:linux"
+        cppdialect "C++20"
+        staticruntime "On"
+        systemversion "latest"
+        defines 
+        {
+            "LNE_PLATFORM_LINUX"
+        }
+
+        includedirs
+        {
+            "/usr/include/vulkan"
+        }
+
+        postbuildcommands
+        {
+            "cp -r ../LNEngine/res/Shaders/Compiled bin/" .. OutputDir .. "/%{prj.name}/res/Shaders/Compiled/Engine",
+            "cp -r res/Shaders/Compiled bin/" .. OutputDir .. "/%{prj.name}/res/Shaders/Compiled"
+        }
 
     filter "system:windows"
         cppdialect "C++20"
@@ -35,8 +57,6 @@ project "LNApp"
         {
             "LNE_PLATFORM_WINDOWS"
         }
-
-        vectorextensions "SSE2"
 
         includedirs
         {

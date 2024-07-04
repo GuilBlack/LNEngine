@@ -7,9 +7,9 @@ project "GLM"
 
     files 
     {
-        "GLM/glm/**.hpp",
-        "GLM/glm/**.inl",
-        "GLM/glm/**.cpp",
+        "glm/**.hpp",
+        "glm/**.inl",
+        "glm/**.cpp",
     }
 
     includedirs
