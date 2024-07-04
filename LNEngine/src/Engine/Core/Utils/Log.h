@@ -13,6 +13,8 @@ public:
     static void Nuke();
 };
 
+#if defined(LNE_DEBUG) && !defined(NDEBUG)
+
 #define LNE_TRACE(...)      lne::Log::s_EngineLogger->trace(__VA_ARGS__)
 #define LNE_INFO(...)       lne::Log::s_EngineLogger->info(__VA_ARGS__)
 #define LNE_WARN(...)       lne::Log::s_EngineLogger->warn(__VA_ARGS__)
@@ -24,4 +26,20 @@ public:
 #define APP_WARN(...)       lne::Log::s_ClientLogger->warn(__VA_ARGS__)
 #define APP_ERROR(...)      lne::Log::s_ClientLogger->error(__VA_ARGS__)
 #define APP_CRITICAL(...)   lne::Log::s_ClientLogger->critical(__VA_ARGS__)
+
+#else
+
+#define LNE_TRACE(...)      
+#define LNE_INFO(...)       
+#define LNE_WARN(...)       
+#define LNE_ERROR(...)      
+#define LNE_CRITICAL(...)   
+
+#define APP_TRACE(...)      
+#define APP_INFO(...)       
+#define APP_WARN(...)       
+#define APP_ERROR(...)      
+#define APP_CRITICAL(...)   
+
+#endif
 }
