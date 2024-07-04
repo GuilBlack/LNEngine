@@ -12,7 +12,7 @@ struct ApplicationSettings
 class ApplicationBase
 {
 public:
-    explicit ApplicationBase(ApplicationSettings settings)
+    explicit ApplicationBase(ApplicationSettings&& settings)
         : m_Settings(std::move(settings))
     {
         Init();
@@ -26,6 +26,7 @@ public:
 
 private:
     ApplicationSettings m_Settings;
+    class Window* m_Window;
 
 private:
     void Init();

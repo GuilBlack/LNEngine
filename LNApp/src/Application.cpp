@@ -3,10 +3,9 @@
 class Application : public lne::ApplicationBase
 {
 public:
-    Application(lne::ApplicationSettings settings)
-        : lne::ApplicationBase(settings)
+    Application(lne::ApplicationSettings&& settings)
+        : lne::ApplicationBase(std::move(settings))
     {
-        int* a = new int[100];
     }
 };
 
