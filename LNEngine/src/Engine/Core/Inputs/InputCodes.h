@@ -1,0 +1,181 @@
+#pragma once
+
+namespace lne
+{
+using KeyCode = uint8_t;
+using MouseButton = uint8_t;
+
+#define LNE_KEYCODE_ENUM(name, value) Key##name = value
+#define LNE_MOUSEBUTTON_ENUM(name, value) Mouse##name = value
+
+enum : KeyCode
+{
+    // from windows virtual key codes
+    LNE_KEYCODE_ENUM(Backspace, 0x08),
+    LNE_KEYCODE_ENUM(Tab, 0x09),
+    LNE_KEYCODE_ENUM(Clear, 0x0C),
+    LNE_KEYCODE_ENUM(Return, 0x0D),
+    LNE_KEYCODE_ENUM(Shift, 0x10),
+    LNE_KEYCODE_ENUM(Control, 0x11),
+    LNE_KEYCODE_ENUM(Menu, 0x12),
+    LNE_KEYCODE_ENUM(Pause, 0x13),
+    LNE_KEYCODE_ENUM(Capital, 0x14),
+    LNE_KEYCODE_ENUM(Kana, 0x15),
+    LNE_KEYCODE_ENUM(Hangul, 0x15),
+    LNE_KEYCODE_ENUM(Junja, 0x17),
+    LNE_KEYCODE_ENUM(Final, 0x18),
+    LNE_KEYCODE_ENUM(Hanja, 0x19),
+    LNE_KEYCODE_ENUM(Kanji, 0x19),
+    LNE_KEYCODE_ENUM(Escape, 0x1B),
+    LNE_KEYCODE_ENUM(Convert, 0x1C),
+    LNE_KEYCODE_ENUM(Nonconvert, 0x1D),
+    LNE_KEYCODE_ENUM(Accept, 0x1E),
+    LNE_KEYCODE_ENUM(Modechange, 0x1F),
+    LNE_KEYCODE_ENUM(Space, 0x20),
+    LNE_KEYCODE_ENUM(Prior, 0x21),
+    LNE_KEYCODE_ENUM(Next, 0x22),
+    LNE_KEYCODE_ENUM(End, 0x23),
+    LNE_KEYCODE_ENUM(Home, 0x24),
+    LNE_KEYCODE_ENUM(Left, 0x25),
+    LNE_KEYCODE_ENUM(Up, 0x26),
+    LNE_KEYCODE_ENUM(Right, 0x27),
+    LNE_KEYCODE_ENUM(Down, 0x28),
+    LNE_KEYCODE_ENUM(Select, 0x29),
+    LNE_KEYCODE_ENUM(Print, 0x2A),
+    LNE_KEYCODE_ENUM(Execute, 0x2B),
+    LNE_KEYCODE_ENUM(Snapshot, 0x2C),
+    LNE_KEYCODE_ENUM(Insert, 0x2D),
+    LNE_KEYCODE_ENUM(Delete, 0x2E),
+    LNE_KEYCODE_ENUM(Help, 0x2F),
+    LNE_KEYCODE_ENUM(0, 0x30),
+    LNE_KEYCODE_ENUM(1, 0x31),
+    LNE_KEYCODE_ENUM(2, 0x32),
+    LNE_KEYCODE_ENUM(3, 0x33),
+    LNE_KEYCODE_ENUM(4, 0x34),
+    LNE_KEYCODE_ENUM(5, 0x35),
+    LNE_KEYCODE_ENUM(6, 0x36),
+    LNE_KEYCODE_ENUM(7, 0x37),
+    LNE_KEYCODE_ENUM(8, 0x38),
+    LNE_KEYCODE_ENUM(9, 0x39),
+    LNE_KEYCODE_ENUM(A, 0x41),
+    LNE_KEYCODE_ENUM(B, 0x42),
+    LNE_KEYCODE_ENUM(C, 0x43),
+    LNE_KEYCODE_ENUM(D, 0x44),
+    LNE_KEYCODE_ENUM(E, 0x45),
+    LNE_KEYCODE_ENUM(F, 0x46),
+    LNE_KEYCODE_ENUM(G, 0x47),
+    LNE_KEYCODE_ENUM(H, 0x48),
+    LNE_KEYCODE_ENUM(I, 0x49),
+    LNE_KEYCODE_ENUM(J, 0x4A),
+    LNE_KEYCODE_ENUM(K, 0x4B),
+    LNE_KEYCODE_ENUM(L, 0x4C),
+    LNE_KEYCODE_ENUM(M, 0x4D),
+    LNE_KEYCODE_ENUM(N, 0x4E),
+    LNE_KEYCODE_ENUM(O, 0x4F),
+    LNE_KEYCODE_ENUM(P, 0x50),
+    LNE_KEYCODE_ENUM(Q, 0x51),
+    LNE_KEYCODE_ENUM(R, 0x52),
+    LNE_KEYCODE_ENUM(S, 0x53),
+    LNE_KEYCODE_ENUM(T, 0x54),
+    LNE_KEYCODE_ENUM(U, 0x55),
+    LNE_KEYCODE_ENUM(V, 0x56),
+    LNE_KEYCODE_ENUM(W, 0x57),
+    LNE_KEYCODE_ENUM(X, 0x58),
+    LNE_KEYCODE_ENUM(Y, 0x59),
+    LNE_KEYCODE_ENUM(Z, 0x5A),
+    LNE_KEYCODE_ENUM(LWin, 0x5B),
+    LNE_KEYCODE_ENUM(RWin, 0x5C),
+    LNE_KEYCODE_ENUM(Apps, 0x5D),
+    LNE_KEYCODE_ENUM(Sleep, 0x5F),
+    LNE_KEYCODE_ENUM(Numpad0, 0x60),
+    LNE_KEYCODE_ENUM(Numpad1, 0x61),
+    LNE_KEYCODE_ENUM(Numpad2, 0x62),
+    LNE_KEYCODE_ENUM(Numpad3, 0x63),
+    LNE_KEYCODE_ENUM(Numpad4, 0x64),
+    LNE_KEYCODE_ENUM(Numpad5, 0x65),
+    LNE_KEYCODE_ENUM(Numpad6, 0x66),
+    LNE_KEYCODE_ENUM(Numpad7, 0x67),
+    LNE_KEYCODE_ENUM(Numpad8, 0x68),
+    LNE_KEYCODE_ENUM(Numpad9, 0x69),
+    LNE_KEYCODE_ENUM(Multiply, 0x6A),
+    LNE_KEYCODE_ENUM(Add, 0x6B),
+    LNE_KEYCODE_ENUM(Separator, 0x6C),
+    LNE_KEYCODE_ENUM(Subtract, 0x6D),
+    LNE_KEYCODE_ENUM(Decimal, 0x6E),
+    LNE_KEYCODE_ENUM(Divide, 0x6F),
+    LNE_KEYCODE_ENUM(F1, 0x70),
+    LNE_KEYCODE_ENUM(F2, 0x71),
+    LNE_KEYCODE_ENUM(F3, 0x72),
+    LNE_KEYCODE_ENUM(F4, 0x73),
+    LNE_KEYCODE_ENUM(F5, 0x74),
+    LNE_KEYCODE_ENUM(F6, 0x75),
+    LNE_KEYCODE_ENUM(F7, 0x76),
+    LNE_KEYCODE_ENUM(F8, 0x77),
+    LNE_KEYCODE_ENUM(F9, 0x78),
+    LNE_KEYCODE_ENUM(F10, 0x79),
+    LNE_KEYCODE_ENUM(F11, 0x7A),
+    LNE_KEYCODE_ENUM(F12, 0x7B),
+    LNE_KEYCODE_ENUM(F13, 0x7C),
+    LNE_KEYCODE_ENUM(F14, 0x7D),
+    LNE_KEYCODE_ENUM(F15, 0x7E),
+    LNE_KEYCODE_ENUM(F16, 0x7F),
+    LNE_KEYCODE_ENUM(F17, 0x80),
+    LNE_KEYCODE_ENUM(F18, 0x81),
+    LNE_KEYCODE_ENUM(F19, 0x82),
+    LNE_KEYCODE_ENUM(F20, 0x83),
+    LNE_KEYCODE_ENUM(F21, 0x84),
+    LNE_KEYCODE_ENUM(F22, 0x85),
+    LNE_KEYCODE_ENUM(F23, 0x86),
+    LNE_KEYCODE_ENUM(F24, 0x87),
+    LNE_KEYCODE_ENUM(NumLock, 0x90),
+    LNE_KEYCODE_ENUM(Scroll, 0x91),
+    LNE_KEYCODE_ENUM(LShift, 0xA0),
+    LNE_KEYCODE_ENUM(RShift, 0xA1),
+    LNE_KEYCODE_ENUM(LControl, 0xA2),
+    LNE_KEYCODE_ENUM(RControl, 0xA3),
+    LNE_KEYCODE_ENUM(LMenu, 0xA4),
+    LNE_KEYCODE_ENUM(RMenu, 0xA5),
+    LNE_KEYCODE_ENUM(Semicolon, 0xBA),    // ;:
+    LNE_KEYCODE_ENUM(Equal, 0xBB),        // =
+    LNE_KEYCODE_ENUM(Comma, 0xBC),        // ,
+    LNE_KEYCODE_ENUM(Minus, 0xBD),        // -
+    LNE_KEYCODE_ENUM(Period, 0xBE),       // .
+    LNE_KEYCODE_ENUM(Slash, 0xBF),        // /?
+    LNE_KEYCODE_ENUM(Grave, 0xC0),        // `~
+    LNE_KEYCODE_ENUM(LeftBracket, 0xDB),  // [{
+    LNE_KEYCODE_ENUM(Backslash, 0xDC),    // \|
+    LNE_KEYCODE_ENUM(RightBracket, 0xDD), // ]}
+    LNE_KEYCODE_ENUM(Quote, 0xDE),        // '"
+    LNE_KEYCODE_ENUM(OEM102, 0xE2),       // \| (Non-US)
+    LNE_KEYCODE_ENUM(Processkey, 0xE5),
+    LNE_KEYCODE_ENUM(Packet, 0xE7),
+    LNE_KEYCODE_ENUM(Attn, 0xF6),
+    LNE_KEYCODE_ENUM(Crsel, 0xF7),
+    LNE_KEYCODE_ENUM(Exsel, 0xF8),
+    LNE_KEYCODE_ENUM(Ereof, 0xF9),
+    LNE_KEYCODE_ENUM(Play, 0xFA),
+    LNE_KEYCODE_ENUM(Zoom, 0xFB),
+    LNE_KEYCODE_ENUM(PA1, 0xFD),
+    LNE_KEYCODE_ENUM(OEMClear, 0xFE),
+};
+
+KeyCode MapGLFWKeyToKeyCode(int glfwKey);
+int MapKeyCodeToGLFWKey(KeyCode keyCode);
+
+
+enum : MouseButton
+{
+    LNE_MOUSEBUTTON_ENUM(0, 0),
+    LNE_MOUSEBUTTON_ENUM(1, 1),
+    LNE_MOUSEBUTTON_ENUM(2, 2),
+    LNE_MOUSEBUTTON_ENUM(3, 3),
+    LNE_MOUSEBUTTON_ENUM(4, 4),
+    LNE_MOUSEBUTTON_ENUM(5, 5),
+    LNE_MOUSEBUTTON_ENUM(6, 6),
+    LNE_MOUSEBUTTON_ENUM(7, 7),
+    LNE_MOUSEBUTTON_ENUM(Left, 0),
+    LNE_MOUSEBUTTON_ENUM(Right, 1),
+    LNE_MOUSEBUTTON_ENUM(Middle, 2),
+};
+
+}
