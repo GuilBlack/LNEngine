@@ -20,11 +20,14 @@ public:
     [[nodiscard]] uint32_t GetWidth() const { return m_Settings.Width; }
     [[nodiscard]] uint32_t GetHeight() const { return m_Settings.Height; }
 
-    void PollEvents() const { glfwPollEvents(); }
-    [[nodiscard]] bool ShouldClose() const { return glfwWindowShouldClose(m_Handle); }
+    void PollEvents() const;
+    [[nodiscard]] bool ShouldClose() const;
 
 private:
-    GLFWwindow* m_Handle;
+    struct GLFWwindow* m_Handle;
     WindowSettings m_Settings;
+
+private:
+    void InitEventCallbacks();
 };
 };

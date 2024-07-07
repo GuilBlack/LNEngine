@@ -1,4 +1,8 @@
 #pragma once
+#include "LayerStack.h"
+#include "Window.h"
+#include "Events/EventHub.h"
+#include "Events/WindowEvents.h"
 
 namespace lne
 {
@@ -12,27 +16,31 @@ struct ApplicationSettings
 class ApplicationBase
 {
 public:
-    explicit ApplicationBase(ApplicationSettings&& settings)
-        : m_Settings(std::move(settings))
-    {
-        Init();
-    }
-    virtual ~ApplicationBase()
-    {
-        Nuke();
-    }
+    explicit ApplicationBase(ApplicationSettings&& settings);
+    virtual ~ApplicationBase();
+
+    static ApplicationBase& Get() { return *s_Instance; }
+    static EventHub& GetEventHub() { return *s_Instance->m_EventHub; }
 
     void Run();
 
-private:
-    ApplicationSettings m_Settings;
-    class Window* m_Window;
+    void PushLayer(class Layer* layer);
+    void PushOverlay(class Layer* overlay);
+    void PopLayer(class Layer* layer);
+    void PopOverlay(class Layer* overlay);
+
+protected:
+    bool OnWindowClose(WindowCloseEvent& e);
 
 private:
-    void Init();
-    void Nuke();
+    ApplicationSettings m_Settings;
+    std::unique_ptr<Window> m_Window;
+    LayerStack m_LayerStack;
+    std::unique_ptr<class EventHub> m_EventHub;
+
+private:
+    static ApplicationBase* s_Instance;
 };
 
 ApplicationBase* CreateApplication();
 }
-

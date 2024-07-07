@@ -17,6 +17,8 @@ project "LNApp"
     {
         "src",
         "%{wks.location}/LNEngine/src",
+        "%{IncludeDir.GLM}",
+        "%{IncludeDir.SPDLOG}",
     }
 
     links

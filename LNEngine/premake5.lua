@@ -7,6 +7,11 @@ project "LNEngine"
     
     vectorextensions "SSE2"
 
+    defines 
+    {
+        "LNE_ENGINE"
+    }
+
     files 
     {
         "src/**.h",
@@ -34,8 +39,11 @@ project "LNEngine"
     pchheader "lnepch.h"
     pchsource "src/lnepch.cpp"
 
-    forceincludes "LNEpch.h"
-    
+    forceincludes
+    {
+        "lnepch.h",
+    }
+
     filter "system:linux"
         cppdialect "C++20"
         staticruntime "On"
