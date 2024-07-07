@@ -7,6 +7,7 @@
 #include "Utils/_Defines.h"
 #include "LayerStack.h"
 #include "Layer.h"
+#include "Core/Events/ApplicationEvents.h"
 
 namespace lne
 {
@@ -66,6 +67,8 @@ void ApplicationBase::Run()
             layer->OnUpdate();
         }
 
+        auto appUpdatedEvent = AppUpdatedEvent();
+        m_EventHub->FireEvent(appUpdatedEvent);
         m_Window->PollEvents();
     }
 

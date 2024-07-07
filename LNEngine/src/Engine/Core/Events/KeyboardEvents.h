@@ -7,10 +7,12 @@ namespace lne
 class KeyPressedEvent : public Event
 {
 public:
-    KeyPressedEvent(KeyCode keycode)
-        : m_KeyCode(keycode) {}
+    KeyPressedEvent(KeyCode keycode, bool repeat = false)
+        : m_KeyCode{ keycode }, m_Repeat{ repeat }
+    {}
 
     KeyCode GetKeyCode() const { return m_KeyCode; }
+    bool IsRepeat() const { return m_Repeat; }
 
     EVENT_CLASS_METHODS(KeyPressed)
 
@@ -19,10 +21,10 @@ private:
     bool m_Repeat;
 };
 
-class KeyReleased : public Event
+class KeyReleasedEvent : public Event
 {
 public:
-    KeyReleased(KeyCode keycode)
+    KeyReleasedEvent(KeyCode keycode)
         : m_KeyCode(keycode)
     {}
 
@@ -32,5 +34,4 @@ public:
 private:
     KeyCode m_KeyCode;
 };
-}
 }

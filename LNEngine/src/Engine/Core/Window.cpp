@@ -3,6 +3,9 @@
 #include "ApplicationBase.h"
 #include "Utils/_Defines.h"
 #include "Utils/Log.h"
+#include "Events/WindowEvents.h"
+#include "Events/KeyboardEvents.h"
+#include "Events/MouseEvents.h"
 
 namespace lne
 {
@@ -65,6 +68,62 @@ void Window::InitEventCallbacks()
     glfwSetWindowSizeCallback(m_Handle, [](GLFWwindow* window, int width, int height)
     {
         WindowResizeEvent e(width, height);
+        ApplicationBase::GetEventHub().FireEvent(e);
+    });
+
+    glfwSetKeyCallback(m_Handle, [](GLFWwindow* window, int key, int scancode, int action, int mods)
+    {
+        switch (action)
+        {
+        case GLFW_PRESS:
+        {
+            KeyPressedEvent e(static_cast<KeyCode>(key));
+            ApplicationBase::GetEventHub().FireEvent(e);
+            break;
+        }
+        case GLFW_REPEAT:
+        {
+            KeyPressedEvent e(static_cast<KeyCode>(key), true);
+            ApplicationBase::GetEventHub().FireEvent(e);
+            break;
+        }
+        case GLFW_RELEASE:
+        {
+            KeyReleasedEvent e(static_cast<KeyCode>(key));
+            ApplicationBase::GetEventHub().FireEvent(e);
+            break;
+        }
+        default:
+            LNE_ASSERT(false, "Unknown key action");
+            break;
+        }
+    });
+
+    glfwSetMouseButtonCallback(m_Handle, [](GLFWwindow* window, int button, int action, int mods)
+    {
+        switch (action)
+        {
+        case GLFW_PRESS:
+        {
+            MouseButtonPressedEvent e(static_cast<MouseButton>(button));
+            ApplicationBase::GetEventHub().FireEvent(e);
+            break;
+        }
+        case GLFW_RELEASE:
+        {
+            MouseButtonReleasedEvent e(static_cast<MouseButton>(button));
+            ApplicationBase::GetEventHub().FireEvent(e);
+            break;
+        }
+        default:
+            LNE_ASSERT(false, "Unknown mouse button action");
+            break;
+        }
+    });
+
+    glfwSetCursorPosCallback(m_Handle, [](GLFWwindow* window, double xpos, double ypos)
+    {
+        MouseMovedEvent e(static_cast<float>(xpos), static_cast<float>(ypos));
         ApplicationBase::GetEventHub().FireEvent(e);
     });
 }

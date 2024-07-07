@@ -9,9 +9,10 @@ namespace lne
 
 enum class EEventType
 {
-    WindowClose, WindowResize, WindowFocus, WindowLostFocus, WindowMoved,
+    WindowClose = 0, WindowResize, WindowFocus, WindowLostFocus, WindowMoved,
     MouseButtonPressed, MouseButtonReleased, MouseMoved, MouseScrolled,
-    KeyPressed, KeyReleased
+    KeyPressed, KeyReleased,
+    AppUpdated
 };
 
 class Event
