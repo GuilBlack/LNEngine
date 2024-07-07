@@ -1,13 +1,7 @@
-﻿#ifdef LNE_PLATFORM_WINDOWS
-#define LNE_DEBUG_BREAK __debugbreak()
-#elif defined(LNE_PLATFORM_LINUX)
-#define LNE_DEBUG_BREAK __builtin_debugtrap()
-#else
-#define LNE_DEBUG_BREAK
-#endif
+﻿#pragma once
 
-#if defined(LNE_DEBUG)
-#define LNE_ASSERT(x, ...) { if(!(x)) { LNE_ERROR("Assertion Failed: {0}", __VA_ARGS__); __debugbreak(); } }
-#else
-#define LNE_ASSERT(x, ...)
-#endif
+template<typename T>
+using OwnedPtr = std::unique_ptr<T>;
+
+template<typename T>
+using SharedPtr = std::shared_ptr<T>;
