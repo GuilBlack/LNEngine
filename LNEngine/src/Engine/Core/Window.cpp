@@ -6,6 +6,7 @@
 #include "Events/WindowEvents.h"
 #include "Events/KeyboardEvents.h"
 #include "Events/MouseEvents.h"
+#include "Inputs/Inputs.h"
 
 namespace lne
 {
@@ -37,7 +38,10 @@ Window::Window(WindowSettings&& settings)
     if (!m_Handle)
         LNE_ASSERT(false, "Failed to create window");
 
+    LNE_INFO("Created window {0} ({1}x{2})", m_Settings.Name, m_Settings.Width, m_Settings.Height);
+
     InitEventCallbacks();
+    m_InputManager.reset(new InputManager());
 }
 
 Window::~Window()

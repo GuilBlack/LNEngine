@@ -5,14 +5,15 @@ namespace lne
 {
 std::string_view lne::KeyCodeToString(KeyCode keyCode)
 {
+    // FIXME: this order isn't quite right
     static const std::string_view keyStrings[MAX_KEYS] = {
            "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", // 0-15
            "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", // 16-31
-           "Space", "", "", "", "Apostrophe", "", "", "", "Comma", "", "", "Minus", "Period", "Slash", "", "", // 32-47
+           "Space", "", "", "", "", "", "", "Apostrophe", "", "", "", "", "Comma", "Minus", "Period", "Slash", // 32-47
            "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "", "Semicolon", "", "Equal", "", "", // 48-63
            "", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", // 64-79
-           "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "LeftBracket", "Backslash", "RightBracket", "", "GraveAccent", // 80-95
-           "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", // 96-111
+           "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "LeftBracket", "Backslash", "RightBracket", "", "", // 80-95
+           "GraveAccent", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", // 96-111
            "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", // 112-127
            "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", // 128-143
            "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", // 144-159
@@ -23,13 +24,14 @@ std::string_view lne::KeyCodeToString(KeyCode keyCode)
            "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", // 224-239
            "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", // 240-255
            "Escape", "Enter", "Tab", "Backspace", "Insert", "Delete", "ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp", "PageUp", "PageDown", "Home", "End", // 256-269
-           "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", // 270-285
-           "CapsLock", "ScrollLock", "NumLock", "PrintScreen", "Pause", // 286-290
+           "", "", "", "", "", "", "", "", "", "", "CapsLock", "ScrollLock", "NumLock", "PrintScreen", "Pause", "", // 270-285
+           "", "", "", "", "", // 286-290
            "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "F13", "F14", "F15", "F16", // 291-306
            "F17", "F18", "F19", "F20", "F21", "F22", "F23", "F24", "F25", // 307-314
-           "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", // 315-330
-           "P0", "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "PDecimal", "PDivide", "PMultiply", "PSubtract", "PAdd", "PEnter", // 331-347
-           "PEqual", "LeftShift", "LeftControl", "LeftAlt", "LeftSuper", "RightShift", "RightControl", "RightAlt", "RightSuper", "Menu" // 348-512
+           "", "", "", "", "", "P0", "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "PDecimal", // 315-330
+           "PDivide", "PMultiply", "PSubtract", "PAdd", "PEnter", "PEqual", "", "", "", // 331-339
+           "LeftShift", "LeftControl", "LeftAlt", "LeftSuper", "RightShift", "RightControl", "RightAlt",
+           "RightSuper", "Menu" // 340-348
     };
 
     if (keyCode <= eKeyLast && keyCode >= eKeyFirst)

@@ -5,8 +5,7 @@ namespace lne
 struct WindowSettings
 {
     std::string Name;
-    uint32_t    Width{};
-    uint32_t    Height{};
+    uint32_t    Width{}, Height{};
     bool        Resizable{ false };
     bool        Fullscreen{ false };
 };
@@ -26,8 +25,11 @@ public:
 private:
     struct GLFWwindow* m_Handle;
     WindowSettings m_Settings;
+    std::unique_ptr<class InputManager> m_InputManager;
 
 private:
     void InitEventCallbacks();
+
+    friend class ApplicationBase;
 };
 };

@@ -33,22 +33,22 @@ public:
     InputManager();
     ~InputManager();
 
-    bool UpdateStates(AppUpdatedEvent& e);
+    [[nodiscard]] bool UpdateStates(AppUpdatedEvent& e);
 
-    bool IsKeyPressed(KeyCode keycode);
-    bool IsKeyReleased(KeyCode keycode);
-    bool IsMouseButtonPressed(MouseButton button);
-    bool IsMouseButtonReleased(MouseButton button);
+    [[nodiscard]] bool IsKeyPressed(KeyCode keycode);
+    [[nodiscard]] bool IsKeyReleased(KeyCode keycode);
+    [[nodiscard]] bool IsMouseButtonPressed(MouseButton button);
+    [[nodiscard]] bool IsMouseButtonReleased(MouseButton button);
     void GetMousePosition(float& x, float& y);
 
 private:
     InputStates m_States;
 
 private:
-    bool ProcessKeyPressedEvent(KeyPressedEvent& e);
-    bool ProcessKeyReleasedEvent(KeyReleasedEvent& e);
-    bool ProcessMousePressedEvent(MouseButtonPressedEvent& e);
-    bool ProcessMouseReleasedEvent(MouseButtonReleasedEvent& e);
-    bool ProcessMouseMovedEvent(MouseMovedEvent& e);
+    [[nodiscard]] bool ProcessKeyPressedEvent(KeyPressedEvent& e);
+    [[nodiscard]] bool ProcessKeyReleasedEvent(KeyReleasedEvent& e);
+    [[nodiscard]] bool ProcessMousePressedEvent(MouseButtonPressedEvent& e);
+    [[nodiscard]] bool ProcessMouseReleasedEvent(MouseButtonReleasedEvent& e);
+    [[nodiscard]] bool ProcessMouseMovedEvent(MouseMovedEvent& e);
 };
 }

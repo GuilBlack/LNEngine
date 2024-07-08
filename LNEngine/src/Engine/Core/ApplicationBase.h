@@ -3,6 +3,7 @@
 #include "Window.h"
 #include "Events/EventHub.h"
 #include "Events/WindowEvents.h"
+#include "Inputs/Inputs.h"
 
 namespace lne
 {
@@ -19,8 +20,9 @@ public:
     explicit ApplicationBase(ApplicationSettings&& settings);
     virtual ~ApplicationBase();
 
-    static ApplicationBase& Get() { return *s_Instance; }
-    static EventHub& GetEventHub() { return *s_Instance->m_EventHub; }
+    [[nodiscard]] static ApplicationBase& Get() { return *s_Instance; }
+    [[nodiscard]] static EventHub& GetEventHub() { return *s_Instance->m_EventHub; }
+    [[nodiscard]] static class InputManager& GetInputManager() { return *s_Instance->m_Window->m_InputManager; }
 
     void Run();
 
@@ -30,7 +32,7 @@ public:
     void PopOverlay(class Layer* overlay);
 
 protected:
-    bool OnWindowClose(WindowCloseEvent& e);
+    [[nodiscard]] bool OnWindowClose(WindowCloseEvent& e);
 
 private:
     ApplicationSettings m_Settings;
