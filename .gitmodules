@@ -4,3 +4,6 @@
 [submodule "LNEngine/vendor/GLFW/glfw"]
 	path = LNEngine/vendor/GLFW/glfw
 	url = https://github.com/glfw/glfw.git
+[submodule "LNEngine/vendor/VKBOOTSTRAP/vk-bootstrap"]
+	path = LNEngine/vendor/VKBOOTSTRAP/vk-bootstrap
+	url = https://github.com/charles-lunarg/vk-bootstrap.git
