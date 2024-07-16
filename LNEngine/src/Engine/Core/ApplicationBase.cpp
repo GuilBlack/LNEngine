@@ -8,6 +8,7 @@
 #include "LayerStack.h"
 #include "Layer.h"
 #include "Core/Events/ApplicationEvents.h"
+#include "Graphics/GfxContext.h"
 
 namespace lne
 {
@@ -32,12 +33,14 @@ ApplicationBase::ApplicationBase(ApplicationSettings&& settings)
             LNE_ERROR("GLFW Error ({0}): {1}", errCode, std::string_view{ description });
         });
 
-    if (!glfwInit())
-        LNE_ASSERT(false, "Failed to initialize GLFW");
-
+    LNE_ASSERT(glfwInit(), "Failed to initialize GLFW");
     LNE_INFO("glfw initialized");
 
+    LNE_ASSERT(GfxContext::InitVulkan(settings.Name), "Failed to initialize Vulkan");
+    LNE_INFO("Vulkan initialized");
+
     m_Window.reset(new Window({ m_Settings.Name, m_Settings.Width, m_Settings.Height }));
+
 
     LNE_INFO("Application {0} initialized", m_Settings.Name);
     Profiler::Get().EndSession();

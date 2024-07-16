@@ -7,6 +7,7 @@
 #include "Events/KeyboardEvents.h"
 #include "Events/MouseEvents.h"
 #include "Inputs/Inputs.h"
+#include "Graphics/GfxContext.h"
 
 namespace lne
 {
@@ -42,6 +43,12 @@ Window::Window(WindowSettings&& settings)
 
     InitEventCallbacks();
     m_InputManager.reset(new InputManager());
+
+    VkSurfaceKHR surface;
+    glfwCreateWindowSurface(GfxContext::GetVulkanInstance(), m_Handle, nullptr, &surface);
+
+    m_GfxContext.reset(new GfxContext(surface));
+
 }
 
 Window::~Window()

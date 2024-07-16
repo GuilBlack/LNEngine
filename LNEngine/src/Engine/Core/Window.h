@@ -26,6 +26,7 @@ private:
     struct GLFWwindow* m_Handle;
     WindowSettings m_Settings;
     std::unique_ptr<class InputManager> m_InputManager;
+    std::shared_ptr<class GfxContext> m_GfxContext;
 
 private:
     void InitEventCallbacks();

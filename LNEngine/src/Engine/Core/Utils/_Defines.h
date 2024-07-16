@@ -7,7 +7,7 @@
 #endif
 
 #if defined(LNE_DEBUG)
-#define LNE_ASSERT(x, ...) { if(!(x)) { LNE_ERROR("Assertion Failed: {0}", __VA_ARGS__); __debugbreak(); } }
+#define LNE_ASSERT(x, ...) { if(!(x)) { LNE_ERROR("Assertion Failed: {}", __VA_ARGS__); __debugbreak(); } }
 #else
 #define LNE_ASSERT(x, ...)
 #endif
