@@ -12,7 +12,7 @@ class AppLayer final : public lne::Layer
         APP_INFO("AppLayer::OnDetach");
     }
 
-    void OnUpdate() override
+    void OnUpdate(float deltaTime) override
     {
     }
 

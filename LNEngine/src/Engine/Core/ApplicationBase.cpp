@@ -58,13 +58,16 @@ void ApplicationBase::Run()
 {
     Profiler::Get().BeginSession("Run");
     LNE_PROFILE_FUNCTION();
+    m_Clock.Start();
 
     while (!m_Window->ShouldClose())
     {
         LNE_PROFILE_SCOPE("Run Loop");
+        m_Clock.Tick();
+        
         for (auto layer : m_LayerStack)
         {
-            layer->OnUpdate();
+            layer->OnUpdate(m_Clock.GetDeltaTime());
         }
 
         auto appUpdatedEvent = AppUpdatedEvent();

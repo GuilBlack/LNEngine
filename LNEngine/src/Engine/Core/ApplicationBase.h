@@ -4,6 +4,7 @@
 #include "Events/EventHub.h"
 #include "Events/WindowEvents.h"
 #include "Inputs/Inputs.h"
+#include "Clock.h"
 
 namespace lne
 {
@@ -23,6 +24,7 @@ public:
     [[nodiscard]] static ApplicationBase& Get() { return *s_Instance; }
     [[nodiscard]] static EventHub& GetEventHub() { return *s_Instance->m_EventHub; }
     [[nodiscard]] static class InputManager& GetInputManager() { return *s_Instance->m_Window->m_InputManager; }
+    [[nodiscard]] static class Clock& GetClock() { return s_Instance->m_Clock; }
 
     void Run();
 
@@ -39,6 +41,7 @@ private:
     std::unique_ptr<Window> m_Window;
     LayerStack m_LayerStack;
     std::unique_ptr<class EventHub> m_EventHub;
+    Clock m_Clock;
 
 private:
     static ApplicationBase* s_Instance;
