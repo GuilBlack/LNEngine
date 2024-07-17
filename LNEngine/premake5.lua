@@ -90,12 +90,38 @@ project "LNEngine"
     filter "configurations:Debug"
         symbols "On"
         optimize "Off"
-        defines { "_DEBUG", "DEBUG", "LNE_DEBUG" }
+        editandcontinue "Off"
+        flags
+        {
+            "NoRuntimeChecks",
+            "NoIncrementalLink",
+        }
+        defines
+        { 
+            "_DEBUG", "DEBUG", "LNE_DEBUG",
+            "_DISABLE_VECTOR_ANNOTATION",
+            "_DISABLE_STRING_ANNOTATION",
+            "ASAN_SAVE_DUMP=asanDump.dmp"
+        }
+        sanitize { "Address" }
 
     filter "configurations:Release"
         symbols "On"
         optimize "On"
-        defines { "LNE_DEBUG" }
+        editandcontinue "Off"
+        flags
+        {
+            "NoRuntimeChecks",
+            "NoIncrementalLink",
+        }
+        defines
+        { 
+            "LNE_DEBUG",
+            "_DISABLE_VECTOR_ANNOTATION",
+            "_DISABLE_STRING_ANNOTATION",
+            "ASAN_SAVE_DUMP=asanDump.dmp"
+        }
+        sanitize { "Address" }
 
     filter "configurations:Dist"
         symbols "Off"

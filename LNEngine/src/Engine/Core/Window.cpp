@@ -42,12 +42,12 @@ Window::Window(WindowSettings&& settings)
     LNE_INFO("Created window {0} ({1}x{2})", m_Settings.Name, m_Settings.Width, m_Settings.Height);
 
     InitEventCallbacks();
-    m_InputManager.reset(new InputManager());
+    m_InputManager.reset(lnnew InputManager());
 
     VkSurfaceKHR surface;
     glfwCreateWindowSurface(GfxContext::GetVulkanInstance(), m_Handle, nullptr, &surface);
 
-    m_GfxContext.reset(new GfxContext(surface));
+    m_GfxContext.reset(lnnew GfxContext(surface));
 
 }
 

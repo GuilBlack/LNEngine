@@ -1,7 +1,6 @@
 #pragma once
 
 extern lne::ApplicationBase* lne::CreateApplication();
-
 int main(int argc, char** argv)
 {
 #if defined(LNE_DEBUG) && defined(LNE_PLATFORM_WINDOWS)

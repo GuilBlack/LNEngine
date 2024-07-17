@@ -1,5 +1,9 @@
 ﻿#pragma once
 
+#if defined(LNE_DEBUG) && defined(LNE_PLATFORM_WINDOWS)
+#define lnnew   new( _NORMAL_BLOCK, __FILE__, __LINE__)
+#endif
+
 template<typename T>
 using OwnedPtr = std::unique_ptr<T>;
 

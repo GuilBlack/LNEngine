@@ -1,5 +1,6 @@
 #pragma once
 #include "Events.h"
+#include "Engine/Core/Utils/Defines.h"
 
 namespace lne
 {
@@ -38,7 +39,7 @@ public:
         auto it = std::lower_bound(listenerCallbacks.begin(), listenerCallbacks.end(), priority,
             [](ListenerBase* listener, int priority) { return listener->Priority < priority; });
 
-        listenerCallbacks.insert(it, new Listener<EventType, ListenerType>(listener, callback, priority));
+        listenerCallbacks.insert(it, lnnew Listener<EventType, ListenerType>(listener, callback, priority));
 
         m_Listeners[EventType::GetStaticType()].insert(listener);
 

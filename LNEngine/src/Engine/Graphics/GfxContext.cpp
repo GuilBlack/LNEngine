@@ -21,8 +21,8 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
 {
     LNE_ASSERT(s_VulkanInstance, "You should call InitVulkan before trying to create a window!");
     auto vkbPhysicalDevice = PhysicalDevice::VkbSelectPhysicalDevice(s_VkbInstance, surface);
-    m_PhysicalDevice.reset(new PhysicalDevice(vkbPhysicalDevice));
-    m_Device.reset(new Device(vkbPhysicalDevice, surface));
+    m_PhysicalDevice.reset(lnnew PhysicalDevice(vkbPhysicalDevice));
+    m_Device.reset(lnnew Device(vkbPhysicalDevice, surface));
     CreateMemoryAllocator();
 }
 

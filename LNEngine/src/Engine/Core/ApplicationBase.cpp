@@ -24,7 +24,7 @@ ApplicationBase::ApplicationBase(ApplicationSettings&& settings)
     LNE_PROFILE_FUNCTION();
 
     Log::Init();
-    m_EventHub.reset(new EventHub());
+    m_EventHub.reset(lnnew EventHub());
 
     m_EventHub->RegisterListener<WindowCloseEvent>(this, &ApplicationBase::OnWindowClose);
 
@@ -39,7 +39,7 @@ ApplicationBase::ApplicationBase(ApplicationSettings&& settings)
     LNE_ASSERT(GfxContext::InitVulkan(settings.Name), "Failed to initialize Vulkan");
     LNE_INFO("Vulkan initialized");
 
-    m_Window.reset(new Window({ m_Settings.Name, m_Settings.Width, m_Settings.Height }));
+    m_Window.reset(lnnew Window({ m_Settings.Name, m_Settings.Width, m_Settings.Height }));
 
 
     LNE_INFO("Application {0} initialized", m_Settings.Name);
