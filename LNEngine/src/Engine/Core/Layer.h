@@ -15,6 +15,10 @@ public:
 
     inline const std::string& GetName() const { return m_DebugName; }
 
+protected:
+    virtual void BindEventCallbacks(int32_t priority) {}
+
+    friend class ApplicationBase;
 private:
     std::string m_DebugName;
 };

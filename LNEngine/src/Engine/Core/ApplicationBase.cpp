@@ -85,11 +85,13 @@ void ApplicationBase::Run()
 void ApplicationBase::PushLayer(Layer* layer)
 {
     m_LayerStack.PushLayer(layer);
+    layer->BindEventCallbacks(0);
 }
 
 void ApplicationBase::PushOverlay(Layer* overlay)
 {
     m_LayerStack.PushOverlay(overlay);
+    overlay->BindEventCallbacks(-10);
 }
 
 void ApplicationBase::PopLayer(Layer* layer)

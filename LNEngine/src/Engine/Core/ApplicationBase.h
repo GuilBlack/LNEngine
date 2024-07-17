@@ -28,7 +28,18 @@ public:
 
     void Run();
 
+    /// <summary>
+    /// Pushes a layer to the top of the layer stack.
+    /// the default priority for event callbacks given to layers is 0.
+    /// </summary>
+    /// <param name="layer"></param>
     void PushLayer(class Layer* layer);
+
+    /// <summary>
+    /// Pushes an overlay to the top of the layer stack.
+    /// the default priority for event callbacks given to overlays is -10 to ensure they are called before the normal layers.
+    /// </summary>
+    /// <param name="overlay"></param>
     void PushOverlay(class Layer* overlay);
     void PopLayer(class Layer* layer);
     void PopOverlay(class Layer* overlay);
