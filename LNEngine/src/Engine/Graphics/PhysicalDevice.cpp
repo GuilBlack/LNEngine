@@ -31,7 +31,7 @@ vkb::PhysicalDevice PhysicalDevice::VkbSelectPhysicalDevice(const vkb::Instance&
         .set_required_features_12(features12)
         .set_required_features_13(features13);
 
-    auto selectedDevice = physDeviceSelect.select();
+    vkb::Result<vkb::PhysicalDevice> selectedDevice = physDeviceSelect.select();
 
     LNE_ASSERT(selectedDevice, "Failed to select a physical device");
 
@@ -45,5 +45,19 @@ PhysicalDevice::PhysicalDevice(vkb::PhysicalDevice& physicalDevice)
     m_Properties = m_PhysicalDevice.getProperties();
     m_MemoryProperties = physicalDevice.memory_properties;
     m_QueueFamilyProperties = m_PhysicalDevice.getQueueFamilyProperties();
+}
+
+vk::SurfaceCapabilitiesKHR PhysicalDevice::GetSurfaceCapabilities(vk::SurfaceKHR surface) const
+{
+    return m_PhysicalDevice.getSurfaceCapabilitiesKHR(surface);
+}
+
+std::vector<vk::SurfaceFormatKHR> PhysicalDevice::GetSurfaceFormats(vk::SurfaceKHR surface) const
+{
+    return m_PhysicalDevice.getSurfaceFormatsKHR(surface);
+}
+std::vector<vk::PresentModeKHR> PhysicalDevice::GetSurfacePresentModes(vk::SurfaceKHR surface) const
+{
+    return m_PhysicalDevice.getSurfacePresentModesKHR(surface);
 }
 }

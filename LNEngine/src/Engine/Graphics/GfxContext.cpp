@@ -1,7 +1,6 @@
 #include "GfxContext.h"
 #include "Core/Utils/Log.h"
 #include "Core/Utils/_Defines.h"
-#include "VulkanUtils.h"
 #define VMA_IMPLEMENTATION
 #define VMA_STATIC_VULKAN_FUNCTIONS 0
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 0
@@ -23,6 +22,8 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
     auto vkbPhysicalDevice = PhysicalDevice::VkbSelectPhysicalDevice(s_VkbInstance, surface);
     m_PhysicalDevice.reset(lnnew PhysicalDevice(vkbPhysicalDevice));
     m_Device.reset(lnnew Device(vkbPhysicalDevice, surface));
+    SetVkObjectName(m_PhysicalDevice->GetHandle(), vk::ObjectType::ePhysicalDevice, "PhysicalDevice");
+    SetVkObjectName(m_Device->GetHandle(), vk::ObjectType::eDevice, "Device");
     CreateMemoryAllocator();
 }
 

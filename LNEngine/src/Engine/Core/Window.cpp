@@ -8,6 +8,7 @@
 #include "Events/MouseEvents.h"
 #include "Inputs/Inputs.h"
 #include "Graphics/GfxContext.h"
+#include "Graphics/Swapchain.h"
 
 namespace lne
 {
@@ -45,9 +46,11 @@ Window::Window(WindowSettings&& settings)
     m_InputManager.reset(lnnew InputManager());
 
     VkSurfaceKHR surface;
-    glfwCreateWindowSurface(GfxContext::GetVulkanInstance(), m_Handle, nullptr, &surface);
+    glfwCreateWindowSurface(GfxContext::VulkanInstance(), m_Handle, nullptr, &surface);
 
     m_GfxContext.reset(lnnew GfxContext(surface));
+
+    m_SwapChain.reset(lnnew Swapchain(m_GfxContext, surface));
 
 }
 

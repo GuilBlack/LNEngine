@@ -5,14 +5,19 @@ namespace lne
 namespace vkut
 {
 
-std::vector<std::string> filterExtensions(std::vector<std::string>& requiredExtensions, std::vector<std::string>& availableExtensions)
-{
-    std::vector<std::string> result;
-    std::sort(requiredExtensions.begin(), requiredExtensions.end());
-    std::sort(availableExtensions.begin(), availableExtensions.end());
-    std::set_intersection(requiredExtensions.begin(), requiredExtensions.end(), availableExtensions.begin(), availableExtensions.end(), std::back_inserter(result));
-    return result;
-}
+#define VK_CHECK(func)                                                                 \
+  {                                                                                    \
+    const vk::Result result = func;                                                    \
+    if (result != vk::Result::eSuccess) {                                              \
+      std::cerr << "Error calling function " << #func << " at " << __FILE__ << ":"     \
+                << __LINE__ << ". Result is " << result << std::endl; \
+      assert(false);                                                                   \
+    }                                                                                  \
+  }
+
+std::vector<std::string> filterExtensions(std::vector<std::string>& requiredExtensions, std::vector<std::string>& availableExtensions);
+
+vk::PresentModeKHR chooseSwapPresentMode();
 
 }
 }

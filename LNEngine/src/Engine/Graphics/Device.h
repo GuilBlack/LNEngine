@@ -25,14 +25,14 @@ class Device
         }
     };
 public:
-    Device(vkb::PhysicalDevice& physicalDevice, class vk::SurfaceKHR surface);
+    Device(vkb::PhysicalDevice& physicalDevice, vk::SurfaceKHR surface);
     ~Device();
 
-    [[nodiscard]] const class vk::Device& GetHandle() const { return m_Device; }
-    [[nodiscard]] const vk::Queue& GetGraphicsQueue() const { return m_GraphicsQueue; }
-    [[nodiscard]] const vk::Queue& GetComputeQueue() const { return m_ComputeQueue; }
-    [[nodiscard]] const vk::Queue& GetTransferQueue() const { return m_TransferQueue; }
-    [[nodiscard]] const vk::Queue& GetPresentQueue() const { return m_PresentQueue; }
+    [[nodiscard]] vk::Device GetHandle() const { return m_Device; }
+    [[nodiscard]] vk::Queue GetGraphicsQueue() const { return m_GraphicsQueue; }
+    [[nodiscard]] vk::Queue GetComputeQueue() const { return m_ComputeQueue; }
+    [[nodiscard]] vk::Queue GetTransferQueue() const { return m_TransferQueue; }
+    [[nodiscard]] vk::Queue GetPresentQueue() const { return m_PresentQueue; }
 
     [[nodiscard]] const QueueFamilyIndices& GetQueueFamilyIndices() const { return m_QueueFamilyIndices; }
 private:
