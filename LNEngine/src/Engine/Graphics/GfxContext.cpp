@@ -19,19 +19,67 @@ vkb::Instance GfxContext::s_VkbInstance{};
 GfxContext::GfxContext(vk::SurfaceKHR surface)
 {
     LNE_ASSERT(s_VulkanInstance, "You should call InitVulkan before trying to create a window!");
-    auto vkbPhysicalDevice = PhysicalDevice::VkbSelectPhysicalDevice(s_VkbInstance, surface);
-    m_PhysicalDevice.reset(lnnew PhysicalDevice(vkbPhysicalDevice));
-    m_Device.reset(lnnew Device(vkbPhysicalDevice, surface));
-    SetVkObjectName(m_PhysicalDevice->GetHandle(), vk::ObjectType::ePhysicalDevice, "PhysicalDevice");
-    SetVkObjectName(m_Device->GetHandle(), vk::ObjectType::eDevice, "Device");
+
+    // Select a physical device
+    auto vkbPhysicalDevice = VkbSelectPhysicalDevice(s_VkbInstance, surface);
+
+    m_PhysicalDevice = vkbPhysicalDevice.physical_device;
+    m_EnabledFeatures = vkbPhysicalDevice.features;
+    m_Properties = m_PhysicalDevice.getProperties();
+    m_MemoryProperties = vkbPhysicalDevice.memory_properties;
+    m_QueueFamilyProperties = m_PhysicalDevice.getQueueFamilyProperties();
+
+    // Create a logical device
+    auto deviceRet = vkb::DeviceBuilder{ vkbPhysicalDevice }.build();
+    LNE_ASSERT(deviceRet, "Failed to create device");
+    auto deviceVal = deviceRet.value();
+    m_Device = deviceRet.value().device;
+
+    // Get queues
+    auto computeFamilyRet = deviceVal.get_dedicated_queue_index(vkb::QueueType::compute);
+    if (!computeFamilyRet)
+    {
+        computeFamilyRet = deviceVal.get_queue_index(vkb::QueueType::compute);
+        m_QueueFamilyIndices.ComputeFamily = computeFamilyRet.value();
+        m_ComputeQueue = deviceVal.get_queue(vkb::QueueType::compute).value();
+    }
+    else
+    {
+        m_QueueFamilyIndices.ComputeFamily = computeFamilyRet.value();
+        m_ComputeQueue = deviceVal.get_dedicated_queue(vkb::QueueType::compute).value();
+    }
+
+    auto transferFamilyRet = deviceVal.get_dedicated_queue_index(vkb::QueueType::transfer);
+    if (!transferFamilyRet)
+    {
+        transferFamilyRet = deviceVal.get_queue_index(vkb::QueueType::transfer);
+        m_QueueFamilyIndices.TransferFamily = transferFamilyRet.value();
+        m_TransferQueue = deviceVal.get_queue(vkb::QueueType::transfer).value();
+    }
+    else
+    {
+        m_QueueFamilyIndices.TransferFamily = transferFamilyRet.value();
+        m_TransferQueue = deviceVal.get_dedicated_queue(vkb::QueueType::transfer).value();
+    }
+
+    m_QueueFamilyIndices.GraphicsFamily = deviceVal.get_queue_index(vkb::QueueType::graphics).value();
+    m_GraphicsQueue = deviceVal.get_queue(vkb::QueueType::graphics).value();
+    m_QueueFamilyIndices.PresentFamily = deviceVal.get_queue_index(vkb::QueueType::present).value();
+    m_PresentQueue = deviceVal.get_queue(vkb::QueueType::present).value();
+
+    LNE_ASSERT(m_QueueFamilyIndices.IsComplete(), "Failed to find all queue families");
+
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(m_Device);
+
+    SetVkObjectName(m_PhysicalDevice, vk::ObjectType::ePhysicalDevice, "PhysicalDevice");
+    SetVkObjectName(m_Device, vk::ObjectType::eDevice, "Device");
     CreateMemoryAllocator();
 }
 
 GfxContext::~GfxContext()
 {
     vmaDestroyAllocator(m_MemoryAllocator);
-    m_Device.reset();
-    m_PhysicalDevice.reset();
+    m_Device.destroy();
 }
 
 bool GfxContext::InitVulkan(std::string appName)
@@ -114,6 +162,54 @@ void GfxContext::NukeVulkan()
     s_VulkanInstance = nullptr;
 }
 
+vkb::PhysicalDevice GfxContext::VkbSelectPhysicalDevice(const vkb::Instance& instance, vk::SurfaceKHR surface)
+{
+    auto physDeviceSelect = vkb::PhysicalDeviceSelector(instance);
+
+    auto deviceFeatures = VkPhysicalDeviceFeatures{
+        .imageCubeArray = vk::True,
+        .geometryShader = vk::True, // for im3d
+        .depthClamp = vk::True,
+        .samplerAnisotropy = vk::True,
+    };
+
+    auto features12 = VkPhysicalDeviceVulkan12Features{
+        .descriptorIndexing = vk::True,
+    };
+
+    auto features13 = VkPhysicalDeviceVulkan13Features{
+        .synchronization2 = true,
+        .dynamicRendering = true,
+    };
+
+    physDeviceSelect.set_surface(surface)
+        .set_minimum_version(1, 3)
+        .set_required_features(deviceFeatures)
+        .set_required_features_12(features12)
+        .set_required_features_13(features13);
+
+    vkb::Result<vkb::PhysicalDevice> selectedDevice = physDeviceSelect.select();
+
+    LNE_ASSERT(selectedDevice, "Failed to select a physical device");
+
+    return selectedDevice.value();
+}
+
+vk::SurfaceCapabilitiesKHR GfxContext::GetSurfaceCapabilities(vk::SurfaceKHR surface) const
+{
+    return m_PhysicalDevice.getSurfaceCapabilitiesKHR(surface);
+}
+
+std::vector<vk::SurfaceFormatKHR> GfxContext::GetSurfaceFormats(vk::SurfaceKHR surface) const
+{
+    return m_PhysicalDevice.getSurfaceFormatsKHR(surface);
+}
+
+std::vector<vk::PresentModeKHR> GfxContext::GetSurfacePresentModes(vk::SurfaceKHR surface) const
+{
+    return m_PhysicalDevice.getSurfacePresentModesKHR(surface);
+}
+
 VkBool32 VKAPI_CALL GfxContext::DebugPrintfCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
 {
     if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT)
@@ -168,8 +264,8 @@ void GfxContext::CreateMemoryAllocator()
     };
 
     VmaAllocatorCreateInfo allocatorInfo = {
-        .physicalDevice = m_PhysicalDevice->GetHandle(),
-        .device = m_Device->GetHandle(),
+        .physicalDevice = m_PhysicalDevice,
+        .device = m_Device,
         .pVulkanFunctions = &allocatorFunctions,
         .instance = s_VulkanInstance,
         .vulkanApiVersion = VK_API_VERSION_1_3,

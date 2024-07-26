@@ -15,22 +15,20 @@ Swapchain::~Swapchain()
 {
     auto device = m_Context->GetDevice();
 
-    vk::Device vkDevice = device->GetHandle();
-
-    vkDevice.destroySemaphore(m_Semaphores.ImageAvailable);
-    vkDevice.destroySemaphore(m_Semaphores.RenderFinished);
+    device.destroySemaphore(m_Semaphores.ImageAvailable);
+    device.destroySemaphore(m_Semaphores.RenderFinished);
     for (auto& fence : m_WaitFences)
-        vkDevice.destroyFence(fence);
+        device.destroyFence(fence);
 
     for (auto& image : m_Images)
-        vkDevice.destroyImageView(image.ImageView);
-    vkDevice.destroySwapchainKHR(m_Swapchain);
+        device.destroyImageView(image.ImageView);
+    device.destroySwapchainKHR(m_Swapchain);
     m_Context->VulkanInstance().destroySurfaceKHR(m_Surface);
 }
 
 void Swapchain::Present()
 {
-    auto presentQueue = m_Context->GetDevice()->GetPresentQueue();
+    auto presentQueue = m_Context->GetPresentQueue();
 
     const auto presentInfo = vk::PresentInfoKHR(
         1,
@@ -46,20 +44,18 @@ void Swapchain::Present()
 void Swapchain::CreateSwapchain()
 {
     auto device = m_Context->GetDevice();
-    auto vkDevice = device->GetHandle();
-    auto physicalDevice = m_Context->GetPhysicalDevice();
 
-    auto sc = physicalDevice->GetSurfaceCapabilities(m_Surface);
-    vk::SurfaceFormatKHR surfaceFormat = PickSwapchainSurfaceFormat(physicalDevice->GetSurfaceFormats(m_Surface));
-    vk::PresentModeKHR presentMode = PickSwapchainPresentMode(physicalDevice->GetSurfacePresentModes(m_Surface));
+    auto sc = m_Context->GetSurfaceCapabilities(m_Surface);
+    vk::SurfaceFormatKHR surfaceFormat = PickSwapchainSurfaceFormat(m_Context->GetSurfaceFormats(m_Surface));
+    vk::PresentModeKHR presentMode = PickSwapchainPresentMode(m_Context->GetSurfacePresentModes(m_Surface));
 
     vk::SurfaceTransformFlagBitsKHR preTransform = (sc.supportedTransforms & vk::SurfaceTransformFlagBitsKHR::eIdentity)
         ? vk::SurfaceTransformFlagBitsKHR::eIdentity
         : sc.currentTransform;
 
     const uint32_t imageCount = std::clamp(sc.minImageCount + 1, sc.minImageCount, sc.maxImageCount);
-    const auto presentationFamilyIndex = device->GetQueueFamilyIndices().PresentFamily;
-    const auto graphicsFamilyIndex = device->GetQueueFamilyIndices().GraphicsFamily;
+    const auto presentationFamilyIndex = m_Context->GetQueueFamilyIndices().PresentFamily;
+    const auto graphicsFamilyIndex = m_Context->GetQueueFamilyIndices().GraphicsFamily;
 
     const bool sameQueueFamily = presentationFamilyIndex.value() == graphicsFamilyIndex.value();
 
@@ -95,17 +91,17 @@ void Swapchain::CreateSwapchain()
         createInfo.imageUsage |= vk::ImageUsageFlagBits::eTransferDst;
     }
 
-    m_Swapchain = vkDevice.createSwapchainKHR(createInfo);
+    m_Swapchain = device.createSwapchainKHR(createInfo);
     m_Context->SetVkObjectName(m_Swapchain, vk::ObjectType::eSwapchainKHR, "Swapchain");
 
     if (oldSwapchain)
-        vkDevice.destroySwapchainKHR(oldSwapchain);
+        device.destroySwapchainKHR(oldSwapchain);
 
     for (auto& image : m_Images)
-        vkDevice.destroyImageView(image.ImageView);
+        device.destroyImageView(image.ImageView);
 
     m_Images.clear();
-    auto images = vkDevice.getSwapchainImagesKHR(m_Swapchain);
+    auto images = device.getSwapchainImagesKHR(m_Swapchain);
     m_Images.reserve(images.size());
     vk::ImageViewCreateInfo scImageViewCI(
         {},
@@ -120,7 +116,7 @@ void Swapchain::CreateSwapchain()
     {
         m_Context->SetVkObjectName(images[i], vk::ObjectType::eImage, std::format("Swapchain Image: {}", i));
         scImageViewCI.image = images[i];
-        m_Images.push_back({ images[i], vkDevice.createImageView(scImageViewCI, nullptr) });
+        m_Images.push_back({ images[i], device.createImageView(scImageViewCI, nullptr) });
         m_Context->SetVkObjectName(m_Images[i].ImageView, vk::ObjectType::eImageView, std::format("Swapchain ImageView: {}", i));
     }
 }
@@ -128,20 +124,19 @@ void Swapchain::CreateSwapchain()
 void Swapchain::CreateSyncObjects()
 {
     auto device = m_Context->GetDevice();
-    auto vkDevice = device->GetHandle();
 
     vk::SemaphoreCreateInfo semaphoreCI{};
     vk::FenceCreateInfo fenceCI{ vk::FenceCreateFlagBits::eSignaled };
 
-    m_Semaphores.ImageAvailable = vkDevice.createSemaphore(semaphoreCI);
+    m_Semaphores.ImageAvailable = device.createSemaphore(semaphoreCI);
     m_Context->SetVkObjectName(m_Semaphores.ImageAvailable, vk::ObjectType::eSemaphore, "Swapchain Semaphore ImageAvailable");
-    m_Semaphores.RenderFinished = vkDevice.createSemaphore(semaphoreCI);
+    m_Semaphores.RenderFinished = device.createSemaphore(semaphoreCI);
     m_Context->SetVkObjectName(m_Semaphores.RenderFinished, vk::ObjectType::eSemaphore, "Swapchain Semaphore RenderFinished");
 
     m_WaitFences.resize(m_Images.size());
     for (auto& fence : m_WaitFences)
     {
-        fence = vkDevice.createFence(fenceCI);
+        fence = device.createFence(fenceCI);
         m_Context->SetVkObjectName(fence, vk::ObjectType::eFence, "Swapchain Fence");
     }
 }
