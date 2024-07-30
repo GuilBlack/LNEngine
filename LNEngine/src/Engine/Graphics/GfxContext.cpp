@@ -162,6 +162,11 @@ void GfxContext::NukeVulkan()
     s_VulkanInstance = nullptr;
 }
 
+void GfxContext::WaitIdle() const
+{
+    m_Device.waitIdle();
+}
+
 vkb::PhysicalDevice GfxContext::VkbSelectPhysicalDevice(const vkb::Instance& instance, vk::SurfaceKHR surface)
 {
     auto physDeviceSelect = vkb::PhysicalDeviceSelector(instance);
@@ -208,6 +213,84 @@ std::vector<vk::SurfaceFormatKHR> GfxContext::GetSurfaceFormats(vk::SurfaceKHR s
 std::vector<vk::PresentModeKHR> GfxContext::GetSurfacePresentModes(vk::SurfaceKHR surface) const
 {
     return m_PhysicalDevice.getSurfacePresentModesKHR(surface);
+}
+
+std::string GfxContext::GetQueueFamilyName(EQueueFamilyType type) const
+{
+    switch (type)
+    {
+    case EQueueFamilyType::Graphics:
+        return "Graphics";
+    case EQueueFamilyType::Compute:
+        return "Compute";
+    case EQueueFamilyType::Transfer:
+        return "Transfer";
+    case EQueueFamilyType::Present:
+        return "Present";
+    }
+    return std::string();
+}
+
+uint32_t GfxContext::GetQueueFamilyIndex(EQueueFamilyType type) const
+{
+    switch (type)
+    {
+    case EQueueFamilyType::Graphics:
+        return m_QueueFamilyIndices.GraphicsFamily.value();
+    case EQueueFamilyType::Compute:
+        return m_QueueFamilyIndices.ComputeFamily.value();
+    case EQueueFamilyType::Transfer:
+        return m_QueueFamilyIndices.TransferFamily.value();
+    case EQueueFamilyType::Present:
+        return m_QueueFamilyIndices.PresentFamily.value();
+    }
+    LNE_ERROR("Invalid queue family type");
+    throw std::runtime_error("Invalid queue family type");
+}
+
+vk::Queue GfxContext::GetQueue(EQueueFamilyType type) const
+{
+    switch (type)
+    {
+    case EQueueFamilyType::Graphics:
+        return m_GraphicsQueue;
+    case EQueueFamilyType::Compute:
+        return m_ComputeQueue;
+    case EQueueFamilyType::Transfer:
+        return m_TransferQueue;
+    case EQueueFamilyType::Present:
+        return m_PresentQueue;
+    }
+    LNE_ERROR("Invalid queue family type");
+    throw std::runtime_error("Invalid queue family type");
+}
+
+vk::CommandPool GfxContext::CreateCommandPool(uint32_t queueFamilyIndex, vk::CommandPoolCreateFlags flags) const
+{
+    vk::CommandPoolCreateInfo poolInfo(flags, queueFamilyIndex);
+    auto cp = m_Device.createCommandPool(poolInfo);
+    SetVkObjectName(cp, cp.objectType, std::format("CommandPool {}", queueFamilyIndex));
+    return cp;
+}
+
+vk::ImageView GfxContext::CreateImageView(vk::Image image, vk::ImageViewType viewType, vk::Format format, uint32_t numMipLevels, uint32_t layers, vk::ImageAspectFlags aspectMask, const std::string& name)
+{
+    vk::ImageViewCreateInfo createInfo(
+        {},
+        image,
+        viewType,
+        format
+    );
+    createInfo.subresourceRange = vk::ImageSubresourceRange(
+        aspectMask,
+        0,
+        numMipLevels,
+        0,
+        layers
+    );
+    auto imageView = m_Device.createImageView(createInfo);
+    SetVkObjectName(imageView, imageView.objectType, std::format("ImageView: {}", name));
+    return imageView;
 }
 
 VkBool32 VKAPI_CALL GfxContext::DebugPrintfCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)

@@ -7,10 +7,10 @@ namespace vkut
 
 #define VK_CHECK(func)                                                                 \
   {                                                                                    \
-    const vk::Result result = func;                                                    \
-    if (result != vk::Result::eSuccess) {                                              \
+    vk::Result checkResult = func;                                                    \
+    if (checkResult != vk::Result::eSuccess) {                                              \
       std::cerr << "Error calling function " << #func << " at " << __FILE__ << ":"     \
-                << __LINE__ << ". Result is " << result << std::endl; \
+                << __LINE__ << ". Result is " << checkResult << std::endl; \
       assert(false);                                                                   \
     }                                                                                  \
   }

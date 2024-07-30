@@ -9,6 +9,8 @@
 #include "Layer.h"
 #include "Core/Events/ApplicationEvents.h"
 #include "Graphics/GfxContext.h"
+#include "Graphics/Renderer.h"
+#include "Graphics/CommandBufferManager.h"
 
 namespace lne
 {
@@ -41,6 +43,8 @@ ApplicationBase::ApplicationBase(ApplicationSettings&& settings)
 
     m_Window.reset(lnnew Window({ m_Settings.Name, m_Settings.Width, m_Settings.Height }));
 
+    m_Renderer.reset(lnnew Renderer());
+    m_Renderer->Init(m_Window);
 
     LNE_INFO("Application {0} initialized", m_Settings.Name);
     Profiler::Get().EndSession();
@@ -67,11 +71,15 @@ void ApplicationBase::Run()
     {
         LNE_PROFILE_SCOPE("Run Loop");
         m_Clock.Tick();
+
+        m_Window->BeginFrame();
+        m_Renderer->BeginFrame();
         
         for (auto layer : m_LayerStack)
-        {
             layer->OnUpdate(m_Clock.GetDeltaTime());
-        }
+
+        m_Renderer->EndFrame();
+        m_Window->Present();
 
         auto appUpdatedEvent = AppUpdatedEvent();
         m_EventHub->FireEvent(appUpdatedEvent);
@@ -107,6 +115,7 @@ void ApplicationBase::PopOverlay(Layer* overlay)
 bool ApplicationBase::OnWindowClose(WindowCloseEvent& e)
 {
     LNE_INFO("WindowCloseEvent received");
+    m_Renderer->Shutdown();
     return false;
 }
 

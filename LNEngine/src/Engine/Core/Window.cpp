@@ -52,10 +52,12 @@ Window::Window(WindowSettings&& settings)
 
     m_SwapChain.reset(lnnew Swapchain(m_GfxContext, surface));
 
+    ApplicationBase::GetEventHub().RegisterListener<WindowResizeEvent>(this, &Window::OnWindowResize);
 }
 
 Window::~Window()
 {
+    ApplicationBase::GetEventHub().UnregisterListener<WindowResizeEvent>(this);
     LNE_INFO("Destroying window {0}", m_Settings.Name);
     glfwDestroyWindow(m_Handle);
 }
@@ -63,6 +65,22 @@ Window::~Window()
 void Window::PollEvents() const
 {
     glfwPollEvents();
+}
+
+void Window::BeginFrame() const
+{
+    m_SwapChain->BeginFrame();
+}
+
+void Window::Present()
+{
+    bool hasPresented = m_SwapChain->Present();
+    if (hasPresented == false || m_IsDirty == true)
+    {
+        LNE_INFO("Recreating swapchain");
+        m_SwapChain->CreateSwapchain();
+        m_IsDirty = false;
+    }
 }
 
 bool Window::ShouldClose() const
@@ -140,6 +158,19 @@ void Window::InitEventCallbacks()
         MouseMovedEvent e(static_cast<float>(xpos), static_cast<float>(ypos));
         ApplicationBase::GetEventHub().FireEvent(e);
     });
+
+    glfwSetFramebufferSizeCallback(m_Handle, [](GLFWwindow* window, int width, int height)
+    {
+        WindowResizeEvent e(width, height);
+        ApplicationBase::GetEventHub().FireEvent(e);
+    });
 }
 
+bool Window::OnWindowResize(WindowResizeEvent& e)
+{
+    m_IsDirty = true;
+    m_Settings.Width = e.GetWidth();
+    m_Settings.Height = e.GetHeight();
+    return false;
+}
 }

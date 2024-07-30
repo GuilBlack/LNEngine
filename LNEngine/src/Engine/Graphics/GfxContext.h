@@ -4,6 +4,7 @@
 
 #include "VulkanUtils.h"
 #include "Swapchain.h"
+#include "GfxEnums.h"
 
 namespace lne
 {
@@ -32,6 +33,8 @@ public:
     static bool InitVulkan(std::string appName);
     static void NukeVulkan();
 
+    void WaitIdle() const;
+
     static vk::Instance VulkanInstance() { return s_VulkanInstance; }
     class vk::PhysicalDevice GetPhysicalDevice() const { return m_PhysicalDevice; }
     class vk::Device GetDevice() const { return m_Device; }
@@ -49,22 +52,34 @@ public:
 #pragma endregion
 
 #pragma region Queues
-    [[nodiscard]] vk::Queue GetGraphicsQueue() const { return m_GraphicsQueue; }
-    [[nodiscard]] vk::Queue GetComputeQueue() const { return m_ComputeQueue; }
-    [[nodiscard]] vk::Queue GetTransferQueue() const { return m_TransferQueue; }
-    [[nodiscard]] vk::Queue GetPresentQueue() const { return m_PresentQueue; }
-
     [[nodiscard]] const QueueFamilyIndices& GetQueueFamilyIndices() const { return m_QueueFamilyIndices; }
+    [[nodiscard]] std::string GetQueueFamilyName(EQueueFamilyType type) const;
+    [[nodiscard]] uint32_t GetQueueFamilyIndex(EQueueFamilyType type) const;
+    [[nodiscard]] vk::Queue GetQueue(EQueueFamilyType type) const;
+#pragma endregion
+
+#pragma region CommandBuffers
+
+    [[nodiscard]] vk::CommandPool CreateCommandPool(uint32_t queueFamilyIndex, vk::CommandPoolCreateFlags flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer) const;
+
+#pragma endregion
+
+#pragma region Image
+
+    [[nodiscard]] vk::ImageView CreateImageView(vk::Image image, vk::ImageViewType viewType,
+        vk::Format format, uint32_t numMipLevels = 1,
+        uint32_t layers = 1, vk::ImageAspectFlags aspect = vk::ImageAspectFlagBits::eColor, const std::string& name = "");
+
 #pragma endregion
 
     template<typename T>
-    void SetVkObjectName(T handle, vk::ObjectType type, const std::string& name) const
+    void SetVkObjectName(T handle, vk::ObjectType type, std::string_view name) const
     {
     #if defined(VK_EXT_debug_utils)
         const vk::DebugUtilsObjectNameInfoEXT objectNameInfo(
             type,
             reinterpret_cast<uint64_t>(static_cast<T::CType>(handle)),
-            name.c_str()
+            name.data()
         );
         VK_CHECK(m_Device.setDebugUtilsObjectNameEXT(&objectNameInfo));
     #else
@@ -79,7 +94,6 @@ private:
     static vkb::Instance s_VkbInstance;
     static bool s_DynamicLoaderInitialized;
 
-private:
     class vk::PhysicalDevice m_PhysicalDevice;
     class vk::Device m_Device;
     VmaAllocator m_MemoryAllocator;

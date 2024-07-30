@@ -49,10 +49,11 @@ protected:
 
 private:
     ApplicationSettings m_Settings;
-    std::unique_ptr<Window> m_Window;
-    LayerStack m_LayerStack;
-    std::unique_ptr<class EventHub> m_EventHub;
     Clock m_Clock;
+    LayerStack m_LayerStack;
+    std::unique_ptr<Window> m_Window;
+    std::unique_ptr<class EventHub> m_EventHub;
+    std::unique_ptr<class Renderer> m_Renderer;
 
 private:
     static ApplicationBase* s_Instance;

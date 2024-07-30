@@ -1,4 +1,5 @@
 #pragma once
+#include "GfxEnums.h"
 
 namespace lne
 {
@@ -13,21 +14,25 @@ public:
     Swapchain(std::shared_ptr<class GfxContext> ctx, vk::SurfaceKHR surface);
     ~Swapchain();
 
-    void Present();
+    void CreateSwapchain();
 
     [[nodiscard]] uint32_t GetImageCount() const { return static_cast<uint32_t>(m_Images.size()); }
+    [[nodiscard]] uint32_t GetCurrentFrameIndex() const { return m_CurrentFrameIndex; }
+    [[nodiscard]] vk::SubmitInfo GetSubmitInfo(const vk::CommandBuffer* cmdBuffer, 
+        vk::PipelineStageFlags submitStageFlag = vk::PipelineStageFlagBits::eColorAttachmentOutput, 
+        bool waitForImageAvailable = true, bool signalRenderFinished = true) const;
+    [[nodiscard]] std::shared_ptr<class Texture> GetCurrentImage() const;
+
+    void BeginFrame();
+    [[nodiscard]] bool Present();
 
 private:
     std::shared_ptr<class GfxContext> m_Context;
     vk::SwapchainKHR m_Swapchain{};
     vk::SurfaceKHR m_Surface{};
 
-    struct SwapchainImage
-    {
-        vk::Image Image;
-        vk::ImageView ImageView;
-    };
-    std::vector<SwapchainImage> m_Images;
+    std::vector<std::shared_ptr<class Texture>> m_Images;
+    std::vector<class Framebuffer> m_Framebuffers;
 
     struct SwapchainSemaphores
     {
@@ -35,11 +40,9 @@ private:
         vk::Semaphore RenderFinished;
     } m_Semaphores;
 
-    std::vector<vk::Fence> m_WaitFences;
-
-    uint32_t m_CurrentImageIndex{ 0 };
+    uint32_t m_CurrentFrameIndex{ 0 };
+    uint32_t m_ImageIndex{ 0 };
 private:
-    void CreateSwapchain();
     void CreateSyncObjects();
 
     vk::SurfaceFormatKHR PickSwapchainSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
