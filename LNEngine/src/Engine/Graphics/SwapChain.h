@@ -17,11 +17,13 @@ public:
     void CreateSwapchain();
 
     [[nodiscard]] uint32_t GetImageCount() const { return static_cast<uint32_t>(m_Images.size()); }
-    [[nodiscard]] uint32_t GetCurrentFrameIndex() const { return m_CurrentFrameIndex; }
+    [[nodiscard]] uint32_t GetCurrentFrameIndex() const { return m_CurrentImageIndex; }
     [[nodiscard]] vk::SubmitInfo GetSubmitInfo(const vk::CommandBuffer* cmdBuffer, 
-        vk::PipelineStageFlags submitStageFlag = vk::PipelineStageFlagBits::eColorAttachmentOutput, 
+        vk::PipelineStageFlags* submitStageFlag, 
         bool waitForImageAvailable = true, bool signalRenderFinished = true) const;
     [[nodiscard]] std::shared_ptr<class Texture> GetCurrentImage() const;
+
+    [[nodiscard]] class Framebuffer& GetCurrentFramebuffer();
 
     void BeginFrame();
     [[nodiscard]] bool Present();
@@ -38,10 +40,12 @@ private:
     {
         vk::Semaphore ImageAvailable;
         vk::Semaphore RenderFinished;
-    } m_Semaphores;
+    };
+    SwapchainSemaphores m_Semaphores;
+    vk::Fence m_AcquireFence;
 
-    uint32_t m_CurrentFrameIndex{ 0 };
-    uint32_t m_ImageIndex{ 0 };
+    uint32_t m_CurrentImageIndex{ 0 };
+    uint32_t m_FrameIndex{ 0 };
 private:
     void CreateSyncObjects();
 

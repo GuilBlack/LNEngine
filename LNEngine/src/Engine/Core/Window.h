@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "Engine/Graphics/Framebuffer.h"
 
 namespace lne
 {
@@ -21,6 +22,8 @@ public:
 
     [[nodiscard]] uint32_t GetWidth() const { return m_Settings.Width; }
     [[nodiscard]] uint32_t GetHeight() const { return m_Settings.Height; }
+
+    [[nodiscard]] Framebuffer& GetCurrentFramebuffer() const;
 
     void PollEvents() const;
     void BeginFrame() const;

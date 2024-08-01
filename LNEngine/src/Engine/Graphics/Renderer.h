@@ -15,8 +15,8 @@ public:
     void BeginFrame();
     void EndFrame();
 
-    void BeginRenderPass(class Framebuffer& framebuffer);
-    void EndRenderPass(class Framebuffer& framebuffer);
+    void BeginRenderPass(const class Framebuffer& framebuffer) const;
+    void EndRenderPass(const class Framebuffer& framebuffer) const;
 
 private:
     std::shared_ptr<class GfxContext> m_Context;

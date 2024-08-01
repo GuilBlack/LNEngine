@@ -14,6 +14,16 @@ class AppLayer final : public lne::Layer
 
     void OnUpdate(float deltaTime) override
     {
+        static int frameIndex = 0;
+        ++frameIndex;
+        auto& fb = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
+
+        vk::ClearColorValue clearValue;
+        float flash = std::abs(std::sin(frameIndex / 120.f));
+        clearValue = { 0.0f, 0.0f, flash, 1.0f };
+        fb.SetClearColor(clearValue);
+        lne::ApplicationBase::GetRenderer().BeginRenderPass(fb);
+        lne::ApplicationBase::GetRenderer().EndRenderPass(fb);
     }
 
 private:

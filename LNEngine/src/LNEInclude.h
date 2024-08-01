@@ -9,6 +9,10 @@
 #include "Engine/Core/Events/MouseEvents.h"
 #include "Engine/Core/Events/WindowEvents.h"
 #include "Engine/Core/Inputs/InputCodes.h"
+#include "Engine/Graphics/Renderer.h"
+#include "Engine/Graphics/Framebuffer.h"
+
+#include <vulkan/vulkan.hpp>
 
 // Entry point
 #include "Engine/Main.h"

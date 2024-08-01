@@ -4,6 +4,7 @@
 #include "GfxContext.h"
 #include "CommandBufferManager.h"
 #include "Texture.h"
+#include "Framebuffer.h"
 
 namespace lne
 {
@@ -22,18 +23,10 @@ void Renderer::Shutdown()
 
 void Renderer::BeginFrame()
 {
-    static uint32_t frameIndex = 0;
-    ++frameIndex;
     uint32_t imageIndex = m_Swapchain->GetCurrentFrameIndex();
     m_GraphicsCommandBufferManager->StartCommandBuffer(imageIndex);
     auto currentImage = m_Swapchain->GetCurrentImage();
     currentImage->TransitionLayout(m_GraphicsCommandBufferManager->GetCurrentCommandBuffer(), vk::ImageLayout::eGeneral);
-
-    vk::ClearColorValue clearValue;
-    float flash = std::abs(std::sin(frameIndex / 120.f));
-    clearValue = { 0.0f, 0.0f, flash, 1.0f };
-    vk::ImageSubresourceRange clearRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
-    m_GraphicsCommandBufferManager->GetCurrentCommandBuffer().clearColorImage(currentImage->GetImage(), vk::ImageLayout::eGeneral, clearValue, clearRange);
 }
 
 void Renderer::EndFrame()
@@ -42,13 +35,17 @@ void Renderer::EndFrame()
     currentImage->TransitionLayout(m_GraphicsCommandBufferManager->GetCurrentCommandBuffer(), vk::ImageLayout::ePresentSrcKHR);
 
     const vk::CommandBuffer& cb = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
-    vk::SubmitInfo submitInfo = m_Swapchain->GetSubmitInfo(&cb, vk::PipelineStageFlagBits::eColorAttachmentOutput, false);
+    vk::PipelineStageFlags waitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
+    vk::SubmitInfo submitInfo = m_Swapchain->GetSubmitInfo(&cb, waitStages);
     m_GraphicsCommandBufferManager->Submit(submitInfo);
 }
 
-void Renderer::BeginRenderPass(Framebuffer& framebuffer)
+void Renderer::BeginRenderPass(const Framebuffer& framebuffer) const
 {
+    framebuffer.Bind(m_GraphicsCommandBufferManager->GetCurrentCommandBuffer());
 }
-void Renderer::EndRenderPass(Framebuffer& framebuffer)
-{}
+void Renderer::EndRenderPass(const Framebuffer& framebuffer) const
+{
+    framebuffer.Unbind(m_GraphicsCommandBufferManager->GetCurrentCommandBuffer());
+}
 }

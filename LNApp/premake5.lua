@@ -59,10 +59,10 @@ project "LNApp"
         {
             "LNE_PLATFORM_WINDOWS"
         }
-
+        
         includedirs
         {
-            "C:/VulkanSDK/1.3.268.0/Include"
+            os.getenv("VULKAN_SDK") .. "/Include"
         }
 
         postbuildcommands

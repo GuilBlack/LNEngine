@@ -25,6 +25,8 @@ public:
     [[nodiscard]] static EventHub& GetEventHub() { return *s_Instance->m_EventHub; }
     [[nodiscard]] static class InputManager& GetInputManager() { return *s_Instance->m_Window->m_InputManager; }
     [[nodiscard]] static class Clock& GetClock() { return s_Instance->m_Clock; }
+    [[nodiscard]] static class Window& GetWindow() { return *s_Instance->m_Window; }
+    [[nodiscard]] static class Renderer& GetRenderer() { return *s_Instance->m_Renderer; }
 
     void Run();
 

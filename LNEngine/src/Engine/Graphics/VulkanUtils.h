@@ -15,9 +15,14 @@ namespace vkut
     }                                                                                  \
   }
 
-std::vector<std::string> filterExtensions(std::vector<std::string>& requiredExtensions, std::vector<std::string>& availableExtensions);
+std::vector<std::string> FilterExtensions(std::vector<std::string>& requiredExtensions, std::vector<std::string>& availableExtensions);
 
-vk::PresentModeKHR chooseSwapPresentMode();
+vk::SemaphoreSubmitInfo CreateSemaphoreSubmitInfo(vk::PipelineStageFlags2 stageMask, vk::Semaphore semaphore);
+
+vk::SubmitInfo2 SubmitInfo(vk::CommandBufferSubmitInfo* cmd, vk::SemaphoreSubmitInfo* signalSemaphoreInfo,
+    vk::SemaphoreSubmitInfo* waitSemaphoreInfo);
+
+vk::CommandBufferSubmitInfo CommandBufferSubmitInfo(vk::CommandBuffer cmdBuffer);
 
 }
 }

@@ -107,7 +107,7 @@ bool GfxContext::InitVulkan(std::string appName)
         availableLayers.push_back(validationLayer.layerName);
     }
     std::vector<std::string> requiredLayers = { "VK_LAYER_KHRONOS_validation" };
-    std::vector<std::string> instanceLayers = vkut::filterExtensions(requiredLayers, availableLayers);
+    std::vector<std::string> instanceLayers = vkut::FilterExtensions(requiredLayers, availableLayers);
 
     auto instanceBuilder = vkb::InstanceBuilder()
         .set_debug_callback(&GfxContext::DebugPrintfCallback)
@@ -136,7 +136,7 @@ bool GfxContext::InitVulkan(std::string appName)
         VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
         VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
     };
-    std::vector<std::string> instanceExtensions = vkut::filterExtensions(requiredExtensions,
+    std::vector<std::string> instanceExtensions = vkut::FilterExtensions(requiredExtensions,
         availableExtensions
     );
 

@@ -19,6 +19,7 @@ Swapchain::~Swapchain()
 
     device.destroySemaphore(m_Semaphores.ImageAvailable);
     device.destroySemaphore(m_Semaphores.RenderFinished);
+    device.destroyFence(m_AcquireFence);
 
     m_Images.clear();
 
@@ -26,11 +27,8 @@ Swapchain::~Swapchain()
     m_Context->VulkanInstance().destroySurfaceKHR(m_Surface);
 }
 
-vk::SubmitInfo Swapchain::GetSubmitInfo(const vk::CommandBuffer* cmdBuffer, vk::PipelineStageFlags submitStageFlag, bool waitForImageAvailable, bool signalRenderFinished) const
+vk::SubmitInfo Swapchain::GetSubmitInfo(const vk::CommandBuffer* cmdBuffer, vk::PipelineStageFlags* waitStages, bool waitForImageAvailable, bool signalRenderFinished) const
 {
-    // TODO: use the submitStageFlag
-    vk::PipelineStageFlags waitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
-
     vk::SubmitInfo submitInfo(
         waitForImageAvailable ? 1 : 0,
         waitForImageAvailable ? &m_Semaphores.ImageAvailable : nullptr,
@@ -46,14 +44,21 @@ vk::SubmitInfo Swapchain::GetSubmitInfo(const vk::CommandBuffer* cmdBuffer, vk::
 
 std::shared_ptr<class Texture> Swapchain::GetCurrentImage() const
 {
-    return m_Images[m_CurrentFrameIndex];
+    return m_Images[m_CurrentImageIndex];
+}
+
+Framebuffer& Swapchain::GetCurrentFramebuffer()
+{
+    return m_Framebuffers[m_CurrentImageIndex];
 }
 
 void Swapchain::BeginFrame()
 {
     auto device = m_Context->GetDevice();
-    auto result = device.acquireNextImageKHR(m_Swapchain, UINT64_MAX, m_Semaphores.ImageAvailable);
-    m_CurrentFrameIndex = result.value;
+    device.waitForFences(m_AcquireFence, VK_TRUE, UINT64_MAX);
+    device.resetFences(m_AcquireFence);
+    auto result = device.acquireNextImageKHR(m_Swapchain, UINT64_MAX, m_Semaphores.ImageAvailable, m_AcquireFence);
+    m_CurrentImageIndex = result.value;
 
     if (result.result == vk::Result::eErrorOutOfDateKHR)
         CreateSwapchain();
@@ -70,11 +75,11 @@ bool Swapchain::Present()
         &m_Semaphores.RenderFinished,
         1,
         &m_Swapchain,
-        &m_CurrentFrameIndex
+        &m_CurrentImageIndex
     );
 
     vk::Result result = presentQueue.presentKHR(presentInfo);
-
+    m_FrameIndex = (m_FrameIndex + 1) % m_Images.size();
     if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR)
         return false;
 
@@ -145,10 +150,20 @@ void Swapchain::CreateSwapchain()
     m_Images.resize(images.size());
     m_Framebuffers.reserve(images.size());
 
+    AttachmentDesc colorAttachmentDesc{
+        .LoadOp = vk::AttachmentLoadOp::eClear,
+        .StoreOp = vk::AttachmentStoreOp::eStore,
+        .InitialLayout = vk::ImageLayout::eColorAttachmentOptimal,
+        .FinalLayout = vk::ImageLayout::ePresentSrcKHR,
+        .ClearValue = vk::ClearColorValue{1.0f, 0.0f, 1.0f, 1.0f},
+    };
+
     for (uint32_t i = 0; i < images.size(); ++i)
     {
         m_Context->SetVkObjectName(images[i], vk::ObjectType::eImage, std::format("Image: Swapchain {}", i));
         m_Images[i].reset(new Texture(m_Context, images[i], surfaceFormat.format, vk::Extent3D(sc.currentExtent, 1), 1, std::format("Swapchain {}", i)));
+        colorAttachmentDesc.Texture = m_Images[i];
+        m_Framebuffers.emplace_back(Framebuffer(m_Context, { colorAttachmentDesc }, {}));
     }
 }
 
@@ -156,11 +171,17 @@ void Swapchain::CreateSyncObjects()
 {
     auto device = m_Context->GetDevice();
 
+    vk::FenceCreateInfo fenceCI{ vk::FenceCreateFlagBits::eSignaled };
+    m_AcquireFence = device.createFence(fenceCI);
+
     vk::SemaphoreCreateInfo semaphoreCI{};
 
-    m_Semaphores.ImageAvailable = device.createSemaphore(semaphoreCI);
+    m_Semaphores = SwapchainSemaphores{
+        .ImageAvailable = device.createSemaphore(semaphoreCI),
+        .RenderFinished = device.createSemaphore(semaphoreCI)
+    };
+
     m_Context->SetVkObjectName(m_Semaphores.ImageAvailable, vk::ObjectType::eSemaphore, "Swapchain Semaphore ImageAvailable");
-    m_Semaphores.RenderFinished = device.createSemaphore(semaphoreCI);
     m_Context->SetVkObjectName(m_Semaphores.RenderFinished, vk::ObjectType::eSemaphore, "Swapchain Semaphore RenderFinished");
 }
 
