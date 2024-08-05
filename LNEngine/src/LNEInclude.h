@@ -11,6 +11,7 @@
 #include "Engine/Core/Inputs/InputCodes.h"
 #include "Engine/Graphics/Renderer.h"
 #include "Engine/Graphics/Framebuffer.h"
+#include "Engine/Graphics/Pipeline.h"
 
 #include <vulkan/vulkan.hpp>
 

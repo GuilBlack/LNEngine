@@ -5,6 +5,8 @@
 #include "VulkanUtils.h"
 #include "Swapchain.h"
 #include "GfxEnums.h"
+#include "Enums.h"
+#include "Shader.h"
 
 namespace lne
 {
@@ -69,6 +71,12 @@ public:
     [[nodiscard]] vk::ImageView CreateImageView(vk::Image image, vk::ImageViewType viewType,
         vk::Format format, uint32_t numMipLevels = 1,
         uint32_t layers = 1, vk::ImageAspectFlags aspect = vk::ImageAspectFlagBits::eColor, const std::string& name = "");
+
+#pragma endregion
+
+#pragma region Shader
+
+    [[nodiscard]] std::shared_ptr<Shader> CreateShader(std::string_view filePath, EShaderStage shaderStage) const;
 
 #pragma endregion
 

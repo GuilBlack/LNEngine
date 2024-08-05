@@ -33,7 +33,6 @@ project "LNApp"
     
     filter "system:linux"
         cppdialect "C++20"
-        staticruntime "On"
         systemversion "latest"
         defines 
         {
@@ -53,7 +52,6 @@ project "LNApp"
 
     filter "system:windows"
         cppdialect "C++20"
-        staticruntime "On"
         systemversion "latest"
         defines 
         {
@@ -67,13 +65,12 @@ project "LNApp"
 
         postbuildcommands
         {
-            "call " .. os.realpath("..\\LNEngine\\res\\Shaders\\CompileScripts\\BuildShaders.bat"),
-            "{COPY} %{wks.location}LNEngine/res/Shaders/Compiled " .. "%{wks.locatSion}/LNApp/res/Shaders/Compiled/Engine",
-            "call " .. os.realpath("res\\Shaders\\CompileScripts\\BuildShaders.bat"),
-            "{COPY} res/Shaders/Compiled " .. "%{cfg.targetdir}/res/Shaders/Compiled"
+            "call " .. os.realpath("Assets\\Shaders\\CompileScripts\\BuildShaders.bat"),
+            "{COPY} Assets/Shaders/Compiled " .. "%{cfg.targetdir}/Assets/Shaders/Compiled"
         }
 
     filter "configurations:Debug"
+        runtime "Debug"
         symbols "On"
         optimize "Off"
         editandcontinue "Off"
@@ -91,7 +88,10 @@ project "LNApp"
         }
         sanitize { "Address" }
 
+        linkoptions { "/ignore:4099" }
+
     filter "configurations:Release"
+        runtime "Release"
         symbols "On"
         optimize "On"
         editandcontinue "Off"
@@ -110,6 +110,7 @@ project "LNApp"
         sanitize { "Address" }
 
     filter "configurations:Dist"
+        runtime "Release"
         symbols "Off"
         optimize "On"
         defines "NDEBUG"

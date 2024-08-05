@@ -57,7 +57,7 @@ std::vector<vk::CommandBuffer> CommandBufferManager::AllocateCommandBuffers(uint
     );
     auto cbs = device.allocateCommandBuffers(allocInfo);
 
-    for (int i = 0; i < count; ++i)
+    for (uint32_t i = 0; i < count; ++i)
         m_Context->SetVkObjectName(cbs[i], vk::CommandBuffer::objectType, std::format("CommandBuffer: {}, {}", cbName, i));
 
     return cbs;

@@ -25,7 +25,6 @@ project "VkBootstrap"
 
     filter "system:linux"
         cppdialect "C++20"
-        staticruntime "On"
         systemversion "latest"
 
         includedirs
@@ -41,7 +40,6 @@ project "VkBootstrap"
 
     filter "system:windows"
         cppdialect "C++20"
-        staticruntime "On"
         systemversion "latest"
 
         includedirs

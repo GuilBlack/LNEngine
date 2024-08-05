@@ -34,7 +34,6 @@ project "LNEngine"
     links
     {
         "vulkan-1",
-        "volk",
         "GLFW",
         "GLM",
         "SPDLOG",
@@ -51,7 +50,6 @@ project "LNEngine"
 
     filter "system:linux"
         cppdialect "C++20"
-        staticruntime "On"
         systemversion "latest"
         defines 
         {
@@ -70,7 +68,6 @@ project "LNEngine"
 
     filter "system:windows"
         cppdialect "C++20"
-        staticruntime "On"
         systemversion "latest"
         defines 
         {
@@ -88,6 +85,7 @@ project "LNEngine"
         }
 
     filter "configurations:Debug"
+        runtime "Debug"
         symbols "On"
         optimize "Off"
         editandcontinue "Off"
@@ -103,9 +101,14 @@ project "LNEngine"
             "_DISABLE_STRING_ANNOTATION",
             "ASAN_SAVE_DUMP=asanDump.dmp"
         }
+        links 
+        {
+            "shaderc_combinedd"
+        }
         sanitize { "Address" }
 
     filter "configurations:Release"
+        runtime "Release"
         symbols "On"
         optimize "On"
         editandcontinue "Off"
@@ -121,9 +124,18 @@ project "LNEngine"
             "_DISABLE_STRING_ANNOTATION",
             "ASAN_SAVE_DUMP=asanDump.dmp"
         }
+        links 
+        {
+            "shaderc_combinedd"
+        }
         sanitize { "Address" }
 
     filter "configurations:Dist"
+        runtime "Release"
         symbols "Off"
         optimize "On"
         defines { "NDEBUG" }
+        links 
+        {
+            "shaderc_combinedd"
+        }

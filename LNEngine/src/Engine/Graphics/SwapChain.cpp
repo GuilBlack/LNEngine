@@ -55,7 +55,8 @@ Framebuffer& Swapchain::GetCurrentFramebuffer()
 void Swapchain::BeginFrame()
 {
     auto device = m_Context->GetDevice();
-    device.waitForFences(m_AcquireFence, VK_TRUE, UINT64_MAX);
+
+    VK_CHECK(device.waitForFences(m_AcquireFence, VK_TRUE, UINT64_MAX));
     device.resetFences(m_AcquireFence);
     auto result = device.acquireNextImageKHR(m_Swapchain, UINT64_MAX, m_Semaphores.ImageAvailable, m_AcquireFence);
     m_CurrentImageIndex = result.value;
@@ -127,7 +128,7 @@ void Swapchain::CreateSwapchain()
         vk::True,
         oldSwapchain
     );
-
+    
     if (sc.supportedUsageFlags & vk::ImageUsageFlagBits::eTransferSrc)
     {
         createInfo.imageUsage |= vk::ImageUsageFlagBits::eTransferSrc;
@@ -139,7 +140,7 @@ void Swapchain::CreateSwapchain()
 
     m_Swapchain = device.createSwapchainKHR(createInfo);
     m_Context->SetVkObjectName(m_Swapchain, vk::ObjectType::eSwapchainKHR, "Swapchain");
-
+    m_Viewport = Viewport(sc.currentExtent);
     if (oldSwapchain)
         device.destroySwapchainKHR(oldSwapchain);
 

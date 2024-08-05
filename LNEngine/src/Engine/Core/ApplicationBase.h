@@ -27,6 +27,7 @@ public:
     [[nodiscard]] static class Clock& GetClock() { return s_Instance->m_Clock; }
     [[nodiscard]] static class Window& GetWindow() { return *s_Instance->m_Window; }
     [[nodiscard]] static class Renderer& GetRenderer() { return *s_Instance->m_Renderer; }
+    [[nodiscard]] static const std::string& GetAssetsPath();
 
     void Run();
 
@@ -56,7 +57,6 @@ private:
     std::unique_ptr<Window> m_Window;
     std::unique_ptr<class EventHub> m_EventHub;
     std::unique_ptr<class Renderer> m_Renderer;
-
 private:
     static ApplicationBase* s_Instance;
 };

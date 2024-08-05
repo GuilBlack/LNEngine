@@ -15,12 +15,14 @@
 namespace lne
 {
 ApplicationBase* ApplicationBase::s_Instance = nullptr;
+std::string s_AssetsPath;
 
 ApplicationBase::ApplicationBase(ApplicationSettings&& settings)
     : m_Settings(std::move(settings))
 {
     LNE_ASSERT(!s_Instance, "Application already exists");
     s_Instance = this;
+    s_AssetsPath = std::filesystem::current_path().string() + "/Assets/";
 
     Profiler::Get().BeginSession("Init");
     LNE_PROFILE_FUNCTION();
@@ -59,6 +61,11 @@ ApplicationBase::~ApplicationBase()
 
     LNE_INFO("Application {0} nuked", m_Settings.Name);
     Log::Nuke();
+}
+
+const std::string& ApplicationBase::GetAssetsPath()
+{
+    return s_AssetsPath;
 }
 
 void ApplicationBase::Run()

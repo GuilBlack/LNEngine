@@ -1,10 +1,10 @@
 @echo off
 
-echo "Engine Building Engine Shaders..."
+echo "Building App Shaders..."
 
-set GLSLC="C:\VulkanSDK\1.3.268.0\Bin\glslc.exe"
-set SHADER_PATH="res\Shaders"
-set COMPILED_PATH="res\Shaders\Compiled"
+set GLSLC="C:\VulkanSDK\1.3.283.0\Bin\glslc.exe"
+set SHADER_PATH="Assets\Shaders"
+set COMPILED_PATH="Assets\Shaders\Compiled"
 
 for %%f in (%SHADER_PATH%\*.vert) do (
     %GLSLC% %%f -o %COMPILED_PATH%\%%~nf.vert.spv
@@ -30,4 +30,4 @@ for %%f in (%SHADER_PATH%\*.tese) do (
     %GLSLC% %%f -o %COMPILED_PATH%\%%~nf.tese.spv
 )
 
-echo "Shaders Built!"
+echo "App Shaders Built!"

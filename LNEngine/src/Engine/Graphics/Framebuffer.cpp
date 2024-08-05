@@ -13,6 +13,8 @@ Framebuffer::Framebuffer(std::shared_ptr<class GfxContext> ctx, std::vector<Atta
     , m_DepthAttachment{ depth }
 {
     LNE_ASSERT(m_ColorAttachments.size() > 0, "Framebuffer must have at least one color attachment");
+    if (m_DepthAttachment.Texture != nullptr)
+        m_HasDepth = true;
 }
 
 void Framebuffer::SetClearColor(const vk::ClearColorValue& color)

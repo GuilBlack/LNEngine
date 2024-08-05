@@ -6,6 +6,9 @@
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 0
 #include <vk_mem_alloc.h>
 
+#include "Shader.h"
+#include "Core/ApplicationBase.h"
+
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 constexpr bool DEBUG_SHADER_PRINTF_CALLBACK = false;
@@ -291,6 +294,13 @@ vk::ImageView GfxContext::CreateImageView(vk::Image image, vk::ImageViewType vie
     auto imageView = m_Device.createImageView(createInfo);
     SetVkObjectName(imageView, imageView.objectType, std::format("ImageView: {}", name));
     return imageView;
+}
+
+std::shared_ptr<Shader> GfxContext::CreateShader(std::string_view filePath, EShaderStage shaderStage) const
+{
+    std::shared_ptr<Shader> shader;
+    shader.reset(new Shader(ApplicationBase::GetWindow().GetGfxContext(), filePath, shaderStage));
+    return shader;
 }
 
 VkBool32 VKAPI_CALL GfxContext::DebugPrintfCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)

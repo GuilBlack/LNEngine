@@ -3,6 +3,29 @@
 
 namespace lne
 {
+
+struct Viewport
+{
+    Viewport(const vk::Extent2D& extent) : m_Viewport(0.0f, 0.0f, static_cast<float>(extent.width), static_cast<float>(extent.height), 0.0f, 1.0f) {}
+    Viewport() = default;
+    Viewport(const Viewport&) = default;
+    Viewport& operator=(const Viewport&) = default;
+    Viewport(const vk::Viewport& vp) : m_Viewport(vp) {}
+
+    Viewport& operator=(const vk::Viewport& vp) { m_Viewport = vp; return *this; }
+    Viewport& operator=(const vk::Extent2D& extent)
+    {
+        m_Viewport = vk::Viewport(0.0f, 0.0f, static_cast<float>(extent.width), static_cast<float>(extent.height), 0.0f, 1.0f); return *this;
+    }
+
+    vk::Extent2D GetExtent() const { return vk::Extent2D(static_cast<uint32_t>(m_Viewport.width), static_cast<uint32_t>(m_Viewport.height)); }
+
+    const vk::Viewport& GetViewport() const { return m_Viewport; }
+    const vk::Rect2D GetScissor() const { return vk::Rect2D({ 0, 0 }, GetExtent()); }
+    
+private:
+    vk::Viewport m_Viewport;
+};
 class Swapchain
 {
 public:
@@ -22,6 +45,7 @@ public:
         vk::PipelineStageFlags* submitStageFlag, 
         bool waitForImageAvailable = true, bool signalRenderFinished = true) const;
     [[nodiscard]] std::shared_ptr<class Texture> GetCurrentImage() const;
+    [[nodiscard]] Viewport GetViewport() const { return m_Viewport; }
 
     [[nodiscard]] class Framebuffer& GetCurrentFramebuffer();
 
@@ -32,6 +56,7 @@ private:
     std::shared_ptr<class GfxContext> m_Context;
     vk::SwapchainKHR m_Swapchain{};
     vk::SurfaceKHR m_Surface{};
+    Viewport m_Viewport;
 
     std::vector<std::shared_ptr<class Texture>> m_Images;
     std::vector<class Framebuffer> m_Framebuffers;

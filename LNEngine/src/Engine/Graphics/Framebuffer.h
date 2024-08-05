@@ -16,10 +16,11 @@ struct AttachmentDesc
 class Framebuffer
 {
 public:
+    Framebuffer() = default;
     Framebuffer(
         std::shared_ptr<class GfxContext> ctx, 
         std::vector<AttachmentDesc> attachments,
-        AttachmentDesc depth);
+        AttachmentDesc depth = {});
     ~Framebuffer() = default;
 
     void SetClearColor(const vk::ClearColorValue& color);
@@ -28,11 +29,14 @@ public:
     void Unbind(vk::CommandBuffer cmdBuffer) const;
 
     [[nodiscard]] const std::vector<AttachmentDesc>& GetColorAttachments() const { return m_ColorAttachments; }
-    [[nodiscard]] const AttachmentDesc& GetDepthDepth() const { return m_DepthAttachment; }
+    [[nodiscard]] const AttachmentDesc& GetDepthAttachment() const { return m_DepthAttachment; }
+    [[nodiscard]] bool HasDepth() const { return m_HasDepth; }
+
 
 private:
     std::shared_ptr<class GfxContext> m_Context;
     std::vector<AttachmentDesc> m_ColorAttachments;
     AttachmentDesc m_DepthAttachment;
+    bool m_HasDepth = false;
 };
 }
