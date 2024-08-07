@@ -126,7 +126,7 @@ project "LNEngine"
         }
         links 
         {
-            "shaderc_combinedd"
+            "shaderc_combined"
         }
         sanitize { "Address" }
 
@@ -137,5 +137,5 @@ project "LNEngine"
         defines { "NDEBUG" }
         links 
         {
-            "shaderc_combinedd"
+            "shaderc_combined"
         }

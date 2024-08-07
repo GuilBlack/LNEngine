@@ -3,6 +3,7 @@
 #include "Texture.h"
 #include "Framebuffer.h"
 #include "Core/Utils/Defines.h"
+#include "Core/Utils/Log.h"
 
 namespace lne
 {
@@ -207,12 +208,12 @@ vk::PresentModeKHR Swapchain::PickSwapchainPresentMode(const std::vector<vk::Pre
     {
         if (availablePresentMode == vk::PresentModeKHR::eMailbox)
         {
-            std::cout << "Present mode: Mailbox" << std::endl;
+            LNE_INFO("Present mode: Mailbox");
             return availablePresentMode;
         }
     }
 
-    std::cout << "Present mode: V-Sync" << std::endl;
+    LNE_INFO("Present mode: V-Sync");
     return vk::PresentModeKHR::eFifo;
 }
 

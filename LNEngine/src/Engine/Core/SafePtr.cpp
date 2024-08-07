@@ -4,6 +4,7 @@
 
 namespace lne
 {
+#ifdef LNE_DEBUG
 void RefCountBase::Capture() const
 {
     ++m_Count;
@@ -17,4 +18,5 @@ uint32_t RefCountBase::Release() const
     LNE_TRACE("Release {0}: {1}", typeid(*this).name(), m_Count.load());
     return m_Count.load();
 }
+#endif
 }
