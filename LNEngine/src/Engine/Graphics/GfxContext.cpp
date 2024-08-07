@@ -8,6 +8,7 @@
 
 #include "Shader.h"
 #include "Core/ApplicationBase.h"
+#include "Engine/Graphics/Texture.h"
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
@@ -296,10 +297,10 @@ vk::ImageView GfxContext::CreateImageView(vk::Image image, vk::ImageViewType vie
     return imageView;
 }
 
-std::shared_ptr<Shader> GfxContext::CreateShader(std::string_view filePath, EShaderStage shaderStage) const
+SafePtr<Shader> GfxContext::CreateShader(std::string_view filePath, EShaderStage shaderStage)
 {
-    std::shared_ptr<Shader> shader;
-    shader.reset(new Shader(ApplicationBase::GetWindow().GetGfxContext(), filePath, shaderStage));
+    SafePtr<Shader> shader;
+    shader.Reset(lnnew Shader(SafePtr(this), filePath, shaderStage));
     return shader;
 }
 

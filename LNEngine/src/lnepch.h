@@ -11,6 +11,8 @@
 #include <thread>
 #include <mutex>
 #include <filesystem>
+#include <cstddef>
+#include <atomic>
 
 // Data Structures
 #include <string>

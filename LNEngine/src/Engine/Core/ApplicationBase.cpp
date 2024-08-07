@@ -11,6 +11,7 @@
 #include "Graphics/GfxContext.h"
 #include "Graphics/Renderer.h"
 #include "Graphics/CommandBufferManager.h"
+#include "Graphics/Texture.h"
 
 namespace lne
 {

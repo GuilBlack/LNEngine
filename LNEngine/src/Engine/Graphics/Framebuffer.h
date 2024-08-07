@@ -1,11 +1,12 @@
 #pragma once
+#include "Engine/Core/SafePtr.h"
 
 namespace lne
 {
 
 struct AttachmentDesc
 {
-    std::shared_ptr<class Texture> Texture = nullptr;
+    SafePtr<class Texture> Texture = nullptr;
     vk::AttachmentLoadOp LoadOp = vk::AttachmentLoadOp::eDontCare;
     vk::AttachmentStoreOp StoreOp = vk::AttachmentStoreOp::eDontCare;
     vk::ImageLayout InitialLayout = vk::ImageLayout::eUndefined;
@@ -18,7 +19,7 @@ class Framebuffer
 public:
     Framebuffer() = default;
     Framebuffer(
-        std::shared_ptr<class GfxContext> ctx, 
+        SafePtr<class GfxContext> ctx,
         std::vector<AttachmentDesc> attachments,
         AttachmentDesc depth = {});
     ~Framebuffer() = default;
@@ -34,7 +35,7 @@ public:
 
 
 private:
-    std::shared_ptr<class GfxContext> m_Context;
+    SafePtr<class GfxContext> m_Context;
     std::vector<AttachmentDesc> m_ColorAttachments;
     AttachmentDesc m_DepthAttachment;
     bool m_HasDepth = false;

@@ -1,14 +1,15 @@
 #pragma once
 #include <vma/vk_mem_alloc.h>
+#include "Engine/Core/SafePtr.h"
 
 namespace lne
 {
-class Texture
+class Texture : public RefCountBase
 {
 public:
-    explicit Texture(std::shared_ptr<class GfxContext> ctx, vk::Image image,
+    explicit Texture(SafePtr<class GfxContext> ctx, vk::Image image,
         vk::Format format, vk::Extent3D extents, uint32_t numlayers = 1, const std::string& name = "");
-    ~Texture();
+    virtual ~Texture();
 
     [[nodiscard]] vk::ImageView GetImageView() const { return m_ImageView; }
     [[nodiscard]] vk::Image GetImage() const { return m_Image; }
@@ -29,7 +30,7 @@ public:
     void TransitionLayout(vk::CommandBuffer cmdBuffer, vk::ImageLayout newLayout);
 
 private:
-    std::shared_ptr<class GfxContext> m_Context;
+    SafePtr<class GfxContext> m_Context;
     VmaAllocation m_VmaAllocation = nullptr;
     vk::Image m_Image{};
     vk::ImageView m_ImageView{};

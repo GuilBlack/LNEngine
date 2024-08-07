@@ -7,7 +7,7 @@
 
 namespace lne
 {
-Framebuffer::Framebuffer(std::shared_ptr<class GfxContext> ctx, std::vector<AttachmentDesc> attachments, AttachmentDesc depth)
+Framebuffer::Framebuffer(SafePtr<class GfxContext> ctx, std::vector<AttachmentDesc> attachments, AttachmentDesc depth)
     : m_Context{ ctx }
     , m_ColorAttachments{ attachments }
     , m_DepthAttachment{ depth }

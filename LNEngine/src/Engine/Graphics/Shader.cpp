@@ -6,10 +6,11 @@
 #include "Core/Utils/Log.h"
 #include "Core/Utils/_Defines.h"
 #include "Core/ApplicationBase.h"
+#include "Graphics/Texture.h"
 
 namespace lne
 {
-Shader::Shader(std::shared_ptr<GfxContext> ctx, std::string_view filePath, EShaderStage stage)
+Shader::Shader(SafePtr<GfxContext> ctx, std::string_view filePath, EShaderStage stage)
     : m_Context{ ctx }, m_FilePath{ filePath }, m_Stage{stage}
 {
     std::string shaderCode = ReadFile(m_FilePath + ShaderStageToExtension(stage));

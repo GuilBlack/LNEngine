@@ -1,5 +1,6 @@
 #pragma once
 #include "GfxEnums.h"
+#include "Engine/Core/SafePtr.h"
 
 namespace lne
 {
@@ -18,13 +19,13 @@ public:
     void BeginRenderPass(const class Framebuffer& framebuffer) const;
     void EndRenderPass(const class Framebuffer& framebuffer) const;
 
-    void Draw(std::shared_ptr<class GraphicsPipeline> pipeline);
+    void Draw(SafePtr<class GraphicsPipeline> pipeline);
 
-    std::shared_ptr<class GraphicsPipeline> CreateGraphicsPipeline(const struct GraphicsPipelineDesc& createInfo);
+    SafePtr<class GraphicsPipeline> CreateGraphicsPipeline(const struct GraphicsPipelineDesc& createInfo);
 
 private:
-    std::shared_ptr<class GfxContext> m_Context;
-    std::shared_ptr<class Swapchain> m_Swapchain;
+    SafePtr<class GfxContext> m_Context;
+    SafePtr<class Swapchain> m_Swapchain;
     std::unique_ptr<class CommandBufferManager> m_GraphicsCommandBufferManager;
 };
 }

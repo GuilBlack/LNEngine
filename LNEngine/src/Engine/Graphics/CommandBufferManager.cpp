@@ -1,9 +1,10 @@
 #include "CommandBufferManager.h"
 #include "GfxContext.h"
+#include "Core/SafePtr.h"
 
 namespace lne
 {
-CommandBufferManager::CommandBufferManager(std::shared_ptr<GfxContext> ctx, uint32_t count, EQueueFamilyType queueType)
+CommandBufferManager::CommandBufferManager(SafePtr<GfxContext> ctx, uint32_t count, EQueueFamilyType queueType)
     : m_Context(ctx), m_Queue(ctx->GetQueue(queueType))
 {
     auto device = m_Context->GetDevice();

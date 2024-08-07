@@ -1,6 +1,9 @@
 #include "Inputs.h"
 #include "Core/ApplicationBase.h"
 #include "Core/Utils/Log.h"
+#include "Graphics/GfxContext.h"
+#include "Graphics/Swapchain.h"
+#include "Graphics/Texture.h"
 
 namespace lne
 {

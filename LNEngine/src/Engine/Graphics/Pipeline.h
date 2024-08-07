@@ -1,6 +1,7 @@
 #pragma once
 #include "Shader.h"
 #include "Framebuffer.h"
+#include "Engine/Core/SafePtr.h"
 
 namespace lne
 {
@@ -68,19 +69,19 @@ struct GraphicsPipelineDesc
     }
 };
 
-class GraphicsPipeline
+class GraphicsPipeline : public RefCountBase
 {
 public:
-    GraphicsPipeline(std::shared_ptr<class GfxContext> ctx, const GraphicsPipelineDesc& desc);
-    ~GraphicsPipeline();
+    GraphicsPipeline(SafePtr<class GfxContext> ctx, const GraphicsPipelineDesc& desc);
+    virtual ~GraphicsPipeline();
 
     void Bind(const vk::CommandBuffer& cmdBuffer) const;
 
     vk::PipelineLayout CreatePipelineLayout(const std::vector<vk::DescriptorSetLayout>& layouts);
 
 private:
-    std::shared_ptr<class GfxContext> m_Context;
-    std::vector<std::shared_ptr<Shader>> m_Shaders{};
+    SafePtr<class GfxContext> m_Context;
+    std::vector<SafePtr<Shader>> m_Shaders{};
     vk::Pipeline m_Pipeline{};
     vk::PipelineLayout m_Layout{};
     vk::PipelineBindPoint m_BindPoint = vk::PipelineBindPoint::eGraphics;

@@ -18,7 +18,6 @@ project "spdlog"
 
     filter "system:windows"
         cppdialect "C++20"
-        staticruntime "On"
         systemversion "latest"
         defines 
         {

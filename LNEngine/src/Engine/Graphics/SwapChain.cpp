@@ -2,10 +2,11 @@
 #include "GfxContext.h"
 #include "Texture.h"
 #include "Framebuffer.h"
+#include "Core/Utils/Defines.h"
 
 namespace lne
 {
-Swapchain::Swapchain(std::shared_ptr<class GfxContext> ctx, vk::SurfaceKHR surface)
+Swapchain::Swapchain(SafePtr<class GfxContext> ctx, vk::SurfaceKHR surface)
 {
     m_Context = ctx;
     m_Surface = surface;
@@ -42,7 +43,7 @@ vk::SubmitInfo Swapchain::GetSubmitInfo(const vk::CommandBuffer* cmdBuffer, vk::
     return submitInfo;
 }
 
-std::shared_ptr<class Texture> Swapchain::GetCurrentImage() const
+SafePtr<class Texture> Swapchain::GetCurrentImage() const
 {
     return m_Images[m_CurrentImageIndex];
 }
@@ -162,7 +163,7 @@ void Swapchain::CreateSwapchain()
     for (uint32_t i = 0; i < images.size(); ++i)
     {
         m_Context->SetVkObjectName(images[i], vk::ObjectType::eImage, std::format("Image: Swapchain {}", i));
-        m_Images[i].reset(new Texture(m_Context, images[i], surfaceFormat.format, vk::Extent3D(sc.currentExtent, 1), 1, std::format("Swapchain {}", i)));
+        m_Images[i].Reset(lnnew Texture(m_Context, images[i], surfaceFormat.format, vk::Extent3D(sc.currentExtent, 1), 1, std::format("Swapchain {}", i)));
         colorAttachmentDesc.Texture = m_Images[i];
         m_Framebuffers.emplace_back(Framebuffer(m_Context, { colorAttachmentDesc }, {}));
     }

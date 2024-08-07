@@ -1,12 +1,13 @@
 #pragma once
 #include "GfxEnums.h"
+#include "Engine/Core/SafePtr.h"
 
 namespace lne
 {
 class CommandBufferManager
 {
 public:
-    CommandBufferManager(std::shared_ptr<class GfxContext> ctx, uint32_t count, EQueueFamilyType queueType);
+    CommandBufferManager(SafePtr<class GfxContext> ctx, uint32_t count, EQueueFamilyType queueType);
     ~CommandBufferManager();
 
     [[nodiscard]] vk::CommandBuffer& GetCurrentCommandBuffer() { return m_CommandBuffers[m_CurrentImageIndex]; }
@@ -15,7 +16,7 @@ public:
     void Submit(const vk::SubmitInfo& submitInfo);
 
 private:
-    std::shared_ptr<class GfxContext> m_Context;
+    SafePtr<class GfxContext> m_Context;
     vk::Queue m_Queue;
     vk::CommandPool m_CommandPool;
     std::vector<vk::CommandBuffer> m_CommandBuffers;

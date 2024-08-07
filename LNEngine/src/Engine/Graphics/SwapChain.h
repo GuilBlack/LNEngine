@@ -1,5 +1,6 @@
 #pragma once
 #include "GfxEnums.h"
+#include "Engine/Core/SafePtr.h"
 
 namespace lne
 {
@@ -26,7 +27,7 @@ struct Viewport
 private:
     vk::Viewport m_Viewport;
 };
-class Swapchain
+class Swapchain : public RefCountBase
 {
 public:
     /// <summary>
@@ -34,8 +35,8 @@ public:
     /// </summary>
     /// <param name="ctx">keeps a ref to the graphics context so that it can handle its own resources internally</param>
     /// <param name="surface">the swapchain will own the surface</param>
-    Swapchain(std::shared_ptr<class GfxContext> ctx, vk::SurfaceKHR surface);
-    ~Swapchain();
+    Swapchain(SafePtr<class GfxContext> ctx, vk::SurfaceKHR surface);
+    virtual ~Swapchain();
 
     void CreateSwapchain();
 
@@ -44,7 +45,7 @@ public:
     [[nodiscard]] vk::SubmitInfo GetSubmitInfo(const vk::CommandBuffer* cmdBuffer, 
         vk::PipelineStageFlags* submitStageFlag, 
         bool waitForImageAvailable = true, bool signalRenderFinished = true) const;
-    [[nodiscard]] std::shared_ptr<class Texture> GetCurrentImage() const;
+    [[nodiscard]] SafePtr<class Texture> GetCurrentImage() const;
     [[nodiscard]] Viewport GetViewport() const { return m_Viewport; }
 
     [[nodiscard]] class Framebuffer& GetCurrentFramebuffer();
@@ -53,12 +54,12 @@ public:
     [[nodiscard]] bool Present();
 
 private:
-    std::shared_ptr<class GfxContext> m_Context;
+    SafePtr<class GfxContext> m_Context;
     vk::SwapchainKHR m_Swapchain{};
     vk::SurfaceKHR m_Surface{};
     Viewport m_Viewport;
 
-    std::vector<std::shared_ptr<class Texture>> m_Images;
+    std::vector<SafePtr<class Texture>> m_Images;
     std::vector<class Framebuffer> m_Framebuffers;
 
     struct SwapchainSemaphores

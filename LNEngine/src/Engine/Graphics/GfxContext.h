@@ -1,12 +1,13 @@
 #pragma once
-#include <VkBootstrap.h>
-#include <vk_mem_alloc.h>
+#include "../vendor/VKBOOTSTRAP/vkbootstrap/src/VkBootstrap.h"
+#include "../vendor/VMA/vk_mem_alloc.h"
 
 #include "VulkanUtils.h"
 #include "Swapchain.h"
 #include "GfxEnums.h"
 #include "Enums.h"
 #include "Shader.h"
+#include "Engine/Core/SafePtr.h"
 
 namespace lne
 {
@@ -26,11 +27,11 @@ struct QueueFamilyIndices
     }
 };
 
-class GfxContext
+class GfxContext : public RefCountBase
 {
 public:
     GfxContext(vk::SurfaceKHR surface);
-    ~GfxContext();
+    virtual ~GfxContext();
 
     static bool InitVulkan(std::string appName);
     static void NukeVulkan();
@@ -76,7 +77,7 @@ public:
 
 #pragma region Shader
 
-    [[nodiscard]] std::shared_ptr<Shader> CreateShader(std::string_view filePath, EShaderStage shaderStage) const;
+    [[nodiscard]] SafePtr<Shader> CreateShader(std::string_view filePath, EShaderStage shaderStage);
 
 #pragma endregion
 

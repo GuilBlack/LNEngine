@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Engine/Graphics/Framebuffer.h"
+#include "Engine/Core/SafePtr.h"
 
 namespace lne
 {
@@ -17,8 +18,8 @@ public:
     Window(WindowSettings&& settings);
     ~Window();
 
-    [[nodiscard]] std::shared_ptr<class GfxContext> GetGfxContext() const { return m_GfxContext; }
-    [[nodiscard]] std::shared_ptr<class Swapchain> GetSwapchain() const { return m_SwapChain; }
+    [[nodiscard]] SafePtr<class GfxContext> GetGfxContext() const { return m_GfxContext; }
+    [[nodiscard]] SafePtr<class Swapchain> GetSwapchain() const { return m_SwapChain; }
 
     [[nodiscard]] uint32_t GetWidth() const { return m_Settings.Width; }
     [[nodiscard]] uint32_t GetHeight() const { return m_Settings.Height; }
@@ -36,8 +37,8 @@ private:
     bool                m_IsDirty{ false };
 
     std::unique_ptr<class InputManager> m_InputManager;
-    std::shared_ptr<class Swapchain>    m_SwapChain;
-    std::shared_ptr<class GfxContext>   m_GfxContext;
+    SafePtr<class Swapchain>    m_SwapChain;
+    SafePtr<class GfxContext>   m_GfxContext;
 
 private:
     void InitEventCallbacks();

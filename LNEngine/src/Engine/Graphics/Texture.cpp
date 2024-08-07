@@ -5,7 +5,7 @@
 
 namespace lne
 {
-Texture::Texture(std::shared_ptr<class GfxContext> ctx, vk::Image image, vk::Format format, vk::Extent3D extents, uint32_t numlayers, const std::string& name)
+Texture::Texture(SafePtr<class GfxContext> ctx, vk::Image image, vk::Format format, vk::Extent3D extents, uint32_t numlayers, const std::string& name)
     : m_Context{ ctx }
     , m_Image{ image }
     , m_Format{ format }

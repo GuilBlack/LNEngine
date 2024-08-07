@@ -1,19 +1,20 @@
 #pragma once
 #include "Enums.h"
+#include "Engine/Core/SafePtr.h"
 
 namespace lne
 {
 
-class Shader
+class Shader : public RefCountBase
 {
 public:
-    Shader(std::shared_ptr<class GfxContext> ctx, std::string_view filePath, EShaderStage stage);
+    Shader(SafePtr<class GfxContext> ctx, std::string_view filePath, EShaderStage stage);
     vk::ShaderModule GetModule() const { return m_Module; }
     EShaderStage GetStage() const { return m_Stage; }
-    ~Shader();
+    virtual ~Shader();
 
 private:
-    std::shared_ptr<class GfxContext> m_Context;
+    SafePtr<class GfxContext> m_Context;
     std::string m_FilePath;
     EShaderStage m_Stage;
     std::vector<uint32_t> m_Code;

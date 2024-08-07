@@ -9,6 +9,7 @@
 #include "Inputs/Inputs.h"
 #include "Graphics/GfxContext.h"
 #include "Graphics/Swapchain.h"
+#include "Graphics/Texture.h"
 
 namespace lne
 {
@@ -48,9 +49,9 @@ Window::Window(WindowSettings&& settings)
     VkSurfaceKHR surface;
     glfwCreateWindowSurface(GfxContext::VulkanInstance(), m_Handle, nullptr, &surface);
 
-    m_GfxContext.reset(lnnew GfxContext(surface));
+    m_GfxContext.Reset(lnnew GfxContext(surface));
 
-    m_SwapChain.reset(lnnew Swapchain(m_GfxContext, surface));
+    m_SwapChain.Reset(lnnew Swapchain(m_GfxContext, surface));
 
     ApplicationBase::GetEventHub().RegisterListener<WindowResizeEvent>(this, &Window::OnWindowResize);
 }

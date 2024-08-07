@@ -6,6 +6,7 @@
 #include "Texture.h"
 #include "Framebuffer.h"
 #include "Graphics/Pipeline.h"
+#include "Core/Utils/Defines.h"
 
 namespace lne
 {
@@ -20,8 +21,8 @@ void Renderer::Shutdown()
 {
     m_Context->WaitIdle();
     m_GraphicsCommandBufferManager.reset();
-    m_Context.reset();
-    m_Swapchain.reset();
+    m_Context.Reset();
+    m_Swapchain.Reset();
 }
 
 void Renderer::BeginFrame()
@@ -57,17 +58,17 @@ void Renderer::EndRenderPass(const Framebuffer& framebuffer) const
     framebuffer.Unbind(m_GraphicsCommandBufferManager->GetCurrentCommandBuffer());
 }
 
-void Renderer::Draw(std::shared_ptr<GraphicsPipeline> pipeline)
+void Renderer::Draw(SafePtr<GraphicsPipeline> pipeline)
 {
     auto& cmdBuffer = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
     pipeline->Bind(cmdBuffer);
     cmdBuffer.draw(3, 1, 0, 0);
 }
 
-std::shared_ptr<GraphicsPipeline> Renderer::CreateGraphicsPipeline(const GraphicsPipelineDesc& createInfo)
+SafePtr<GraphicsPipeline> Renderer::CreateGraphicsPipeline(const GraphicsPipelineDesc& createInfo)
 {
-    std::shared_ptr<GraphicsPipeline> pipeline;
-    pipeline.reset(new GraphicsPipeline(m_Context, createInfo));
+    SafePtr<GraphicsPipeline> pipeline;
+    pipeline.Reset(lnnew GraphicsPipeline(m_Context, createInfo));
     return pipeline;
 }
 }

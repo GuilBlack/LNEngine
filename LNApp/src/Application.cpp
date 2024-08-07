@@ -27,7 +27,7 @@ public:
     void OnDetach() override
     {
         APP_INFO("AppLayer::OnDetach");
-        m_Pipeline.reset();
+        m_Pipeline.Reset();
     }
 
     void OnUpdate(float deltaTime) override
@@ -44,7 +44,7 @@ public:
     }
 
 private:
-    std::shared_ptr<lne::GraphicsPipeline> m_Pipeline;
+    lne::SafePtr<lne::GraphicsPipeline> m_Pipeline;
 };
 
 class Application : public lne::ApplicationBase

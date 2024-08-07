@@ -46,7 +46,7 @@ BlendState& BlendState::SetColorWriteMask(EBlendColorWriteMask mask)
 
 #pragma region GraphicsPipeline implementation
 
-GraphicsPipeline::GraphicsPipeline(std::shared_ptr<GfxContext> ctx, const GraphicsPipelineDesc& desc)
+GraphicsPipeline::GraphicsPipeline(SafePtr<GfxContext> ctx, const GraphicsPipelineDesc& desc)
     : m_Context(ctx), m_Desc(desc)
 {
     static constexpr vk::PipelineVertexInputStateCreateInfo vertexInputStateInfo({}, 0, nullptr, 0, nullptr);
