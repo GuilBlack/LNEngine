@@ -75,8 +75,8 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
 
     VULKAN_HPP_DEFAULT_DISPATCHER.init(m_Device);
 
-    SetVkObjectName(m_PhysicalDevice, vk::ObjectType::ePhysicalDevice, "PhysicalDevice");
-    SetVkObjectName(m_Device, vk::ObjectType::eDevice, "Device");
+    SetVkObjectName(m_PhysicalDevice, "PhysicalDevice");
+    SetVkObjectName(m_Device, "Device");
     CreateMemoryAllocator();
 }
 
@@ -273,7 +273,7 @@ vk::CommandPool GfxContext::CreateCommandPool(uint32_t queueFamilyIndex, vk::Com
 {
     vk::CommandPoolCreateInfo poolInfo(flags, queueFamilyIndex);
     auto cp = m_Device.createCommandPool(poolInfo);
-    SetVkObjectName(cp, cp.objectType, std::format("CommandPool {}", queueFamilyIndex));
+    SetVkObjectName(cp, std::format("CommandPool {}", queueFamilyIndex));
     return cp;
 }
 
@@ -293,14 +293,14 @@ vk::ImageView GfxContext::CreateImageView(vk::Image image, vk::ImageViewType vie
         layers
     );
     auto imageView = m_Device.createImageView(createInfo);
-    SetVkObjectName(imageView, imageView.objectType, std::format("ImageView: {}", name));
+    SetVkObjectName(imageView, std::format("ImageView: {}", name));
     return imageView;
 }
 
-SafePtr<Shader> GfxContext::CreateShader(std::string_view filePath, EShaderStage shaderStage)
+SafePtr<Shader> GfxContext::CreateShader(std::string_view filePath)
 {
     SafePtr<Shader> shader;
-    shader.Reset(lnnew Shader(SafePtr(this), filePath, shaderStage));
+    shader.Reset(lnnew Shader(SafePtr(this), filePath));
     return shader;
 }
 

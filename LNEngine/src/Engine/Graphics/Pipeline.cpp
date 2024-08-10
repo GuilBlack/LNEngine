@@ -128,20 +128,16 @@ GraphicsPipeline::GraphicsPipeline(SafePtr<GfxContext> ctx, const GraphicsPipeli
     if (desc.Framebuffer.HasDepth())
         depthFormat = desc.Framebuffer.GetDepthAttachment().Texture->GetFormat();
 
-    m_Shaders.reserve(desc.ShaderStages.size());
-    for (auto stage : desc.ShaderStages)
-    {
-        m_Shaders.emplace_back(ctx->CreateShader(desc.PathToShaders + desc.Name, stage));
-    }
-
+    m_Shader = ctx->CreateShader(desc.PathToShaders);
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
-    shaderStages.reserve(m_Shaders.size());
-    for (auto& shader : m_Shaders)
+
+    shaderStages.reserve(m_Shader->GetStageCount());
+    for (auto&[stage, module] : m_Shader->GetModules())
     {
         shaderStages.push_back(vk::PipelineShaderStageCreateInfo(
             {},
-            vkut::ShaderStageToVk(shader->GetStage()),
-            shader->GetModule(),
+            vkut::ShaderStageToVk(stage),
+            module,
             "main"
         ));
     }
@@ -180,7 +176,7 @@ GraphicsPipeline::GraphicsPipeline(SafePtr<GfxContext> ctx, const GraphicsPipeli
         return;
     }
     m_Pipeline = result.value;
-    m_Context->SetVkObjectName(m_Pipeline, vk::ObjectType::ePipeline, std::format("GraphicsPipeline: {}", desc.Name));
+    m_Context->SetVkObjectName(m_Pipeline, std::format("GraphicsPipeline: {}", desc.Name));
 }
 
 GraphicsPipeline::~GraphicsPipeline()
@@ -202,7 +198,7 @@ vk::PipelineLayout GraphicsPipeline::CreatePipelineLayout(const std::vector<vk::
         layouts,
         {}
     });
-    m_Context->SetVkObjectName(layout, vk::ObjectType::ePipelineLayout, std::format("PipelineLayout: {}", m_Desc.Name));
+    m_Context->SetVkObjectName(layout, std::format("PipelineLayout: {}", m_Desc.Name));
     return layout;
 }
 

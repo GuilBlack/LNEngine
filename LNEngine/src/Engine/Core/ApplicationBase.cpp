@@ -41,10 +41,10 @@ ApplicationBase::ApplicationBase(ApplicationSettings&& settings)
     LNE_ASSERT(glfwInit(), "Failed to initialize GLFW");
     LNE_INFO("glfw initialized");
 
-    LNE_ASSERT(GfxContext::InitVulkan(settings.Name), "Failed to initialize Vulkan");
+    LNE_ASSERT(GfxContext::InitVulkan(m_Settings.Name), "Failed to initialize Vulkan");
     LNE_INFO("Vulkan initialized");
 
-    m_Window.reset(lnnew Window({ m_Settings.Name, m_Settings.Width, m_Settings.Height }));
+    m_Window.reset(lnnew Window({ m_Settings.Name, m_Settings.Width, m_Settings.Height, m_Settings.IsResizable }));
 
     m_Renderer.reset(lnnew Renderer());
     m_Renderer->Init(m_Window);

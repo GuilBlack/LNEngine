@@ -81,7 +81,7 @@ public:
 
 private:
     SafePtr<class GfxContext> m_Context;
-    std::vector<SafePtr<Shader>> m_Shaders{};
+    SafePtr<Shader> m_Shader{};
     vk::Pipeline m_Pipeline{};
     vk::PipelineLayout m_Layout{};
     vk::PipelineBindPoint m_BindPoint = vk::PipelineBindPoint::eGraphics;

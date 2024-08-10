@@ -14,7 +14,7 @@ Texture::Texture(SafePtr<class GfxContext> ctx, vk::Image image, vk::Format form
     , m_Name{ name }
     , m_OwnsImage{ false }
 {
-    m_Context->SetVkObjectName(image, image.objectType, std::format("Image: {}", name));
+    m_Context->SetVkObjectName(image, std::format("Image: {}", name));
     const vk::ImageAspectFlags aspectMask =
         IsDepth() ? vk::ImageAspectFlagBits::eDepth
         : (IsStencil() ? vk::ImageAspectFlagBits::eStencil : vk::ImageAspectFlagBits::eColor);

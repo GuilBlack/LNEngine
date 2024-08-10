@@ -77,23 +77,22 @@ public:
 
 #pragma region Shader
 
-    [[nodiscard]] SafePtr<Shader> CreateShader(std::string_view filePath, EShaderStage shaderStage);
+    [[nodiscard]] SafePtr<Shader> CreateShader(std::string_view filePath);
 
 #pragma endregion
 
     template<typename T>
-    void SetVkObjectName(T handle, vk::ObjectType type, std::string_view name) const
+    void SetVkObjectName(T handle, std::string_view name) const
     {
     #if defined(VK_EXT_debug_utils)
         const vk::DebugUtilsObjectNameInfoEXT objectNameInfo(
-            type,
+            T::objectType,
             reinterpret_cast<uint64_t>(static_cast<T::CType>(handle)),
             name.data()
         );
         VK_CHECK(m_Device.setDebugUtilsObjectNameEXT(&objectNameInfo));
     #else
         (void)handle;
-        (void)type;
         (void)name;
     #endif
     }

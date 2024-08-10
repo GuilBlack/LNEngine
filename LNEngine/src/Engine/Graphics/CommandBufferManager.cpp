@@ -16,7 +16,7 @@ CommandBufferManager::CommandBufferManager(SafePtr<GfxContext> ctx, uint32_t cou
     for (auto& fence : m_WaitFences)
     {
         fence = device.createFence(fenceCI);
-        m_Context->SetVkObjectName(fence, vk::ObjectType::eFence, "Swapchain Fence");
+        m_Context->SetVkObjectName(fence, "Swapchain Fence");
     }
 }
 
@@ -59,7 +59,7 @@ std::vector<vk::CommandBuffer> CommandBufferManager::AllocateCommandBuffers(uint
     auto cbs = device.allocateCommandBuffers(allocInfo);
 
     for (uint32_t i = 0; i < count; ++i)
-        m_Context->SetVkObjectName(cbs[i], vk::CommandBuffer::objectType, std::format("CommandBuffer: {}, {}", cbName, i));
+        m_Context->SetVkObjectName(cbs[i], std::format("CommandBuffer: {}, {}", cbName, i));
 
     return cbs;
 }

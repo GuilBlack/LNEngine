@@ -44,12 +44,6 @@ project "LNApp"
             "/usr/include/vulkan"
         }
 
-        postbuildcommands
-        {
-            "cp -r ../LNEngine/res/Shaders/Compiled bin/" .. OutputDir .. "/%{prj.name}/res/Shaders/Compiled/Engine",
-            "cp -r res/Shaders/Compiled bin/" .. OutputDir .. "/%{prj.name}/res/Shaders/Compiled"
-        }
-
     filter "system:windows"
         cppdialect "C++20"
         systemversion "latest"

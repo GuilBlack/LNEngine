@@ -13,6 +13,7 @@ struct ApplicationSettings
     std::string Name;
     uint32_t    Width{};
     uint32_t    Height{};
+    bool        IsResizable{};
 };
 
 class ApplicationBase

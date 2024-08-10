@@ -141,7 +141,7 @@ void Swapchain::CreateSwapchain()
     }
 
     m_Swapchain = device.createSwapchainKHR(createInfo);
-    m_Context->SetVkObjectName(m_Swapchain, vk::ObjectType::eSwapchainKHR, "Swapchain");
+    m_Context->SetVkObjectName(m_Swapchain, "Swapchain");
     m_Viewport = Viewport(sc.currentExtent);
     if (oldSwapchain)
         device.destroySwapchainKHR(oldSwapchain);
@@ -163,7 +163,7 @@ void Swapchain::CreateSwapchain()
 
     for (uint32_t i = 0; i < images.size(); ++i)
     {
-        m_Context->SetVkObjectName(images[i], vk::ObjectType::eImage, std::format("Image: Swapchain {}", i));
+        m_Context->SetVkObjectName(images[i], std::format("Image: Swapchain {}", i));
         m_Images[i].Reset(lnnew Texture(m_Context, images[i], surfaceFormat.format, vk::Extent3D(sc.currentExtent, 1), 1, std::format("Swapchain {}", i)));
         colorAttachmentDesc.Texture = m_Images[i];
         m_Framebuffers.emplace_back(Framebuffer(m_Context, { colorAttachmentDesc }, {}));
@@ -184,8 +184,8 @@ void Swapchain::CreateSyncObjects()
         .RenderFinished = device.createSemaphore(semaphoreCI)
     };
 
-    m_Context->SetVkObjectName(m_Semaphores.ImageAvailable, vk::ObjectType::eSemaphore, "Swapchain Semaphore ImageAvailable");
-    m_Context->SetVkObjectName(m_Semaphores.RenderFinished, vk::ObjectType::eSemaphore, "Swapchain Semaphore RenderFinished");
+    m_Context->SetVkObjectName(m_Semaphores.ImageAvailable, "Swapchain Semaphore ImageAvailable");
+    m_Context->SetVkObjectName(m_Semaphores.RenderFinished, "Swapchain Semaphore RenderFinished");
 }
 
 vk::SurfaceFormatKHR Swapchain::PickSwapchainSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats)

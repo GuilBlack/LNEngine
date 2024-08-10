@@ -11,8 +11,7 @@ public:
         APP_INFO("AppLayer::OnAttach");
         auto& fb = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
         lne::GraphicsPipelineDesc desc{};
-        desc.Name = "HelloTriangle";
-        desc.PathToShaders = lne::ApplicationBase::GetAssetsPath() + "Shaders/";
+        desc.PathToShaders = lne::ApplicationBase::GetAssetsPath() + "Shaders/HelloTriangle.glsl";
         desc.AddStage(lne::EShaderStage::Vertex)
             .AddStage(lne::EShaderStage::Fragment);
         desc.SetCulling(lne::ECullMode::Back)
@@ -61,6 +60,7 @@ lne::ApplicationBase* lne::CreateApplication()
 {
     return new Application({
         "LNApp",
-        1280, 720
+        1280, 720,
+        false
     });
 }

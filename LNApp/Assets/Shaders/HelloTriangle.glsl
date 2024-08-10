@@ -1,4 +1,7 @@
+//#lne_head [[Vt main][Fg main]]
 #version 460
+
+#ifdef VERT
 
 layout(location = 0) out vec4 oColor;
 
@@ -10,3 +13,16 @@ void main() {
   gl_Position = vec4(positions[gl_VertexIndex], 0.0, 1.0);
   oColor = vec4(colors[gl_VertexIndex], 1.0);
 }
+
+#endif
+
+#ifdef FRAG
+
+layout(location = 0) in vec4 iColor;
+layout(location = 0) out vec4 oColor;
+
+void main() {
+  oColor = iColor;
+}
+
+#endif
