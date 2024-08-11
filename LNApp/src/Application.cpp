@@ -12,8 +12,8 @@ public:
         auto& fb = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
         lne::GraphicsPipelineDesc desc{};
         desc.PathToShaders = lne::ApplicationBase::GetAssetsPath() + "Shaders/HelloTriangle.glsl";
-        desc.AddStage(lne::EShaderStage::Vertex)
-            .AddStage(lne::EShaderStage::Fragment);
+        desc.AddStage(lne::ShaderStage::eVertex)
+            .AddStage(lne::ShaderStage::eFragment);
         desc.SetCulling(lne::ECullMode::Back)
             .SetWinding(lne::EWindingOrder::CounterClockwise)
             .SetFill(lne::EFillMode::Solid);

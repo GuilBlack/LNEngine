@@ -1,6 +1,8 @@
 #include "lnepch.h"
 #include "Shader.h"
 #include <shaderc/shaderc.hpp>
+#include <spirv_cross/spirv_cross.hpp>
+#include <spirv_cross/spirv_common.hpp>
 
 #include "GfxContext.h"
 #include "Core/Utils/Log.h"
@@ -13,22 +15,22 @@ namespace lne
 
 #pragma region Utility Functions
 
-shaderc_shader_kind ShaderStageToShaderc(EShaderStage stage)
+shaderc_shader_kind ShaderStageToShaderc(ShaderStage::Enum stage)
 {
     switch (stage)
     {
-    case EShaderStage::Vertex: return shaderc_glsl_vertex_shader;
-    case EShaderStage::TessellationControl: return shaderc_glsl_tess_control_shader;
-    case EShaderStage::TessellationEvaluation: return shaderc_glsl_tess_evaluation_shader;
-    case EShaderStage::Geometry: return shaderc_glsl_geometry_shader;
-    case EShaderStage::Fragment: return shaderc_glsl_fragment_shader;
-    case EShaderStage::Compute: return shaderc_glsl_compute_shader;
+    case ShaderStage::eVertex: return shaderc_glsl_vertex_shader;
+    case ShaderStage::eTessellationControl: return shaderc_glsl_tess_control_shader;
+    case ShaderStage::eTessellationEvaluation: return shaderc_glsl_tess_evaluation_shader;
+    case ShaderStage::eGeometry: return shaderc_glsl_geometry_shader;
+    case ShaderStage::eFragment: return shaderc_glsl_fragment_shader;
+    case ShaderStage::eCompute: return shaderc_glsl_compute_shader;
     default: LNE_ASSERT(false, "This isn't a stage");
     }
     return shaderc_glsl_vertex_shader;
 }
 
-std::string ShaderStageToDefine(EShaderStage stage)
+std::string ShaderStageToDefine(ShaderStage::Enum stage)
 {
     static const std::string Vertex("VERT");
     static const std::string TessellationControl("TESC");
@@ -39,15 +41,80 @@ std::string ShaderStageToDefine(EShaderStage stage)
 
     switch (stage)
     {
-    case EShaderStage::Vertex: return Vertex;
-    case EShaderStage::TessellationControl: return TessellationControl;
-    case EShaderStage::TessellationEvaluation: return TessellationEvaluation;
-    case EShaderStage::Geometry: return Geometry;
-    case EShaderStage::Fragment: return Fragment;
-    case EShaderStage::Compute: return Compute;
+    case ShaderStage::eVertex: return Vertex;
+    case ShaderStage::eTessellationControl: return TessellationControl;
+    case ShaderStage::eTessellationEvaluation: return TessellationEvaluation;
+    case ShaderStage::eGeometry: return Geometry;
+    case ShaderStage::eFragment: return Fragment;
+    case ShaderStage::eCompute: return Compute;
     default: LNE_ASSERT(false, "This isn't a stage");
     }
     return Vertex;
+}
+
+UniformElementType::Enum SpirvTypeToUniformElementType(spirv_cross::SPIRType type)
+{
+    if (type.columns > 1)
+    {
+        switch (type.columns)
+        {
+        case 2:
+            return UniformElementType::eMatrix2x2;
+        case 3:
+            return UniformElementType::eMatrix3x3;
+        case 4:
+            return UniformElementType::eMatrix4x4;
+        default:
+            return UniformElementType::eUnknown;
+        }
+    }
+    switch (type.basetype)
+    {
+    case spirv_cross::SPIRType::Int:
+    {
+        switch (type.vecsize)
+        {
+        case 2:
+            return UniformElementType::eInt2;
+        case 3:
+            return UniformElementType::eInt3;
+        case 4:
+            return UniformElementType::eInt4;
+        default:
+            return UniformElementType::eInt;
+        }
+    }
+    case spirv_cross::SPIRType::UInt:
+    {
+        switch (type.vecsize)
+        {
+        case 2:
+            return UniformElementType::eUInt2;
+        case 3:
+            return UniformElementType::eUInt3;
+        case 4:
+            return UniformElementType::eUInt4;
+        default:
+            return UniformElementType::eUInt;
+        }
+    }
+    case spirv_cross::SPIRType::Float:
+    {
+        switch (type.vecsize)
+        {
+        case 2:
+            return UniformElementType::eFloat2;
+        case 3:
+            return UniformElementType::eFloat3;
+        case 4:
+            return UniformElementType::eFloat4;
+        default:
+            return UniformElementType::eFloat;
+        }
+    }
+    default:
+        return UniformElementType::eUnknown;
+    }
 }
 
 #pragma endregion
@@ -55,9 +122,15 @@ std::string ShaderStageToDefine(EShaderStage stage)
 Shader::Shader(SafePtr<class GfxContext> ctx, std::string_view filePath)
     : m_Context(ctx), m_FilePath(filePath)
 {
-    auto[shaderCode, shaderHeader] = ReadFile(m_FilePath);
+    auto[shaderCode, shaderHeader] = ReadFile(m_FilePath); 
+
+
+    uint32_t offset = (uint32_t)m_FilePath.find_last_of("\\/") + 1;
+    uint32_t count = (uint32_t)m_FilePath.find_last_of(".") - offset;
+    m_Name = m_FilePath.substr(offset, count);
 
     m_SpirvCode = CompileToSpirv(shaderCode, shaderHeader);
+    ReflectOnSpirv(m_SpirvCode);
     m_Modules = CreateModules(m_SpirvCode);
 }
 
@@ -67,16 +140,16 @@ Shader::~Shader()
         m_Context->GetDevice().destroyShaderModule(module);
 }
 
-std::string Shader::ShaderStageToExtension(EShaderStage stage)
+std::string Shader::ShaderStageToExtension(ShaderStage::Enum stage)
 {
     switch (stage)
     {
-    case EShaderStage::Vertex: return ".vert";
-    case EShaderStage::TessellationControl: return ".tesc";
-    case EShaderStage::TessellationEvaluation: return ".tese";
-    case EShaderStage::Geometry: return ".geom";
-    case EShaderStage::Fragment: return ".frag";
-    case EShaderStage::Compute: return ".comp";
+    case ShaderStage::eVertex: return ".vert";
+    case ShaderStage::eTessellationControl: return ".tesc";
+    case ShaderStage::eTessellationEvaluation: return ".tese";
+    case ShaderStage::eGeometry: return ".geom";
+    case ShaderStage::eFragment: return ".frag";
+    case ShaderStage::eCompute: return ".comp";
     default: return "";
     }
 }
@@ -137,11 +210,11 @@ Shader::Header Shader::ParseHeader(std::string& headerSource)
         {
             if (headerSource.substr(index, 2) == "Vt")
             {
-                header[EShaderStage::Vertex] = ShaderHeaderInfo{ getEntryPoint(index, headerSource) };
+                header[ShaderStage::eVertex] = ShaderHeaderInfo{ getEntryPoint(index, headerSource) };
             }
             else if (headerSource.substr(index, 2) == "Fg")
             {
-                header[EShaderStage::Fragment] = ShaderHeaderInfo{ getEntryPoint(index, headerSource) };
+                header[ShaderStage::eFragment] = ShaderHeaderInfo{ getEntryPoint(index, headerSource) };
             }
             else
             {
@@ -158,7 +231,7 @@ Shader::Header Shader::ParseHeader(std::string& headerSource)
     return header;
 }
 
-std::unordered_map<EShaderStage, std::vector<uint32_t>> Shader::CompileToSpirv(const std::string& sourceCode, Shader::Header header)
+std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> Shader::CompileToSpirv(const std::string& sourceCode, Shader::Header header)
 {
     shaderc::Compiler compiler;
     shaderc::CompileOptions options;
@@ -167,7 +240,7 @@ std::unordered_map<EShaderStage, std::vector<uint32_t>> Shader::CompileToSpirv(c
     options.SetOptimizationLevel(optimize ? shaderc_optimization_level_performance : shaderc_optimization_level_zero);
     options.SetGenerateDebugInfo();
     options.SetWarningsAsErrors();
-    std::unordered_map<EShaderStage, std::vector<uint32_t>> spirvCode;
+    std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> spirvCode;
     std::vector<shaderc::CompileOptions> optionsForShaders(header.size(), options);
     uint32_t optionsIndex = 0;
 
@@ -196,10 +269,60 @@ std::unordered_map<EShaderStage, std::vector<uint32_t>> Shader::CompileToSpirv(c
     return spirvCode;
 }
 
-std::unordered_map<EShaderStage, vk::ShaderModule> Shader::CreateModules(std::unordered_map<EShaderStage, std::vector<uint32_t>> spirvCode)
+void Shader::ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> spirvCode)
+{
+    for (auto& [stage, code] : spirvCode)
+    {
+        LNE_INFO("Stage: {}", ShaderStageToDefine(stage));
+        spirv_cross::Compiler compiler(code);
+        spirv_cross::ShaderResources resources = compiler.get_shader_resources();
+
+        for (const auto& res : resources.uniform_buffers)
+        {
+            uint32_t set = compiler.get_decoration(res.id, spv::DecorationDescriptorSet);
+            uint32_t binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+            spirv_cross::SPIRType type = compiler.get_type(res.base_type_id);
+            uint32_t bufferSize = (uint32_t)compiler.get_declared_struct_size(type);
+            if (m_ReflectedData.UniformBuffers.contains(res.name))
+            {
+                UniformBuffer& uniformStages = m_ReflectedData.UniformBuffers[res.name];
+                uniformStages.Stages = (ShaderStage::Enum)((byte)uniformStages.Stages | (byte)stage);
+                continue;
+            }
+            else
+            {
+                m_ReflectedData.UniformBuffers[res.name] = 
+                {
+                    .SetIndex = set,
+                    .BindingIndex = binding,
+                    .Size = bufferSize,
+                    .Stages = stage
+                };
+            }
+
+            LNE_INFO("    Name: {}, Set: {}, Binding: {}, Size: {}", res.name, set, binding, bufferSize);
+            for (uint32_t i = 0; i < type.member_types.size(); ++i)
+            {
+                std::string memberName = compiler.get_member_name(res.base_type_id, i);
+                uint32_t offset = compiler.get_member_decoration(res.base_type_id, i, spv::DecorationOffset);
+                uint32_t size = (uint32_t)compiler.get_declared_struct_member_size(type, i);
+                spirv_cross::SPIRType memberType = compiler.get_type(type.member_types[i]);
+                LNE_INFO("        Member: {}, Offset: {}, Size: {}, Type: {}", memberName, offset, size, UniformElementType::ToString(SpirvTypeToUniformElementType(memberType)));
+                m_ReflectedData.UniformElements[memberName] = {
+                        .UniformBuffer = res.name,
+                        .Offset = offset,
+                        .Size = size,
+                        .Type = SpirvTypeToUniformElementType(memberType)
+                };
+            }
+        }
+    }
+}
+
+std::unordered_map<ShaderStage::Enum, vk::ShaderModule> Shader::CreateModules(std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> spirvCode)
 {
     vk::ShaderModuleCreateInfo createInfo;
-    std::unordered_map<EShaderStage, vk::ShaderModule> modules;
+    std::unordered_map<ShaderStage::Enum, vk::ShaderModule> modules;
 
     for (auto& [stage, code] : spirvCode)
     {
@@ -210,22 +333,24 @@ std::unordered_map<EShaderStage, vk::ShaderModule> Shader::CreateModules(std::un
         uint32_t offset = (uint32_t)m_FilePath.find_last_of("\\/") + 1;
         uint32_t count = (uint32_t)m_FilePath.find_last_of(".") - offset;
         std::string fileName = m_FilePath.substr(offset, count);
-        m_Context->SetVkObjectName(modules[stage], std::string(ShaderStageToDefine(stage) + " " + fileName));
+        m_Context->SetVkObjectName(modules[stage], std::string(ShaderStageToDefine(stage) + " " + m_Name));
+
+        
     }
     return modules;
 }
 }
 
-vk::ShaderStageFlagBits lne::vkut::ShaderStageToVk(EShaderStage stage)
+vk::ShaderStageFlagBits lne::vkut::ShaderStageToVk(ShaderStage::Enum stage)
 {
     switch (stage)
     {
-    case EShaderStage::Vertex: return vk::ShaderStageFlagBits::eVertex;
-    case EShaderStage::TessellationControl: return vk::ShaderStageFlagBits::eTessellationControl;
-    case EShaderStage::TessellationEvaluation: return vk::ShaderStageFlagBits::eTessellationEvaluation;
-    case EShaderStage::Geometry: return vk::ShaderStageFlagBits::eGeometry;
-    case EShaderStage::Fragment: return vk::ShaderStageFlagBits::eFragment;
-    case EShaderStage::Compute: return vk::ShaderStageFlagBits::eCompute;
+    case ShaderStage::eVertex: return vk::ShaderStageFlagBits::eVertex;
+    case ShaderStage::eTessellationControl: return vk::ShaderStageFlagBits::eTessellationControl;
+    case ShaderStage::eTessellationEvaluation: return vk::ShaderStageFlagBits::eTessellationEvaluation;
+    case ShaderStage::eGeometry: return vk::ShaderStageFlagBits::eGeometry;
+    case ShaderStage::eFragment: return vk::ShaderStageFlagBits::eFragment;
+    case ShaderStage::eCompute: return vk::ShaderStageFlagBits::eCompute;
     default: return vk::ShaderStageFlagBits::eVertex;
     }
 }

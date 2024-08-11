@@ -1,6 +1,11 @@
 //#lne_head [[Vt main][Fg main]]
 #version 460
 
+layout(std140, set=0, binding=0) uniform GlobalUBO {
+  mat4 uView;
+  mat4 uProj;
+};
+
 #ifdef VERT
 
 layout(location = 0) out vec4 oColor;

@@ -103,7 +103,9 @@ project "LNEngine"
         }
         links 
         {
-            "shaderc_combinedd"
+            "shaderc_combinedd",
+            "spirv-cross-cored",
+            "spirv-cross-cppd"
         }
         sanitize { "Address" }
 
@@ -126,7 +128,9 @@ project "LNEngine"
         }
         links 
         {
-            "shaderc_combined"
+            "shaderc_combined",
+            "spirv-cross-core",
+            "spirv-cross-cpp"
         }
         sanitize { "Address" }
 
@@ -137,5 +141,7 @@ project "LNEngine"
         defines { "NDEBUG" }
         links 
         {
-            "shaderc_combined"
+            "shaderc_combined",
+            "spirv-cross-core",
+            "spirv-cross-cpp"
         }

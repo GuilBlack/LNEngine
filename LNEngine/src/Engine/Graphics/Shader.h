@@ -1,9 +1,16 @@
 #pragma once
 #include "Enums.h"
 #include "Engine/Core/SafePtr.h"
+#include "Structs.h"
 
 namespace lne
 {
+
+struct ReflectedData
+{
+    std::unordered_map<std::string, UniformBuffer> UniformBuffers;
+    std::unordered_map<std::string, UniformElement> UniformElements;
+};
 
 class Shader : public RefCountBase
 {
@@ -11,31 +18,33 @@ class Shader : public RefCountBase
     {
         std::string EntryPoint;
     };
-    using Header = std::unordered_map<EShaderStage, ShaderHeaderInfo>;
+    using Header = std::unordered_map<ShaderStage::Enum, ShaderHeaderInfo>;
 public:
     Shader(SafePtr<class GfxContext> ctx, std::string_view filePath);
-    [[nodiscard]] std::unordered_map<EShaderStage, vk::ShaderModule> GetModules() const { return m_Modules; }
+    [[nodiscard]] std::unordered_map<ShaderStage::Enum, vk::ShaderModule> GetModules() const { return m_Modules; }
     [[nodiscard]] uint32_t GetStageCount() const { return (uint32_t)m_Modules.size(); }
     virtual ~Shader();
 
 private:
     SafePtr<class GfxContext> m_Context;
     std::string m_FilePath;
-    std::unordered_map<EShaderStage, std::vector<uint32_t>> m_SpirvCode{};
-    std::unordered_map<EShaderStage, vk::ShaderModule> m_Modules{};
+    std::string m_Name;
+    std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> m_SpirvCode{};
+    std::unordered_map<ShaderStage::Enum, vk::ShaderModule> m_Modules{};
+    ReflectedData m_ReflectedData{};
 
 private:
-    std::string ShaderStageToExtension(EShaderStage stage);
+    std::string ShaderStageToExtension(ShaderStage::Enum stage);
     std::tuple<std::string, Shader::Header> ReadFile(std::string_view filePath);
     Shader::Header ParseHeader(std::string& headerSource);
-    std::unordered_map<EShaderStage, std::vector<uint32_t>> CompileToSpirv(const std::string& sourceCode, Shader::Header header);
-    std::unordered_map<EShaderStage, vk::ShaderModule> CreateModules(std::unordered_map<EShaderStage, std::vector<uint32_t>> spirvCode);
-
+    std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> CompileToSpirv(const std::string& sourceCode, Shader::Header header);
+    void ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> spirvCode);
+    std::unordered_map<ShaderStage::Enum, vk::ShaderModule> CreateModules(std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> spirvCode);
 };
 
 namespace vkut
 {
-vk::ShaderStageFlagBits ShaderStageToVk(EShaderStage stage);
+vk::ShaderStageFlagBits ShaderStageToVk(ShaderStage::Enum stage);
 }
 
 }

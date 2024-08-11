@@ -45,7 +45,7 @@ struct GraphicsPipelineDesc
 {
     std::string                         Name{};
     std::string                         PathToShaders{};
-    std::unordered_set<EShaderStage>    ShaderStages{};
+    std::unordered_set<ShaderStage::Enum>    ShaderStages{};
 
     // rasterization settings
     ECullMode   CullMode =              ECullMode::None;
@@ -57,9 +57,9 @@ struct GraphicsPipelineDesc
     BlendState  Blend{};
 
     Framebuffer Framebuffer;
-
+     
     GraphicsPipelineDesc& SetName(const std::string& name) { Name = name; return *this; }
-    GraphicsPipelineDesc& AddStage(EShaderStage stage) { ShaderStages.insert(stage); return *this; }
+    GraphicsPipelineDesc& AddStage(ShaderStage::Enum stage) { ShaderStages.insert(stage); return *this; }
     GraphicsPipelineDesc& SetCulling(ECullMode cullMode) { CullMode = cullMode; return *this; }
     GraphicsPipelineDesc& SetWinding(EWindingOrder front) { WindingOrder = front; return *this; }
     GraphicsPipelineDesc& SetFill(EFillMode fill) { Fill = fill; return *this; }
