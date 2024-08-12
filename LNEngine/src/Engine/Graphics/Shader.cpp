@@ -30,6 +30,21 @@ shaderc_shader_kind ShaderStageToShaderc(ShaderStage::Enum stage)
     return shaderc_glsl_vertex_shader;
 }
 
+vk::ShaderStageFlagBits ShaderStageToVk(ShaderStage::Enum stage)
+{
+    switch (stage)
+    {
+    case ShaderStage::eVertex: return vk::ShaderStageFlagBits::eVertex;
+    case ShaderStage::eTessellationControl: return vk::ShaderStageFlagBits::eTessellationControl;
+    case ShaderStage::eTessellationEvaluation: return vk::ShaderStageFlagBits::eTessellationEvaluation;
+    case ShaderStage::eGeometry: return vk::ShaderStageFlagBits::eGeometry;
+    case ShaderStage::eFragment: return vk::ShaderStageFlagBits::eFragment;
+    case ShaderStage::eCompute: return vk::ShaderStageFlagBits::eCompute;
+    default: LNE_ASSERT(false, "This isn't a stage");
+    }
+    return vk::ShaderStageFlagBits::eVertex;
+}
+
 std::string ShaderStageToDefine(ShaderStage::Enum stage)
 {
     static const std::string Vertex("VERT");
@@ -132,10 +147,13 @@ Shader::Shader(SafePtr<class GfxContext> ctx, std::string_view filePath)
     m_SpirvCode = CompileToSpirv(shaderCode, shaderHeader);
     ReflectOnSpirv(m_SpirvCode);
     m_Modules = CreateModules(m_SpirvCode);
+    CreateDescriptorSetLayouts();
 }
 
 Shader::~Shader()
 {
+    for (auto descSetLayout : m_DescriptorSetLayouts)
+        m_Context->GetDevice().destroyDescriptorSetLayout(descSetLayout);
     for (auto&[stage, module] : m_Modules)
         m_Context->GetDevice().destroyShaderModule(module);
 }
@@ -283,20 +301,24 @@ void Shader::ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<ui
             uint32_t binding = compiler.get_decoration(res.id, spv::DecorationBinding);
             spirv_cross::SPIRType type = compiler.get_type(res.base_type_id);
             uint32_t bufferSize = (uint32_t)compiler.get_declared_struct_size(type);
-            if (m_ReflectedData.UniformBuffers.contains(res.name))
+
+            if (m_ReflectedData.DescriptorSets.contains(set) == false)
+                m_ReflectedData.DescriptorSets[set] = DescriptorSet{ .SetIndex = set };
+
+            if (m_ReflectedData.DescriptorSets[set].UniformBuffers.contains(res.name))
             {
-                UniformBuffer& uniformStages = m_ReflectedData.UniformBuffers[res.name];
-                uniformStages.Stages = (ShaderStage::Enum)((byte)uniformStages.Stages | (byte)stage);
+                UniformBuffer& uniformStages = m_ReflectedData.DescriptorSets[set].UniformBuffers[res.name];
+                uniformStages.Stages = uniformStages.Stages | ShaderStageToVk(stage);
                 continue;
             }
             else
             {
-                m_ReflectedData.UniformBuffers[res.name] = 
+                m_ReflectedData.DescriptorSets[set].UniformBuffers[res.name] =
                 {
                     .SetIndex = set,
                     .BindingIndex = binding,
                     .Size = bufferSize,
-                    .Stages = stage
+                    .Stages = ShaderStageToVk(stage)
                 };
             }
 
@@ -338,6 +360,25 @@ std::unordered_map<ShaderStage::Enum, vk::ShaderModule> Shader::CreateModules(st
         
     }
     return modules;
+}
+
+void Shader::CreateDescriptorSetLayouts()
+{
+    m_DescriptorSetLayouts.resize(m_ReflectedData.DescriptorSets.size());
+    for (auto&[setIndex, set] : m_ReflectedData.DescriptorSets)
+    {
+        vk::DescriptorSetLayoutCreateInfo descSetLayoutCI{};
+        descSetLayoutCI.setBindingCount((uint32_t)set.UniformBuffers.size());
+        std::vector<vk::DescriptorSetLayoutBinding> bindings{};
+        bindings.reserve(descSetLayoutCI.bindingCount);
+        for (auto& [name, buffer] : set.UniformBuffers)
+        {
+            bindings.emplace_back(vk::DescriptorSetLayoutBinding(buffer.BindingIndex, vk::DescriptorType::eUniformBuffer, 1, buffer.Stages));
+        }
+        descSetLayoutCI.setBindings(bindings);
+        m_DescriptorSetLayouts[setIndex] = m_Context->GetDevice().createDescriptorSetLayout(descSetLayoutCI);
+        m_Context->SetVkObjectName(m_DescriptorSetLayouts[setIndex], std::format("DescSetLayout {}, set: {}", m_Name, setIndex));
+    }
 }
 }
 

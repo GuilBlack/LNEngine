@@ -142,7 +142,7 @@ GraphicsPipeline::GraphicsPipeline(SafePtr<GfxContext> ctx, const GraphicsPipeli
         ));
     }
 
-    m_Layout = CreatePipelineLayout({});
+    m_Layout = CreatePipelineLayout(m_Shader->GetDescriptorSetLayouts());
 
     vk::GraphicsPipelineCreateInfo graphicsPipelineInfo = vk::GraphicsPipelineCreateInfo(
         vk::PipelineCreateFlags(),

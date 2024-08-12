@@ -8,7 +8,13 @@ struct UniformBuffer
     uint32_t SetIndex;
     uint32_t BindingIndex;
     uint32_t Size;
-    ShaderStage::Enum Stages;
+    vk::ShaderStageFlags Stages;
+};
+
+struct DescriptorSet
+{
+    uint32_t SetIndex;
+    std::unordered_map<std::string, UniformBuffer> UniformBuffers;
 };
 
 struct UniformElement
@@ -18,5 +24,4 @@ struct UniformElement
     uint32_t Size;
     UniformElementType::Enum Type;
 };
-
 }

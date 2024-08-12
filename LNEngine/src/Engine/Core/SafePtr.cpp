@@ -14,7 +14,8 @@ void RefCountBase::Capture() const
 uint32_t RefCountBase::Release() const
 {
     assert(m_Count > 0);
-    if (m_Count-- == 0)
+    m_Count--;
+    if (m_Count == 0)
         LNE_TRACE("Delete {0}", typeid(*this).name());
     return m_Count.load();
 }
