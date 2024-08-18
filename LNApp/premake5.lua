@@ -67,7 +67,6 @@ project "LNApp"
         runtime "Debug"
         symbols "On"
         optimize "Off"
-        editandcontinue "Off"
         flags
         {
             "NoRuntimeChecks",
@@ -76,11 +75,7 @@ project "LNApp"
         defines 
         { 
             "_DEBUG", "DEBUG", "LNE_DEBUG",
-            "_DISABLE_VECTOR_ANNOTATION",
-            "_DISABLE_STRING_ANNOTATION",
-            "ASAN_SAVE_DUMP=asanDump.dmp"
         }
-        sanitize { "Address" }
 
         linkoptions { "/ignore:4099" }
 
@@ -88,7 +83,6 @@ project "LNApp"
         runtime "Release"
         symbols "On"
         optimize "On"
-        editandcontinue "Off"
         flags
         {
             "NoRuntimeChecks",
@@ -97,11 +91,7 @@ project "LNApp"
         defines
         { 
             "LNE_DEBUG",
-            "_DISABLE_VECTOR_ANNOTATION",
-            "_DISABLE_STRING_ANNOTATION",
-            "ASAN_SAVE_DUMP=asanDump.dmp"
         }
-        sanitize { "Address" }
 
     filter "configurations:Dist"
         runtime "Release"

@@ -41,7 +41,7 @@ public:
     static vk::Instance VulkanInstance() { return s_VulkanInstance; }
     class vk::PhysicalDevice GetPhysicalDevice() const { return m_PhysicalDevice; }
     class vk::Device GetDevice() const { return m_Device; }
-    [[nodiscard]] constexpr uint32_t GetCurrentFrameIndex() const { return m_CurrentFrameIndex; }
+    [[nodiscard]] constexpr uint32_t GetCurrentFrameIndex() const { return m_CurrentFrameInFlight; }
     [[nodiscard]] constexpr uint32_t GetMaxFramesInFlight() const { return m_MaxFramesInFlight; }
     [[nodiscard]] VmaAllocator GetMemoryAllocator() const { return m_MemoryAllocator; }
 
@@ -128,7 +128,7 @@ private:
     vk::Queue m_TransferQueue;
     vk::Queue m_PresentQueue;
 
-    uint32_t m_CurrentFrameIndex{ 0 };
+    uint32_t m_CurrentFrameInFlight{ 0 };
     uint32_t m_MaxFramesInFlight{ 2 };
 
     friend class Swapchain;

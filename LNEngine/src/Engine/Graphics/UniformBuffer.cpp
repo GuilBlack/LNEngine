@@ -52,9 +52,10 @@ UniformBuffer& UniformBuffer::operator=(UniformBuffer&& other) noexcept
 void UniformBuffer::Destroy()
 {
     m_Context->FreeBuffer(m_MainAllocation);
-    if (m_MainAllocation.MemoryFlags != vk::MemoryPropertyFlagBits::eHostVisible)
+    if (bool(m_MainAllocation.MemoryFlags & vk::MemoryPropertyFlagBits::eHostVisible) == false)
         m_Context->FreeBuffer(m_StagingAllocation);
 }
+
 void UniformBuffer::CopyData(vk::CommandBuffer cb, const void* data, uint32_t size, uint32_t offset)
 {
     if (m_MainAllocation.MemoryFlags & vk::MemoryPropertyFlagBits::eHostVisible)

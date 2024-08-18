@@ -27,7 +27,7 @@ DynamicDescriptorAllocator::~DynamicDescriptorAllocator()
     Clear();
     auto device = m_Context->GetDevice();
     for (auto& pool : m_Pools)
-        device.destroyDescriptorPool();
+        device.destroyDescriptorPool(pool);
 }
 
 DynamicDescriptorAllocator::DynamicDescriptorAllocator(DynamicDescriptorAllocator&& other) noexcept

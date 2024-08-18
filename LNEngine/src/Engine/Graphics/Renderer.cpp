@@ -32,6 +32,7 @@ void Renderer::Shutdown()
         frameData.DescriptorAllocator.Reset();
         m_Context->GetDevice().destroyDescriptorSetLayout(frameData.DescriptorSetLayout);
     }
+    m_FrameData.clear();
     m_GraphicsCommandBufferManager.reset();
     m_Context.Reset();
     m_Swapchain.Reset();

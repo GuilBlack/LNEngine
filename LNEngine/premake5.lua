@@ -88,7 +88,6 @@ project "LNEngine"
         runtime "Debug"
         symbols "On"
         optimize "Off"
-        editandcontinue "Off"
         flags
         {
             "NoRuntimeChecks",
@@ -97,9 +96,6 @@ project "LNEngine"
         defines
         { 
             "_DEBUG", "DEBUG", "LNE_DEBUG",
-            "_DISABLE_VECTOR_ANNOTATION",
-            "_DISABLE_STRING_ANNOTATION",
-            "ASAN_SAVE_DUMP=asanDump.dmp"
         }
         links 
         {
@@ -107,13 +103,11 @@ project "LNEngine"
             "spirv-cross-cored",
             "spirv-cross-cppd"
         }
-        sanitize { "Address" }
 
     filter "configurations:Release"
         runtime "Release"
         symbols "On"
         optimize "On"
-        editandcontinue "Off"
         flags
         {
             "NoRuntimeChecks",
@@ -122,9 +116,6 @@ project "LNEngine"
         defines
         { 
             "LNE_DEBUG",
-            "_DISABLE_VECTOR_ANNOTATION",
-            "_DISABLE_STRING_ANNOTATION",
-            "ASAN_SAVE_DUMP=asanDump.dmp"
         }
         links 
         {
@@ -132,7 +123,6 @@ project "LNEngine"
             "spirv-cross-core",
             "spirv-cross-cpp"
         }
-        sanitize { "Address" }
 
     filter "configurations:Dist"
         runtime "Release"
