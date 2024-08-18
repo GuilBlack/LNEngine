@@ -9,6 +9,7 @@
 #include "Shader.h"
 #include "Core/ApplicationBase.h"
 #include "Engine/Graphics/Texture.h"
+#include "CommandBufferManager.h"
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
@@ -78,10 +79,13 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
     SetVkObjectName(m_PhysicalDevice, "PhysicalDevice");
     SetVkObjectName(m_Device, "Device");
     CreateMemoryAllocator();
+
+    m_TransferCommandBufferManager.reset(lnnew CommandBufferManager(this, 1, EQueueFamilyType::Transfer));
 }
 
 GfxContext::~GfxContext()
 {
+    m_TransferCommandBufferManager.reset();
     vmaDestroyAllocator(m_MemoryAllocator);
     m_Device.destroy();
 }

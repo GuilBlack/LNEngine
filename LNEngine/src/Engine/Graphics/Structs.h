@@ -4,7 +4,7 @@
 
 namespace lne
 {
-struct UniformBinding
+struct BufferBinding
 {
     uint32_t SetIndex;
     uint32_t BindingIndex;
@@ -15,7 +15,8 @@ struct UniformBinding
 struct DescriptorSet
 {
     uint32_t SetIndex;
-    std::unordered_map<std::string, UniformBinding> UniformBuffers;
+    std::unordered_map<std::string, BufferBinding> UniformBuffers;
+    std::unordered_map<std::string, BufferBinding> StorageBuffers;
 };
 
 struct UniformElement

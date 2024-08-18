@@ -193,10 +193,9 @@ void GraphicsPipeline::Bind(const vk::CommandBuffer& cmdBuffer) const
 
 vk::PipelineLayout GraphicsPipeline::CreatePipelineLayout(const std::vector<vk::DescriptorSetLayout>& layouts)
 {
-    auto layout = m_Context->GetDevice().createPipelineLayout({
+    auto layout = m_Context->GetDevice().createPipelineLayout(vk::PipelineLayoutCreateInfo{
         {},
-        layouts,
-        {}
+        layouts
     });
     m_Context->SetVkObjectName(layout, std::format("PipelineLayout: {}", m_Desc.Name));
     return layout;

@@ -12,7 +12,7 @@ public:
         std::string_view debugName = "",
         uint32_t numSetsPerPool = 16, float growthFactor = 1.f, 
         vk::DescriptorPoolCreateFlags poolFlags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet);
-    ~DynamicDescriptorAllocator();
+    virtual ~DynamicDescriptorAllocator();
 
     DynamicDescriptorAllocator(DynamicDescriptorAllocator&& other) noexcept;
     DynamicDescriptorAllocator& operator=(DynamicDescriptorAllocator&& other) noexcept;

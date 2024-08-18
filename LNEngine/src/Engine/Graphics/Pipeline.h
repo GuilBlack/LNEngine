@@ -79,6 +79,7 @@ public:
 
     vk::PipelineLayout CreatePipelineLayout(const std::vector<vk::DescriptorSetLayout>& layouts);
     vk::PipelineLayout GetLayout() const { return m_Layout; }
+    std::vector<vk::DescriptorSetLayout> GetDescriptorSetLayouts() const { return m_Shader->GetDescriptorSetLayouts(); }
 
 private:
     SafePtr<class GfxContext> m_Context;

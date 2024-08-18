@@ -44,6 +44,7 @@ public:
     [[nodiscard]] constexpr uint32_t GetCurrentFrameIndex() const { return m_CurrentFrameInFlight; }
     [[nodiscard]] constexpr uint32_t GetMaxFramesInFlight() const { return m_MaxFramesInFlight; }
     [[nodiscard]] VmaAllocator GetMemoryAllocator() const { return m_MemoryAllocator; }
+    [[nodiscard]] class CommandBufferManager& GetTransferCommandBufferManager() const { return *m_TransferCommandBufferManager; }
 
 #pragma region PhysicalDevice
     [[nodiscard]] const vk::PhysicalDeviceProperties& GetProperties() const { return m_Properties; }
@@ -130,6 +131,8 @@ private:
 
     uint32_t m_CurrentFrameInFlight{ 0 };
     uint32_t m_MaxFramesInFlight{ 2 };
+
+    std::unique_ptr<class CommandBufferManager> m_TransferCommandBufferManager;
 
     friend class Swapchain;
 

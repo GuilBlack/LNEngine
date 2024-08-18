@@ -29,14 +29,14 @@ Swapchain::~Swapchain()
     m_Context->VulkanInstance().destroySurfaceKHR(m_Surface);
 }
 
-vk::SubmitInfo Swapchain::GetSubmitInfo(const vk::CommandBuffer* cmdBuffer, vk::PipelineStageFlags* waitStages, bool waitForImageAvailable, bool signalRenderFinished) const
+vk::SubmitInfo Swapchain::GetSubmitInfo(vk::PipelineStageFlags* waitStages, bool waitForImageAvailable, bool signalRenderFinished) const
 {
     vk::SubmitInfo submitInfo(
         waitForImageAvailable ? 1 : 0,
         waitForImageAvailable ? &m_Semaphores.ImageAvailable : nullptr,
         waitForImageAvailable ? waitStages : nullptr,
         1,
-        cmdBuffer,
+        {},
         signalRenderFinished ? 1 : 0,
         signalRenderFinished ? &m_Semaphores.RenderFinished : nullptr
     );

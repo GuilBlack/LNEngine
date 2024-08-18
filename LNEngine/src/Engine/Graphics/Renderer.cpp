@@ -8,6 +8,8 @@
 #include "Graphics/Pipeline.h"
 #include "Core/Utils/Defines.h"
 #include "DynamicDescriptorAllocator.h"
+#include "Mesh.h"
+#include "StorageBuffer.h"
 
 namespace lne
 {
@@ -15,7 +17,7 @@ void Renderer::Init(std::unique_ptr<Window>& window)
 {
     m_Context = window->GetGfxContext();
     m_Swapchain = window->GetSwapchain();
-    m_GraphicsCommandBufferManager = std::make_unique<CommandBufferManager>(m_Context, m_Swapchain->GetImageCount(), EQueueFamilyType::Graphics);
+    m_GraphicsCommandBufferManager = std::make_unique<CommandBufferManager>(m_Context.GetPtr(), m_Swapchain->GetImageCount(), EQueueFamilyType::Graphics);
 
     for (uint32_t i = 0; i < m_Swapchain->GetImageCount(); i++)
     {
@@ -89,7 +91,7 @@ void Renderer::EndFrame()
     currentImage->TransitionLayout(cb, vk::ImageLayout::ePresentSrcKHR);
 
     vk::PipelineStageFlags waitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
-    vk::SubmitInfo submitInfo = m_Swapchain->GetSubmitInfo(&cb, waitStages);
+    vk::SubmitInfo submitInfo = m_Swapchain->GetSubmitInfo(waitStages);
     m_GraphicsCommandBufferManager->Submit(submitInfo);
 }
 
@@ -103,13 +105,44 @@ void Renderer::EndRenderPass(const Framebuffer& framebuffer) const
     framebuffer.Unbind(m_GraphicsCommandBufferManager->GetCurrentCommandBuffer());
 }
 
-void Renderer::Draw(SafePtr<GraphicsPipeline> pipeline)
+void Renderer::Draw(SafePtr<GraphicsPipeline> pipeline, struct Geometry& geometry)
 {
     const vk::CommandBuffer& cb = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
-    cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0, { m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorSet }, {});
+    
+    auto geometryDescSetLayout = pipeline->GetDescriptorSetLayouts()[1];
+    vk::DescriptorSet geometryDescSet = m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorAllocator->Allocate(geometryDescSetLayout);
+
+    auto vertexInfo = geometry.VertexGPUBuffer->GetDescriptorInfo();
+    auto indexInfo = geometry.IndexGPUBuffer->GetDescriptorInfo();
+    std::vector<vk::WriteDescriptorSet> writeGeoDescriptorSets;
+    writeGeoDescriptorSets.emplace_back(vk::WriteDescriptorSet{
+        geometryDescSet,
+        0,
+        0,
+        1,
+        vk::DescriptorType::eStorageBuffer,
+        nullptr,
+        &vertexInfo,
+        nullptr
+    });
+    writeGeoDescriptorSets.emplace_back(vk::WriteDescriptorSet{
+        geometryDescSet,
+        1,
+        0,
+        1,
+        vk::DescriptorType::eStorageBuffer,
+        nullptr,
+        &indexInfo,
+        nullptr
+    });
+
+    m_Context->GetDevice().updateDescriptorSets(writeGeoDescriptorSets, nullptr);
+
+    cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0, { m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorSet, geometryDescSet }, {});
+
     auto& cmdBuffer = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
     pipeline->Bind(cmdBuffer);
-    cmdBuffer.draw(3, 1, 0, 0);
+    cmdBuffer.draw(geometry.IndexCount, 1, 0, 0);
 }
 
 SafePtr<GraphicsPipeline> Renderer::CreateGraphicsPipeline(const GraphicsPipelineDesc& createInfo)
@@ -119,11 +152,23 @@ SafePtr<GraphicsPipeline> Renderer::CreateGraphicsPipeline(const GraphicsPipelin
     return pipeline;
 }
 
+SafePtr<class StorageBuffer> Renderer::CreateGeometryBuffer(const void* data, size_t size)
+{
+    SafePtr<StorageBuffer> buffer;
+    buffer.Reset(lnnew StorageBuffer(m_Context, (uint64_t)size, data));
+    return buffer;
+}
+
 void Renderer::InitFrameData(uint32_t index)
 {
     m_FrameData.emplace_back(
             UniformBuffer(m_Context, sizeof(GlobalUniforms)),
-            SafePtr(lnnew DynamicDescriptorAllocator(m_Context, { { vk::DescriptorType::eUniformBuffer, 1 } }, "GlobalDescAlloc" + std::to_string(index), 1024)),
+            SafePtr(lnnew DynamicDescriptorAllocator(m_Context, 
+                { 
+                    { vk::DescriptorType::eUniformBuffer, 1024 },
+                    { vk::DescriptorType::eStorageBuffer, 256 }
+                }, 
+                "GlobalDescAlloc" + std::to_string(index), 1)),
             m_Context->CreateDescriptorSetLayout({
                 vk::DescriptorSetLayoutBinding{
                     0,

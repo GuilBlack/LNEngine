@@ -17,6 +17,7 @@
 #include "Engine/Graphics/Pipeline.h"
 #include "Engine/Graphics/Texture.h"
 #include "Engine/Graphics/DynamicDescriptorAllocator.h"
+#include "Engine/Graphics/Mesh.h"
 
 #include <vulkan/vulkan.hpp>
 

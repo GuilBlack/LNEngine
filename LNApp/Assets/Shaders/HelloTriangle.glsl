@@ -15,9 +15,23 @@ vec2 positions[3] = vec2[](vec2(0.0, -0.5), vec2(-0.5, 0.5), vec2(0.5, 0.5));
 
 vec3 colors[3] = vec3[](vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0));
 
+struct Vertex {
+    vec4 position;
+    vec4 color;
+};
+
+layout(set = 1, binding = 0) readonly buffer VertexBuffer {
+    Vertex vertices[];
+} vertexBuffer;
+
+layout(set = 1, binding = 1) readonly buffer IndexBuffer {
+    uint indices[];
+} indexBuffer;
+
 void main() {
-  gl_Position = uViewProj * vec4(positions[gl_VertexIndex], 0.0, 1.0);
-  oColor = vec4(colors[gl_VertexIndex], 1.0);
+    uint currentIndex = indexBuffer.indices[gl_VertexIndex];
+    gl_Position = uViewProj * vec4(vertexBuffer.vertices[currentIndex].position);
+    oColor = vec4(vertexBuffer.vertices[currentIndex].color);
 }
 
 #endif

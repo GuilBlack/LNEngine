@@ -4,7 +4,7 @@
 
 namespace lne
 {
-CommandBufferManager::CommandBufferManager(SafePtr<GfxContext> ctx, uint32_t count, EQueueFamilyType queueType)
+CommandBufferManager::CommandBufferManager(GfxContext* ctx, uint32_t count, EQueueFamilyType queueType)
     : m_Context(ctx), m_Queue(ctx->GetQueue(queueType))
 {
     auto device = m_Context->GetDevice();
@@ -33,19 +33,34 @@ CommandBufferManager::~CommandBufferManager()
 
 void CommandBufferManager::StartCommandBuffer(uint32_t index)
 {
-    m_CurrentImageIndex = index;
+    m_CurrentBufferIndex = index;
     auto device = m_Context->GetDevice();
-    VK_CHECK(device.waitForFences(m_WaitFences[m_CurrentImageIndex], VK_TRUE, UINT64_MAX));
+    VK_CHECK(device.waitForFences(m_WaitFences[m_CurrentBufferIndex], VK_TRUE, UINT64_MAX));
 
-    m_CommandBuffers[m_CurrentImageIndex].reset(vk::CommandBufferResetFlagBits::eReleaseResources);
-    m_CommandBuffers[m_CurrentImageIndex].begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+    m_CommandBuffers[m_CurrentBufferIndex].reset(vk::CommandBufferResetFlagBits::eReleaseResources);
+    m_CommandBuffers[m_CurrentBufferIndex].begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
 }
 
-void CommandBufferManager::Submit(const vk::SubmitInfo& submitInfo)
+void CommandBufferManager::Submit(vk::SubmitInfo& submitInfo)
 {
-    m_Context->GetDevice().resetFences(m_WaitFences[m_CurrentImageIndex]);
-    m_CommandBuffers[m_CurrentImageIndex].end();
-    m_Queue.submit(submitInfo, m_WaitFences[m_CurrentImageIndex]);
+    m_Context->GetDevice().resetFences(m_WaitFences[m_CurrentBufferIndex]);
+    m_CommandBuffers[m_CurrentBufferIndex].end();
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &m_CommandBuffers[m_CurrentBufferIndex];
+    m_Queue.submit(submitInfo, m_WaitFences[m_CurrentBufferIndex]);
+}
+
+vk::CommandBuffer CommandBufferManager::BeginSingleTimeCommands()
+{
+    StartCommandBuffer(0);
+    return m_CommandBuffers[0];
+}
+
+void CommandBufferManager::EndSingleTimeCommands()
+{
+    vk::SubmitInfo submitInfo = vk::SubmitInfo{};
+    Submit(submitInfo);
+    m_Queue.waitIdle();
 }
 
 std::vector<vk::CommandBuffer> CommandBufferManager::AllocateCommandBuffers(uint32_t count, std::string_view cbName)

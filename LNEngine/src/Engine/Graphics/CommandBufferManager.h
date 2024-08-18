@@ -7,23 +7,26 @@ namespace lne
 class CommandBufferManager
 {
 public:
-    CommandBufferManager(SafePtr<class GfxContext> ctx, uint32_t count, EQueueFamilyType queueType);
+    CommandBufferManager(class GfxContext* ctx, uint32_t count, EQueueFamilyType queueType);
     ~CommandBufferManager();
 
-    [[nodiscard]] vk::CommandBuffer& GetCurrentCommandBuffer() { return m_CommandBuffers[m_CurrentImageIndex]; }
+    [[nodiscard]] vk::CommandBuffer& GetCurrentCommandBuffer() { return m_CommandBuffers[m_CurrentBufferIndex]; }
     void StartCommandBuffer(uint32_t index);
 
-    void Submit(const vk::SubmitInfo& submitInfo);
+    void Submit(vk::SubmitInfo& submitInfo);
+
+    vk::CommandBuffer BeginSingleTimeCommands();
+    void EndSingleTimeCommands();
 
 private:
-    SafePtr<class GfxContext> m_Context;
+    GfxContext* m_Context;
     vk::Queue m_Queue;
     vk::CommandPool m_CommandPool;
     std::vector<vk::CommandBuffer> m_CommandBuffers;
 
     std::vector<vk::Fence> m_WaitFences;
 
-    uint32_t m_CurrentImageIndex{ 0 };
+    uint32_t m_CurrentBufferIndex{ 0 };
 
 private:
     [[nodiscard]] std::vector<vk::CommandBuffer> AllocateCommandBuffers(uint32_t count, std::string_view cbName);

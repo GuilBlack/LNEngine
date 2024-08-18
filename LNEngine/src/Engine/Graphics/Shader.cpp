@@ -306,7 +306,7 @@ void Shader::ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<ui
 
             if (m_ReflectedData.DescriptorSets[set].UniformBuffers.contains(res.name))
             {
-                UniformBinding& uniformStages = m_ReflectedData.DescriptorSets[set].UniformBuffers[res.name];
+                BufferBinding& uniformStages = m_ReflectedData.DescriptorSets[set].UniformBuffers[res.name];
                 uniformStages.Stages = uniformStages.Stages | ShaderStageToVk(stage);
                 continue;
             }
@@ -337,6 +337,36 @@ void Shader::ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<ui
                 };
             }
         }
+
+        for (const auto& res : resources.storage_buffers)
+        {
+            uint32_t set = compiler.get_decoration(res.id, spv::DecorationDescriptorSet);
+            uint32_t binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+            spirv_cross::SPIRType type = compiler.get_type(res.base_type_id);
+            uint32_t bufferSize = (uint32_t)compiler.get_declared_struct_size(type);
+
+            if (m_ReflectedData.DescriptorSets.contains(set) == false)
+                m_ReflectedData.DescriptorSets[set] = DescriptorSet{ .SetIndex = set };
+
+            if (m_ReflectedData.DescriptorSets[set].StorageBuffers.contains(res.name))
+            {
+                BufferBinding& uniformStages = m_ReflectedData.DescriptorSets[set].StorageBuffers[res.name];
+                uniformStages.Stages = uniformStages.Stages | ShaderStageToVk(stage);
+                continue;
+            }
+            else
+            {
+                m_ReflectedData.DescriptorSets[set].StorageBuffers[res.name] =
+                {
+                    .SetIndex = set,
+                    .BindingIndex = binding,
+                    .Size = bufferSize,
+                    .Stages = ShaderStageToVk(stage)
+                };
+            }
+
+            LNE_INFO("    Name: {}, Set: {}, Binding: {}, Size: {}", res.name, set, binding, bufferSize);
+        }
     }
 }
 
@@ -364,10 +394,11 @@ std::unordered_map<ShaderStage::Enum, vk::ShaderModule> Shader::CreateModules(st
 void Shader::CreateDescriptorSetLayouts()
 {
     m_DescriptorSetLayouts.resize(m_ReflectedData.DescriptorSets.size());
+    uint32_t layoutIndex = 0;
     for (auto&[setIndex, set] : m_ReflectedData.DescriptorSets)
     {
         vk::DescriptorSetLayoutCreateInfo descSetLayoutCI{};
-        descSetLayoutCI.setBindingCount((uint32_t)set.UniformBuffers.size());
+        descSetLayoutCI.setBindingCount((uint32_t)set.UniformBuffers.size() + (uint32_t)set.StorageBuffers.size());
         std::vector<vk::DescriptorSetLayoutBinding> bindings{};
         bindings.reserve(descSetLayoutCI.bindingCount);
         for (auto& [name, buffer] : set.UniformBuffers)
@@ -381,9 +412,15 @@ void Shader::CreateDescriptorSetLayouts()
             }
             bindings.emplace_back(vk::DescriptorSetLayoutBinding(buffer.BindingIndex, vk::DescriptorType::eUniformBuffer, 1, stages));
         }
+        for (auto& [name, buffer] : set.StorageBuffers)
+        {
+            auto stages = buffer.Stages;
+            bindings.emplace_back(vk::DescriptorSetLayoutBinding(buffer.BindingIndex, vk::DescriptorType::eStorageBuffer, 1, stages));
+        }
         descSetLayoutCI.setBindings(bindings);
-        m_DescriptorSetLayouts[setIndex] = m_Context->GetDevice().createDescriptorSetLayout(descSetLayoutCI);
-        m_Context->SetVkObjectName(m_DescriptorSetLayouts[setIndex], std::format("DescSetLayout {}, set: {}", m_Name, setIndex));
+        m_DescriptorSetLayouts[layoutIndex] = m_Context->GetDevice().createDescriptorSetLayout(descSetLayoutCI);
+        m_Context->SetVkObjectName(m_DescriptorSetLayouts[layoutIndex], std::format("DescSetLayout {}, set: {}", m_Name, setIndex));
+        layoutIndex++;
     }
 }
 }

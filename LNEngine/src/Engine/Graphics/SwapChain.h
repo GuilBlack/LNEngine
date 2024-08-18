@@ -42,8 +42,7 @@ public:
 
     [[nodiscard]] uint32_t GetImageCount() const { return static_cast<uint32_t>(m_Images.size()); }
     [[nodiscard]] uint32_t GetCurrentFrameIndex() const { return m_CurrentImageIndex; }
-    [[nodiscard]] vk::SubmitInfo GetSubmitInfo(const vk::CommandBuffer* cmdBuffer, 
-        vk::PipelineStageFlags* submitStageFlag, 
+    [[nodiscard]] vk::SubmitInfo GetSubmitInfo(vk::PipelineStageFlags* submitStageFlag, 
         bool waitForImageAvailable = true, bool signalRenderFinished = true) const;
     [[nodiscard]] SafePtr<class Texture> GetCurrentImage() const;
     [[nodiscard]] const Viewport& GetViewport() const { return m_Viewport; }
