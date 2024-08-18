@@ -46,7 +46,7 @@ public:
         vk::PipelineStageFlags* submitStageFlag, 
         bool waitForImageAvailable = true, bool signalRenderFinished = true) const;
     [[nodiscard]] SafePtr<class Texture> GetCurrentImage() const;
-    [[nodiscard]] Viewport GetViewport() const { return m_Viewport; }
+    [[nodiscard]] const Viewport& GetViewport() const { return m_Viewport; }
 
     [[nodiscard]] class Framebuffer& GetCurrentFramebuffer();
 

@@ -78,6 +78,7 @@ public:
     void Bind(const vk::CommandBuffer& cmdBuffer) const;
 
     vk::PipelineLayout CreatePipelineLayout(const std::vector<vk::DescriptorSetLayout>& layouts);
+    vk::PipelineLayout GetLayout() const { return m_Layout; }
 
 private:
     SafePtr<class GfxContext> m_Context;

@@ -41,7 +41,9 @@ public:
     static vk::Instance VulkanInstance() { return s_VulkanInstance; }
     class vk::PhysicalDevice GetPhysicalDevice() const { return m_PhysicalDevice; }
     class vk::Device GetDevice() const { return m_Device; }
-    const VmaAllocator& GetMemoryAllocator() const { return m_MemoryAllocator; }
+    [[nodiscard]] constexpr uint32_t GetCurrentFrameIndex() const { return m_CurrentFrameIndex; }
+    [[nodiscard]] constexpr uint32_t GetMaxFramesInFlight() const { return m_MaxFramesInFlight; }
+    [[nodiscard]] VmaAllocator GetMemoryAllocator() const { return m_MemoryAllocator; }
 
 #pragma region PhysicalDevice
     [[nodiscard]] const vk::PhysicalDeviceProperties& GetProperties() const { return m_Properties; }
@@ -72,6 +74,15 @@ public:
     [[nodiscard]] vk::ImageView CreateImageView(vk::Image image, vk::ImageViewType viewType,
         vk::Format format, uint32_t numMipLevels = 1,
         uint32_t layers = 1, vk::ImageAspectFlags aspect = vk::ImageAspectFlagBits::eColor, const std::string& name = "");
+
+#pragma endregion
+
+    vk::DescriptorSetLayout CreateDescriptorSetLayout(const std::vector<vk::DescriptorSetLayoutBinding>& bindings, const std::string& name = "");
+
+#pragma region Buffer
+
+    void AllocateBuffer(BufferAllocation& allocation, VkBufferCreateInfo bufferCI, VmaAllocationCreateInfo allocCI);
+    void FreeBuffer(BufferAllocation& allocation);
 
 #pragma endregion
 
@@ -116,6 +127,11 @@ private:
     vk::Queue m_ComputeQueue;
     vk::Queue m_TransferQueue;
     vk::Queue m_PresentQueue;
+
+    uint32_t m_CurrentFrameIndex{ 0 };
+    uint32_t m_MaxFramesInFlight{ 2 };
+
+    friend class Swapchain;
 
 private:
     static VkBool32 VKAPI_CALL DebugPrintfCallback(

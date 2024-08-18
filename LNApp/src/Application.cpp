@@ -11,7 +11,7 @@ public:
         APP_INFO("AppLayer::OnAttach");
         auto& fb = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
         lne::GraphicsPipelineDesc desc{};
-        desc.PathToShaders = lne::ApplicationBase::GetAssetsPath() + "Shaders/HelloTriangle.glsl";
+        desc.PathToShaders = lne::ApplicationBase::GetAssetsPath() + "Shaders\\HelloTriangle.glsl";
         desc.AddStage(lne::ShaderStage::eVertex)
             .AddStage(lne::ShaderStage::eFragment);
         desc.SetCulling(lne::ECullMode::Back)

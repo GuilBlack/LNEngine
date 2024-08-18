@@ -12,6 +12,7 @@
 #include "Graphics/Renderer.h"
 #include "Graphics/CommandBufferManager.h"
 #include "Graphics/Texture.h"
+#include "Graphics/DynamicDescriptorAllocator.h"
 
 namespace lne
 {
@@ -23,7 +24,7 @@ ApplicationBase::ApplicationBase(ApplicationSettings&& settings)
 {
     LNE_ASSERT(!s_Instance, "Application already exists");
     s_Instance = this;
-    s_AssetsPath = std::filesystem::current_path().string() + "/Assets/";
+    s_AssetsPath = std::filesystem::current_path().string() + "\\Assets\\";
 
     Profiler::Get().BeginSession("Init");
     LNE_PROFILE_FUNCTION();

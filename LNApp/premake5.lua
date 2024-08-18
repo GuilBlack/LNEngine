@@ -60,7 +60,7 @@ project "LNApp"
         postbuildcommands
         {
             "call " .. os.realpath("Assets\\Shaders\\CompileScripts\\BuildShaders.bat"),
-            "{COPY} Assets/Shaders/Compiled " .. "%{cfg.targetdir}/Assets/Shaders/Compiled"
+            "{COPY} Assets/ " .. "%{cfg.targetdir}/Assets/"
         }
 
     filter "configurations:Debug"

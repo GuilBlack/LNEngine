@@ -1,9 +1,10 @@
 #pragma once
 #include "Enums.h"
+#include <vma/vk_mem_alloc.h>
 
 namespace lne
 {
-struct UniformBuffer
+struct UniformBinding
 {
     uint32_t SetIndex;
     uint32_t BindingIndex;
@@ -14,7 +15,7 @@ struct UniformBuffer
 struct DescriptorSet
 {
     uint32_t SetIndex;
-    std::unordered_map<std::string, UniformBuffer> UniformBuffers;
+    std::unordered_map<std::string, UniformBinding> UniformBuffers;
 };
 
 struct UniformElement
@@ -23,5 +24,13 @@ struct UniformElement
     uint32_t Offset;
     uint32_t Size;
     UniformElementType::Enum Type;
+};
+
+struct BufferAllocation
+{
+    vk::Buffer Buffer;
+    VmaAllocation Allocation;
+    VmaAllocationInfo AllocationInfo;
+    vk::MemoryPropertyFlags MemoryFlags;
 };
 }

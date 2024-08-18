@@ -83,6 +83,8 @@ bool Swapchain::Present()
 
     vk::Result result = presentQueue.presentKHR(presentInfo);
     m_FrameIndex = (m_FrameIndex + 1) % m_Images.size();
+    // TODO: this is a temporary solution, m_CurrentFrameIndex should be current frame in flight not just the current frame index
+    m_Context->m_CurrentFrameIndex = m_FrameIndex;
     if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR)
         return false;
 
@@ -168,6 +170,7 @@ void Swapchain::CreateSwapchain()
         colorAttachmentDesc.Texture = m_Images[i];
         m_Framebuffers.emplace_back(Framebuffer(m_Context, { colorAttachmentDesc }, {}));
     }
+    m_Context->m_MaxFramesInFlight = m_Images.size();
 }
 
 void Swapchain::CreateSyncObjects()

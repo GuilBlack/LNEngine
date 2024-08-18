@@ -16,6 +16,7 @@
 #include "Engine/Graphics/Framebuffer.h"
 #include "Engine/Graphics/Pipeline.h"
 #include "Engine/Graphics/Texture.h"
+#include "Engine/Graphics/DynamicDescriptorAllocator.h"
 
 #include <vulkan/vulkan.hpp>
 

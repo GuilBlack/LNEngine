@@ -256,7 +256,6 @@ std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> Shader::CompileToSp
     options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);
     constexpr bool optimize = false;
     options.SetOptimizationLevel(optimize ? shaderc_optimization_level_performance : shaderc_optimization_level_zero);
-    options.SetGenerateDebugInfo();
     options.SetWarningsAsErrors();
     std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> spirvCode;
     std::vector<shaderc::CompileOptions> optionsForShaders(header.size(), options);
@@ -307,7 +306,7 @@ void Shader::ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<ui
 
             if (m_ReflectedData.DescriptorSets[set].UniformBuffers.contains(res.name))
             {
-                UniformBuffer& uniformStages = m_ReflectedData.DescriptorSets[set].UniformBuffers[res.name];
+                UniformBinding& uniformStages = m_ReflectedData.DescriptorSets[set].UniformBuffers[res.name];
                 uniformStages.Stages = uniformStages.Stages | ShaderStageToVk(stage);
                 continue;
             }
@@ -373,7 +372,14 @@ void Shader::CreateDescriptorSetLayouts()
         bindings.reserve(descSetLayoutCI.bindingCount);
         for (auto& [name, buffer] : set.UniformBuffers)
         {
-            bindings.emplace_back(vk::DescriptorSetLayoutBinding(buffer.BindingIndex, vk::DescriptorType::eUniformBuffer, 1, buffer.Stages));
+            auto stages = buffer.Stages;
+            switch (setIndex)
+            {
+            case 0:
+                stages = vk::ShaderStageFlagBits::eAllGraphics;
+                break;
+            }
+            bindings.emplace_back(vk::DescriptorSetLayoutBinding(buffer.BindingIndex, vk::DescriptorType::eUniformBuffer, 1, stages));
         }
         descSetLayoutCI.setBindings(bindings);
         m_DescriptorSetLayouts[setIndex] = m_Context->GetDevice().createDescriptorSetLayout(descSetLayoutCI);

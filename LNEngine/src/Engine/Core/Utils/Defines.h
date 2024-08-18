@@ -7,3 +7,7 @@
 #endif
 
 using byte = uint8_t;
+
+#define MOVABLE_ONLY(T) \
+    T(const T&) = delete; \
+    T& operator=(const T&) = delete;

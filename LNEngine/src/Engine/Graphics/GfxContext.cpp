@@ -297,6 +297,32 @@ vk::ImageView GfxContext::CreateImageView(vk::Image image, vk::ImageViewType vie
     return imageView;
 }
 
+vk::DescriptorSetLayout GfxContext::CreateDescriptorSetLayout(const std::vector<vk::DescriptorSetLayoutBinding>& bindings, const std::string& name)
+{
+    vk::DescriptorSetLayoutCreateInfo layoutInfo({}, bindings);
+    auto layout = m_Device.createDescriptorSetLayout(layoutInfo);
+    SetVkObjectName(layout, std::format("DescriptorSetLayout: {}", name));
+    return layout;
+}
+
+void GfxContext::AllocateBuffer(BufferAllocation& allocation, VkBufferCreateInfo bufferCI, VmaAllocationCreateInfo allocCI)
+{
+    VkBuffer buffer;
+    VK_CHECK_C(vmaCreateBuffer(m_MemoryAllocator,
+        &bufferCI, &allocCI, 
+        &buffer, &allocation.Allocation, &allocation.AllocationInfo));
+    allocation.Buffer = buffer;
+
+    VkMemoryPropertyFlags memPropFlags;
+    vmaGetAllocationMemoryProperties(m_MemoryAllocator, allocation.Allocation, &memPropFlags);
+    allocation.MemoryFlags = vk::MemoryPropertyFlags(memPropFlags);
+}
+
+void GfxContext::FreeBuffer(BufferAllocation& allocation)
+{
+    vmaDestroyBuffer(m_MemoryAllocator, allocation.Buffer, allocation.Allocation);
+}
+
 SafePtr<Shader> GfxContext::CreateShader(std::string_view filePath)
 {
     SafePtr<Shader> shader;
