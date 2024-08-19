@@ -9,6 +9,7 @@ This README is more of a way for me to keep track of what I did and what I'll be
 - Simple input system
 - Simple application loop
 - Simple logging system
+- Simple ref counting system
 - Vulkan initialization
 - Dynamic rendering
 - Shader reflection with Spirv-Cross to get the DescriptorSetLayouts out of it
