@@ -9,7 +9,7 @@ struct Geometry
     SafePtr<StorageBuffer> VertexGPUBuffer;
     SafePtr<StorageBuffer> IndexGPUBuffer;
 
-    uint64_t VertexCount;
-    uint64_t IndexCount;
+    uint32_t VertexCount;
+    uint32_t IndexCount;
 };
 }

@@ -7,6 +7,10 @@ layout(std140, set=0, binding=0) uniform GlobalUBO {
     mat4 uProj;
 };
 
+layout(std140, set = 2, binding = 0) uniform ObjectData {
+    mat4 uModel;
+};
+
 #ifdef VERT
 
 layout(location = 0) out vec4 oColor;
@@ -30,7 +34,7 @@ layout(set = 1, binding = 1) readonly buffer IndexBuffer {
 
 void main() {
     uint currentIndex = indexBuffer.indices[gl_VertexIndex];
-    gl_Position = uViewProj * vec4(vertexBuffer.vertices[currentIndex].position);
+    gl_Position = uViewProj * uModel * vec4(vertexBuffer.vertices[currentIndex].position);
     oColor = vec4(vertexBuffer.vertices[currentIndex].color);
 }
 

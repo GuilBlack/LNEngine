@@ -1,4 +1,7 @@
 #pragma once
+#include "../vendor/GLM/glm/glm.hpp"
+#include "../vendor/GLM/glm/gtc/constants.hpp"
+#include "../vendor/GLM/glm/gtc/matrix_transform.hpp"
 
 #include "../vendor/VKBOOTSTRAP/vkbootstrap/src/VkBootstrap.h"
 #include "Engine/Core/Utils/Defines.h"
@@ -18,6 +21,7 @@
 #include "Engine/Graphics/Texture.h"
 #include "Engine/Graphics/DynamicDescriptorAllocator.h"
 #include "Engine/Graphics/Mesh.h"
+#include "Engine/Scene/Components.h"
 
 #include <vulkan/vulkan.hpp>
 

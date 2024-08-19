@@ -42,11 +42,12 @@ public:
     void BeginRenderPass(const class Framebuffer& framebuffer) const;
     void EndRenderPass(const class Framebuffer& framebuffer) const;
 
-    void Draw(SafePtr<class GraphicsPipeline> pipeline, struct Geometry& geometry);
+    void Draw(SafePtr<class GraphicsPipeline> pipeline, struct Geometry& geometry, struct TransformComponent& objTransform);
 
     // TODO: move to a resource manager
     SafePtr<class GraphicsPipeline> CreateGraphicsPipeline(const struct GraphicsPipelineDesc& createInfo);
     SafePtr<class StorageBuffer> CreateGeometryBuffer(const void* data, size_t size);
+    SafePtr<class UniformBufferManager> RegisterObject();
 
 private:
     SafePtr<class GfxContext> m_Context;

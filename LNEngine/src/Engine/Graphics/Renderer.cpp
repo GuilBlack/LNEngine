@@ -10,6 +10,7 @@
 #include "DynamicDescriptorAllocator.h"
 #include "Mesh.h"
 #include "StorageBuffer.h"
+#include "Scene/Components.h"
 
 namespace lne
 {
@@ -105,10 +106,12 @@ void Renderer::EndRenderPass(const Framebuffer& framebuffer) const
     framebuffer.Unbind(m_GraphicsCommandBufferManager->GetCurrentCommandBuffer());
 }
 
-void Renderer::Draw(SafePtr<GraphicsPipeline> pipeline, struct Geometry& geometry)
+void Renderer::Draw(SafePtr<GraphicsPipeline> pipeline, struct Geometry& geometry, TransformComponent& objTransform)
 {
-    const vk::CommandBuffer& cb = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
+    auto& cmdBuffer = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
+    pipeline->Bind(cmdBuffer);
     
+    // Create & update geometry descriptor set
     auto geometryDescSetLayout = pipeline->GetDescriptorSetLayouts()[1];
     vk::DescriptorSet geometryDescSet = m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorAllocator->Allocate(geometryDescSetLayout);
 
@@ -138,10 +141,25 @@ void Renderer::Draw(SafePtr<GraphicsPipeline> pipeline, struct Geometry& geometr
 
     m_Context->GetDevice().updateDescriptorSets(writeGeoDescriptorSets, nullptr);
 
-    cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0, { m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorSet, geometryDescSet }, {});
+    // Create & update object descriptor set
+    objTransform.UniformBuffers->CopyData(cmdBuffer, objTransform.GetModelMatrix());
+    auto objDescSetLaout = pipeline->GetDescriptorSetLayouts()[2];
+    vk::DescriptorSet objDescSet = m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorAllocator->Allocate(objDescSetLaout);
 
-    auto& cmdBuffer = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
-    pipeline->Bind(cmdBuffer);
+    auto objInfo = objTransform.UniformBuffers->GetCurrentBuffer().GetDescriptorInfo();
+    vk::WriteDescriptorSet writeObjDescriptorSet = vk::WriteDescriptorSet{
+        objDescSet,
+        0,
+        0,
+        1,
+        vk::DescriptorType::eUniformBuffer,
+        nullptr,
+        &objInfo,
+        nullptr
+    };
+    m_Context->GetDevice().updateDescriptorSets(writeObjDescriptorSet, nullptr);
+
+    cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0, { m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorSet, geometryDescSet, objDescSet }, {});
     cmdBuffer.draw(geometry.IndexCount, 1, 0, 0);
 }
 
@@ -159,14 +177,21 @@ SafePtr<class StorageBuffer> Renderer::CreateGeometryBuffer(const void* data, si
     return buffer;
 }
 
+SafePtr<UniformBufferManager> Renderer::RegisterObject()
+{
+    SafePtr<UniformBufferManager> uboManager;
+    uboManager.Reset(lnnew UniformBufferManager(m_Context, sizeof(glm::mat4)));
+    return uboManager;
+}
+
 void Renderer::InitFrameData(uint32_t index)
 {
     m_FrameData.emplace_back(
             UniformBuffer(m_Context, sizeof(GlobalUniforms)),
             SafePtr(lnnew DynamicDescriptorAllocator(m_Context, 
                 { 
-                    { vk::DescriptorType::eUniformBuffer, 1024 },
-                    { vk::DescriptorType::eStorageBuffer, 256 }
+                    { vk::DescriptorType::eUniformBuffer, 512 },
+                    { vk::DescriptorType::eStorageBuffer, 512 }
                 }, 
                 "GlobalDescAlloc" + std::to_string(index), 1)),
             m_Context->CreateDescriptorSetLayout({

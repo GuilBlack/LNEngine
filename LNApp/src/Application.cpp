@@ -43,9 +43,21 @@ public:
         lne::SafePtr<lne::StorageBuffer> indexBuffer = lne::ApplicationBase::GetRenderer().CreateGeometryBuffer(indices.data(), indices.size() * sizeof(uint32_t));
         
         m_Geometry.VertexGPUBuffer = vertexBuffer;
-        m_Geometry.VertexCount = vertices.size();
+        m_Geometry.VertexCount = (uint32_t)vertices.size();
         m_Geometry.IndexGPUBuffer = indexBuffer;
-        m_Geometry.IndexCount = indices.size();
+        m_Geometry.IndexCount = (uint32_t)indices.size();
+
+        m_Transform.Position = { -0.5f, 0.0f, 0.0f };
+        m_Transform.Rotation = { 0.0f, 0.0f, 0.0f };
+        m_Transform.Scale = { 0.5f, 0.5f, 0.5f };
+
+        m_Transform.UniformBuffers = lne::ApplicationBase::GetRenderer().RegisterObject();
+
+        m_Transform2.Position = { 0.5f, 0.0f, 0.0f };
+        m_Transform2.Rotation = { 0.0f, 0.0f, 0.0f };
+        m_Transform2.Scale = { 0.5f, 0.5f, 0.5f };
+
+        m_Transform2.UniformBuffers = lne::ApplicationBase::GetRenderer().RegisterObject();
     }
 
     void OnDetach() override
@@ -58,11 +70,20 @@ public:
     {
         static int frameIndex = 0;
         ++frameIndex;
+
+        double currentTime = lne::ApplicationBase::GetClock().GetElapsedTime();
+        float sinTime = sin(currentTime);
+        float cosTime = cos(currentTime);
+
+        m_Transform.Position.y = sinTime * 0.5f;
+        m_Transform2.Rotation.z = cosTime * 180.0f;
+
         auto& fb = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
 
         lne::ApplicationBase::GetRenderer().BeginRenderPass(fb);
 
-        lne::ApplicationBase::GetRenderer().Draw(m_Pipeline, m_Geometry);
+        lne::ApplicationBase::GetRenderer().Draw(m_Pipeline, m_Geometry, m_Transform);
+        lne::ApplicationBase::GetRenderer().Draw(m_Pipeline, m_Geometry, m_Transform2);
 
         lne::ApplicationBase::GetRenderer().EndRenderPass(fb);
     }
@@ -70,6 +91,8 @@ public:
 private:
     lne::SafePtr<lne::GraphicsPipeline> m_Pipeline;
     lne::Geometry m_Geometry;
+    lne::TransformComponent m_Transform;
+    lne::TransformComponent m_Transform2;
 };
 
 class Application : public lne::ApplicationBase

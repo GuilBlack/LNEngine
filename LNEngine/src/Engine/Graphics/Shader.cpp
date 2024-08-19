@@ -268,9 +268,11 @@ std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> Shader::CompileToSp
 
         shaderc_shader_kind shaderKind = ShaderStageToShaderc(stage);
         shaderc::SpvCompilationResult result = compiler.CompileGlslToSpv(
-            sourceCode,
+            sourceCode.c_str(),
+            sourceCode.size(),
             shaderKind,
             m_FilePath.c_str(),
+            headerInfo.EntryPoint.c_str(),
             options
         );
 

@@ -73,14 +73,14 @@ void UniformBuffer::CopyData(vk::CommandBuffer cb, const void* data, uint32_t si
             size
         };
 
-        cb.pipelineBarrier(
-            vk::PipelineStageFlagBits::eHost,
-            vk::PipelineStageFlagBits::eVertexShader,
-            {},
-            {},
-            barrier,
-            {}
-        );
+        //cb.pipelineBarrier(
+        //    vk::PipelineStageFlagBits::eHost,
+        //    vk::PipelineStageFlagBits::eVertexShader,
+        //    {},
+        //    {},
+        //    barrier,
+        //    {}
+        //);
     }
     else
     {
@@ -97,14 +97,14 @@ void UniformBuffer::CopyData(vk::CommandBuffer cb, const void* data, uint32_t si
             size
         };
 
-        cb.pipelineBarrier(
-            vk::PipelineStageFlagBits::eHost,
-            vk::PipelineStageFlagBits::eTransfer,
-            {},
-            {},
-            barrier,
-            {}
-        );
+        //cb.pipelineBarrier(
+        //    vk::PipelineStageFlagBits::eHost,
+        //    vk::PipelineStageFlagBits::eTransfer,
+        //    {},
+        //    {},
+        //    barrier,
+        //    {}
+        //);
 
         vk::BufferCopy copyRegion{
             offset,
@@ -124,14 +124,14 @@ void UniformBuffer::CopyData(vk::CommandBuffer cb, const void* data, uint32_t si
             size
         };
 
-        cb.pipelineBarrier(
-            vk::PipelineStageFlagBits::eTransfer,
-            vk::PipelineStageFlagBits::eVertexShader,
-            {},
-            {},
-            barrier2,
-            {}
-        );
+        //cb.pipelineBarrier(
+        //    vk::PipelineStageFlagBits::eTransfer,
+        //    vk::PipelineStageFlagBits::eVertexShader,
+        //    {},
+        //    {},
+        //    barrier2,
+        //    {}
+        //);
     }
 }
 UniformBufferManager::UniformBufferManager(SafePtr<class GfxContext> ctx, uint32_t size)
@@ -145,10 +145,8 @@ UniformBufferManager::UniformBufferManager(UniformBufferManager&& other) noexcep
 {
     m_Context = std::move(other.m_Context);
     m_Buffers = std::move(other.m_Buffers);
-    m_CurrentBuffer = other.m_CurrentBuffer;
 }
-
-void UniformBufferManager::Destroy()
+UniformBufferManager::~UniformBufferManager()
 {
     for (auto& buffer : m_Buffers)
         buffer.Destroy();
