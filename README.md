@@ -37,6 +37,6 @@ To build the project on Windows:
 - That's probably it unless I forgot something...
 
 The executable is constructed with the LNApp project and the Assets etc are copied to the output directory so that you can just plug and play in renderdoc.
-That's about it for now. With all of this, you should be able to run the application and ~~a beautiful square~~ **TWO** beautiful squares. 😊
+That's about it for now. With all of this, you should be able to run the application and see ~~a beautiful square~~ **TWO** beautiful squares on your screen. 😊
 
 ![square-image](github-images/preview.gif)
