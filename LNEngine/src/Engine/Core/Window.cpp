@@ -83,6 +83,11 @@ void Window::Present()
     bool hasPresented = m_SwapChain->Present();
     if (hasPresented == false || m_IsDirty == true)
     {
+        while (m_Settings.Width == 0 || m_Settings.Height == 0)
+        {
+            LNE_INFO("Waiting for window to be resized");
+            glfwWaitEvents();
+        }
         LNE_INFO("Recreating swapchain");
         m_SwapChain->CreateSwapchain();
         m_IsDirty = false;

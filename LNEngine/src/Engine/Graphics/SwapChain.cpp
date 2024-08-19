@@ -80,15 +80,21 @@ bool Swapchain::Present()
         &m_Swapchain,
         &m_CurrentImageIndex
     );
+    vk::Result result;
 
-    vk::Result result = presentQueue.presentKHR(presentInfo);
-    m_FrameIndex = (m_FrameIndex + 1) % m_Images.size();
-    // TODO: this is a temporary solution, m_CurrentFrameIndex should be current frame in flight not just the current frame index
-    m_Context->m_CurrentFrameInFlight = (m_Context->m_CurrentFrameInFlight + 1) % m_Context->m_MaxFramesInFlight;
-    if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR)
+    try
+    {
+        result = presentQueue.presentKHR(presentInfo);
+        m_FrameIndex = (m_FrameIndex + 1) % m_Images.size();
+        // TODO: this is a temporary solution, m_CurrentFrameIndex should be current frame in flight not just the current frame index
+        m_Context->m_CurrentFrameInFlight = (m_Context->m_CurrentFrameInFlight + 1) % m_Context->m_MaxFramesInFlight;
+        return true;
+    }
+    catch (vk::SystemError& error)
+    {
+        if (error.code() == vk::Result::eErrorOutOfDateKHR || error.code() == vk::Result::eSuboptimalKHR)
         return false;
-
-    return true;
+    }
 }
 
 void Swapchain::CreateSwapchain()
