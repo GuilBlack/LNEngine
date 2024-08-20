@@ -1,19 +1,22 @@
 #pragma once
 #include <vma/vk_mem_alloc.h>
 #include "Engine/Core/SafePtr.h"
+#include "Engine/Graphics/Structs.h"
 
 namespace lne
 {
 class Texture : public RefCountBase
 {
 public:
+    static SafePtr<Texture> CreateDepthTexture(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, const std::string& name = "");
+public:
     explicit Texture(SafePtr<class GfxContext> ctx, vk::Image image,
         vk::Format format, vk::Extent3D extents, uint32_t numlayers = 1, const std::string& name = "");
+    explicit Texture(SafePtr<class GfxContext> ctx, vk::ImageCreateInfo imageCI, const std::string& name = "");
     virtual ~Texture();
 
     [[nodiscard]] vk::ImageView GetImageView() const { return m_ImageView; }
-    [[nodiscard]] vk::Image GetImage() const { return m_Image; }
-    [[nodiscard]] vk::DeviceSize GetSize() const { return m_Size; }
+    [[nodiscard]] vk::Image GetImage() const { return m_Allocation.Image; }
     [[nodiscard]] vk::Extent3D GetDimensions() const { return m_Extents; }
     [[nodiscard]] vk::Format GetFormat() const { return m_Format; }
     [[nodiscard]] vk::ImageType GetImageType() const { return m_ImageType; }
@@ -31,10 +34,8 @@ public:
 
 private:
     SafePtr<class GfxContext> m_Context;
-    VmaAllocation m_VmaAllocation = nullptr;
-    vk::Image m_Image{};
+    ImageAllocation m_Allocation{};
     vk::ImageView m_ImageView{};
-    vk::DeviceSize m_Size{};
     vk::Format m_Format{};
     vk::Extent3D m_Extents{};
     vk::ImageType m_ImageType{ vk::ImageType::e2D };

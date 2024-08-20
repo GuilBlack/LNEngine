@@ -19,7 +19,7 @@ public:
             .SetFill(lne::EFillMode::Solid);
         desc.Framebuffer = fb;
         desc.Blend.EnableBlend(false);
-        fb.SetClearColor({ 1.0f, 0.0f, 1.0f, 1.0f });
+        fb.SetClearColor({0.105f, 0.117f, 0.149f, 1.0f });
         m_Pipeline = lne::ApplicationBase::GetRenderer().CreateGraphicsPipeline(desc);
 
         struct Vertex {
@@ -28,15 +28,26 @@ public:
         };
 
         std::vector<Vertex> vertices = {
-            { { -0.5f, -0.5f, 0.0f, 1.0f }, { 0.0f, 0.0f, 0.0f, 1.0f } },
-            { { 0.5f, -0.5f, 0.0f, 1.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-            { { 0.5f, 0.5f, 0.0f, 1.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
-            { { -0.5f, 0.5f, 0.0f, 1.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
+            // Front Face
+            {{-0.5f, -0.5f, -0.5f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
+            {{ 0.5f, -0.5f, -0.5f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
+            {{ 0.5f,  0.5f, -0.5f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}},
+            {{-0.5f,  0.5f, -0.5f, 1.0f}, {1.0f, 1.0f, 0.0f, 1.0f}},
+            
+            // Back Face
+            {{-0.5f, -0.5f, 0.5f, 1.0f}, {1.0f, 0.0f, 1.0f, 1.0f}},
+            {{ 0.5f, -0.5f, 0.5f, 1.0f}, {0.0f, 1.0f, 1.0f, 1.0f}},
+            {{ 0.5f,  0.5f, 0.5f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}},
+            {{-0.5f,  0.5f, 0.5f, 1.0f}, {0.5f, 0.5f, 0.5f, 1.0f}},
         };
 
         std::vector<uint32_t> indices = {
-            0, 2, 1,
-            0, 3, 2
+            0, 1, 2, 2, 3, 0, //
+            1, 5, 6, 6, 2, 1, //
+            5, 4, 7, 7, 6, 5, //
+            4, 0, 3, 3, 7, 4, //
+            3, 2, 6, 6, 7, 3, //
+            4, 5, 1, 1, 0, 4 
         };
 
         lne::SafePtr<lne::StorageBuffer> vertexBuffer = lne::ApplicationBase::GetRenderer().CreateGeometryBuffer(vertices.data(), vertices.size() * sizeof(Vertex));
@@ -72,8 +83,8 @@ public:
         ++frameIndex;
 
         double currentTime = lne::ApplicationBase::GetClock().GetElapsedTime();
-        float sinTime = sin(currentTime);
-        float cosTime = cos(currentTime);
+        float sinTime = (float)sin(currentTime);
+        float cosTime = (float)cos(currentTime);
 
         m_Transform.Position.y = sinTime * 0.5f;
         m_Transform2.Rotation.z = cosTime * 180.0f;

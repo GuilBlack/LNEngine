@@ -85,6 +85,9 @@ public:
     void AllocateBuffer(BufferAllocation& allocation, VkBufferCreateInfo bufferCI, VmaAllocationCreateInfo allocCI);
     void FreeBuffer(BufferAllocation& allocation);
 
+    void AllocateImage(ImageAllocation& allocation, VkImageCreateInfo imageCI, VmaAllocationCreateInfo allocCI);
+    void FreeImage(ImageAllocation& allocation);
+
 #pragma endregion
 
 #pragma region Shader

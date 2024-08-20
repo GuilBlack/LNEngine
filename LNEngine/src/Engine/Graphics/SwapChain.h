@@ -40,7 +40,7 @@ public:
 
     void CreateSwapchain();
 
-    [[nodiscard]] uint32_t GetImageCount() const { return static_cast<uint32_t>(m_Images.size()); }
+    [[nodiscard]] uint32_t GetImageCount() const { return static_cast<uint32_t>(m_ColorAttachments.size()); }
     [[nodiscard]] uint32_t GetCurrentFrameIndex() const { return m_CurrentImageIndex; }
     [[nodiscard]] vk::SubmitInfo GetSubmitInfo(vk::PipelineStageFlags* submitStageFlag, 
         bool waitForImageAvailable = true, bool signalRenderFinished = true) const;
@@ -58,7 +58,8 @@ private:
     vk::SurfaceKHR m_Surface{};
     Viewport m_Viewport;
 
-    std::vector<SafePtr<class Texture>> m_Images;
+    std::vector<SafePtr<class Texture>> m_ColorAttachments;
+    SafePtr<class Texture> m_DepthAttachment;
     std::vector<class Framebuffer> m_Framebuffers;
 
     struct SwapchainSemaphores

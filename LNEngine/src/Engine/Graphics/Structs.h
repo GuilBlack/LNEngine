@@ -34,4 +34,11 @@ struct BufferAllocation
     VmaAllocationInfo AllocationInfo;
     vk::MemoryPropertyFlags MemoryFlags;
 };
+
+struct ImageAllocation
+{
+    vk::Image Image;
+    VmaAllocation Allocation;
+    VmaAllocationInfo AllocationInfo;
+};
 }

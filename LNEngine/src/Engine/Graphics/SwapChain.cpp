@@ -2,7 +2,7 @@
 #include "GfxContext.h"
 #include "Texture.h"
 #include "Framebuffer.h"
-#include "Core/Utils/Defines.h"
+#include "Core/Utils/_Defines.h"
 #include "Core/Utils/Log.h"
 
 namespace lne
@@ -23,7 +23,7 @@ Swapchain::~Swapchain()
     device.destroySemaphore(m_Semaphores.RenderFinished);
     device.destroyFence(m_AcquireFence);
 
-    m_Images.clear();
+    m_ColorAttachments.clear();
 
     device.destroySwapchainKHR(m_Swapchain);
     m_Context->VulkanInstance().destroySurfaceKHR(m_Surface);
@@ -46,7 +46,7 @@ vk::SubmitInfo Swapchain::GetSubmitInfo(vk::PipelineStageFlags* waitStages, bool
 
 SafePtr<class Texture> Swapchain::GetCurrentImage() const
 {
-    return m_Images[m_CurrentImageIndex];
+    return m_ColorAttachments[m_CurrentImageIndex];
 }
 
 Framebuffer& Swapchain::GetCurrentFramebuffer()
@@ -85,7 +85,7 @@ bool Swapchain::Present()
     try
     {
         result = presentQueue.presentKHR(presentInfo);
-        m_FrameIndex = (m_FrameIndex + 1) % m_Images.size();
+        m_FrameIndex = (m_FrameIndex + 1) % m_ColorAttachments.size();
         // TODO: this is a temporary solution, m_CurrentFrameIndex should be current frame in flight not just the current frame index
         m_Context->m_CurrentFrameInFlight = (m_Context->m_CurrentFrameInFlight + 1) % m_Context->m_MaxFramesInFlight;
         return true;
@@ -93,7 +93,8 @@ bool Swapchain::Present()
     catch (vk::SystemError& error)
     {
         if (error.code() == vk::Result::eErrorOutOfDateKHR || error.code() == vk::Result::eSuboptimalKHR)
-        return false;
+            return false;
+        LNE_ASSERT(false, "Failed to present swapchain image: {}", error.what());
     }
 }
 
@@ -155,28 +156,38 @@ void Swapchain::CreateSwapchain()
         device.destroySwapchainKHR(oldSwapchain);
 
     m_Framebuffers.clear();
-    m_Images.clear();
+    m_ColorAttachments.clear();
 
     auto images = device.getSwapchainImagesKHR(m_Swapchain);
-    m_Images.resize(images.size());
+    m_ColorAttachments.resize(images.size());
     m_Framebuffers.reserve(images.size());
+    m_DepthAttachment = Texture::CreateDepthTexture(m_Context, sc.currentExtent.width, sc.currentExtent.height, "SwapchainDepth");
 
     AttachmentDesc colorAttachmentDesc{
         .LoadOp = vk::AttachmentLoadOp::eClear,
         .StoreOp = vk::AttachmentStoreOp::eStore,
         .InitialLayout = vk::ImageLayout::eColorAttachmentOptimal,
         .FinalLayout = vk::ImageLayout::ePresentSrcKHR,
-        .ClearValue = vk::ClearColorValue{1.0f, 0.0f, 1.0f, 1.0f},
+        .ClearValue = vk::ClearColorValue{0.105f, 0.117f, 0.149f, 0.1f},
+    };
+
+    AttachmentDesc depthAttachmentDesc{
+        .LoadOp = vk::AttachmentLoadOp::eClear,
+        .StoreOp = vk::AttachmentStoreOp::eDontCare,
+        .InitialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal,
+        .FinalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal,
+        .ClearValue = vk::ClearDepthStencilValue{1.0f, 0},
     };
 
     for (uint32_t i = 0; i < images.size(); ++i)
     {
         m_Context->SetVkObjectName(images[i], std::format("Image: Swapchain {}", i));
-        m_Images[i].Reset(lnnew Texture(m_Context, images[i], surfaceFormat.format, vk::Extent3D(sc.currentExtent, 1), 1, std::format("Swapchain {}", i)));
-        colorAttachmentDesc.Texture = m_Images[i];
-        m_Framebuffers.emplace_back(Framebuffer(m_Context, { colorAttachmentDesc }, {}));
+        m_ColorAttachments[i].Reset(lnnew Texture(m_Context, images[i], surfaceFormat.format, vk::Extent3D(sc.currentExtent, 1), 1, std::format("SwapchainColor{}", i)));
+        colorAttachmentDesc.Texture = m_ColorAttachments[i];
+        depthAttachmentDesc.Texture = m_DepthAttachment;
+        m_Framebuffers.emplace_back(Framebuffer(m_Context, { colorAttachmentDesc }, depthAttachmentDesc));
     }
-    m_Context->m_MaxFramesInFlight = (uint32_t)m_Images.size() - 1;
+    m_Context->m_MaxFramesInFlight = (uint32_t)m_ColorAttachments.size() - 1;
 }
 
 void Swapchain::CreateSyncObjects()

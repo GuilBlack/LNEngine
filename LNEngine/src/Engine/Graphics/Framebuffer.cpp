@@ -48,7 +48,7 @@ void Framebuffer::Bind(vk::CommandBuffer cmdBuffer) const
     }
 
     vk::RenderingAttachmentInfo depthRenderingAttachmentInfo;
-    if (m_DepthAttachment.Texture != nullptr)
+    if (m_HasDepth)
     {
         m_DepthAttachment.Texture->TransitionLayout(cmdBuffer, m_DepthAttachment.InitialLayout);
         depthRenderingAttachmentInfo = vk::RenderingAttachmentInfo(
@@ -82,7 +82,7 @@ void Framebuffer::Unbind(vk::CommandBuffer cmdBuffer) const
     for (const auto& attachment : m_ColorAttachments)
         attachment.Texture->TransitionLayout(cmdBuffer, attachment.FinalLayout);
 
-    if (m_DepthAttachment.Texture != nullptr)
+    if (m_HasDepth)
         m_DepthAttachment.Texture->TransitionLayout(cmdBuffer, m_DepthAttachment.FinalLayout);
 }
 }

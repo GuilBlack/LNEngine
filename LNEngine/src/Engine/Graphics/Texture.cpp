@@ -5,9 +5,29 @@
 
 namespace lne
 {
+SafePtr<Texture> Texture::CreateDepthTexture(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, const std::string& name)
+{
+    vk::ImageCreateInfo imageInfo(
+        vk::ImageCreateFlags(),
+        vk::ImageType::e2D,
+        vk::Format::eD32Sfloat,
+        vk::Extent3D(width, height, 1),
+        1,
+        1,
+        vk::SampleCountFlagBits::e1,
+        vk::ImageTiling::eOptimal,
+        vk::ImageUsageFlagBits::eDepthStencilAttachment,
+        vk::SharingMode::eExclusive,
+        0,
+        nullptr,
+        vk::ImageLayout::eUndefined
+    );
+
+    return SafePtr<Texture>(new Texture(ctx, imageInfo, name));
+}
+
 Texture::Texture(SafePtr<class GfxContext> ctx, vk::Image image, vk::Format format, vk::Extent3D extents, uint32_t numlayers, const std::string& name)
     : m_Context{ ctx }
-    , m_Image{ image }
     , m_Format{ format }
     , m_Extents{ extents }
     , m_NumLayers{ numlayers }
@@ -19,7 +39,41 @@ Texture::Texture(SafePtr<class GfxContext> ctx, vk::Image image, vk::Format form
         IsDepth() ? vk::ImageAspectFlagBits::eDepth
         : (IsStencil() ? vk::ImageAspectFlagBits::eStencil : vk::ImageAspectFlagBits::eColor);
 
-    m_ImageView = m_Context->CreateImageView(m_Image, vk::ImageViewType::e2D, m_Format, 1, m_NumLayers, aspectMask, name);
+    m_Allocation.Image = image;
+    
+    m_ImageView = m_Context->CreateImageView(m_Allocation.Image, vk::ImageViewType::e2D, m_Format, 1, m_NumLayers, aspectMask, name);
+}
+
+Texture::Texture(SafePtr<class GfxContext> ctx, vk::ImageCreateInfo imageCI, const std::string& name)
+    : m_Context{ ctx }
+    , m_Format{ imageCI.format }
+    , m_Extents{ imageCI.extent }
+    , m_ImageType{ imageCI.imageType }
+    , m_Tiling{ imageCI.tiling }
+    , m_Layout{ imageCI.initialLayout }
+    , m_NumLayers{ imageCI.arrayLayers }
+    , m_MipLevels{ imageCI.mipLevels }
+    , m_Name{ name }
+    , m_OwnsImage{ true }
+{
+    vk::Device device = m_Context->GetDevice();
+    VmaAllocator allocator = m_Context->GetMemoryAllocator();
+
+    VmaAllocationCreateInfo allocInfo{
+        .flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
+        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
+        .priority = 1.0f,
+    };
+
+    m_Context->AllocateImage(m_Allocation, imageCI, allocInfo);
+
+    m_Context->SetVkObjectName(m_Allocation.Image, std::format("Image: {}", name));
+    const vk::ImageAspectFlags aspectMask =
+        IsDepth() ? vk::ImageAspectFlagBits::eDepth
+        : (IsStencil() ? vk::ImageAspectFlagBits::eStencil : vk::ImageAspectFlagBits::eColor);
+
+    m_ImageView = m_Context->CreateImageView(m_Allocation.Image, vk::ImageViewType::e2D, m_Format, 
+        imageCI.mipLevels, m_NumLayers, aspectMask, std::format("ImageView: {}", name));
 }
 
 Texture::~Texture()
@@ -27,7 +81,7 @@ Texture::~Texture()
     vk::Device device = m_Context->GetDevice();
     device.destroyImageView(m_ImageView);
     if (m_OwnsImage)
-        vmaDestroyImage(m_Context->GetMemoryAllocator(), m_Image, m_VmaAllocation);
+        m_Context->FreeImage(m_Allocation);
 }
 
 bool Texture::IsDepth()
@@ -175,7 +229,7 @@ void Texture::TransitionLayout(vk::CommandBuffer cmdBuffer, vk::ImageLayout newL
         newLayout,
         VK_QUEUE_FAMILY_IGNORED,
         VK_QUEUE_FAMILY_IGNORED,
-        m_Image,
+        m_Allocation.Image,
         vk::ImageSubresourceRange(aspectMask, 0, m_MipLevels, 0, m_NumLayers)
     );
 

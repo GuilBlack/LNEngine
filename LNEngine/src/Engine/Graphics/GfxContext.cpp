@@ -327,6 +327,20 @@ void GfxContext::FreeBuffer(BufferAllocation& allocation)
     vmaDestroyBuffer(m_MemoryAllocator, allocation.Buffer, allocation.Allocation);
 }
 
+void GfxContext::AllocateImage(ImageAllocation& allocation, VkImageCreateInfo imageCI, VmaAllocationCreateInfo allocCI)
+{
+    VkImage image;
+    VK_CHECK_C(vmaCreateImage(m_MemoryAllocator,
+        &imageCI, &allocCI,
+        &image, &allocation.Allocation, &allocation.AllocationInfo));
+    allocation.Image = image;
+}
+
+void GfxContext::FreeImage(ImageAllocation & allocation)
+{
+    vmaDestroyImage(m_MemoryAllocator, allocation.Image, allocation.Allocation);
+}
+
 SafePtr<Shader> GfxContext::CreateShader(std::string_view filePath)
 {
     SafePtr<Shader> shader;
