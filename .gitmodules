@@ -7,3 +7,7 @@
 [submodule "LNEngine/vendor/VKBOOTSTRAP/vkbootstrap"]
 	path = LNEngine/vendor/VKBOOTSTRAP/vkbootstrap
 	url = https://github.com/charles-lunarg/vk-bootstrap.git
+[submodule "LNEngine/vendor/IMGUI/imgui"]
+	path = LNEngine/vendor/IMGUI/imgui
+	url = https://github.com/ocornut/imgui.git
+	branch = docking
