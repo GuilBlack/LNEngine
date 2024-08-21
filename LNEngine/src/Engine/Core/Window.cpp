@@ -90,6 +90,10 @@ void Window::Present()
         }
         LNE_INFO("Recreating swapchain");
         m_SwapChain->CreateSwapchain();
+
+        for (auto&[_, callback] : m_SwapchainRecreateCallback)
+            callback();
+
         m_IsDirty = false;
     }
 }
@@ -97,6 +101,16 @@ void Window::Present()
 bool Window::ShouldClose() const
 {
     return glfwWindowShouldClose(m_Handle);
+}
+
+void Window::AddSwapchainRecreateCallback(void* key, std::function<void()> callback)
+{
+    m_SwapchainRecreateCallback[key] = callback;
+}
+
+void Window::RemoveSwapchainRecreateCallback(void* key)
+{
+    m_SwapchainRecreateCallback.erase(key);
 }
 
 void Window::InitEventCallbacks()

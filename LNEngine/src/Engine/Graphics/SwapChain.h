@@ -46,8 +46,10 @@ public:
         bool waitForImageAvailable = true, bool signalRenderFinished = true) const;
     [[nodiscard]] SafePtr<class Texture> GetCurrentImage() const;
     [[nodiscard]] const Viewport& GetViewport() const { return m_Viewport; }
+    [[nodiscard]] const vk::SurfaceFormatKHR& GetSurfaceFormat() const { return m_SurfaceFormat; }
 
     [[nodiscard]] class Framebuffer& GetCurrentFramebuffer();
+    [[nodiscard]] std::vector<class Framebuffer>& GetFramebuffers() { return m_Framebuffers; }
 
     void BeginFrame();
     [[nodiscard]] bool Present();
@@ -57,6 +59,7 @@ private:
     vk::SwapchainKHR m_Swapchain{};
     vk::SurfaceKHR m_Surface{};
     Viewport m_Viewport;
+    vk::SurfaceFormatKHR m_SurfaceFormat{};
 
     std::vector<SafePtr<class Texture>> m_ColorAttachments;
     SafePtr<class Texture> m_DepthAttachment;

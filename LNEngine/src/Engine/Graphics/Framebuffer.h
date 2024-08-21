@@ -25,6 +25,7 @@ public:
     ~Framebuffer() = default;
 
     void SetClearColor(const vk::ClearColorValue& color);
+    void ChangeColorAttachmentsOps(vk::AttachmentLoadOp loadOp, vk::AttachmentStoreOp storeOp);
 
     void Bind(vk::CommandBuffer cmdBuffer) const;
     void Unbind(vk::CommandBuffer cmdBuffer) const;

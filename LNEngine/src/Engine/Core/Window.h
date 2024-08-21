@@ -20,6 +20,7 @@ public:
 
     [[nodiscard]] SafePtr<class GfxContext> GetGfxContext() const { return m_GfxContext; }
     [[nodiscard]] SafePtr<class Swapchain> GetSwapchain() const { return m_SwapChain; }
+    [[nodiscard]] struct GLFWwindow* GetHandle() const { return m_Handle; }
 
     [[nodiscard]] uint32_t GetWidth() const { return m_Settings.Width; }
     [[nodiscard]] uint32_t GetHeight() const { return m_Settings.Height; }
@@ -31,6 +32,9 @@ public:
     void Present();
     [[nodiscard]] bool ShouldClose() const;
 
+    void AddSwapchainRecreateCallback(void* key, std::function<void()> callback);
+    void RemoveSwapchainRecreateCallback(void* key);
+
 private:
     struct GLFWwindow*  m_Handle;
     WindowSettings      m_Settings;
@@ -39,6 +43,8 @@ private:
     std::unique_ptr<class InputManager> m_InputManager;
     SafePtr<class Swapchain>    m_SwapChain;
     SafePtr<class GfxContext>   m_GfxContext;
+
+    std::map<void*, std::function<void()>> m_SwapchainRecreateCallback;
 
 private:
     void InitEventCallbacks();

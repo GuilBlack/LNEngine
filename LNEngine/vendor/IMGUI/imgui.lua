@@ -24,6 +24,7 @@ project "ImGui"
     includedirs
     {
         "imgui/",
+        "%{IncludeDir.GLFW}",
     }
 
     filter "system:linux"

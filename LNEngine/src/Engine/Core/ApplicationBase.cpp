@@ -13,6 +13,7 @@
 #include "Graphics/CommandBufferManager.h"
 #include "Graphics/Texture.h"
 #include "Graphics/DynamicDescriptorAllocator.h"
+#include "Graphics/ImGui/ImGuiService.h"
 
 namespace lne
 {
@@ -49,6 +50,9 @@ ApplicationBase::ApplicationBase(ApplicationSettings&& settings)
 
     m_Renderer.reset(lnnew Renderer());
     m_Renderer->Init(m_Window);
+
+    m_ImGuiService.reset(lnnew ImGuiService());
+    m_ImGuiService->Init(m_Window);
 
     LNE_INFO("Application {0} initialized", m_Settings.Name);
     Profiler::Get().EndSession();
@@ -87,6 +91,11 @@ void ApplicationBase::Run()
         for (auto layer : m_LayerStack)
             layer->OnUpdate(m_Clock.GetDeltaTime());
 
+        m_ImGuiService->BeginFrame();
+            //for (auto layer : m_LayerStack)
+            //    layer->OnImGuiRender();
+        m_ImGuiService->EndFrame();
+
         m_Renderer->EndFrame();
         m_Window->Present();
 
@@ -124,7 +133,8 @@ void ApplicationBase::PopOverlay(Layer* overlay)
 bool ApplicationBase::OnWindowClose(WindowCloseEvent& e)
 {
     LNE_INFO("WindowCloseEvent received");
-    m_Renderer->Shutdown();
+    m_ImGuiService->Nuke();
+    m_Renderer->Nuke();
     return false;
 }
 

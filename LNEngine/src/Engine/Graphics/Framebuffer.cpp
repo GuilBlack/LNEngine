@@ -26,6 +26,15 @@ void Framebuffer::SetClearColor(const vk::ClearColorValue& color)
 
 }
 
+void Framebuffer::ChangeColorAttachmentsOps(vk::AttachmentLoadOp loadOp, vk::AttachmentStoreOp storeOp)
+{
+    for (auto& attachment : m_ColorAttachments)
+    {
+        attachment.LoadOp = loadOp;
+        attachment.StoreOp = storeOp;
+    }
+}
+
 void Framebuffer::Bind(vk::CommandBuffer cmdBuffer) const
 {
     std::vector<vk::RenderingAttachmentInfo> colorRenderingAttachments;

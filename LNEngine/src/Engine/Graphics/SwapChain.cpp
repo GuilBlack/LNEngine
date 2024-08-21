@@ -95,6 +95,7 @@ bool Swapchain::Present()
         if (error.code() == vk::Result::eErrorOutOfDateKHR || error.code() == vk::Result::eSuboptimalKHR)
             return false;
         LNE_ASSERT(false, "Failed to present swapchain image: {}", error.what());
+        return false;
     }
 }
 
@@ -106,6 +107,8 @@ void Swapchain::CreateSwapchain()
     auto sc = m_Context->GetSurfaceCapabilities(m_Surface);
     vk::SurfaceFormatKHR surfaceFormat = PickSwapchainSurfaceFormat(m_Context->GetSurfaceFormats(m_Surface));
     vk::PresentModeKHR presentMode = PickSwapchainPresentMode(m_Context->GetSurfacePresentModes(m_Surface));
+
+    m_SurfaceFormat = surfaceFormat;
 
     vk::SurfaceTransformFlagBitsKHR preTransform = (sc.supportedTransforms & vk::SurfaceTransformFlagBitsKHR::eIdentity)
         ? vk::SurfaceTransformFlagBitsKHR::eIdentity

@@ -34,7 +34,9 @@ public:
     ~Renderer() = default;
 
     void Init(std::unique_ptr<class Window>& window);
-    void Shutdown();
+    void Nuke();
+
+    [[nodiscard]] std::unique_ptr<class CommandBufferManager>& GetGraphicsCommandBufferManager() { return m_GraphicsCommandBufferManager; }
 
     void BeginFrame();
     void EndFrame();

@@ -26,7 +26,7 @@ void Renderer::Init(std::unique_ptr<Window>& window)
     }
 }
 
-void Renderer::Shutdown()
+void Renderer::Nuke()
 {
     m_Context->WaitIdle();
     for (auto& frameData : m_FrameData)

@@ -7,6 +7,7 @@
 
 namespace lne
 {
+// TODO: handle ImGui input captures
 InputManager::InputManager()
 {
     ApplicationBase::GetEventHub().RegisterListener<KeyPressedEvent>(this, &InputManager::ProcessKeyPressedEvent);

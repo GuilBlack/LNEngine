@@ -58,6 +58,7 @@ private:
     std::unique_ptr<Window> m_Window;
     std::unique_ptr<class EventHub> m_EventHub;
     std::unique_ptr<class Renderer> m_Renderer;
+    std::unique_ptr<class ImGuiService> m_ImGuiService;
 private:
     static ApplicationBase* s_Instance;
 };

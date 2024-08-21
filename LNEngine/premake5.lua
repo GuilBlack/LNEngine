@@ -28,7 +28,8 @@ project "LNEngine"
         "%{IncludeDir.SPDLOG}",
         "%{IncludeDir.GLFW}",
         "%{IncludeDir.VMA}",
-        "%{IncludeDir.VkBootstrap}"
+        "%{IncludeDir.VkBootstrap}",
+        "%{IncludeDir.ImGui}/imgui"
     }
 
     links
@@ -38,6 +39,7 @@ project "LNEngine"
         "GLM",
         "SPDLOG",
         "VkBootstrap",
+        "ImGui"
     }
 
     pchheader "lnepch.h"
