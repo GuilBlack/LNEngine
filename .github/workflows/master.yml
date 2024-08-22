@@ -1,0 +1,43 @@
+name: LNEngineWorkflow
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install Vulkan SDK
+      run: |
+        choco install vulkan-sdk --version=1.3.283
+        echo ::set-env name=VULKAN_SDK::C:\VulkanSDK\1.3.283.0
+
+    - name: Install Premake
+      run: |
+        choco install premake5
+
+    - name: Build the project using Premake
+      run: |
+        cd your_project_root_relative_to_repository
+        call vendor\premake\Binaries\premake5.exe vs2022
+
+    - name: Build solution with MSBuild
+      run: |
+        msbuild LNEngine.sln /p:Configuration=Debug
+
+    - name: Build solution with MSBuild
+      run: |
+        msbuild LNEngine.sln /p:Configuration=Release
+
+    - name: Build solution with MSBuild
+      run: |
+        msbuild LNEngine.sln /p:Configuration=Dist
