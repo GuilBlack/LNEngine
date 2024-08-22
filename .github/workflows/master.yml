@@ -35,4 +35,4 @@ jobs:
 
     - name: Build Debug solution
       run: |
-        msbuild LNEngine.sln -t:rebuild -verbosity:diag -property:Configuration=Debug
+        msbuild LNEngine.sln -property:Configuration=Debug
