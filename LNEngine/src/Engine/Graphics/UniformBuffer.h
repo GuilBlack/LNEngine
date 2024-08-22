@@ -1,7 +1,7 @@
 #pragma once
 #include "Engine/Core/Utils/Defines.h"
 #include "Engine/Core/SafePtr.h"
-#include <vma/vk_mem_alloc.h>
+#include "../vendor/VMA/vk_mem_alloc.h"
 #include "Structs.h"
 #include "GfxContext.h"
 
