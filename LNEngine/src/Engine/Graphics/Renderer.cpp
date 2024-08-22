@@ -11,6 +11,7 @@
 #include "Mesh.h"
 #include "StorageBuffer.h"
 #include "Scene/Components.h"
+#include "Material.h"
 
 namespace lne
 {
@@ -106,8 +107,9 @@ void Renderer::EndRenderPass(const Framebuffer& framebuffer) const
     framebuffer.Unbind(m_GraphicsCommandBufferManager->GetCurrentCommandBuffer());
 }
 
-void Renderer::Draw(SafePtr<GraphicsPipeline> pipeline, struct Geometry& geometry, TransformComponent& objTransform)
+void Renderer::Draw(SafePtr<Material> material, struct Geometry& geometry, TransformComponent& objTransform)
 {
+    auto pipeline = material->GetPipeline();
     auto& cmdBuffer = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
     pipeline->Bind(cmdBuffer);
     
@@ -159,14 +161,34 @@ void Renderer::Draw(SafePtr<GraphicsPipeline> pipeline, struct Geometry& geometr
     };
     m_Context->GetDevice().updateDescriptorSets(writeObjDescriptorSet, nullptr);
 
-    cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0, { m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorSet, geometryDescSet, objDescSet }, {});
+    std::vector<vk::WriteDescriptorSet> matWriteDescriptorSets;
+    std::vector<vk::DescriptorBufferInfo> matUbInfo;
+    matUbInfo.reserve(material->m_UniformBuffers.size());
+    vk::DescriptorSet matDescSet = m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[3]);
+    for (const auto& [binding, ub] : material->m_UniformBuffers)
+    {
+        matUbInfo.emplace_back(ub.GetDescriptorInfo());
+        matWriteDescriptorSets.emplace_back(vk::WriteDescriptorSet{
+            matDescSet,
+            binding,
+            0,
+            1,
+            vk::DescriptorType::eUniformBuffer,
+            nullptr,
+            &matUbInfo.back(),
+            nullptr
+        });
+    }
+    m_Context->GetDevice().updateDescriptorSets(matWriteDescriptorSets, nullptr);
+
+    cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0, { m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorSet, geometryDescSet, objDescSet, matDescSet }, {});
     cmdBuffer.draw(geometry.IndexCount, 1, 0, 0);
 }
 
-SafePtr<GraphicsPipeline> Renderer::CreateGraphicsPipeline(const GraphicsPipelineDesc& createInfo)
+SafePtr<GfxPipeline> Renderer::CreateGraphicsPipeline(const GraphicsPipelineDesc& createInfo)
 {
-    SafePtr<GraphicsPipeline> pipeline;
-    pipeline.Reset(lnnew GraphicsPipeline(m_Context, createInfo));
+    SafePtr<GfxPipeline> pipeline;
+    pipeline.Reset(lnnew GfxPipeline(m_Context, createInfo));
     return pipeline;
 }
 

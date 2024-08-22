@@ -332,10 +332,11 @@ void Shader::ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<ui
                 spirv_cross::SPIRType memberType = compiler.get_type(type.member_types[i]);
                 LNE_INFO("        Member: {}, Offset: {}, Size: {}, Type: {}", memberName, offset, size, UniformElementType::ToString(SpirvTypeToUniformElementType(memberType)));
                 m_ReflectedData.UniformElements[memberName] = {
-                        .UniformBuffer = res.name,
-                        .Offset = offset,
-                        .Size = size,
-                        .Type = SpirvTypeToUniformElementType(memberType)
+                    .SetIndex = set,
+                    .BindingIndex = binding,
+                    .Offset = offset,
+                    .Size = size,
+                    .Type = SpirvTypeToUniformElementType(memberType)
                 };
             }
         }

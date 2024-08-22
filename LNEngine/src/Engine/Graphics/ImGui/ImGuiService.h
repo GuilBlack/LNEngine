@@ -17,8 +17,6 @@ public:
     void BeginFrame();
     void EndFrame();
 
-    bool OnWindowResized(WindowResizeEvent& windowResize);
-
 private:
     SafePtr<class GfxContext> m_GraphicsContext;
     SafePtr<class Swapchain> m_Swapchain;

@@ -11,6 +11,10 @@ layout(std140, set = 2, binding = 0) uniform ObjectData {
     mat4 uModel;
 };
 
+layout(std140, set = 3, binding = 0) uniform MaterialData {
+    vec4 uColor;
+};
+
 #ifdef VERT
 
 layout(location = 0) out vec4 oColor;
@@ -46,7 +50,7 @@ layout(location = 0) in vec4 iColor;
 layout(location = 0) out vec4 oColor;
 
 void main() {
-  oColor = iColor;
+  oColor = iColor * uColor;
 }
 
 #endif

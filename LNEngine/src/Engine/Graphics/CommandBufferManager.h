@@ -10,7 +10,10 @@ public:
     CommandBufferManager(class GfxContext* ctx, uint32_t count, EQueueFamilyType queueType);
     ~CommandBufferManager();
 
-    [[nodiscard]] vk::CommandBuffer& GetCurrentCommandBuffer() { return m_CommandBuffers[m_CurrentBufferIndex]; }
+    [[nodiscard]] vk::CommandBuffer& GetCurrentCommandBuffer() 
+    {
+        return m_CommandBuffers[m_CurrentBufferIndex]; 
+    }
     void StartCommandBuffer(uint32_t index);
 
     void Submit(vk::SubmitInfo& submitInfo);

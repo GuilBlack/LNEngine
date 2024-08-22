@@ -24,6 +24,7 @@ public:
     [[nodiscard]] std::unordered_map<ShaderStage::Enum, vk::ShaderModule> GetModules() const { return m_Modules; }
     [[nodiscard]] uint32_t GetStageCount() const { return (uint32_t)m_Modules.size(); }
     [[nodiscard]] const std::vector<vk::DescriptorSetLayout>& GetDescriptorSetLayouts() const { return m_DescriptorSetLayouts; }
+    [[nodiscard]] const ReflectedData& GetReflectedData() const { return m_ReflectedData; }
     virtual ~Shader();
 
 private:

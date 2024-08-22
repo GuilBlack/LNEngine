@@ -46,7 +46,7 @@ BlendState& BlendState::SetColorWriteMask(EBlendColorWriteMask mask)
 
 #pragma region GraphicsPipeline implementation
 
-GraphicsPipeline::GraphicsPipeline(SafePtr<GfxContext> ctx, const GraphicsPipelineDesc& desc)
+GfxPipeline::GfxPipeline(SafePtr<GfxContext> ctx, const GraphicsPipelineDesc& desc)
     : m_Context(ctx), m_Desc(desc)
 {
     static constexpr vk::PipelineVertexInputStateCreateInfo vertexInputStateInfo({}, 0, nullptr, 0, nullptr);
@@ -179,19 +179,19 @@ GraphicsPipeline::GraphicsPipeline(SafePtr<GfxContext> ctx, const GraphicsPipeli
     m_Context->SetVkObjectName(m_Pipeline, std::format("GraphicsPipeline: {}", desc.Name));
 }
 
-GraphicsPipeline::~GraphicsPipeline()
+GfxPipeline::~GfxPipeline()
 {
     m_Context->GetDevice().destroyPipelineLayout(m_Layout);
     if (m_Pipeline)
         m_Context->GetDevice().destroyPipeline(m_Pipeline);
 }
 
-void GraphicsPipeline::Bind(const vk::CommandBuffer& cmdBuffer) const
+void GfxPipeline::Bind(const vk::CommandBuffer& cmdBuffer) const
 {
     cmdBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, m_Pipeline);
 }
 
-vk::PipelineLayout GraphicsPipeline::CreatePipelineLayout(const std::vector<vk::DescriptorSetLayout>& layouts)
+vk::PipelineLayout GfxPipeline::CreatePipelineLayout(const std::vector<vk::DescriptorSetLayout>& layouts)
 {
     auto layout = m_Context->GetDevice().createPipelineLayout(vk::PipelineLayoutCreateInfo{
         {},

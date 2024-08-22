@@ -12,6 +12,7 @@ public:
         auto& fb = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
         lne::GraphicsPipelineDesc desc{};
         desc.PathToShaders = lne::ApplicationBase::GetAssetsPath() + "Shaders\\HelloTriangle.glsl";
+        desc.Name = "Basic";
         desc.AddStage(lne::ShaderStage::eVertex)
             .AddStage(lne::ShaderStage::eFragment);
         desc.SetCulling(lne::ECullMode::Back)
@@ -21,6 +22,12 @@ public:
         desc.Blend.EnableBlend(false);
         fb.SetClearColor({0.105f, 0.117f, 0.149f, 1.0f });
         m_Pipeline = lne::ApplicationBase::GetRenderer().CreateGraphicsPipeline(desc);
+
+        m_BasicMaterial = lnnew lne::Material(m_Pipeline);
+        m_BasicMaterial2 = lnnew lne::Material(m_Pipeline);
+
+        m_BasicMaterial->Set("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+        m_BasicMaterial2->Set("uColor", glm::vec4(0.25f, 0.25f, 0.25f, 0.25f));
 
         struct Vertex {
             glm::vec4 Position;
@@ -89,18 +96,22 @@ public:
         m_Transform.Position.y = sinTime * 0.5f;
         m_Transform2.Rotation.z = cosTime * 180.0f;
 
+        m_BasicMaterial->Set("uColor", glm::vec4((sinTime+1)/2, (cosTime+1.0f)/2, 1.0f, 1.0f));
+
         auto& fb = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
 
         lne::ApplicationBase::GetRenderer().BeginRenderPass(fb);
 
-        lne::ApplicationBase::GetRenderer().Draw(m_Pipeline, m_Geometry, m_Transform);
-        lne::ApplicationBase::GetRenderer().Draw(m_Pipeline, m_Geometry, m_Transform2);
+        lne::ApplicationBase::GetRenderer().Draw(m_BasicMaterial, m_Geometry, m_Transform);
+        lne::ApplicationBase::GetRenderer().Draw(m_BasicMaterial2, m_Geometry, m_Transform2);
 
         lne::ApplicationBase::GetRenderer().EndRenderPass(fb);
     }
 
 private:
-    lne::SafePtr<lne::GraphicsPipeline> m_Pipeline;
+    lne::SafePtr<lne::GfxPipeline> m_Pipeline;
+    lne::SafePtr<lne::Material> m_BasicMaterial;
+    lne::SafePtr<lne::Material> m_BasicMaterial2;
     lne::Geometry m_Geometry;
     lne::TransformComponent m_Transform;
     lne::TransformComponent m_Transform2;
@@ -112,13 +123,13 @@ public:
     Application(lne::ApplicationSettings&& settings)
         : lne::ApplicationBase(std::move(settings))
     {
-        PushLayer(new AppLayer());
+        PushLayer(lnnew AppLayer());
     }
 };
 
 lne::ApplicationBase* lne::CreateApplication()
 {
-    return new Application({
+    return lnnew Application({
         "LNApp",
         1280, 720,
         true

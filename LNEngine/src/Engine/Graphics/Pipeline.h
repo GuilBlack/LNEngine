@@ -48,9 +48,9 @@ struct GraphicsPipelineDesc
     std::unordered_set<ShaderStage::Enum>    ShaderStages{};
 
     // rasterization settings
-    ECullMode   CullMode =              ECullMode::None;
+    ECullMode   CullMode =              ECullMode::Back;
     EWindingOrder WindingOrder =        EWindingOrder::CounterClockwise;
-    EFillMode                           Fill = EFillMode::Solid;
+    EFillMode Fill =                    EFillMode::Solid;
 
     // depth stencil settings
     DepthDesc   Depth{};
@@ -69,17 +69,17 @@ struct GraphicsPipelineDesc
     }
 };
 
-class GraphicsPipeline : public RefCountBase
+class GfxPipeline : public RefCountBase
 {
 public:
-    GraphicsPipeline(SafePtr<class GfxContext> ctx, const GraphicsPipelineDesc& desc);
-    virtual ~GraphicsPipeline();
+    GfxPipeline(SafePtr<class GfxContext> ctx, const GraphicsPipelineDesc& desc);
+    virtual ~GfxPipeline();
 
     void Bind(const vk::CommandBuffer& cmdBuffer) const;
 
-    vk::PipelineLayout CreatePipelineLayout(const std::vector<vk::DescriptorSetLayout>& layouts);
-    vk::PipelineLayout GetLayout() const { return m_Layout; }
-    std::vector<vk::DescriptorSetLayout> GetDescriptorSetLayouts() const { return m_Shader->GetDescriptorSetLayouts(); }
+    [[nodiscard]] vk::PipelineLayout CreatePipelineLayout(const std::vector<vk::DescriptorSetLayout>& layouts);
+    [[nodiscard]] vk::PipelineLayout GetLayout() const { return m_Layout; }
+    [[nodiscard]] std::vector<vk::DescriptorSetLayout> GetDescriptorSetLayouts() const { return m_Shader->GetDescriptorSetLayouts(); }
 
 private:
     SafePtr<class GfxContext> m_Context;
@@ -88,5 +88,7 @@ private:
     vk::PipelineLayout m_Layout{};
     vk::PipelineBindPoint m_BindPoint = vk::PipelineBindPoint::eGraphics;
     GraphicsPipelineDesc m_Desc{};
+
+    friend class Material;
 };
 }

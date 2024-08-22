@@ -16,12 +16,13 @@ This README is more of a way for me to keep track of what I did and what I'll be
 - Shader in one file and compiled at runtime with shaderc
 - Shader reflection with Spirv-Cross to get the DescriptorSetLayouts out of it
 - Programmable Vertex Pulling
-- Implement ImGui
+- ImGui Initialization
+- A simple material system (need to add support for more types of material parameters)
 
 ## Next steps
 
 - Implement bindless textures
-- Implement a simple material system
+- Make a better interface with ImGui
 - Make a resource loader
 - Shader Spirv caching + just shader cache in general
 
@@ -37,6 +38,6 @@ To build the project on Windows:
 - That's probably it unless I forgot something...
 
 The executable is constructed with the LNApp project and the Assets etc are copied to the output directory so that you can just plug and play in renderdoc.
-That's about it for now. With all of this, you should be able to run the application and see two beautiful cubes and the ImGui demo. 😊
+That's about it for now. With all of this, you should be able to run the application and see two beautiful cubes that can change its color based on a material parameter and the ImGui demo. 😊
 
 ![square-image](github-images/preview.gif)

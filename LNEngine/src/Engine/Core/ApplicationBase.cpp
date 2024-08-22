@@ -78,6 +78,12 @@ void ApplicationBase::Run()
 {
     Profiler::Get().BeginSession("Run");
     LNE_PROFILE_FUNCTION();
+    m_Renderer->GetGraphicsCommandBufferManager()->BeginSingleTimeCommands();
+
+    for (auto layer : m_LayerStack)
+        layer->OnAttach();
+
+    m_Renderer->GetGraphicsCommandBufferManager()->EndSingleTimeCommands();
     m_Clock.Start();
 
     while (!m_Window->ShouldClose())
@@ -133,6 +139,14 @@ void ApplicationBase::PopOverlay(Layer* overlay)
 bool ApplicationBase::OnWindowClose(WindowCloseEvent& e)
 {
     LNE_INFO("WindowCloseEvent received");
+    m_Window->GetGfxContext()->WaitIdle();
+
+    m_Renderer->GetGraphicsCommandBufferManager()->BeginSingleTimeCommands();
+
+    for (auto layer : m_LayerStack)
+        layer->OnDetach();
+
+    m_Renderer->GetGraphicsCommandBufferManager()->EndSingleTimeCommands();
     m_ImGuiService->Nuke();
     m_Renderer->Nuke();
     return false;
