@@ -26,7 +26,6 @@ jobs:
     - name: Build the project using Premake
       run: |
         Write-Host "Running Premake..."
-        cd your_project_root_relative_to_repository
         & "vendor\premake\Binaries\premake5.exe" vs2022
         Write-Host "Premake generation complete."
       shell: pwsh
