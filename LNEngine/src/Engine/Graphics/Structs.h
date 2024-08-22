@@ -1,6 +1,6 @@
 #pragma once
 #include "Enums.h"
-#include <vma/vk_mem_alloc.h>
+#include "../../../vendor/VMA/vk_mem_alloc.h"
 
 namespace lne
 {
