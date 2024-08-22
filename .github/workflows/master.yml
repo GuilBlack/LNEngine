@@ -30,6 +30,9 @@ jobs:
         Write-Host "Premake generation complete."
       shell: pwsh
 
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@v2
+
     - name: Build Debug solution
       run: |
-        msbuild LNEngine.sln /p:Configuration=Debug
+        msbuild LNEngine.sln -t:rebuild -verbosity:diag -property:Configuration=Debug
