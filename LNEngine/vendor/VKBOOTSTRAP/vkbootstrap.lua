@@ -35,7 +35,6 @@ project "VkBootstrap"
         links
         {
             "vulkan-1",
-            "volk"
         }
 
     filter "system:windows"
@@ -55,7 +54,6 @@ project "VkBootstrap"
         links
         {
             "vulkan-1",
-            "volk"
         }
         
     filter "configurations:Debug"
