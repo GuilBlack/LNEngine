@@ -27,19 +27,7 @@ StorageBuffer::StorageBuffer(SafePtr<class GfxContext> ctx, uint64_t size, const
 
     m_Context->AllocateBuffer(m_Allocation, bufferCI, allocCI);
 
-    vk::BufferCreateInfo stagingBufferCI{
-        {},
-        size,
-        vk::BufferUsageFlagBits::eTransferSrc,
-        vk::SharingMode::eExclusive,
-    };
-
-    VmaAllocationCreateInfo stagingAllocCI{
-        .flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
-        .usage = VMA_MEMORY_USAGE_AUTO,
-    };
-    BufferAllocation stagingAllocation;
-    m_Context->AllocateBuffer(stagingAllocation, stagingBufferCI, stagingAllocCI);
+    BufferAllocation stagingAllocation = m_Context->AllocateStagingBuffer(size);
 
     memcpy(stagingAllocation.AllocationInfo.pMappedData, data, size);
 

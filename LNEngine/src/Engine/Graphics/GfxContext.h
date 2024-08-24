@@ -78,11 +78,10 @@ public:
 
 #pragma endregion
 
-    vk::DescriptorSetLayout CreateDescriptorSetLayout(const std::vector<vk::DescriptorSetLayoutBinding>& bindings, const std::string& name = "");
-
-#pragma region Buffer
+#pragma region Allocations
 
     void AllocateBuffer(BufferAllocation& allocation, VkBufferCreateInfo bufferCI, VmaAllocationCreateInfo allocCI);
+    BufferAllocation AllocateStagingBuffer(uint64_t size);
     void FreeBuffer(BufferAllocation& allocation);
 
     void AllocateImage(ImageAllocation& allocation, VkImageCreateInfo imageCI, VmaAllocationCreateInfo allocCI);
@@ -93,6 +92,7 @@ public:
 #pragma region Shader
 
     [[nodiscard]] SafePtr<Shader> CreateShader(std::string_view filePath);
+    [[nodiscard]] vk::DescriptorSetLayout CreateDescriptorSetLayout(const std::vector<vk::DescriptorSetLayoutBinding>&bindings, const std::string & name = "");
 
 #pragma endregion
 

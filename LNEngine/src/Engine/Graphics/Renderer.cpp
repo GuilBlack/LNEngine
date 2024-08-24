@@ -1,5 +1,5 @@
-#include "lnepch.h"
 #include "Renderer.h"
+#include "Core/Utils/Log.h"
 #include "Engine/Core/Window.h"
 #include "GfxContext.h"
 #include "CommandBufferManager.h"
@@ -12,6 +12,9 @@
 #include "StorageBuffer.h"
 #include "Scene/Components.h"
 #include "Material.h"
+
+// TODO: move this to a resource manager
+#include <stb/stb_image.h>
 
 namespace lne
 {
@@ -197,6 +200,34 @@ SafePtr<class StorageBuffer> Renderer::CreateGeometryBuffer(const void* data, si
     SafePtr<StorageBuffer> buffer;
     buffer.Reset(lnnew StorageBuffer(m_Context, (uint64_t)size, data));
     return buffer;
+}
+
+SafePtr<Texture> Renderer::CreateTexture(const std::string& fullPath)
+{
+    if (std::filesystem::exists(fullPath) == false)
+    {
+        LNE_ERROR("Texture file not found: {0}", fullPath);
+        return SafePtr<Texture>();
+    }
+
+    // load image to binary
+    int texWidth, texHeight, texChannels;
+    uint8_t* pixels = stbi_load(fullPath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    
+    if (!pixels)
+    {
+        LNE_ERROR("Failed to load texture image: {0}", fullPath);
+        return SafePtr<Texture>();
+    }
+    std::filesystem::path fsFullPath = fullPath;
+
+    SafePtr<Texture> texture = Texture::CreateColorTexture2D(m_Context, texWidth, texHeight, true, std::format("Texture: {}", fsFullPath.filename().string()));
+
+    texture->UploadData(pixels);
+
+    stbi_image_free(pixels);
+
+    return texture;
 }
 
 SafePtr<UniformBufferManager> Renderer::RegisterObject()

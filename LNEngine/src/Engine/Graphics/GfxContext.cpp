@@ -188,6 +188,9 @@ vkb::PhysicalDevice GfxContext::VkbSelectPhysicalDevice(const vkb::Instance& ins
 
     auto features12 = VkPhysicalDeviceVulkan12Features{
         .descriptorIndexing = vk::True,
+        .descriptorBindingPartiallyBound = vk::True,
+        .runtimeDescriptorArray = vk::True,
+        .scalarBlockLayout = vk::True,
     };
 
     auto features13 = VkPhysicalDeviceVulkan13Features{
@@ -320,6 +323,26 @@ void GfxContext::AllocateBuffer(BufferAllocation& allocation, VkBufferCreateInfo
     VkMemoryPropertyFlags memPropFlags;
     vmaGetAllocationMemoryProperties(m_MemoryAllocator, allocation.Allocation, &memPropFlags);
     allocation.MemoryFlags = vk::MemoryPropertyFlags(memPropFlags);
+}
+
+BufferAllocation GfxContext::AllocateStagingBuffer(uint64_t size)
+{
+    vk::BufferCreateInfo stagingBufferCI{
+        {},
+        size,
+        vk::BufferUsageFlagBits::eTransferSrc,
+        vk::SharingMode::eExclusive,
+    };
+
+    VmaAllocationCreateInfo stagingAllocCI{
+        .flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+        .usage = VMA_MEMORY_USAGE_AUTO,
+    };
+    BufferAllocation stagingAllocation;
+
+    AllocateBuffer(stagingAllocation, stagingBufferCI, stagingAllocCI);
+
+    return stagingAllocation;
 }
 
 void GfxContext::FreeBuffer(BufferAllocation& allocation)

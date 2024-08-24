@@ -21,7 +21,10 @@ public:
         desc.Framebuffer = fb;
         desc.Blend.EnableBlend(false);
         fb.SetClearColor({0.105f, 0.117f, 0.149f, 1.0f });
+
         m_Pipeline = lne::ApplicationBase::GetRenderer().CreateGraphicsPipeline(desc);
+
+        m_Texture = lne::ApplicationBase::GetRenderer().CreateTexture(lne::ApplicationBase::GetAssetsPath() + "Textures\\UVChecker.png");
 
         m_BasicMaterial = lnnew lne::Material(m_Pipeline);
         m_BasicMaterial2 = lnnew lne::Material(m_Pipeline);
@@ -32,20 +35,21 @@ public:
         struct Vertex {
             glm::vec4 Position;
             glm::vec4 Color;
+            glm::vec2 TexCoord;
         };
 
         std::vector<Vertex> vertices = {
             // Front Face
-            {{-0.5f, -0.5f, -0.5f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
-            {{ 0.5f, -0.5f, -0.5f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
-            {{ 0.5f,  0.5f, -0.5f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}},
-            {{-0.5f,  0.5f, -0.5f, 1.0f}, {1.0f, 1.0f, 0.0f, 1.0f}},
-            
+            {{-0.5f, -0.5f, -0.5f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+            {{ 0.5f, -0.5f, -0.5f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+            {{ 0.5f,  0.5f, -0.5f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
+            {{-0.5f,  0.5f, -0.5f, 1.0f}, {1.0f, 1.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+
             // Back Face
-            {{-0.5f, -0.5f, 0.5f, 1.0f}, {1.0f, 0.0f, 1.0f, 1.0f}},
-            {{ 0.5f, -0.5f, 0.5f, 1.0f}, {0.0f, 1.0f, 1.0f, 1.0f}},
-            {{ 0.5f,  0.5f, 0.5f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}},
-            {{-0.5f,  0.5f, 0.5f, 1.0f}, {0.5f, 0.5f, 0.5f, 1.0f}},
+            {{-0.5f, -0.5f,  0.5f, 1.0f}, {1.0f, 0.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},
+            {{ 0.5f, -0.5f,  0.5f, 1.0f}, {0.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
+            {{ 0.5f,  0.5f,  0.5f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+            {{-0.5f,  0.5f,  0.5f, 1.0f}, {0.5f, 0.5f, 0.5f, 1.0f}, {1.0f, 1.0f}},
         };
 
         std::vector<uint32_t> indices = {
@@ -115,6 +119,7 @@ private:
     lne::Geometry m_Geometry;
     lne::TransformComponent m_Transform;
     lne::TransformComponent m_Transform2;
+    lne::SafePtr<lne::Texture> m_Texture;
 };
 
 class Application : public lne::ApplicationBase

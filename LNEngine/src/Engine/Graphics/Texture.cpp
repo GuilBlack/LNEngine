@@ -2,6 +2,10 @@
 #include "GfxContext.h"
 #include "Engine/Core/Utils/_Defines.h"
 #include "Engine/Core/Utils/Log.h"
+#include "CommandBufferManager.h"
+#include "Core/ApplicationBase.h"
+#include "Renderer.h"
+#include "DynamicDescriptorAllocator.h"
 
 namespace lne
 {
@@ -24,6 +28,29 @@ SafePtr<Texture> Texture::CreateDepthTexture(SafePtr<class GfxContext> ctx, uint
     );
 
     return SafePtr<Texture>(new Texture(ctx, imageInfo, name));
+}
+
+SafePtr<Texture> Texture::CreateColorTexture2D(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, bool generateMips, const std::string& name)
+{
+    vk::ImageUsageFlags flags = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst;
+    if (generateMips)
+        flags |= vk::ImageUsageFlagBits::eTransferSrc;
+    vk::ImageCreateInfo imageInfo(
+        vk::ImageCreateFlags(),
+        vk::ImageType::e2D,
+        vk::Format::eR8G8B8A8Unorm,
+        vk::Extent3D(width, height, 1),
+        generateMips ? GetMaxMipLevels(width, height) : 1,
+        1,
+        vk::SampleCountFlagBits::e1,
+        vk::ImageTiling::eOptimal,
+        flags,
+        vk::SharingMode::eExclusive,
+        0,
+        nullptr,
+        vk::ImageLayout::eUndefined
+    );
+    return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, name));
 }
 
 Texture::Texture(SafePtr<class GfxContext> ctx, vk::Image image, vk::Format format, vk::Extent3D extents, uint32_t numlayers, const std::string& name)
@@ -56,6 +83,8 @@ Texture::Texture(SafePtr<class GfxContext> ctx, vk::ImageCreateInfo imageCI, con
     , m_Name{ name }
     , m_OwnsImage{ true }
 {
+    if (m_MipLevels > 1)
+        m_GenerateMips = true;
     vk::Device device = m_Context->GetDevice();
     VmaAllocator allocator = m_Context->GetMemoryAllocator();
 
@@ -101,9 +130,12 @@ bool Texture::IsStencil()
         || m_Format == vk::Format::eD32SfloatS8Uint);
 }
 
-void Texture::TransitionLayout(vk::CommandBuffer cmdBuffer, vk::ImageLayout newLayout)
+void Texture::TransitionLayout(vk::CommandBuffer cmdBuffer, vk::ImageLayout oldLayout, vk::ImageLayout newLayout,
+    uint32_t baseMip, uint32_t mipLevels,
+    uint32_t baseLayer, uint32_t numLayers,
+    bool changeTextureLayout)
 {
-    if (m_Layout == newLayout)
+    if (oldLayout == newLayout)
         return;
 
     vk::AccessFlags srcAccessMask = vk::AccessFlagBits::eNone;
@@ -119,7 +151,7 @@ void Texture::TransitionLayout(vk::CommandBuffer cmdBuffer, vk::ImageLayout newL
         (vk::PipelineStageFlagBits)0 | vk::PipelineStageFlagBits::eVertexShader | vk::PipelineStageFlagBits::eFragmentShader |
         vk::PipelineStageFlagBits::eComputeShader;
 
-    switch (m_Layout)
+    switch (oldLayout)
     {
     case vk::ImageLayout::eUndefined:
         break;
@@ -225,17 +257,106 @@ void Texture::TransitionLayout(vk::CommandBuffer cmdBuffer, vk::ImageLayout newL
     vk::ImageMemoryBarrier barrier(
         srcAccessMask,
         dstAccessMask,
-        m_Layout,
+        oldLayout,
         newLayout,
         VK_QUEUE_FAMILY_IGNORED,
         VK_QUEUE_FAMILY_IGNORED,
         m_Allocation.Image,
-        vk::ImageSubresourceRange(aspectMask, 0, m_MipLevels, 0, m_NumLayers)
+        vk::ImageSubresourceRange(aspectMask, baseMip, mipLevels, baseLayer, numLayers)
     );
 
     cmdBuffer.pipelineBarrier(sourceStage, destinationStage, vk::DependencyFlags(), nullptr, nullptr, barrier);
 
-    m_Layout = newLayout;
+    if (changeTextureLayout)
+        m_Layout = newLayout;
+}
+
+void Texture::UploadData(const void* data)
+{
+    uint32_t bytesPerPixel = FormatToBytesPerPixel(m_Format);
+
+    uint64_t imageSize = m_Extents.width * m_Extents.height * bytesPerPixel;
+
+    LNE_ASSERT(imageSize > 0, "Invalid image size");
+
+    BufferAllocation stagingBuffer = m_Context->AllocateStagingBuffer(imageSize);
+
+    memcpy(stagingBuffer.AllocationInfo.pMappedData, data, imageSize);
+
+    vk::CommandBuffer cmdBuffer = m_Context->GetTransferCommandBufferManager().BeginSingleTimeCommands();
+
+    TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferDstOptimal);
+
+    vk::BufferImageCopy region(
+        0,
+        0,
+        0,
+        vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, m_NumLayers),
+        vk::Offset3D(0, 0, 0),
+        m_Extents
+    );
+
+    cmdBuffer.copyBufferToImage(stagingBuffer.Buffer, m_Allocation.Image, vk::ImageLayout::eTransferDstOptimal, region);
+    
+    m_Context->GetTransferCommandBufferManager().EndSingleTimeCommands();
+
+    m_Context->FreeBuffer(stagingBuffer);
+
+    cmdBuffer = ApplicationBase::GetRenderer().GetGraphicsCommandBufferManager()->GetCurrentCommandBuffer();
+
+    if (m_GenerateMips)
+        GenerateMipmaps(cmdBuffer);
+
+    TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
+}
+
+constexpr uint32_t Texture::FormatToBytesPerPixel(vk::Format format)
+{
+    switch (format)
+    {
+    case vk::Format::eR8G8B8A8Unorm:
+        return 4;
+    case vk::Format::eR8G8B8A8Srgb:
+        return 4;
+    default:
+        LNE_ASSERT(false, "Unsupported format, must implement it");
+        return 0;
+    }
+}
+
+void Texture::GenerateMipmaps(vk::CommandBuffer cmdBuffer)
+{
+    TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferSrcOptimal);
+
+    int32_t width = m_Extents.width;
+    int32_t height = m_Extents.height;
+
+    for (uint32_t i = 1; i < m_MipLevels; i++)
+    {
+        TransitionLayoutMips(cmdBuffer, m_Layout, vk::ImageLayout::eTransferDstOptimal, i, 1);
+        vk::ImageBlit blit{};
+        blit.srcSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+        blit.srcSubresource.layerCount = m_NumLayers;
+        blit.srcSubresource.mipLevel = i - 1;
+        blit.srcOffsets[1] = vk::Offset3D{ width, height, 1 };
+
+        width = std::max(1, width >> 1);
+        height = std::max(1, height >> 1);
+
+        blit.dstSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+        blit.dstSubresource.layerCount = m_NumLayers;
+        blit.dstSubresource.mipLevel = i;
+        blit.dstOffsets[1] = vk::Offset3D{ width, height, 1 };
+
+        cmdBuffer.blitImage(
+            m_Allocation.Image, vk::ImageLayout::eTransferSrcOptimal,
+            m_Allocation.Image, vk::ImageLayout::eTransferDstOptimal,
+            blit,
+            vk::Filter::eLinear
+        );
+
+        TransitionLayoutMips(cmdBuffer, vk::ImageLayout::eTransferDstOptimal, m_Layout, i, 1);
+    }
 }
 
 }
