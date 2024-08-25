@@ -68,6 +68,12 @@ void InputManager::GetMousePosition(float& x, float& y)
     y = m_States.Mouse.Y;
 }
 
+void InputManager::GetMouseDelta(float& x, float& y)
+{
+    x = m_States.Mouse.X - m_States.OldMouse.X;
+    y = m_States.Mouse.Y - m_States.OldMouse.Y;
+}
+
 bool InputManager::ProcessKeyPressedEvent(KeyPressedEvent& e)
 {
     m_States.Keyboard.Keys[e.GetKeyCode()] = e.IsRepeat() ? eKeyRepeated : eKeyDown;

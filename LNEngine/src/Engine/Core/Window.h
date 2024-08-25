@@ -24,6 +24,7 @@ public:
 
     [[nodiscard]] uint32_t GetWidth() const { return m_Settings.Width; }
     [[nodiscard]] uint32_t GetHeight() const { return m_Settings.Height; }
+    [[nodiscard]] const WindowSettings& GetSettings() const { return m_Settings; }
 
     [[nodiscard]] Framebuffer& GetCurrentFramebuffer() const;
 

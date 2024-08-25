@@ -41,6 +41,8 @@ public:
     void BeginFrame();
     void EndFrame();
 
+    void BeginScene(const struct CameraComponent& camera);
+
     void BeginRenderPass(const class Framebuffer& framebuffer) const;
     void EndRenderPass(const class Framebuffer& framebuffer) const;
 

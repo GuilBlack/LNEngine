@@ -9,25 +9,22 @@ public:
     void OnAttach() override
     {
         APP_INFO("AppLayer::OnAttach");
+        lne::ApplicationBase::GetEventHub().RegisterListener<lne::WindowResizeEvent>(this, &AppLayer::OnWindowResize, 10);
+
         auto& fb = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
         lne::GraphicsPipelineDesc desc{};
         desc.PathToShaders = lne::ApplicationBase::GetAssetsPath() + "Shaders\\HelloTriangle.glsl";
         desc.Name = "Basic";
-        desc.AddStage(lne::ShaderStage::eVertex)
-            .AddStage(lne::ShaderStage::eFragment);
-        desc.SetCulling(lne::ECullMode::Back)
-            .SetWinding(lne::EWindingOrder::CounterClockwise)
-            .SetFill(lne::EFillMode::Solid);
         desc.Framebuffer = fb;
         desc.Blend.EnableBlend(false);
-        fb.SetClearColor({0.105f, 0.117f, 0.149f, 1.0f });
 
-        m_Pipeline = lne::ApplicationBase::GetRenderer().CreateGraphicsPipeline(desc);
+        m_BasePipeline = lne::ApplicationBase::GetRenderer().CreateGraphicsPipeline(desc);
+        fb.SetClearColor({0.105f, 0.117f, 0.149f, 1.0f });
 
         m_Texture = lne::ApplicationBase::GetRenderer().CreateTexture(lne::ApplicationBase::GetAssetsPath() + "Textures\\UVChecker.png");
 
-        m_BasicMaterial = lnnew lne::Material(m_Pipeline);
-        m_BasicMaterial2 = lnnew lne::Material(m_Pipeline);
+        m_BasicMaterial = lnnew lne::Material(m_BasePipeline);
+        m_BasicMaterial2 = lnnew lne::Material(m_BasePipeline);
 
         m_BasicMaterial->SetProperty("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
         m_BasicMaterial->SetTexture("tDiffuse", m_Texture);
@@ -95,27 +92,34 @@ public:
         m_Geometry.IndexGPUBuffer = indexBuffer;
         m_Geometry.IndexCount = (uint32_t)indices.size();
 
-        m_Transform.Position = { -0.5f, 0.0f, 0.0f };
-        m_Transform.Rotation = { 0.0f, 0.0f, 0.0f };
-        m_Transform.Scale = { 0.25f, 0.25f, 0.25f };
+        m_CubeTransform.Position =  { -0.5f, 0.0f, 0.0f };
+        m_CubeTransform.Rotation =  { 0.0f, 0.0f, 0.0f };
+        m_CubeTransform.Scale =     { 0.25f, 0.25f, 0.25f };
 
-        m_Transform.UniformBuffers = lne::ApplicationBase::GetRenderer().RegisterObject();
+        m_CubeTransform.UniformBuffers = lne::ApplicationBase::GetRenderer().RegisterObject();
 
-        m_Transform2.Position = { 0.5f, 0.0f, 0.0f };
-        m_Transform2.Rotation = { 0.0f, 0.0f, 0.0f };
-        m_Transform2.Scale = { 0.25f, 0.25f, 0.25f };
+        m_CubeTransform2.Position = { 0.5f, 0.0f, 0.0f };
+        m_CubeTransform2.Rotation = { 0.0f, 0.0f, 0.0f };
+        m_CubeTransform2.Scale =    { 0.25f, 0.25f, 0.25f };
 
-        m_Transform2.UniformBuffers = lne::ApplicationBase::GetRenderer().RegisterObject();
+        m_CubeTransform2.UniformBuffers = lne::ApplicationBase::GetRenderer().RegisterObject();
+
+        m_CameraTransform.Position = { 0.0f, 0.0f, -2.0f };
+
+        m_Camera.LookAtCenter(m_CameraTransform.Position);
+        auto& windowSettings = lne::ApplicationBase::GetWindow().GetSettings();
+        m_Camera.SetPerspective(45.0f, windowSettings.Width / (float)windowSettings.Height, 0.001f, 10000.0f);
     }
 
     void OnDetach() override
     {
         APP_INFO("AppLayer::OnDetach");
-        m_Pipeline.Reset();
+        m_BasePipeline.Reset();
     }
 
     void OnUpdate(float deltaTime) override
     {
+        HandleInput(deltaTime);
         static int frameIndex = 0;
         ++frameIndex;
 
@@ -123,17 +127,19 @@ public:
         float sinTime = (float)sin(currentTime);
         float cosTime = (float)cos(currentTime);
 
-        m_Transform.Position.y = sinTime * 0.5f;
-        m_Transform2.Rotation.z = cosTime * 180.0f;
+        m_CubeTransform.Position.y = sinTime * 0.5f;
+        m_CubeTransform2.Rotation.z = cosTime * 180.0f;
 
         m_BasicMaterial->SetProperty("uColor", glm::vec4((sinTime+1)/2, (cosTime+1.0f)/2, 1.0f, 1.0f));
+
+        lne::ApplicationBase::GetRenderer().BeginScene(m_Camera);
 
         auto& fb = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
 
         lne::ApplicationBase::GetRenderer().BeginRenderPass(fb);
 
-        lne::ApplicationBase::GetRenderer().Draw(m_BasicMaterial, m_Geometry, m_Transform);
-        lne::ApplicationBase::GetRenderer().Draw(m_BasicMaterial2, m_Geometry, m_Transform2);
+        lne::ApplicationBase::GetRenderer().Draw(m_BasicMaterial, m_Geometry, m_CubeTransform);
+        lne::ApplicationBase::GetRenderer().Draw(m_BasicMaterial2, m_Geometry, m_CubeTransform2);
 
         lne::ApplicationBase::GetRenderer().EndRenderPass(fb);
     }
@@ -145,14 +151,58 @@ public:
         ImGui::End();
     }
 
+    bool OnWindowResize(lne::WindowResizeEvent& event)
+    {
+        APP_INFO("WindowResizeEvent received: {0}x{1}", event.GetWidth(), event.GetHeight());
+        m_Camera.SetPerspective(45.0f, event.GetWidth() / (float)event.GetHeight(), 0.001f, 10000.0f);
+        return false;
+    }
+
+    void HandleInput(float deltaTime)
+    {
+        auto& inputManager = lne::ApplicationBase::GetInputManager();
+
+        if (inputManager.IsKeyPressed(lne::eKeyW))
+        {
+            m_CameraTransform.Position += glm::vec3(m_CameraTransform.GetForward() * deltaTime);
+        }
+        if (inputManager.IsKeyPressed(lne::eKeyS))
+        {
+            m_CameraTransform.Position -= glm::vec3(m_CameraTransform.GetForward() * deltaTime);
+        }
+        if (inputManager.IsKeyPressed(lne::eKeyA))
+        {
+            m_CameraTransform.Position += glm::vec3(m_CameraTransform.GetRight() * deltaTime);
+        }
+        if (inputManager.IsKeyPressed(lne::eKeyD))
+        {
+            m_CameraTransform.Position -= glm::vec3(m_CameraTransform.GetRight() * deltaTime);
+        }
+
+        glm::vec2 mouseDelta{};
+        if (inputManager.IsMouseButtonPressed(lne::eMouseButton0))
+        {
+            inputManager.GetMouseDelta(mouseDelta.x, mouseDelta.y);
+            m_CameraTransform.Rotation.x -= mouseDelta.y * 0.1f;
+            m_CameraTransform.Rotation.y -= mouseDelta.x * 0.1f;
+        }
+
+        m_Camera.UpdateView(m_CameraTransform);
+    }
+
 private:
-    lne::SafePtr<lne::GfxPipeline> m_Pipeline;
+    lne::SafePtr<lne::GfxPipeline> m_BasePipeline;
     lne::SafePtr<lne::Material> m_BasicMaterial;
     lne::SafePtr<lne::Material> m_BasicMaterial2;
+
     lne::Geometry m_Geometry;
-    lne::TransformComponent m_Transform;
-    lne::TransformComponent m_Transform2;
     lne::SafePtr<lne::Texture> m_Texture;
+
+    lne::TransformComponent m_CubeTransform;
+    lne::TransformComponent m_CubeTransform2;
+
+    lne::CameraComponent m_Camera;
+    lne::TransformComponent m_CameraTransform{};
 };
 
 class Application : public lne::ApplicationBase

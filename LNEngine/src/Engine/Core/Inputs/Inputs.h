@@ -40,6 +40,7 @@ public:
     [[nodiscard]] bool IsMouseButtonPressed(MouseButton button);
     [[nodiscard]] bool IsMouseButtonReleased(MouseButton button);
     void GetMousePosition(float& x, float& y);
+    void GetMouseDelta(float& x, float& y);
 
 private:
     InputStates m_States;

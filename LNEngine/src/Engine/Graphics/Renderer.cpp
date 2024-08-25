@@ -62,15 +62,6 @@ void Renderer::BeginFrame()
 
     m_FrameData[imageIndex].DescriptorAllocator->Clear();
 
-    glm::mat4 proj = glm::perspective(glm::radians(45.0f), viewport.GetExtent().width / (float)viewport.GetExtent().height, 0.1f, 10.0f);
-    glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    GlobalUniforms uniforms = {
-        .ViewProj = proj * view,
-        .View = view,
-        .Proj = proj
-    };
-    
-    m_FrameData[imageIndex].GlobalUniforms.CopyData(cmdBuffer, uniforms);
     m_FrameData[imageIndex].DescriptorSet = m_FrameData[imageIndex].DescriptorAllocator->Allocate(m_FrameData[imageIndex].DescriptorSetLayout);
 
     auto bufferInfo = m_FrameData[imageIndex].GlobalUniforms.GetDescriptorInfo();
@@ -100,6 +91,19 @@ void Renderer::EndFrame()
     vk::PipelineStageFlags waitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
     vk::SubmitInfo submitInfo = m_Swapchain->GetSubmitInfo(waitStages);
     m_GraphicsCommandBufferManager->Submit(submitInfo);
+}
+
+void Renderer::BeginScene(const CameraComponent& camera)
+{
+    uint32_t imageIndex = m_Swapchain->GetCurrentFrameIndex();
+    auto& cmdBuffer = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
+    GlobalUniforms uniforms = {
+        .ViewProj = camera.GetViewProj(),
+        .View = camera.View,
+        .Proj = camera.Proj
+    };
+
+    m_FrameData[imageIndex].GlobalUniforms.CopyData(cmdBuffer, uniforms);
 }
 
 void Renderer::BeginRenderPass(const Framebuffer& framebuffer) const
