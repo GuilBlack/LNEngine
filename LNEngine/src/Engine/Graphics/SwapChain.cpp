@@ -155,6 +155,7 @@ void Swapchain::CreateSwapchain()
     m_Swapchain = device.createSwapchainKHR(createInfo);
     m_Context->SetVkObjectName(m_Swapchain, "Swapchain");
     m_Viewport = Viewport(sc.currentExtent);
+
     if (oldSwapchain)
         device.destroySwapchainKHR(oldSwapchain);
 

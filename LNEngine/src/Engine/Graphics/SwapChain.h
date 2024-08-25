@@ -21,6 +21,7 @@ struct Viewport
 
     vk::Extent2D GetExtent() const { return vk::Extent2D(static_cast<uint32_t>(m_Viewport.width), static_cast<uint32_t>(m_Viewport.height)); }
 
+    vk::Viewport& GetViewport() { return m_Viewport; }
     const vk::Viewport& GetViewport() const { return m_Viewport; }
     const vk::Rect2D GetScissor() const { return vk::Rect2D({ 0, 0 }, GetExtent()); }
     

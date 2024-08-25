@@ -300,7 +300,8 @@ vkb::PhysicalDevice GfxContext::VkbSelectPhysicalDevice(const vkb::Instance& ins
         .set_minimum_version(1, 3)
         .set_required_features(deviceFeatures)
         .set_required_features_12(features12)
-        .set_required_features_13(features13);
+        .set_required_features_13(features13)
+        .add_required_extension(VK_KHR_MAINTENANCE1_EXTENSION_NAME);
 
     vkb::Result<vkb::PhysicalDevice> selectedDevice = physDeviceSelect.select();
 

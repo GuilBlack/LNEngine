@@ -99,8 +99,8 @@ void ApplicationBase::Run()
             layer->OnUpdate(m_Clock.GetDeltaTime());
 
         m_ImGuiService->BeginFrame();
-            //for (auto layer : m_LayerStack)
-            //    layer->OnImGuiRender();
+            for (auto layer : m_LayerStack)
+                layer->OnImGuiRender();
         m_ImGuiService->EndFrame();
 
         m_Renderer->EndFrame();

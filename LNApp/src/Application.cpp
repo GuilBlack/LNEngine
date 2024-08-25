@@ -33,7 +33,6 @@ public:
         m_BasicMaterial->SetTexture("tDiffuse", m_Texture);
         m_BasicMaterial2->SetProperty("uColor", glm::vec4(0.25f, 0.25f, 0.25f, 0.25f));
 
-
         struct Vertex {
             glm::vec4 Position;
             glm::vec4 Color;
@@ -41,26 +40,51 @@ public:
         };
 
         std::vector<Vertex> vertices = {
-            // Front Face
-            {{-0.5f, -0.5f, -0.5f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
-            {{ 0.5f, -0.5f, -0.5f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
-            {{ 0.5f,  0.5f, -0.5f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
-            {{-0.5f,  0.5f, -0.5f, 1.0f}, {1.0f, 1.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-
-            // Back Face
-            {{-0.5f, -0.5f,  0.5f, 1.0f}, {1.0f, 0.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},
-            {{ 0.5f, -0.5f,  0.5f, 1.0f}, {0.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},
-            {{ 0.5f,  0.5f,  0.5f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
-            {{-0.5f,  0.5f,  0.5f, 1.0f}, {0.5f, 0.5f, 0.5f, 1.0f}, {1.0f, 1.0f}},
+            // Front face
+            {{-1.0f, -1.0f,  1.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},  // Bottom-left
+            {{ 1.0f, -1.0f,  1.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},  // Bottom-right
+            {{ 1.0f,  1.0f,  1.0f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},  // Top-right
+            {{-1.0f,  1.0f,  1.0f, 1.0f}, {1.0f, 1.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},  // Top-left
+            // Back face
+            {{ 1.0f, -1.0f, -1.0f, 1.0f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},  // Bottom-left
+            {{-1.0f, -1.0f, -1.0f, 1.0f}, {0.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},  // Bottom-right
+            {{-1.0f,  1.0f, -1.0f, 1.0f}, {0.5f, 0.5f, 0.5f, 1.0f}, {1.0f, 1.0f}},  // Top-right
+            {{ 1.0f,  1.0f, -1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},  // Top-left
+            // Left face
+            {{-1.0f, -1.0f, -1.0f, 1.0f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},  // Bottom-left
+            {{-1.0f, -1.0f,  1.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},  // Bottom-right
+            {{-1.0f,  1.0f,  1.0f, 1.0f}, {1.0f, 1.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},  // Top-right
+            {{-1.0f,  1.0f, -1.0f, 1.0f}, {0.5f, 0.5f, 0.5f, 1.0f}, {0.0f, 1.0f}},  // Top-left
+            // Right face
+            {{ 1.0f, -1.0f,  1.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},  // Bottom-left
+            {{ 1.0f, -1.0f, -1.0f, 1.0f}, {0.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},  // Bottom-right
+            {{ 1.0f,  1.0f, -1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},  // Top-right
+            {{ 1.0f,  1.0f,  1.0f, 1.0f}, {0.5f, 0.5f, 0.5f, 1.0f}, {0.0f, 1.0f}},  // Top-left
+            // Top face
+            {{-1.0f,  1.0f,  1.0f, 1.0f}, {1.0f, 1.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},  // Bottom-left
+            {{ 1.0f,  1.0f,  1.0f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},  // Bottom-right
+            {{ 1.0f,  1.0f, -1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},  // Top-right
+            {{-1.0f,  1.0f, -1.0f, 1.0f}, {0.5f, 0.5f, 0.5f, 1.0f}, {0.0f, 0.0f}},  // Top-left
+            // Bottom face
+            {{-1.0f, -1.0f, -1.0f, 1.0f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},  // Bottom-left
+            {{ 1.0f, -1.0f, -1.0f, 1.0f}, {0.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},  // Bottom-right
+            {{ 1.0f, -1.0f,  1.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},  // Top-right
+            {{-1.0f, -1.0f,  1.0f, 1.0f}, {0.5f, 0.5f, 0.5f, 1.0f}, {0.0f, 1.0f}},  // Top-left
         };
 
         std::vector<uint32_t> indices = {
-            0, 1, 2, 2, 3, 0, //
-            1, 5, 6, 6, 2, 1, //
-            5, 4, 7, 7, 6, 5, //
-            4, 0, 3, 3, 7, 4, //
-            3, 2, 6, 6, 7, 3, //
-            4, 5, 1, 1, 0, 4 
+            // Front face
+            0, 2, 1, 2, 0, 3,
+            // Back face
+            4, 6, 5, 6, 4, 7,
+            // Left face
+            8, 10, 9, 10, 8, 11,
+            // Right face
+            12, 14, 13, 14, 12, 15,
+            // Top face
+            16, 18, 17, 18, 16, 19,
+            // Bottom face
+            20, 22, 21, 22, 20, 23
         };
 
         lne::SafePtr<lne::StorageBuffer> vertexBuffer = lne::ApplicationBase::GetRenderer().CreateGeometryBuffer(vertices.data(), vertices.size() * sizeof(Vertex));
@@ -73,13 +97,13 @@ public:
 
         m_Transform.Position = { -0.5f, 0.0f, 0.0f };
         m_Transform.Rotation = { 0.0f, 0.0f, 0.0f };
-        m_Transform.Scale = { 0.5f, 0.5f, 0.5f };
+        m_Transform.Scale = { 0.25f, 0.25f, 0.25f };
 
         m_Transform.UniformBuffers = lne::ApplicationBase::GetRenderer().RegisterObject();
 
         m_Transform2.Position = { 0.5f, 0.0f, 0.0f };
         m_Transform2.Rotation = { 0.0f, 0.0f, 0.0f };
-        m_Transform2.Scale = { 0.5f, 0.5f, 0.5f };
+        m_Transform2.Scale = { 0.25f, 0.25f, 0.25f };
 
         m_Transform2.UniformBuffers = lne::ApplicationBase::GetRenderer().RegisterObject();
     }
@@ -112,6 +136,13 @@ public:
         lne::ApplicationBase::GetRenderer().Draw(m_BasicMaterial2, m_Geometry, m_Transform2);
 
         lne::ApplicationBase::GetRenderer().EndRenderPass(fb);
+    }
+
+    void OnImGuiRender() override
+    {
+        ImGui::Begin("Hello, world!");
+        ImGui::Text("This is some useful text.");
+        ImGui::End();
     }
 
 private:

@@ -53,9 +53,11 @@ void Renderer::BeginFrame()
     currentImage->TransitionLayout(m_GraphicsCommandBufferManager->GetCurrentCommandBuffer(), vk::ImageLayout::eGeneral);
     auto& cmdBuffer = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
 
-    auto& viewport = m_Swapchain->GetViewport();
-
+    auto viewport = m_Swapchain->GetViewport();
     cmdBuffer.setScissor(0, viewport.GetScissor());
+    auto vp = viewport.GetViewport();
+    vp.y += vp.height;
+    vp.height *= -1;
     cmdBuffer.setViewport(0, viewport.GetViewport());
 
     m_FrameData[imageIndex].DescriptorAllocator->Clear();
