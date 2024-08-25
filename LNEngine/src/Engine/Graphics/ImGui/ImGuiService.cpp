@@ -44,14 +44,17 @@ void ImGuiService::Init(std::unique_ptr<Window>& window)
 
     m_Framebuffers = m_Swapchain->GetFramebuffers();
 
+    vk::Format depthFormat = vk::Format::eD32Sfloat;
     for (auto& framebuffer : m_Framebuffers)
     {
         framebuffer.ChangeColorAttachmentsOps(vk::AttachmentLoadOp::eLoad, vk::AttachmentStoreOp::eStore);
+        depthFormat = framebuffer.HasDepth() ? framebuffer.GetDepthAttachment().Texture->GetFormat() : vk::Format::eUndefined;
     }
 
     vk::PipelineRenderingCreateInfo renderingInfo = vk::PipelineRenderingCreateInfo{};
     renderingInfo.colorAttachmentCount = 1;
     renderingInfo.pColorAttachmentFormats = &m_Swapchain->GetSurfaceFormat().format;
+    renderingInfo.depthAttachmentFormat = depthFormat;
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();

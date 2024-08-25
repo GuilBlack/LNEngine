@@ -161,11 +161,11 @@ GfxPipeline::GfxPipeline(SafePtr<GfxContext> ctx, const GraphicsPipelineDesc& de
 
     vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> pipelineInfoChain = {
         graphicsPipelineInfo,
-        vk::PipelineRenderingCreateInfo(
+        vk::PipelineRenderingCreateInfo{
             0,
             colorFormats,
             depthFormat
-        )
+        }
     };
     
     auto result = m_Context->GetDevice().createGraphicsPipeline(nullptr, pipelineInfoChain.get<vk::GraphicsPipelineCreateInfo>(), nullptr);

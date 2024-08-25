@@ -73,13 +73,14 @@ void Framebuffer::Bind(vk::CommandBuffer cmdBuffer) const
     }
 
     auto texture = m_ColorAttachments[0].Texture;
-    vk::RenderingInfo renderingInfo = vk::RenderingInfo(
+    vk::RenderingInfo renderingInfo = vk::RenderingInfo{
         vk::RenderingFlags{},
         vk::Rect2D{ {0,0}, {texture->GetDimensions().width, texture->GetDimensions().height} },
         texture->GetNumLayers(),
         0,
-        colorRenderingAttachments
-    );
+        colorRenderingAttachments,
+        m_HasDepth ? &depthRenderingAttachmentInfo : nullptr
+    };
 
     cmdBuffer.beginRendering(renderingInfo);
 }

@@ -15,6 +15,7 @@ public:
         lne::GraphicsPipelineDesc desc{};
         desc.PathToShaders = lne::ApplicationBase::GetAssetsPath() + "Shaders\\HelloTriangle.glsl";
         desc.Name = "Basic";
+        desc.EnableDepthTest(true);
         desc.Framebuffer = fb;
         desc.Blend.EnableBlend(false);
 
