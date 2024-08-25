@@ -193,9 +193,13 @@ void GfxPipeline::Bind(const vk::CommandBuffer& cmdBuffer) const
 
 vk::PipelineLayout GfxPipeline::CreatePipelineLayout(const std::vector<vk::DescriptorSetLayout>& layouts)
 {
+    std::vector<vk::DescriptorSetLayout> completeLayouts;
+    completeLayouts.reserve(layouts.size() + 1);
+    completeLayouts.insert(completeLayouts.begin(), layouts.begin(), layouts.end());
+    completeLayouts.emplace_back(m_Context->GetBindlessDescriptorSetLayout());
     auto layout = m_Context->GetDevice().createPipelineLayout(vk::PipelineLayoutCreateInfo{
         {},
-        layouts
+        completeLayouts
     });
     m_Context->SetVkObjectName(layout, std::format("PipelineLayout: {}", m_Desc.Name));
     return layout;

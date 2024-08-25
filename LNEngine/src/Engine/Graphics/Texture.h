@@ -37,6 +37,8 @@ public:
     [[nodiscard]] uint32_t GetNumLayers() const { return m_NumLayers; }
     [[nodiscard]] uint32_t GetMipLevels() const { return m_MipLevels; }
     [[nodiscard]] bool ShouldGenerateMips() const { return m_GenerateMips; }
+    [[nodiscard]] vk::Sampler GetSampler() const { return m_Sampler; }
+    [[nodiscard]] uint32_t GetBindlessHandle() const { return m_BindlessHandle; }
     [[nodiscard]] const std::string& GetName() const { return m_Name; }
 
     [[nodiscard]] bool IsDepth();
@@ -65,6 +67,8 @@ private:
     SafePtr<class GfxContext> m_Context;
     ImageAllocation m_Allocation{};
     vk::ImageView m_ImageView{};
+    vk::Sampler m_Sampler{};
+    uint32_t m_BindlessHandle{ 0 };
     vk::Format m_Format{};
     vk::Extent3D m_Extents{};
     vk::ImageType m_ImageType{ vk::ImageType::e2D };

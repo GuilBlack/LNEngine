@@ -8,7 +8,9 @@
 #include "DynamicDescriptorAllocator.h"
 #include "Texture.h"
 
-lne::Material::Material(SafePtr<GfxPipeline> pipeline)
+namespace lne
+{
+Material::Material(SafePtr<GfxPipeline> pipeline)
     : m_Pipeline(pipeline)
 {
     DescriptorSet materialDescSet = m_Pipeline->m_Shader->GetReflectedData().DescriptorSets.at(3);
@@ -23,20 +25,26 @@ lne::Material::Material(SafePtr<GfxPipeline> pipeline)
     }
 }
 
-lne::Material::~Material()
+Material::~Material()
 {
     for (auto& [binding, ub] : m_UniformBuffers)
         ub.Destroy();
 }
 
-void lne::Material::Set(const std::string& name, const glm::vec4& value)
+void Material::SetProperty(std::string_view name, const glm::vec4& value)
 {
-    Set<glm::vec4>(name, value);
+    SetProperty<glm::vec4>(std::string(name), value);
 }
 
-void lne::Material::SetUniformBuffer(uint32_t binding, const void* data, uint32_t size, uint32_t offset)
+void Material::SetTexture(std::string_view name, SafePtr<Texture> texture)
+{
+    SetProperty<uint32_t>(std::string(name), texture->GetBindlessHandle());
+}
+
+void Material::SetUniformBuffer(uint32_t binding, const void* data, uint32_t size, uint32_t offset)
 {
     auto& ub = m_UniformBuffers.at(binding);
     auto& renderer = ApplicationBase::GetRenderer();
     ub.CopyData(ApplicationBase::GetRenderer().GetGraphicsCommandBufferManager()->GetCurrentCommandBuffer(), data, size, offset);
+}
 }

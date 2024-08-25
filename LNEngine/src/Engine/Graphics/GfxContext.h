@@ -36,6 +36,9 @@ public:
     static bool InitVulkan(std::string appName);
     static void NukeVulkan();
 
+    void InitDefaultResources();
+    void NukeDefaultResources();
+
     void WaitIdle() const;
 
     static vk::Instance VulkanInstance() { return s_VulkanInstance; }
@@ -70,11 +73,22 @@ public:
 
 #pragma endregion
 
-#pragma region Image
+#pragma region Images
 
     [[nodiscard]] vk::ImageView CreateImageView(vk::Image image, vk::ImageViewType viewType,
         vk::Format format, uint32_t numMipLevels = 1,
         uint32_t layers = 1, vk::ImageAspectFlags aspect = vk::ImageAspectFlagBits::eColor, const std::string& name = "");
+    [[nodiscard]] uint32_t RegisterBindlessTexture(class Texture* texture);
+    void FreeBindlessImage(uint32_t index);
+
+    [[nodiscard]] vk::Sampler CreateSampler(vk::Filter magFilter = vk::Filter::eLinear, vk::Filter minFilter = vk::Filter::eLinear, 
+        vk::SamplerMipmapMode mipmapMode = vk::SamplerMipmapMode::eLinear,
+        vk::SamplerAddressMode addressMode = vk::SamplerAddressMode::eRepeat, float maxAnisotropy = 1.0f, bool compareEnable = false,
+        vk::CompareOp compareOp = vk::CompareOp::eAlways, vk::BorderColor borderColor = vk::BorderColor::eFloatOpaqueWhite,
+        vk::SamplerReductionMode reductionMode = vk::SamplerReductionMode::eWeightedAverage, const std::string& name = "");
+
+    [[nodiscard]] vk::DescriptorSetLayout GetBindlessDescriptorSetLayout() const { return m_BindlessDescriptorSetLayout; }
+    [[nodiscard]] vk::DescriptorSet GetBindlessDescriptorSet() const { return m_BindlessDescriptorSet; }
 
 #pragma endregion
 
@@ -136,6 +150,14 @@ private:
     uint32_t m_MaxFramesInFlight{ 2 };
 
     std::unique_ptr<class CommandBufferManager> m_TransferCommandBufferManager;
+        
+    vk::Sampler m_DefaultSampler;
+    class Texture* m_DefaultTexture;
+
+    vk::DescriptorPool m_BindlessDescriptorPool;
+    vk::DescriptorSetLayout m_BindlessDescriptorSetLayout;
+    vk::DescriptorSet m_BindlessDescriptorSet;
+    std::queue<uint32_t> m_FreeBindlessIndices{};
 
     friend class Swapchain;
 

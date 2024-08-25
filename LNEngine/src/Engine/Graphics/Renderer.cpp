@@ -148,8 +148,8 @@ void Renderer::Draw(SafePtr<Material> material, struct Geometry& geometry, Trans
 
     // Create & update object descriptor set
     objTransform.UniformBuffers->CopyData(cmdBuffer, objTransform.GetModelMatrix());
-    auto objDescSetLaout = pipeline->GetDescriptorSetLayouts()[2];
-    vk::DescriptorSet objDescSet = m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorAllocator->Allocate(objDescSetLaout);
+    auto objDescSetLayout = pipeline->GetDescriptorSetLayouts()[2];
+    vk::DescriptorSet objDescSet = m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorAllocator->Allocate(objDescSetLayout);
 
     auto objInfo = objTransform.UniformBuffers->GetCurrentBuffer().GetDescriptorInfo();
     vk::WriteDescriptorSet writeObjDescriptorSet = vk::WriteDescriptorSet{
@@ -184,7 +184,7 @@ void Renderer::Draw(SafePtr<Material> material, struct Geometry& geometry, Trans
     }
     m_Context->GetDevice().updateDescriptorSets(matWriteDescriptorSets, nullptr);
 
-    cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0, { m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorSet, geometryDescSet, objDescSet, matDescSet }, {});
+    cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0, { m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorSet, geometryDescSet, objDescSet, matDescSet, m_Context->GetBindlessDescriptorSet() }, {});
     cmdBuffer.draw(geometry.IndexCount, 1, 0, 0);
 }
 

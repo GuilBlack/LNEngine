@@ -14,7 +14,8 @@ public:
 
     SafePtr<class GfxPipeline> GetPipeline() const { return m_Pipeline; }
 
-    void Set(const std::string& name, const glm::vec4& value);
+    void SetProperty(std::string_view name, const glm::vec4& value);
+    void SetTexture(std::string_view name, SafePtr<class Texture> texture);
 
 private:
     SafePtr<class GfxPipeline> m_Pipeline;
@@ -25,7 +26,7 @@ private:
 
 private:
     template<typename T> requires std::is_trivially_copyable_v<T>
-    void Set(const std::string& name, const T& value)
+    void SetProperty(const std::string& name, const T& value)
     {
         if (m_MaterialConstants.contains(name) == false)
             return;

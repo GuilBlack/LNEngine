@@ -81,11 +81,69 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
     CreateMemoryAllocator();
 
     m_TransferCommandBufferManager.reset(lnnew CommandBufferManager(this, 1, EQueueFamilyType::Transfer));
+
+#pragma region Bindless
+    static constexpr uint32_t bindlessPoolSize = 2048;
+
+    std::vector<vk::DescriptorPoolSize> poolSizesBindless{
+        vk::DescriptorPoolSize{ vk::DescriptorType::eCombinedImageSampler, bindlessPoolSize },
+    };
+
+    vk::DescriptorPoolCreateInfo poolInfoBindless{
+        vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind,
+        bindlessPoolSize* (uint32_t)poolSizesBindless.size(),
+        poolSizesBindless
+    };
+
+    m_BindlessDescriptorPool = m_Device.createDescriptorPool(poolInfoBindless);
+    SetVkObjectName(m_BindlessDescriptorPool, "BindlessDescriptorPool");
+
+    vk::DescriptorSetLayoutBinding bindlessLayoutBinding = vk::DescriptorSetLayoutBinding{
+        0,
+        vk::DescriptorType::eCombinedImageSampler,
+        bindlessPoolSize,
+        vk::ShaderStageFlagBits::eAll
+    };
+
+    std::array<vk::DescriptorBindingFlags, 1> bindlessBindingFlags{
+        vk::DescriptorBindingFlagBits::eUpdateAfterBind | vk::DescriptorBindingFlagBits::ePartiallyBound
+    };
+
+    vk::DescriptorSetLayoutBindingFlagsCreateInfo bindlessLayoutBindingFlags{
+        bindlessBindingFlags
+    };
+
+    vk::StructureChain<vk::DescriptorSetLayoutCreateInfo, vk::DescriptorSetLayoutBindingFlagsCreateInfo> bindlessLayoutChain{
+        vk::DescriptorSetLayoutCreateInfo{
+            vk::DescriptorSetLayoutCreateFlagBits::eUpdateAfterBindPool,
+            bindlessLayoutBinding
+        },
+        bindlessLayoutBindingFlags
+    };
+
+    m_BindlessDescriptorSetLayout = m_Device.createDescriptorSetLayout(bindlessLayoutChain.get<vk::DescriptorSetLayoutCreateInfo>());
+    SetVkObjectName(m_BindlessDescriptorSetLayout, "BindlessDescriptorSetLayout");
+
+    vk::DescriptorSetAllocateInfo allocInfoBindless{
+        m_BindlessDescriptorPool,
+        m_BindlessDescriptorSetLayout
+    };
+    auto result = m_Device.allocateDescriptorSets(allocInfoBindless);
+    m_BindlessDescriptorSet = result.back();
+    SetVkObjectName(m_BindlessDescriptorSet, "BindlessDescriptorSet");
+
+    m_FreeBindlessIndices = std::queue<uint32_t>();
+    for (uint32_t i = 0; i < bindlessPoolSize; i++)
+        m_FreeBindlessIndices.push(i);
+#pragma endregion
 }
 
 GfxContext::~GfxContext()
 {
     m_TransferCommandBufferManager.reset();
+    m_Device.resetDescriptorPool(m_BindlessDescriptorPool);
+    m_Device.destroyDescriptorPool(m_BindlessDescriptorPool);
+    m_Device.destroyDescriptorSetLayout(m_BindlessDescriptorSetLayout);
     vmaDestroyAllocator(m_MemoryAllocator);
     m_Device.destroy();
 }
@@ -170,6 +228,43 @@ void GfxContext::NukeVulkan()
     s_VulkanInstance = nullptr;
 }
 
+void GfxContext::InitDefaultResources()
+{
+    m_DefaultSampler = CreateSampler(
+        vk::Filter::eLinear, vk::Filter::eLinear, vk::SamplerMipmapMode::eLinear,
+        vk::SamplerAddressMode::eRepeat, m_Properties.limits.maxSamplerAnisotropy, false, vk::CompareOp::eNever,
+        vk::BorderColor::eFloatOpaqueWhite, vk::SamplerReductionMode::eWeightedAverage,
+        "DefaultSampler"
+    );
+
+    uint8_t whitePixel[4] = { 255, 0, 255, 255 };
+
+    vk::ImageCreateInfo imageInfo(
+        vk::ImageCreateFlags(),
+        vk::ImageType::e2D,
+        vk::Format::eR8G8B8A8Unorm,
+        vk::Extent3D(1, 1, 1),
+        1,
+        1,
+        vk::SampleCountFlagBits::e1,
+        vk::ImageTiling::eOptimal,
+        vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst,
+        vk::SharingMode::eExclusive,
+        0,
+        nullptr,
+        vk::ImageLayout::eUndefined
+    );
+
+    m_DefaultTexture = lnnew Texture(this, imageInfo, "DefaultTexture");
+    m_DefaultTexture->UploadData(whitePixel);
+}
+
+void GfxContext::NukeDefaultResources()
+{
+    delete m_DefaultTexture;
+    m_Device.destroySampler(m_DefaultSampler);
+}
+
 void GfxContext::WaitIdle() const
 {
     m_Device.waitIdle();
@@ -188,6 +283,9 @@ vkb::PhysicalDevice GfxContext::VkbSelectPhysicalDevice(const vkb::Instance& ins
 
     auto features12 = VkPhysicalDeviceVulkan12Features{
         .descriptorIndexing = vk::True,
+        .shaderSampledImageArrayNonUniformIndexing = vk::True,
+        .descriptorBindingSampledImageUpdateAfterBind = vk::True,
+        .descriptorBindingStorageImageUpdateAfterBind = vk::True,
         .descriptorBindingPartiallyBound = vk::True,
         .runtimeDescriptorArray = vk::True,
         .scalarBlockLayout = vk::True,
@@ -302,6 +400,63 @@ vk::ImageView GfxContext::CreateImageView(vk::Image image, vk::ImageViewType vie
     auto imageView = m_Device.createImageView(createInfo);
     SetVkObjectName(imageView, std::format("ImageView: {}", name));
     return imageView;
+}
+
+uint32_t GfxContext::RegisterBindlessTexture(Texture* texture)
+{
+    vk::Sampler sampler = texture->GetSampler();
+    if (sampler == nullptr)
+        sampler = m_DefaultSampler;
+
+    uint32_t textureIndex = m_FreeBindlessIndices.front();
+    auto imageInfo = vk::DescriptorImageInfo{
+        sampler,
+        texture->GetImageView(),
+        vk::ImageLayout::eShaderReadOnlyOptimal
+    };
+    vk::WriteDescriptorSet descriptorWrite{
+        m_BindlessDescriptorSet,
+        0,
+        textureIndex,
+        vk::DescriptorType::eCombinedImageSampler,
+        imageInfo
+    };
+    m_Device.updateDescriptorSets({ descriptorWrite }, nullptr);
+    m_FreeBindlessIndices.pop();
+    return textureIndex;
+}
+
+void GfxContext::FreeBindlessImage(uint32_t index)
+{
+    m_FreeBindlessIndices.push(index);
+}
+
+vk::Sampler GfxContext::CreateSampler(vk::Filter magFilter, vk::Filter minFilter, vk::SamplerMipmapMode mipmapMode, 
+    vk::SamplerAddressMode addressMode, float maxAnisotropy, bool compareEnable, vk::CompareOp compareOp, vk::BorderColor borderColor, 
+    vk::SamplerReductionMode reductionMode, const std::string& name)
+{
+    vk::SamplerCreateInfo samplerInfo = vk::SamplerCreateInfo{
+        {},
+        magFilter,
+        minFilter,
+        mipmapMode,
+        addressMode,
+        addressMode,
+        addressMode,
+        0,
+        maxAnisotropy > 0.0f,
+        maxAnisotropy,
+        compareEnable,
+        compareOp,
+        0,
+        16,
+        borderColor,
+        vk::False
+    };
+
+    auto sampler = m_Device.createSampler(samplerInfo);
+    SetVkObjectName(sampler, std::format("Sampler: {}", name));
+    return sampler;
 }
 
 vk::DescriptorSetLayout GfxContext::CreateDescriptorSetLayout(const std::vector<vk::DescriptorSetLayoutBinding>& bindings, const std::string& name)

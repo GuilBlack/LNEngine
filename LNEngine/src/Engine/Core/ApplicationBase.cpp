@@ -79,6 +79,7 @@ void ApplicationBase::Run()
     Profiler::Get().BeginSession("Run");
     LNE_PROFILE_FUNCTION();
     m_Renderer->GetGraphicsCommandBufferManager()->BeginSingleTimeCommands();
+    m_Window->GetGfxContext()->InitDefaultResources();
 
     for (auto layer : m_LayerStack)
         layer->OnAttach();
@@ -142,6 +143,7 @@ bool ApplicationBase::OnWindowClose(WindowCloseEvent& e)
     m_Window->GetGfxContext()->WaitIdle();
 
     m_Renderer->GetGraphicsCommandBufferManager()->BeginSingleTimeCommands();
+    m_Window->GetGfxContext()->NukeDefaultResources();
 
     for (auto layer : m_LayerStack)
         layer->OnDetach();

@@ -2,6 +2,7 @@
 #version 460
 
 #extension GL_EXT_scalar_block_layout : enable
+#extension GL_EXT_nonuniform_qualifier : require
 
 layout(scalar, set=0, binding=0) uniform GlobalUBO {
     mat4 uViewProj;
@@ -15,11 +16,15 @@ layout(scalar, set = 2, binding = 0) uniform ObjectData {
 
 layout(scalar, set = 3, binding = 0) uniform MaterialData {
     vec4 uColor;
+    uint tDiffuse;
 };
+
+layout(set = 4, binding = 0) uniform sampler2D globalTextures[];
 
 #ifdef VERT
 
 layout(location = 0) out vec4 oColor;
+layout(location = 1) out vec2 oUVs;
 
 vec2 positions[3] = vec2[](vec2(0.0, -0.5), vec2(-0.5, 0.5), vec2(0.5, 0.5));
 
@@ -43,6 +48,7 @@ void main() {
     uint currentIndex = indexBuffer.indices[gl_VertexIndex];
     gl_Position = uViewProj * uModel * vec4(vertexBuffer.vertices[currentIndex].position);
     oColor = vec4(vertexBuffer.vertices[currentIndex].color);
+    oUVs = vertexBuffer.vertices[currentIndex].uv;
 }
 
 #endif
@@ -50,10 +56,11 @@ void main() {
 #ifdef FRAG
 
 layout(location = 0) in vec4 iColor;
+layout(location = 1) in vec2 iUVs;
 layout(location = 0) out vec4 oColor;
 
 void main() {
-  oColor = iColor * uColor;
+  oColor = uColor * texture(globalTextures[nonuniformEXT(tDiffuse)], iUVs);
 }
 
 #endif

@@ -103,6 +103,9 @@ Texture::Texture(SafePtr<class GfxContext> ctx, vk::ImageCreateInfo imageCI, con
 
     m_ImageView = m_Context->CreateImageView(m_Allocation.Image, vk::ImageViewType::e2D, m_Format, 
         imageCI.mipLevels, m_NumLayers, aspectMask, std::format("ImageView: {}", name));
+
+    if (IsDepth() == false && IsStencil() == false)
+        m_BindlessHandle = m_Context->RegisterBindlessTexture(this);
 }
 
 Texture::~Texture()
@@ -111,6 +114,7 @@ Texture::~Texture()
     device.destroyImageView(m_ImageView);
     if (m_OwnsImage)
         m_Context->FreeImage(m_Allocation);
+    m_Context->FreeBindlessImage(m_BindlessHandle);
 }
 
 bool Texture::IsDepth()
@@ -303,7 +307,7 @@ void Texture::UploadData(const void* data)
     m_Context->FreeBuffer(stagingBuffer);
 
     cmdBuffer = ApplicationBase::GetRenderer().GetGraphicsCommandBufferManager()->GetCurrentCommandBuffer();
-
+    
     if (m_GenerateMips)
         GenerateMipmaps(cmdBuffer);
 

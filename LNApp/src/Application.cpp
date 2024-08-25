@@ -29,8 +29,10 @@ public:
         m_BasicMaterial = lnnew lne::Material(m_Pipeline);
         m_BasicMaterial2 = lnnew lne::Material(m_Pipeline);
 
-        m_BasicMaterial->Set("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
-        m_BasicMaterial2->Set("uColor", glm::vec4(0.25f, 0.25f, 0.25f, 0.25f));
+        m_BasicMaterial->SetProperty("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+        m_BasicMaterial->SetTexture("tDiffuse", m_Texture);
+        m_BasicMaterial2->SetProperty("uColor", glm::vec4(0.25f, 0.25f, 0.25f, 0.25f));
+
 
         struct Vertex {
             glm::vec4 Position;
@@ -100,7 +102,7 @@ public:
         m_Transform.Position.y = sinTime * 0.5f;
         m_Transform2.Rotation.z = cosTime * 180.0f;
 
-        m_BasicMaterial->Set("uColor", glm::vec4((sinTime+1)/2, (cosTime+1.0f)/2, 1.0f, 1.0f));
+        m_BasicMaterial->SetProperty("uColor", glm::vec4((sinTime+1)/2, (cosTime+1.0f)/2, 1.0f, 1.0f));
 
         auto& fb = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
 
