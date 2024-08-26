@@ -53,6 +53,29 @@ SafePtr<Texture> Texture::CreateColorTexture2D(SafePtr<class GfxContext> ctx, ui
     return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, name));
 }
 
+SafePtr<Texture> Texture::CreateCubemapTexture(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, bool generateMips, const std::string& name)
+{
+    vk::ImageUsageFlags flags = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst;
+    if (generateMips)
+        flags |= vk::ImageUsageFlagBits::eTransferSrc;
+    vk::ImageCreateInfo imageInfo = vk::ImageCreateInfo{
+        vk::ImageCreateFlagBits::eCubeCompatible,
+        vk::ImageType::e2D,
+        vk::Format::eR8G8B8A8Unorm,
+        vk::Extent3D(width, height, 1),
+        generateMips ? GetMaxMipLevels(width, height) : 1,
+        6,
+        vk::SampleCountFlagBits::e1,
+        vk::ImageTiling::eOptimal,
+        flags,
+        vk::SharingMode::eExclusive,
+        0,
+        nullptr,
+        vk::ImageLayout::eUndefined
+    };
+    return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, name));
+}
+
 Texture::Texture(SafePtr<class GfxContext> ctx, vk::Image image, vk::Format format, vk::Extent3D extents, uint32_t numlayers, const std::string& name)
     : m_Context{ ctx }
     , m_Format{ format }
@@ -101,7 +124,12 @@ Texture::Texture(SafePtr<class GfxContext> ctx, vk::ImageCreateInfo imageCI, con
         IsDepth() ? vk::ImageAspectFlagBits::eDepth
         : (IsStencil() ? vk::ImageAspectFlagBits::eStencil : vk::ImageAspectFlagBits::eColor);
 
-    m_ImageView = m_Context->CreateImageView(m_Allocation.Image, vk::ImageViewType::e2D, m_Format, 
+    vk::ImageViewType viewType = vk::ImageViewType::e2D;
+    if (m_ImageType == vk::ImageType::e3D)
+        viewType = vk::ImageViewType::e3D;
+    else if (bool(imageCI.flags & vk::ImageCreateFlagBits::eCubeCompatible) == true)
+        viewType = vk::ImageViewType::eCube;
+    m_ImageView = m_Context->CreateImageView(m_Allocation.Image, viewType, m_Format,
         imageCI.mipLevels, m_NumLayers, aspectMask, std::format("ImageView: {}", name));
 
     if (IsDepth() == false && IsStencil() == false)
@@ -281,6 +309,9 @@ void Texture::UploadData(const void* data)
 
     uint64_t imageSize = m_Extents.width * m_Extents.height * bytesPerPixel;
 
+    if (m_NumLayers > 1)
+        imageSize *= m_NumLayers;
+
     LNE_ASSERT(imageSize > 0, "Invalid image size");
 
     BufferAllocation stagingBuffer = m_Context->AllocateStagingBuffer(imageSize);
@@ -291,17 +322,27 @@ void Texture::UploadData(const void* data)
 
     TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferDstOptimal);
 
-    vk::BufferImageCopy region(
-        0,
-        0,
-        0,
-        vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, m_NumLayers),
-        vk::Offset3D(0, 0, 0),
-        m_Extents
-    );
+    std::vector<vk::BufferImageCopy> regions;
+    for (uint32_t layer = 0; layer < m_NumLayers; layer++)
+    {
+        regions.emplace_back(vk::BufferImageCopy{
+            m_Extents.width * m_Extents.height * bytesPerPixel * layer,
+            0,
+            0,
+            vk::ImageSubresourceLayers
+            {
+                vk::ImageAspectFlagBits::eColor, 
+                0,
+                layer,
+                1
+            },
+            vk::Offset3D(0, 0, 0),
+            m_Extents
+        });
+    }
 
-    cmdBuffer.copyBufferToImage(stagingBuffer.Buffer, m_Allocation.Image, vk::ImageLayout::eTransferDstOptimal, region);
-    
+    cmdBuffer.copyBufferToImage(stagingBuffer.Buffer, m_Allocation.Image, vk::ImageLayout::eTransferDstOptimal, regions);
+
     m_Context->GetTransferCommandBufferManager().EndSingleTimeCommands();
 
     m_Context->FreeBuffer(stagingBuffer);
@@ -322,6 +363,10 @@ constexpr uint32_t Texture::FormatToBytesPerPixel(vk::Format format)
         return 4;
     case vk::Format::eR8G8B8A8Srgb:
         return 4;
+    case vk::Format::eR8G8B8Unorm:
+        return 3;
+    case vk::Format::eR8G8B8Srgb:
+        return 3;
     default:
         LNE_ASSERT(false, "Unsupported format, must implement it");
         return 0;

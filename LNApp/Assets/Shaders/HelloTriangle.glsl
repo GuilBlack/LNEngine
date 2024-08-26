@@ -1,8 +1,8 @@
 //#lne_head [[Vt main][Fg main]]
 #version 460
 
-#extension GL_EXT_scalar_block_layout : enable
-#extension GL_EXT_nonuniform_qualifier : require
+#extension GL_EXT_scalar_block_layout :     enable
+#extension GL_EXT_nonuniform_qualifier :    require
 
 layout(scalar, set=0, binding=0) uniform GlobalUBO {
     mat4 uViewProj;
@@ -19,7 +19,8 @@ layout(scalar, set = 3, binding = 0) uniform MaterialData {
     uint tDiffuse;
 };
 
-layout(set = 4, binding = 0) uniform sampler2D globalTextures[];
+layout(set = 4, binding = 0) uniform sampler2D      globalTextures[];
+layout(set = 4, binding = 0) uniform samplerCube    globalCubemaps[];
 
 #ifdef VERT
 

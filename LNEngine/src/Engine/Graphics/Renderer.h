@@ -52,6 +52,7 @@ public:
     [[nodiscard]] SafePtr<class GfxPipeline> CreateGraphicsPipeline(const struct GraphicsPipelineDesc& createInfo);
     [[nodiscard]] SafePtr<class StorageBuffer> CreateGeometryBuffer(const void* data, size_t size);
     [[nodiscard]] SafePtr<class Texture> CreateTexture(const std::string& fullPath);
+    [[nodiscard]] SafePtr<class Texture> CreateCubemapTexture(const std::vector<std::string>& faces);
     [[nodiscard]] SafePtr<class UniformBufferManager> RegisterObject();
 
 private:

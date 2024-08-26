@@ -12,6 +12,7 @@ public:
         lne::ApplicationBase::GetEventHub().RegisterListener<lne::WindowResizeEvent>(this, &AppLayer::OnWindowResize, 10);
 
         auto& fb = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
+        fb.SetClearColor({0.105f, 0.117f, 0.149f, 1.0f });
         lne::GraphicsPipelineDesc desc{};
         desc.PathToShaders = lne::ApplicationBase::GetAssetsPath() + "Shaders\\HelloTriangle.glsl";
         desc.Name = "Basic";
@@ -20,16 +21,32 @@ public:
         desc.Blend.EnableBlend(false);
 
         m_BasePipeline = lne::ApplicationBase::GetRenderer().CreateGraphicsPipeline(desc);
-        fb.SetClearColor({0.105f, 0.117f, 0.149f, 1.0f });
-
-        m_Texture = lne::ApplicationBase::GetRenderer().CreateTexture(lne::ApplicationBase::GetAssetsPath() + "Textures\\UVChecker.png");
-
         m_BasicMaterial = lnnew lne::Material(m_BasePipeline);
         m_BasicMaterial2 = lnnew lne::Material(m_BasePipeline);
+        
+        desc.PathToShaders = lne::ApplicationBase::GetAssetsPath() + "Shaders\\Skybox.glsl";
+        desc.Name = "Skybox";
+        desc.CullMode = lne::ECullMode::None;
+        desc.EnableDepthTest(true);
+
+        m_SkyboxPipeline = lne::ApplicationBase::GetRenderer().CreateGraphicsPipeline(desc);
+        m_SkyboxMaterial = lnnew lne::Material(m_SkyboxPipeline);
+
+        m_Texture = lne::ApplicationBase::GetRenderer().CreateTexture(lne::ApplicationBase::GetAssetsPath() + "Textures\\UVChecker.png");
+        std::string cubemapPath = lne::ApplicationBase::GetAssetsPath() + "Textures\\Skybox\\";
+        m_CubemapTexture = lne::ApplicationBase::GetRenderer().CreateCubemapTexture({
+            cubemapPath + "px.png",
+            cubemapPath + "nx.png",
+            cubemapPath + "py.png",
+            cubemapPath + "ny.png",
+            cubemapPath + "pz.png",
+            cubemapPath + "nz.png"
+        });
 
         m_BasicMaterial->SetProperty("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
         m_BasicMaterial->SetTexture("tDiffuse", m_Texture);
         m_BasicMaterial2->SetProperty("uColor", glm::vec4(0.25f, 0.25f, 0.25f, 0.25f));
+        m_SkyboxMaterial->SetTexture("tDiffuse", m_CubemapTexture);
 
         struct Vertex {
             glm::vec4 Position;
@@ -107,6 +124,11 @@ public:
 
         m_CameraTransform.Position = { 0.0f, 0.0f, -2.0f };
 
+        m_SkyboxTransform.Position = { 0.0f, 0.0f, 0.0f };
+        m_SkyboxTransform.Scale = { .25f, .25f, .25f };
+
+        m_SkyboxTransform.UniformBuffers = lne::ApplicationBase::GetRenderer().RegisterObject();
+
         m_Camera.LookAtCenter(m_CameraTransform.Position);
         auto& windowSettings = lne::ApplicationBase::GetWindow().GetSettings();
         m_Camera.SetPerspective(45.0f, windowSettings.Width / (float)windowSettings.Height, 0.001f, 10000.0f);
@@ -141,6 +163,7 @@ public:
 
         lne::ApplicationBase::GetRenderer().Draw(m_BasicMaterial, m_Geometry, m_CubeTransform);
         lne::ApplicationBase::GetRenderer().Draw(m_BasicMaterial2, m_Geometry, m_CubeTransform2);
+        lne::ApplicationBase::GetRenderer().Draw(m_SkyboxMaterial, m_Geometry, m_SkyboxTransform);
 
         lne::ApplicationBase::GetRenderer().EndRenderPass(fb);
     }
@@ -192,17 +215,22 @@ public:
     }
 
 private:
-    lne::SafePtr<lne::GfxPipeline> m_BasePipeline;
-    lne::SafePtr<lne::Material> m_BasicMaterial;
-    lne::SafePtr<lne::Material> m_BasicMaterial2;
+    lne::SafePtr<lne::GfxPipeline> m_BasePipeline{};
+    lne::SafePtr<lne::Material> m_BasicMaterial{};
+    lne::SafePtr<lne::Material> m_BasicMaterial2{};
+
+    lne::SafePtr<lne::GfxPipeline> m_SkyboxPipeline{};
+    lne::SafePtr<lne::Material> m_SkyboxMaterial{};
 
     lne::Geometry m_Geometry;
-    lne::SafePtr<lne::Texture> m_Texture;
+    lne::SafePtr<lne::Texture> m_Texture{};
+    lne::SafePtr<lne::Texture> m_CubemapTexture{};
 
-    lne::TransformComponent m_CubeTransform;
-    lne::TransformComponent m_CubeTransform2;
+    lne::TransformComponent m_CubeTransform{};
+    lne::TransformComponent m_CubeTransform2{};
+    lne::TransformComponent m_SkyboxTransform{};
 
-    lne::CameraComponent m_Camera;
+    lne::CameraComponent m_Camera{};
     lne::TransformComponent m_CameraTransform{};
 };
 

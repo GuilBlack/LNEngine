@@ -20,6 +20,7 @@ This README is more of a way for me to keep track of what I did and what I'll be
 - A simple material system (need to add support for more types of material parameters)
 - Bindless textures
 - Simple camera system
+- Simple skybox
 
 ## Next steps
 

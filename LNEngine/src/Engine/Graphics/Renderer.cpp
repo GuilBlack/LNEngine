@@ -236,6 +236,72 @@ SafePtr<Texture> Renderer::CreateTexture(const std::string& fullPath)
     return texture;
 }
 
+SafePtr<Texture> Renderer::CreateCubemapTexture(const std::vector<std::string>& faces)
+{
+    if (faces.size() != 6)
+    {
+        LNE_ERROR("Cubemap must have 6 faces");
+        return SafePtr<Texture>();
+    }
+
+    int texWidth{}, texHeight{}, texChannels{};
+    bool first = true;
+
+    for (const auto& face : faces)
+    {
+        if (std::filesystem::exists(face) == false)
+        {
+            LNE_ERROR("Cubemap face not found: {0}", face);
+            return SafePtr<Texture>();
+        }
+        int width, height, channels;
+
+        if (stbi_info(face.c_str(), &width, &height, &channels) == 0)
+        {
+            LNE_ERROR("Failed to get info from cubemap face: {0}. The file format isn't supported", face);
+            return SafePtr<Texture>();
+        }
+        
+        if (first)
+        {
+            texWidth = width;
+            texHeight = height;
+            texChannels = channels;
+            first = false;
+            continue;
+        }
+        if (texWidth != width || texHeight != height || texChannels != channels)
+        {
+            LNE_ERROR("Cubemap faces have different dimensions or channels");
+            return SafePtr<Texture>();
+        }
+    }
+    texChannels = 4;
+
+    uint8_t* allPixels = lnnew uint8_t[texWidth * texHeight * texChannels * 6];
+    for (uint32_t i = 0; i < 6; ++i)
+    {
+        uint8_t* pixels = stbi_load(faces[i].c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        if (!pixels)
+        {
+            LNE_ERROR("Failed to load cubemap face: {0}", faces[i]);
+            delete[] allPixels;
+            return SafePtr<Texture>();
+        }
+        memcpy(allPixels + (texWidth * texHeight * texChannels * i), pixels, texWidth * texHeight * texChannels);
+        stbi_image_free(pixels);
+    }
+
+    std::filesystem::path fsFullPath = faces[0];
+    SafePtr<Texture> texture = Texture::CreateCubemapTexture(m_Context, texWidth, texHeight, true, 
+        std::format("Texture: {}", fsFullPath.parent_path().filename().string()));
+
+    texture->UploadData(allPixels);
+
+    delete[] allPixels;
+    return texture;
+}
+
 SafePtr<UniformBufferManager> Renderer::RegisterObject()
 {
     SafePtr<UniformBufferManager> uboManager;

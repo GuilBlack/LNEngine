@@ -10,6 +10,7 @@ class Texture : public RefCountBase
 public:
     static SafePtr<Texture> CreateDepthTexture(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, const std::string& name = "");
     static SafePtr<Texture> CreateColorTexture2D(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, bool generateMips = true, const std::string& name = "");
+    static SafePtr<Texture> CreateCubemapTexture(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, bool generateMips = true, const std::string& name = "");
     static constexpr uint32_t GetMaxMipLevels(uint32_t width, uint32_t height)
     {
         uint32_t mipLevels = 1;

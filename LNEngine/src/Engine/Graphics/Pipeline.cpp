@@ -10,10 +10,10 @@ namespace lne
 
 #pragma region Creation helper structs implementation
 
-DepthDesc& DepthDesc::SetDepthTest(bool write, ECompareOperation compare)
+DepthDesc& DepthDesc::SetDepthTest(bool isEnabled, ECompareOperation compare)
 {
-    DepthTestEnable = true;
-    DepthWriteEnable = write;
+    DepthTestEnable = isEnabled;
+    DepthWriteEnable = isEnabled;
     DepthCompareOp = compare;
     return *this;
 }
