@@ -1,5 +1,5 @@
 # LNEngine
-
+<span style="color:red">!!! This is just a branch I made to make a little visualization for my internship presentation</span></br>
 The Learning engine or LNEngine for short is just a way for me to learn how to built a game engine so this is very much a WIP. At the moment, I'll be focusing on the rendering part of the engine which uses the Vulkan graphics API.
 This README is more of a way for me to keep track of what I did and what I'll be doing in an imminent future than a tutorial on how it works although I'll provide some instructions on the topic.
 
@@ -44,6 +44,7 @@ To build the project on Windows:
 The executable is constructed with the LNApp project and the Assets etc are copied to the output directory so that you can just plug and play in renderdoc.
 That's about it for now. With all of this, you should be able to run the application and see two beautiful textures (don't mind the UVs) cubes that can change their color based on a material parameter and the ImGui demo. 😊
 
+<span style="color:red">!!! This is the visualization preview</span></br>
 ![square-image](github-images/preview.gif)
 
 ### Code example

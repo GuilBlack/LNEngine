@@ -36,7 +36,7 @@ bool InputManager::IsKeyPressed(KeyCode keycode)
 {
     if (keycode < eKeyFirst || keycode > eKeyLast)
         return false;
-
+    
     return m_States.Keyboard.Keys[keycode] & eKeyDown;
 }
 
@@ -52,7 +52,7 @@ bool InputManager::IsMouseButtonPressed(MouseButton button)
 {
     if (button < eMouseButtonFirst || button > eMouseButtonLast)
         return false;
-    return m_States.Mouse.Buttons[button] == eMouseButtonDown;
+    return m_States.Mouse.Buttons[button] == eMouseButtonDown && !ImGui::GetIO().WantCaptureMouse;
 }
 
 bool InputManager::IsMouseButtonReleased(MouseButton button)
