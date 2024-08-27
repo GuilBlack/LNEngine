@@ -2,6 +2,12 @@
 
 class AppLayer final : public lne::Layer
 {
+struct Vertex
+{
+    glm::vec4 Position;
+    glm::vec4 Color;
+    glm::vec2 TexCoord;
+};
 public:
     AppLayer()
         : Layer("AppLayer")
@@ -48,67 +54,19 @@ public:
         m_BasicMaterial2->SetProperty("uColor", glm::vec4(0.25f, 0.25f, 0.25f, 0.25f));
         m_SkyboxMaterial->SetTexture("tDiffuse", m_CubemapTexture);
 
-        struct Vertex {
-            glm::vec4 Position;
-            glm::vec4 Color;
-            glm::vec2 TexCoord;
-        };
+        std::vector<Vertex> tesselatedVertices{};
+        std::vector<uint32_t> tesselatedIndices{};
+        GenerateCube(tesselatedVertices, tesselatedIndices, 1);
 
-        std::vector<Vertex> vertices = {
-            // Front face
-            {{-1.0f, -1.0f,  1.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},  // Bottom-left
-            {{ 1.0f, -1.0f,  1.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},  // Bottom-right
-            {{ 1.0f,  1.0f,  1.0f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},  // Top-right
-            {{-1.0f,  1.0f,  1.0f, 1.0f}, {1.0f, 1.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},  // Top-left
-            // Back face
-            {{ 1.0f, -1.0f, -1.0f, 1.0f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},  // Bottom-left
-            {{-1.0f, -1.0f, -1.0f, 1.0f}, {0.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},  // Bottom-right
-            {{-1.0f,  1.0f, -1.0f, 1.0f}, {0.5f, 0.5f, 0.5f, 1.0f}, {1.0f, 1.0f}},  // Top-right
-            {{ 1.0f,  1.0f, -1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},  // Top-left
-            // Left face
-            {{-1.0f, -1.0f, -1.0f, 1.0f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},  // Bottom-left
-            {{-1.0f, -1.0f,  1.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},  // Bottom-right
-            {{-1.0f,  1.0f,  1.0f, 1.0f}, {1.0f, 1.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},  // Top-right
-            {{-1.0f,  1.0f, -1.0f, 1.0f}, {0.5f, 0.5f, 0.5f, 1.0f}, {0.0f, 1.0f}},  // Top-left
-            // Right face
-            {{ 1.0f, -1.0f,  1.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},  // Bottom-left
-            {{ 1.0f, -1.0f, -1.0f, 1.0f}, {0.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},  // Bottom-right
-            {{ 1.0f,  1.0f, -1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},  // Top-right
-            {{ 1.0f,  1.0f,  1.0f, 1.0f}, {0.5f, 0.5f, 0.5f, 1.0f}, {0.0f, 1.0f}},  // Top-left
-            // Top face
-            {{-1.0f,  1.0f,  1.0f, 1.0f}, {1.0f, 1.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},  // Bottom-left
-            {{ 1.0f,  1.0f,  1.0f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},  // Bottom-right
-            {{ 1.0f,  1.0f, -1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},  // Top-right
-            {{-1.0f,  1.0f, -1.0f, 1.0f}, {0.5f, 0.5f, 0.5f, 1.0f}, {0.0f, 0.0f}},  // Top-left
-            // Bottom face
-            {{-1.0f, -1.0f, -1.0f, 1.0f}, {1.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},  // Bottom-left
-            {{ 1.0f, -1.0f, -1.0f, 1.0f}, {0.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},  // Bottom-right
-            {{ 1.0f, -1.0f,  1.0f, 1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},  // Top-right
-            {{-1.0f, -1.0f,  1.0f, 1.0f}, {0.5f, 0.5f, 0.5f, 1.0f}, {0.0f, 1.0f}},  // Top-left
-        };
+        lne::SafePtr<lne::StorageBuffer> tesselatedVertexBuffer = lne::ApplicationBase::GetRenderer()
+            .CreateGeometryBuffer(tesselatedVertices.data(), tesselatedVertices.size() * sizeof(Vertex));
+        lne::SafePtr<lne::StorageBuffer> tesselatedIndexBuffer = lne::ApplicationBase::GetRenderer()
+            .CreateGeometryBuffer(tesselatedIndices.data(), tesselatedIndices.size() * sizeof(uint32_t));
 
-        std::vector<uint32_t> indices = {
-            // Front face
-            0, 2, 1, 2, 0, 3,
-            // Back face
-            4, 6, 5, 6, 4, 7,
-            // Left face
-            8, 10, 9, 10, 8, 11,
-            // Right face
-            12, 14, 13, 14, 12, 15,
-            // Top face
-            16, 18, 17, 18, 16, 19,
-            // Bottom face
-            20, 22, 21, 22, 20, 23
-        };
-
-        lne::SafePtr<lne::StorageBuffer> vertexBuffer = lne::ApplicationBase::GetRenderer().CreateGeometryBuffer(vertices.data(), vertices.size() * sizeof(Vertex));
-        lne::SafePtr<lne::StorageBuffer> indexBuffer = lne::ApplicationBase::GetRenderer().CreateGeometryBuffer(indices.data(), indices.size() * sizeof(uint32_t));
-        
-        m_Geometry.VertexGPUBuffer = vertexBuffer;
-        m_Geometry.VertexCount = (uint32_t)vertices.size();
-        m_Geometry.IndexGPUBuffer = indexBuffer;
-        m_Geometry.IndexCount = (uint32_t)indices.size();
+        m_TesselatedCubeGeo.VertexGPUBuffer = tesselatedVertexBuffer;
+        m_TesselatedCubeGeo.VertexCount = (uint32_t)tesselatedVertices.size();
+        m_TesselatedCubeGeo.IndexGPUBuffer = tesselatedIndexBuffer;
+        m_TesselatedCubeGeo.IndexCount = (uint32_t)tesselatedIndices.size();
 
         m_CubeTransform.Position =  { -0.5f, 0.0f, 0.0f };
         m_CubeTransform.Rotation =  { 0.0f, 0.0f, 0.0f };
@@ -161,9 +119,9 @@ public:
 
         lne::ApplicationBase::GetRenderer().BeginRenderPass(fb);
 
-        lne::ApplicationBase::GetRenderer().Draw(m_BasicMaterial, m_Geometry, m_CubeTransform);
-        lne::ApplicationBase::GetRenderer().Draw(m_BasicMaterial2, m_Geometry, m_CubeTransform2);
-        lne::ApplicationBase::GetRenderer().Draw(m_SkyboxMaterial, m_Geometry, m_SkyboxTransform);
+        lne::ApplicationBase::GetRenderer().Draw(m_BasicMaterial, m_TesselatedCubeGeo, m_CubeTransform);
+        lne::ApplicationBase::GetRenderer().Draw(m_BasicMaterial2, m_TesselatedCubeGeo, m_CubeTransform2);
+        lne::ApplicationBase::GetRenderer().Draw(m_SkyboxMaterial, m_TesselatedCubeGeo, m_SkyboxTransform);
 
         lne::ApplicationBase::GetRenderer().EndRenderPass(fb);
     }
@@ -222,7 +180,7 @@ private:
     lne::SafePtr<lne::GfxPipeline> m_SkyboxPipeline{};
     lne::SafePtr<lne::Material> m_SkyboxMaterial{};
 
-    lne::Geometry m_Geometry;
+    lne::Geometry m_TesselatedCubeGeo;
     lne::SafePtr<lne::Texture> m_Texture{};
     lne::SafePtr<lne::Texture> m_CubemapTexture{};
 
@@ -232,6 +190,54 @@ private:
 
     lne::CameraComponent m_Camera{};
     lne::TransformComponent m_CameraTransform{};
+
+private:
+    void GenerateCube(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, uint32_t tesselationLevel)
+    {
+        float step = 2.0f / tesselationLevel;
+
+        glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+        auto addQuad = [&](glm::vec4 p0, glm::vec4 p1, glm::vec4 p2, glm::vec4 p3)
+        {
+            uint32_t startIndex = (uint32_t)vertices.size();
+            vertices.push_back({ p0, color, {0.0f, 0.0f} });
+            vertices.push_back({ p1, color, {1.0f, 0.0f} });
+            vertices.push_back({ p2, color, {1.0f, 1.0f} });
+            vertices.push_back({ p3, color, {0.0f, 1.0f} });
+
+            indices.push_back(startIndex + 0);
+            indices.push_back(startIndex + 2);
+            indices.push_back(startIndex + 1);
+            indices.push_back(startIndex + 2);
+            indices.push_back(startIndex + 0);
+            indices.push_back(startIndex + 3);
+        };
+
+        for (uint32_t i = 0; i < tesselationLevel; ++i)
+        {
+            for (uint32_t j = 0; j < tesselationLevel; ++j)
+            {
+                float x0 = -1.0f + i * step;
+                float x1 = x0 + step;
+                float y0 = -1.0f + j * step;
+                float y1 = y0 + step;
+
+                // Front face
+                addQuad({ x0, y0, 1.0f, 1.0f }, { x1, y0, 1.0f, 1.0f }, { x1, y1, 1.0f, 1.0f }, { x0, y1, 1.0f, 1.0f });
+                // Back face
+                addQuad({ x1, y0, -1.0f, 1.0f }, { x0, y0, -1.0f, 1.0f }, { x0, y1, -1.0f, 1.0f }, { x1, y1, -1.0f, 1.0f });
+                // Left face
+                addQuad({ -1.0f, y0, x0, 1.0f }, { -1.0f, y0, x1, 1.0f }, { -1.0f, y1, x1, 1.0f }, { -1.0f, y1, x0, 1.0f });
+                // Right face
+                addQuad({ 1.0f, y0, x1, 1.0f }, { 1.0f, y0, x0, 1.0f }, { 1.0f, y1, x0, 1.0f }, { 1.0f, y1, x1, 1.0f });
+                // Top face
+                addQuad({ x0, 1.0f, y1, 1.0f }, { x1, 1.0f, y1, 1.0f }, { x1, 1.0f, y0, 1.0f }, { x0, 1.0f, y0, 1.0f });
+                // Bottom face
+                addQuad({ x0, -1.0f, y0, 1.0f }, { x1, -1.0f, y0, 1.0f }, { x1, -1.0f, y1, 1.0f }, { x0, -1.0f, y1, 1.0f });
+            }
+        }
+    }
 };
 
 class Application : public lne::ApplicationBase
