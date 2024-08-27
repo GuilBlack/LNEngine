@@ -36,6 +36,11 @@ void Material::SetProperty(std::string_view name, const glm::vec4& value)
     SetProperty<glm::vec4>(std::string(name), value);
 }
 
+void Material::SetProperty(std::string_view name, float value)
+{
+    SetProperty<float>(std::string(name), value);
+}
+
 void Material::SetTexture(std::string_view name, SafePtr<Texture> texture)
 {
     SetProperty<uint32_t>(std::string(name), texture->GetBindlessHandle());
