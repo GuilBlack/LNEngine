@@ -38,7 +38,7 @@ SafePtr<Texture> Texture::CreateColorTexture2D(SafePtr<class GfxContext> ctx, ui
     vk::ImageCreateInfo imageInfo(
         vk::ImageCreateFlags(),
         vk::ImageType::e2D,
-        vk::Format::eR8G8B8A8Unorm,
+        vk::Format::eR8G8B8A8Srgb,
         vk::Extent3D(width, height, 1),
         generateMips ? GetMaxMipLevels(width, height) : 1,
         1,
@@ -61,7 +61,7 @@ SafePtr<Texture> Texture::CreateCubemapTexture(SafePtr<class GfxContext> ctx, ui
     vk::ImageCreateInfo imageInfo = vk::ImageCreateInfo{
         vk::ImageCreateFlagBits::eCubeCompatible,
         vk::ImageType::e2D,
-        vk::Format::eR8G8B8A8Unorm,
+        vk::Format::eR8G8B8A8Srgb,
         vk::Extent3D(width, height, 1),
         generateMips ? GetMaxMipLevels(width, height) : 1,
         6,
