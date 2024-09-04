@@ -140,7 +140,7 @@ public:
     void OnImGuiRender() override
     {
         ImGui::Begin("Planet Settings");
-        if (ImGui::SliderInt("Tesselation Level", &m_TesselationLevel, 1, 8))
+        if (ImGui::SliderInt("Tesselation Level", &m_TesselationLevel, 1, 16))
             OnGeometryChange(m_TesselationLevel, m_CurrentScale);
 
         if (ImGui::SliderFloat("Quad Scale", &m_CurrentScale, 0.8f, 1.f))

@@ -47,7 +47,7 @@ void main() {
     Vertex v = vertexBuffer.vertices[currentIndex];
     vec3 normalizedPos = normalize(v.position.xyz);
     oUVW = normalizedPos;
-    oUVW.xy = -oUVW.xy;
+    oUVW.y = -oUVW.y;
 
     vec3 finalPos = mix(v.position.xyz, normalizedPos, uCubeSphereCoef);
 
