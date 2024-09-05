@@ -18,6 +18,7 @@ IncludeDir["VkBootstrap"] = "%{wks.location}/LNEngine/vendor/VKBOOTSTRAP/vkboots
 IncludeDir["VMA"] = "%{wks.location}/LNEngine/vendor/VMA"
 IncludeDir["ImGui"] = "%{wks.location}/LNEngine/vendor/IMGUI"
 IncludeDir["STB"] = "%{wks.location}/LNEngine/vendor/STB"
+IncludeDir["enkiTS"] = "%{wks.location}/LNEngine/vendor/ENKITS"
 
 group "Vendors"
     include "LNEngine/vendor/GLM/glm.lua"
@@ -26,6 +27,7 @@ group "Vendors"
     include "LNEngine/vendor/VKBOOTSTRAP/vkbootstrap.lua"
     include "LNEngine/vendor/IMGUI/imgui.lua"
     include "LNEngine/vendor/STB/stb.lua"
+    include "LNEngine/vendor/ENKITS/enkiTS.lua"
 group""
 
 include "LNEngine"

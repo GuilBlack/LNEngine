@@ -136,6 +136,8 @@ public:
     bool OnWindowResize(lne::WindowResizeEvent& event)
     {
         APP_INFO("WindowResizeEvent received: {0}x{1}", event.GetWidth(), event.GetHeight());
+        if (event.GetWidth() == 0 || event.GetHeight() == 0)
+            return false;
         m_Camera.SetPerspective(45.0f, event.GetWidth() / (float)event.GetHeight(), 0.001f, 10000.0f);
         return false;
     }

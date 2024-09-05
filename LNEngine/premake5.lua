@@ -30,7 +30,8 @@ project "LNEngine"
         "%{IncludeDir.VMA}",
         "%{IncludeDir.VkBootstrap}",
         "%{IncludeDir.ImGui}/imgui",
-        "%{IncludeDir.STB}"
+        "%{IncludeDir.STB}",
+        "%{IncludeDir.enkiTS}",
     }
 
     links
@@ -41,7 +42,8 @@ project "LNEngine"
         "SPDLOG",
         "VkBootstrap",
         "ImGui",
-        "STB"
+        "STB",
+        "enkiTS"
     }
 
     pchheader "lnepch.h"

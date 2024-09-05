@@ -11,3 +11,6 @@
 	path = LNEngine/vendor/IMGUI/imgui
 	url = https://github.com/ocornut/imgui.git
 	branch = docking
+[submodule "LNEngine/vendor/ENKITS/enkiTS"]
+	path = LNEngine/vendor/ENKITS/enkiTS
+	url = https://github.com/dougbinks/enkiTS.git
