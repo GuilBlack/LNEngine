@@ -165,11 +165,9 @@ bool Texture::IsStencil()
 void Texture::TransitionLayout(vk::CommandBuffer cmdBuffer, vk::ImageLayout oldLayout, vk::ImageLayout newLayout,
     uint32_t baseMip, uint32_t mipLevels,
     uint32_t baseLayer, uint32_t numLayers,
+    uint32_t srcQueueFamily, uint32_t dstQueueFamily,
     bool changeTextureLayout)
 {
-    if (oldLayout == newLayout)
-        return;
-
     vk::AccessFlags srcAccessMask = vk::AccessFlagBits::eNone;
     vk::AccessFlags dstAccessMask = vk::AccessFlagBits::eNone;
     vk::PipelineStageFlags sourceStage = vk::PipelineStageFlagBits::eTopOfPipe;
@@ -291,8 +289,8 @@ void Texture::TransitionLayout(vk::CommandBuffer cmdBuffer, vk::ImageLayout oldL
         dstAccessMask,
         oldLayout,
         newLayout,
-        VK_QUEUE_FAMILY_IGNORED,
-        VK_QUEUE_FAMILY_IGNORED,
+        srcQueueFamily,
+        dstQueueFamily,
         m_Allocation.Image,
         vk::ImageSubresourceRange(aspectMask, baseMip, mipLevels, baseLayer, numLayers)
     );
@@ -353,6 +351,45 @@ void Texture::UploadData(const void* data)
         GenerateMipmaps(cmdBuffer);
 
     TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
+}
+
+void Texture::UploadData(vk::CommandBuffer cmdBuffer, BufferAllocation stagingBuffer, const void* data)
+{
+    uint32_t bytesPerPixel = FormatToBytesPerPixel(m_Format);
+
+    uint64_t imageSize = m_Extents.width * m_Extents.height * bytesPerPixel;
+
+    if (m_NumLayers > 1)
+        imageSize *= m_NumLayers;
+    LNE_ASSERT(imageSize > 0, "Invalid image size");
+    
+    memcpy(stagingBuffer.AllocationInfo.pMappedData, data, imageSize);
+
+    TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferDstOptimal);
+
+    std::vector<vk::BufferImageCopy> regions;
+    for (uint32_t layer = 0; layer < m_NumLayers; layer++)
+    {
+        regions.emplace_back(vk::BufferImageCopy{
+            m_Extents.width * m_Extents.height * bytesPerPixel * layer,
+            0,
+            0,
+            vk::ImageSubresourceLayers
+            {
+                vk::ImageAspectFlagBits::eColor,
+                0,
+                layer,
+                1
+            },
+            vk::Offset3D(0, 0, 0),
+            m_Extents
+        });
+    }
+
+    cmdBuffer.copyBufferToImage(stagingBuffer.Buffer, m_Allocation.Image, vk::ImageLayout::eTransferDstOptimal, regions);
+
+    TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferDstOptimal,
+        m_Context->GetQueueFamilyIndex(EQueueFamilyType::Transfer), m_Context->GetQueueFamilyIndex(EQueueFamilyType::Graphics));
 }
 
 constexpr uint32_t Texture::FormatToBytesPerPixel(vk::Format format)

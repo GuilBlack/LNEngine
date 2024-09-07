@@ -1,4 +1,6 @@
 #pragma once
+#include "../vendor/ENKITS/enkiTS/src/TaskScheduler.h"
+
 #include "LayerStack.h"
 #include "Window.h"
 #include "Events/EventHub.h"
@@ -18,6 +20,23 @@ struct ApplicationSettings
 
 class ApplicationBase
 {
+class PinnedTaskRunner : public enki::IPinnedTask
+{
+public:
+    PinnedTaskRunner() = default;
+    PinnedTaskRunner(std::shared_ptr<enki::TaskScheduler> taskScheduler)
+        : TaskScheduler(taskScheduler)
+    {
+        threadNum = TaskScheduler.lock()->GetNumTaskThreads()-1;
+    }
+
+    void Execute() override;
+
+public:
+    std::weak_ptr<enki::TaskScheduler> TaskScheduler;
+    bool IsFinished{ false };
+};
+
 public:
     explicit ApplicationBase(ApplicationSettings&& settings);
     virtual ~ApplicationBase();
@@ -28,6 +47,7 @@ public:
     [[nodiscard]] static class Clock& GetClock() { return s_Instance->m_Clock; }
     [[nodiscard]] static class Window& GetWindow() { return *s_Instance->m_Window; }
     [[nodiscard]] static class Renderer& GetRenderer() { return *s_Instance->m_Renderer; }
+    [[nodiscard]] static std::shared_ptr<enki::TaskScheduler> GetTaskScheduler() { return s_Instance->m_TaskScheduler; }
     [[nodiscard]] static const std::string& GetAssetsPath();
 
     void Run();
@@ -59,6 +79,8 @@ private:
     std::unique_ptr<class EventHub> m_EventHub;
     std::unique_ptr<class Renderer> m_Renderer;
     std::unique_ptr<class ImGuiService> m_ImGuiService;
+    std::shared_ptr<class enki::TaskScheduler> m_TaskScheduler;
+    std::unique_ptr<PinnedTaskRunner> m_PinnedTaskRunner{};
 private:
     static ApplicationBase* s_Instance;
 };

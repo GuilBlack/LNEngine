@@ -60,8 +60,7 @@ void UniformBuffer::CopyData(vk::CommandBuffer cb, const void* data, uint32_t si
 {
     if (m_MainAllocation.MemoryFlags & vk::MemoryPropertyFlagBits::eHostVisible)
     {
-        memcpy((uint8_t*)m_MainAllocation.AllocationInfo.pMappedData + offset, data, size);
-        VK_CHECK_C(vmaFlushAllocation(m_Context->GetMemoryAllocator(), m_MainAllocation.Allocation, offset, size));
+        vmaCopyMemoryToAllocation(m_Context->GetMemoryAllocator(), data, m_MainAllocation.Allocation, offset, size);
 
         vk::BufferMemoryBarrier barrier{
             vk::AccessFlagBits::eHostWrite,

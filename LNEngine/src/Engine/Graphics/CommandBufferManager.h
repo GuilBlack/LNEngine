@@ -14,9 +14,10 @@ public:
     {
         return m_CommandBuffers[m_CurrentBufferIndex]; 
     }
+    [[nodiscard]] bool GetFenceStatus(uint32_t index);
     void StartCommandBuffer(uint32_t index);
 
-    void Submit(vk::SubmitInfo& submitInfo);
+    void Submit(vk::SubmitInfo& submitInfo, uint32_t index = UINT32_MAX);
 
     vk::CommandBuffer BeginSingleTimeCommands();
     void EndSingleTimeCommands();

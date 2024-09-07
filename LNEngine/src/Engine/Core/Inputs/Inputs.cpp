@@ -4,6 +4,7 @@
 #include "Graphics/GfxContext.h"
 #include "Graphics/Swapchain.h"
 #include "Graphics/Texture.h"
+#include "Resources/GfxLoader.h"
 
 namespace lne
 {

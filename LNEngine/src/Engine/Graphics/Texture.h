@@ -45,24 +45,34 @@ public:
     [[nodiscard]] bool IsDepth();
     [[nodiscard]] bool IsStencil();
 
-    inline void TransitionLayout(vk::CommandBuffer cmdBuffer, vk::ImageLayout newLayout)
+    inline void TransitionLayout(vk::CommandBuffer cmdBuffer, vk::ImageLayout newLayout,uint32_t srcQueueFamily = VK_QUEUE_FAMILY_IGNORED, uint32_t dstQueueFamily = VK_QUEUE_FAMILY_IGNORED)
     {
-        TransitionLayout(cmdBuffer, m_Layout, newLayout, 0, m_MipLevels, 0, m_NumLayers, true);
+        TransitionLayout(cmdBuffer, m_Layout, newLayout, 0, m_MipLevels, 0, m_NumLayers, srcQueueFamily, dstQueueFamily, true);
     }
-    inline void TransitionLayoutMips(vk::CommandBuffer cmdBuffer, vk::ImageLayout oldLayout, vk::ImageLayout newLayout, uint32_t baseMip, uint32_t mipLevels)
+    inline void TransitionLayoutMips(vk::CommandBuffer cmdBuffer, 
+        vk::ImageLayout oldLayout, vk::ImageLayout newLayout, 
+        uint32_t baseMip, uint32_t mipLevels,
+        uint32_t srcQueueFamily = VK_QUEUE_FAMILY_IGNORED, uint32_t dstQueueFamily = VK_QUEUE_FAMILY_IGNORED)
     {
-        TransitionLayout(cmdBuffer, oldLayout, newLayout, baseMip, mipLevels, 0, m_NumLayers, false);
+        TransitionLayout(cmdBuffer, oldLayout, newLayout, baseMip, mipLevels, 0, m_NumLayers, srcQueueFamily, dstQueueFamily, false);
     }
-    inline void TransitionLayoutLayers(vk::CommandBuffer cmdBuffer, vk::ImageLayout oldLayout, vk::ImageLayout newLayout, uint32_t baseLayer, uint32_t numLayers)
+    inline void TransitionLayoutLayers(vk::CommandBuffer cmdBuffer, 
+        vk::ImageLayout oldLayout, vk::ImageLayout newLayout, 
+        uint32_t baseLayer, uint32_t numLayers,
+        uint32_t srcQueueFamily = VK_QUEUE_FAMILY_IGNORED, uint32_t dstQueueFamily = VK_QUEUE_FAMILY_IGNORED)
     {
-        TransitionLayout(cmdBuffer, oldLayout, newLayout, 0, m_MipLevels, baseLayer, numLayers, false);
+        TransitionLayout(cmdBuffer, oldLayout, newLayout, 0, m_MipLevels, baseLayer, numLayers, srcQueueFamily, dstQueueFamily, false);
     }
     void TransitionLayout(vk::CommandBuffer cmdBuffer, vk::ImageLayout oldLayout, vk::ImageLayout newLayout,
         uint32_t baseMip, uint32_t mipLevels,
         uint32_t baseLayer, uint32_t numLayers,
+        uint32_t srcQueueFamily, uint32_t dstQueueFamily,
         bool changeTextureLayout);
 
+    void GenerateMipmaps(vk::CommandBuffer cmdBuffer);
+
     void UploadData(const void* data);
+    void UploadData(vk::CommandBuffer cmdBuffer, BufferAllocation stagingBuffer, const void* data);
 
 private:
     SafePtr<class GfxContext> m_Context;
@@ -83,6 +93,5 @@ private:
 
 private:
     constexpr uint32_t FormatToBytesPerPixel(vk::Format format);
-    void GenerateMipmaps(vk::CommandBuffer cmdBuffer);
 };
 }

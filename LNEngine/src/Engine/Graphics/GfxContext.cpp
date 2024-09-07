@@ -80,7 +80,7 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
     SetVkObjectName(m_Device, "Device");
     CreateMemoryAllocator();
 
-    m_TransferCommandBufferManager.reset(lnnew CommandBufferManager(this, 1, EQueueFamilyType::Transfer));
+    m_TransferCommandBufferManager.reset(lnnew CommandBufferManager(this, 2, EQueueFamilyType::Transfer));
 
 #pragma region Bindless
     static constexpr uint32_t bindlessPoolSize = 2048;

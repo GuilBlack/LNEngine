@@ -1,3 +1,4 @@
+#include "enkiTS/src/TaskScheduler.h"
 #include "Renderer.h"
 #include "Core/Utils/Log.h"
 #include "Engine/Core/Window.h"
@@ -12,18 +13,22 @@
 #include "StorageBuffer.h"
 #include "Scene/Components.h"
 #include "Material.h"
+#include "Resources/GfxLoader.h"
 
 // TODO: move this to a resource manager
 #include <stb/stb_image.h>
 
 namespace lne
 {
-void Renderer::Init(std::unique_ptr<Window>& window)
+void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskScheduler> taskScheduler)
 {
     m_Context = window->GetGfxContext();
     m_Swapchain = window->GetSwapchain();
     m_GraphicsCommandBufferManager = std::make_unique<CommandBufferManager>(m_Context.GetPtr(), m_Swapchain->GetImageCount(), EQueueFamilyType::Graphics);
-
+    m_TaskScheduler = taskScheduler;
+    m_GfxLoader = lnnew GfxLoader();
+    m_GfxLoader->Init(this, m_Context, m_TaskScheduler);
+    m_TexturesToUpdate.reserve(128);
     for (uint32_t i = 0; i < m_Swapchain->GetImageCount(); i++)
     {
         InitFrameData(i);
@@ -33,6 +38,7 @@ void Renderer::Init(std::unique_ptr<Window>& window)
 void Renderer::Nuke()
 {
     m_Context->WaitIdle();
+    m_GfxLoader->Nuke();
     for (auto& frameData : m_FrameData)
     {
         frameData.GlobalUniforms.Destroy();
@@ -43,6 +49,7 @@ void Renderer::Nuke()
     m_GraphicsCommandBufferManager.reset();
     m_Context.Reset();
     m_Swapchain.Reset();
+    m_GfxLoader.Reset();
 }
 
 void Renderer::BeginFrame()
@@ -52,6 +59,8 @@ void Renderer::BeginFrame()
     auto currentImage = m_Swapchain->GetCurrentImage();
     currentImage->TransitionLayout(m_GraphicsCommandBufferManager->GetCurrentCommandBuffer(), vk::ImageLayout::eGeneral);
     auto& cmdBuffer = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
+
+    UpdateTextures();
 
     auto viewport = m_Swapchain->GetViewport();
     cmdBuffer.setScissor(0, viewport.GetScissor());
@@ -210,96 +219,12 @@ SafePtr<class StorageBuffer> Renderer::CreateGeometryBuffer(const void* data, si
 
 SafePtr<Texture> Renderer::CreateTexture(const std::string& fullPath)
 {
-    if (std::filesystem::exists(fullPath) == false)
-    {
-        LNE_ERROR("Texture file not found: {0}", fullPath);
-        return SafePtr<Texture>();
-    }
-
-    // load image to binary
-    int texWidth, texHeight, texChannels;
-    uint8_t* pixels = stbi_load(fullPath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-    
-    if (!pixels)
-    {
-        LNE_ERROR("Failed to load texture image: {0}", fullPath);
-        return SafePtr<Texture>();
-    }
-    std::filesystem::path fsFullPath = fullPath;
-
-    SafePtr<Texture> texture = Texture::CreateColorTexture2D(m_Context, texWidth, texHeight, true, std::format("Texture: {}", fsFullPath.filename().string()));
-
-    texture->UploadData(pixels);
-
-    stbi_image_free(pixels);
-
-    return texture;
+    return m_GfxLoader->CreateTexture(fullPath);
 }
 
 SafePtr<Texture> Renderer::CreateCubemapTexture(const std::vector<std::string>& faces)
 {
-    if (faces.size() != 6)
-    {
-        LNE_ERROR("Cubemap must have 6 faces");
-        return SafePtr<Texture>();
-    }
-
-    int texWidth{}, texHeight{}, texChannels{};
-    bool first = true;
-
-    for (const auto& face : faces)
-    {
-        if (std::filesystem::exists(face) == false)
-        {
-            LNE_ERROR("Cubemap face not found: {0}", face);
-            return SafePtr<Texture>();
-        }
-        int width, height, channels;
-
-        if (stbi_info(face.c_str(), &width, &height, &channels) == 0)
-        {
-            LNE_ERROR("Failed to get info from cubemap face: {0}. The file format isn't supported", face);
-            return SafePtr<Texture>();
-        }
-        
-        if (first)
-        {
-            texWidth = width;
-            texHeight = height;
-            texChannels = channels;
-            first = false;
-            continue;
-        }
-        if (texWidth != width || texHeight != height || texChannels != channels)
-        {
-            LNE_ERROR("Cubemap faces have different dimensions or channels");
-            return SafePtr<Texture>();
-        }
-    }
-    texChannels = 4;
-
-    uint8_t* allPixels = lnnew uint8_t[texWidth * texHeight * texChannels * 6];
-    for (uint32_t i = 0; i < 6; ++i)
-    {
-        uint8_t* pixels = stbi_load(faces[i].c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-        if (!pixels)
-        {
-            LNE_ERROR("Failed to load cubemap face: {0}", faces[i]);
-            delete[] allPixels;
-            return SafePtr<Texture>();
-        }
-        memcpy(allPixels + (texWidth * texHeight * texChannels * i), pixels, texWidth * texHeight * texChannels);
-        stbi_image_free(pixels);
-    }
-
-    std::filesystem::path fsFullPath = faces[0];
-    SafePtr<Texture> texture = Texture::CreateCubemapTexture(m_Context, texWidth, texHeight, true, 
-        std::format("Texture: {}", fsFullPath.parent_path().filename().string()));
-
-    texture->UploadData(allPixels);
-
-    delete[] allPixels;
-    return texture;
+    return m_GfxLoader->CreateCubemap(faces);
 }
 
 SafePtr<UniformBufferManager> Renderer::RegisterObject()
@@ -307,6 +232,12 @@ SafePtr<UniformBufferManager> Renderer::RegisterObject()
     SafePtr<UniformBufferManager> uboManager;
     uboManager.Reset(lnnew UniformBufferManager(m_Context, sizeof(glm::mat4)));
     return uboManager;
+}
+
+void Renderer::AddTextureToUpdate(SafePtr<class Texture> texture)
+{
+    std::lock_guard<std::mutex> lock(m_TexturesToUpdateMutex);
+    m_TexturesToUpdate.push_back(texture);
 }
 
 void Renderer::InitFrameData(uint32_t index)
@@ -328,5 +259,30 @@ void Renderer::InitFrameData(uint32_t index)
                 }
             })
         );
+}
+
+void Renderer::UpdateTextures()
+{
+    std::lock_guard<std::mutex> lock(m_TexturesToUpdateMutex);
+    if (m_TexturesToUpdate.empty())
+        return;
+
+    auto cmdBuffer = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
+    for (auto& texture : m_TexturesToUpdate)
+    {
+        texture->TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferDstOptimal,
+                m_Context->GetQueueFamilyIndex(EQueueFamilyType::Transfer), m_Context->GetQueueFamilyIndex(EQueueFamilyType::Graphics));
+
+        if (texture->ShouldGenerateMips() == false)
+        {
+            texture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
+            continue;
+        }
+
+        texture->GenerateMipmaps(cmdBuffer);
+
+        texture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
+    }
+    m_TexturesToUpdate.clear();
 }
 }

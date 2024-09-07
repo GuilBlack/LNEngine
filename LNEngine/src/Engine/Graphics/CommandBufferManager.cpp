@@ -31,6 +31,11 @@ CommandBufferManager::~CommandBufferManager()
     device.destroyCommandPool(m_CommandPool);
 }
 
+bool CommandBufferManager::GetFenceStatus(uint32_t index)
+{
+    return m_Context->GetDevice().getFenceStatus(m_WaitFences[index]) == vk::Result::eSuccess;
+}
+
 void CommandBufferManager::StartCommandBuffer(uint32_t index)
 {
     m_CurrentBufferIndex = index;
@@ -41,8 +46,10 @@ void CommandBufferManager::StartCommandBuffer(uint32_t index)
     m_CommandBuffers[m_CurrentBufferIndex].begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
 }
 
-void CommandBufferManager::Submit(vk::SubmitInfo& submitInfo)
+void CommandBufferManager::Submit(vk::SubmitInfo& submitInfo, uint32_t index)
 {
+    if (index == UINT32_MAX)
+        index = m_CurrentBufferIndex;
     m_Context->GetDevice().resetFences(m_WaitFences[m_CurrentBufferIndex]);
     m_CommandBuffers[m_CurrentBufferIndex].end();
     submitInfo.commandBufferCount = 1;
@@ -52,14 +59,15 @@ void CommandBufferManager::Submit(vk::SubmitInfo& submitInfo)
 
 vk::CommandBuffer CommandBufferManager::BeginSingleTimeCommands()
 {
-    StartCommandBuffer(0);
-    return m_CommandBuffers[0];
+    uint32_t index = (uint32_t)m_CommandBuffers.size() - 1;
+    StartCommandBuffer(index);
+    return m_CommandBuffers[index];
 }
 
 void CommandBufferManager::EndSingleTimeCommands()
 {
     vk::SubmitInfo submitInfo = vk::SubmitInfo{};
-    Submit(submitInfo);
+    Submit(submitInfo, (uint32_t)m_CommandBuffers.size() - 1);
     m_Queue.waitIdle();
 }
 

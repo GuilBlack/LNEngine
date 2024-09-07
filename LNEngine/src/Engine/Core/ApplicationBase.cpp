@@ -20,6 +20,18 @@ namespace lne
 ApplicationBase* ApplicationBase::s_Instance = nullptr;
 std::string s_AssetsPath;
 
+void ApplicationBase::PinnedTaskRunner::Execute()
+{
+    while (TaskScheduler.lock()->GetIsShutdownRequested() == false && IsFinished == false)
+    {
+        if (auto ts = TaskScheduler.lock())
+        {
+            ts->WaitForNewPinnedTasks();
+            ts->RunPinnedTasks();
+        }
+    }
+}
+
 ApplicationBase::ApplicationBase(ApplicationSettings&& settings)
     : m_Settings(std::move(settings))
 {
@@ -35,6 +47,12 @@ ApplicationBase::ApplicationBase(ApplicationSettings&& settings)
 
     m_EventHub->RegisterListener<WindowCloseEvent>(this, &ApplicationBase::OnWindowClose);
 
+    m_TaskScheduler.reset(lnnew enki::TaskScheduler());
+    m_TaskScheduler->Initialize();
+
+    m_PinnedTaskRunner.reset(lnnew PinnedTaskRunner(m_TaskScheduler));
+    m_TaskScheduler->AddPinnedTask(m_PinnedTaskRunner.get());
+
     glfwSetErrorCallback([](int errCode, const char* description)
         {
             LNE_ERROR("GLFW Error ({0}): {1}", errCode, std::string_view{ description });
@@ -49,7 +67,7 @@ ApplicationBase::ApplicationBase(ApplicationSettings&& settings)
     m_Window.reset(lnnew Window({ m_Settings.Name, m_Settings.Width, m_Settings.Height, m_Settings.IsResizable }));
 
     m_Renderer.reset(lnnew Renderer());
-    m_Renderer->Init(m_Window);
+    m_Renderer->Init(m_Window, m_TaskScheduler);
 
     m_ImGuiService.reset(lnnew ImGuiService());
     m_ImGuiService->Init(m_Window);
@@ -140,6 +158,8 @@ void ApplicationBase::PopOverlay(Layer* overlay)
 bool ApplicationBase::OnWindowClose(WindowCloseEvent& e)
 {
     LNE_INFO("WindowCloseEvent received");
+    m_PinnedTaskRunner->IsFinished = true;
+    m_TaskScheduler->WaitforAllAndShutdown();
     m_Window->GetGfxContext()->WaitIdle();
 
     m_Renderer->GetGraphicsCommandBufferManager()->BeginSingleTimeCommands();
