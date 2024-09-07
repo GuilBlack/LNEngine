@@ -21,13 +21,13 @@ This README is more of a way for me to keep track of what I did and what I'll be
 - Bindless textures
 - Simple camera system
 - Simple skybox
+- Texture loading in async
 
 ## Next steps
 
 - Make a better interface with ImGui
 - Make a resource loader
 - Shader Spirv caching + just shader cache in general
-- Better gestion of command buffers
 
 ## How it works
 
