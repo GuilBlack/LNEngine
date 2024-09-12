@@ -29,6 +29,7 @@ layout(set = 4, binding = 0) uniform sampler2D      globalTextures[];
 layout(set = 4, binding = 0) uniform samplerCube    globalCubemaps[];
 
 const float PI = 3.14159265359;
+const float TWO_OVER_PI = 2.0 / PI;
 
 #ifdef VERT
 
@@ -75,34 +76,65 @@ layout(location = 3) in vec3 iWorldPos;
 
 layout(location = 0) out vec4 oColor;
 
+// Schlick's approximation for the Fresnel Function
+vec3 FresnelSchlick(float vDotH, vec3 F0) {
+    return mix(F0,vec3(1),pow(1-vDotH,5));
+}
+
+// GGX Normal Distribution Function
+float TrowbridgeReitzNDF(float nDotH, float alpha) {
+    float a2 = alpha * alpha;
+    float d = (nDotH * nDotH) * (a2 - 1) + 1;
+    return a2 / (PI * d * d);
+}
+
+// Schlick-GGX by Schlick & Beckman Geometry Shadowing Function
+float SchlickBeckmanGSF(float nDotL, float nDotV, float alpha) {
+    float a2 = alpha * alpha;
+    float k = a2 / TWO_OVER_PI;
+
+    float gL = nDotL / (nDotL * (1 - k) + k);
+    float gV = nDotV / (nDotV * (1 - k) + k);
+
+    return gL * gV;
+}
+
 void main() {
-  vec3 albedo = texture(globalTextures[tAlbedo], iUVs).xyz;
-  vec3 lighting = vec3(0.0);
-  vec3 normal = normalize(iNormal);
-  vec3 viewDir = normalize(uEyePos - iWorldPos);
+    vec3 albedo = texture(globalTextures[tAlbedo], iUVs).xyz;
+    vec3 normal = normalize(iNormal);
+    vec3 viewDir = normalize(uEyePos - iWorldPos);
+    vec3 lightDir = normalize(uSunDir);
+    vec3 halfDir = normalize(lightDir + viewDir);
 
-  // Ambient
-  vec3 ambient = vec3(0.01);
+    float nDotL = max(0.0, dot(normal, lightDir));
+    float nDotV = max(0.0, dot(normal, viewDir));
+    float nDotH = max(0.0, dot(normal, halfDir));
+    float vDotH = max(0.0, dot(viewDir, halfDir));
 
-  // Diffuse lighting
-  vec3 lightDir = normalize(uSunDir);
-  vec3 lightColor = vec3(1.0);
-  float cosTheta = max(0.0, dot(lightDir, normal));
+    // Calculate FresnelSchlick
+    vec3 F0 = vec3(0.04);
+    F0 = mix(F0, albedo, uMetalness);
+    vec3 F = FresnelSchlick(vDotH, F0);
 
-  vec3 diffuse = cosTheta * lightColor;
+    // Calculate Cook-Torrance dielectric ratio
+    vec3 kD = 1.0 - F;
+    kD *= 1.0 - uMetalness;
 
-  // Phong specular
-  vec3 r = normalize(reflect(-lightDir, normal));
-  float spec = max(0.0, dot(viewDir, r));
-  spec = pow(spec, 32.0);
+    // lambert diffuse
+    vec3 diffuse = kD * albedo / PI;
 
-  lighting = ambient + diffuse * 0.8;
+    // Cook-Torrance microfacet specular
+    float alpha = uRoughness * uRoughness;
+    float denom = 4.0 * nDotL * nDotV + 0.0001;
+    vec3 DFG = TrowbridgeReitzNDF(nDotH, alpha) * SchlickBeckmanGSF(nDotL, nDotV, alpha) * F;
 
-  vec3 color = albedo * lighting + vec3(spec);
+    vec3 specular = DFG / denom;
 
-  color = pow(color, vec3(1.0 / 2.2));
+    vec3 color = nDotL * (diffuse + specular);
 
-  oColor = vec4(color, 1.0);
+    color = pow(color, vec3(1.0 / 2.2));
+
+    oColor = vec4(color, 1.0);
 }
 
 #endif

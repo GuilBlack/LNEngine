@@ -154,10 +154,16 @@ public:
         ImGui::Begin("Hello, world!");
         
         if (ImGui::SliderFloat("Metalness", &m_Metalness, 0.0f, 1.0f))
+        {
             m_BasicMaterial->SetProperty("uMetalness", m_Metalness);
+            m_BasicMaterial2->SetProperty("uMetalness", m_Metalness);
+        }
         
         if (ImGui::SliderFloat("Roughness", &m_Roughness, 0.0f, 1.0f))
+        {
             m_BasicMaterial->SetProperty("uRoughness", m_Roughness);
+            m_BasicMaterial2->SetProperty("uRoughness", m_Roughness);
+        }
 
         ImGui::Text("Sun Dir"); 
         ImVec2 avail = ImGui::GetContentRegionAvail();
