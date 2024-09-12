@@ -44,7 +44,7 @@ To build the project on Windows:
 - That's probably it unless I forgot something...
 
 The executable is constructed with the LNApp project and the Assets etc are copied to the output directory so that you can just plug and play in renderdoc.
-That's about it for now. With all of this, you should be able to run the application and see two beautiful textures (don't mind the UVs) cubes that can change their color based on a material parameter and the ImGui demo. 😊
+That's about it for now. With all of this, you should be able to run the application and see two beautiful cubes that can change their color based on a material parameter and the ImGui demo. 😊
 
 ![square-image](github-images/preview.gif)
 
