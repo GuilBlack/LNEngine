@@ -16,6 +16,8 @@ struct GlobalUniforms
     glm::mat4 ViewProj;
     glm::mat4 View;
     glm::mat4 Proj;
+    glm::vec3 CameraPosition;
+    glm::vec3 SunDirection;
 };
 
 struct FrameData {
@@ -47,7 +49,7 @@ public:
     void BeginFrame();
     void EndFrame();
 
-    void BeginScene(const struct CameraComponent& camera);
+    void BeginScene(const struct TransformComponent& cameraTransform, const struct CameraComponent& camera, const glm::vec3& sunDirection);
 
     void BeginRenderPass(const class Framebuffer& framebuffer) const;
     void EndRenderPass(const class Framebuffer& framebuffer) const;

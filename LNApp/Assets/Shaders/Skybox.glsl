@@ -8,6 +8,8 @@ layout(scalar, set=0, binding=0) uniform GlobalUBO {
     mat4 uViewProj;
     mat4 uView;
     mat4 uProj;
+    vec3 uEyePos;
+    vec3 uSunDir;
 };
 
 layout(scalar, set = 2, binding = 0) uniform ObjectData {
@@ -27,8 +29,9 @@ layout(location = 0) out vec3 oUVW;
 
 struct Vertex {
     vec4 position;
-    vec4 color;
+    vec4 normal;
     vec2 uv;
+    vec4 color;
 };
 
 layout(scalar, set = 1, binding = 0) readonly buffer VertexBuffer {

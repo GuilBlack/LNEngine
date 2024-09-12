@@ -67,7 +67,7 @@ void Renderer::BeginFrame()
     auto vp = viewport.GetViewport();
     vp.y += vp.height;
     vp.height *= -1;
-    cmdBuffer.setViewport(0, viewport.GetViewport());
+    cmdBuffer.setViewport(0, vp);
 
     m_FrameData[imageIndex].DescriptorAllocator->Clear();
 
@@ -102,14 +102,16 @@ void Renderer::EndFrame()
     m_GraphicsCommandBufferManager->Submit(submitInfo);
 }
 
-void Renderer::BeginScene(const CameraComponent& camera)
+void Renderer::BeginScene(const TransformComponent& cameraTransform, const CameraComponent& camera, const glm::vec3& sunDirection)
 {
     uint32_t imageIndex = m_Swapchain->GetCurrentFrameIndex();
     auto& cmdBuffer = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
     GlobalUniforms uniforms = {
         .ViewProj = camera.GetViewProj(),
         .View = camera.View,
-        .Proj = camera.Proj
+        .Proj = camera.Proj,
+        .CameraPosition = cameraTransform.Position,
+        .SunDirection = sunDirection
     };
 
     m_FrameData[imageIndex].GlobalUniforms.CopyData(cmdBuffer, uniforms);
