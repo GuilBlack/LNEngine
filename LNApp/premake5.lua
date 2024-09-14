@@ -30,6 +30,8 @@ project "LNApp"
     pchsource "src/pch.cpp"
 
     forceincludes "pch.h"
+
+    CopyDLLs()
     
     filter "system:linux"
         cppdialect "C++20"
@@ -97,4 +99,4 @@ project "LNApp"
         runtime "Release"
         symbols "Off"
         optimize "On"
-        defines "NDEBUG"
+        defines "NDEBUG"    

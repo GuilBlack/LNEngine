@@ -32,6 +32,7 @@ project "LNEngine"
         "%{IncludeDir.ImGui}/imgui",
         "%{IncludeDir.STB}",
         "%{IncludeDir.enkiTS}",
+        "%{IncludeDir.Assimp}",
     }
 
     links
@@ -67,11 +68,6 @@ project "LNEngine"
             "/usr/include/vulkan"
         }
 
-        libdirs
-        {
-            "/usr/lib"
-        }
-
     filter "system:windows"
         cppdialect "C++20"
         systemversion "latest"
@@ -87,7 +83,8 @@ project "LNEngine"
 
         libdirs
         {
-            os.getenv("VULKAN_SDK") .. "/Lib"
+            os.getenv("VULKAN_SDK") .. "/Lib",
+            "%{LibDir.Assimp}"
         }
 
     filter "configurations:Debug"
@@ -107,7 +104,9 @@ project "LNEngine"
         {
             "shaderc_combinedd",
             "spirv-cross-cored",
-            "spirv-cross-cppd"
+            "spirv-cross-cppd",
+
+            "assimp-vc143-mtd",
         }
 
     filter "configurations:Release"
@@ -127,7 +126,9 @@ project "LNEngine"
         {
             "shaderc_combined",
             "spirv-cross-core",
-            "spirv-cross-cpp"
+            "spirv-cross-cpp",
+
+            "assimp-vc143-mt",
         }
 
     filter "configurations:Dist"
@@ -139,5 +140,7 @@ project "LNEngine"
         {
             "shaderc_combined",
             "spirv-cross-core",
-            "spirv-cross-cpp"
+            "spirv-cross-cpp",
+
+            "assimp-vc143-mt",
         }

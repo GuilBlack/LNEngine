@@ -1,5 +1,6 @@
-#include "enkiTS/src/TaskScheduler.h"
-#include "stb/stb_image.h"
+#include <enkiTS/src/TaskScheduler.h>
+#include <stb/stb_image.h>
+#include <assimp/Importer.hpp>
 
 #include "Core/Utils/Log.h"
 #include "Graphics/Texture.h"
@@ -251,6 +252,7 @@ void GfxLoader::LoadTexture(LoadRequest& request)
 {
     auto& path = request.Path[0];
     int texWidth, texHeight, texChannels;
+    Assimp::Importer importer;
     uint8_t* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 
     if (!pixels)

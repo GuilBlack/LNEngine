@@ -90,11 +90,11 @@ float TrowbridgeReitzNDF(float nDotH, float alpha) {
 
 // Schlick-GGX by Schlick & Beckman Geometry Shadowing Function
 float SchlickBeckmanGSF(float nDotL, float nDotV, float alpha) {
-    float a2 = alpha * alpha;
-    float k = a2 / TWO_OVER_PI;
+    float r = (alpha + 1.0);
+    float k = (r * r) / 8.0;
 
-    float gL = nDotL / (nDotL * (1 - k) + k);
-    float gV = nDotV / (nDotV * (1 - k) + k);
+    float gL = nDotL / (nDotL * (1.0 - k) + k);
+    float gV = nDotV / (nDotV * (1.0 - k) + k);
 
     return gL * gV;
 }
@@ -117,8 +117,7 @@ void main() {
     vec3 F = FresnelSchlick(vDotH, F0);
 
     // Calculate Cook-Torrance dielectric ratio
-    vec3 kD = 1.0 - F;
-    kD *= 1.0 - uMetalness;
+    vec3 kD = (1.0 - F) * (1.0 - uMetalness);
 
     // lambert diffuse
     vec3 diffuse = kD * albedo / PI;

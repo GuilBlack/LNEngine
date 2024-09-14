@@ -154,7 +154,7 @@ public:
         ImGui::Begin("Hello, world!");
         
         if (ImGui::SliderFloat("Metalness", &m_Metalness, 0.0f, 1.0f))
-        {
+        { 
             m_BasicMaterial->SetProperty("uMetalness", m_Metalness);
             m_BasicMaterial2->SetProperty("uMetalness", m_Metalness);
         }
@@ -290,7 +290,7 @@ private:
                 // Right face
                 addQuad({ 1.0f, y0, x1, 1.0f }, { 1.0f, y0, x0, 1.0f }, { 1.0f, y1, x0, 1.0f }, { 1.0f, y1, x1, 1.0f }, { 1.0f, 0.0f, 0.0f, 1.0f });
                 // Top face
-                addQuad({ x0, 1.0f, y1, 1.0f }, { x1, 1.0f, y1, 1.0f }, { x1, 1.0f, y0, 1.0f }, { x0, 1.0f, y0, 1.0f }, { 0.0f, 1.0f, 0.0f, 1.0f });
+                addQuad({ x0, 1.0f, y0, 1.0f }, { x0, 1.0f, y1, 1.0f }, { x1, 1.0f, y1, 1.0f }, { x1, 1.0f, y0, 1.0f }, { 0.0f, 1.0f, 0.0f, 1.0f });
                 // Bottom face
                 addQuad({ x0, -1.0f, y0, 1.0f }, { x1, -1.0f, y0, 1.0f }, { x1, -1.0f, y1, 1.0f }, { x0, -1.0f, y1, 1.0f }, { 0.0f, -1.0f, 0.0f, 1.0f });
             }
