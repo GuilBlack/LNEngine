@@ -101,7 +101,8 @@ public:
 
         m_CubeTransform2.UniformBuffers = lne::ApplicationBase::GetRenderer().RegisterObject();
 
-        m_CameraTransform.Position = { 0.0f, 0.0f, -2.0f };
+        m_CameraTransform.Position = { 0.0f, 0.0f, 2.0f };
+        m_CameraTransform.LookAt({ 0.0f, 0.0f, 0.0f });
 
         m_SkyboxTransform.Position = { 0.0f, 0.0f, 0.0f };
         m_SkyboxTransform.Scale = { .25f, .25f, .25f };
@@ -109,9 +110,12 @@ public:
         m_SkyboxTransform.UniformBuffers = lne::ApplicationBase::GetRenderer().RegisterObject();
     #pragma endregion
 
-        m_Camera.LookAtCenter(m_CameraTransform.Position);
         auto& windowSettings = lne::ApplicationBase::GetWindow().GetSettings();
         m_Camera.SetPerspective(45.0f, windowSettings.Width / (float)windowSettings.Height, 0.001f, 10000.0f);
+
+        m_CameraTarget.Position = m_CameraTransform.Position;
+        m_CameraTarget.Rotation = m_CameraTransform.Rotation;
+        m_Camera.UpdateView(m_CameraTransform);
     }
 
     void OnDetach() override
@@ -122,19 +126,15 @@ public:
 
     void OnUpdate(float deltaTime) override
     {
+        double currentTime = lne::ApplicationBase::GetClock().GetElapsedTime();
         HandleInput(deltaTime);
         static int frameIndex = 0;
         ++frameIndex;
 
-        double currentTime = lne::ApplicationBase::GetClock().GetElapsedTime();
         float sinTime = (float)sin(currentTime);
         float cosTime = (float)cos(currentTime);
 
         m_CubeTransform.Position.y = sinTime * 0.5f;
-        //m_CubeTransform2.Rotation.z = cosTime * 180.0f;
-
-        m_BasicMaterial->SetProperty("uMetalness", 0.04f);
-        m_BasicMaterial->SetProperty("uRoughness", 0.05f);
 
         lne::ApplicationBase::GetRenderer().BeginScene(m_CameraTransform, m_Camera, m_LightDirection);
 
@@ -197,30 +197,53 @@ public:
     {
         auto& inputManager = lne::ApplicationBase::GetInputManager();
 
+        float movementSpeed = 1.0f;
+        float rotationSpeed = 0.1f;
+
+        if (inputManager.IsKeyPressed(lne::eKeyLeftShift) || inputManager.IsKeyPressed(lne::eKeyRightShift))
+            movementSpeed *= 10.0f;
+        if (inputManager.IsKeyPressed(lne::eKeyLeftControl) || inputManager.IsKeyPressed(lne::eKeyRightControl))
+            movementSpeed *= 0.1f;
+
+        glm::vec3 movementInput{ 0.0f };
         if (inputManager.IsKeyPressed(lne::eKeyW))
-        {
-            m_CameraTransform.Position += glm::vec3(m_CameraTransform.GetForward() * deltaTime);
-        }
+            movementInput += m_CameraTransform.GetForward();
         if (inputManager.IsKeyPressed(lne::eKeyS))
-        {
-            m_CameraTransform.Position -= glm::vec3(m_CameraTransform.GetForward() * deltaTime);
-        }
+            movementInput -= m_CameraTransform.GetForward();
         if (inputManager.IsKeyPressed(lne::eKeyA))
-        {
-            m_CameraTransform.Position += glm::vec3(m_CameraTransform.GetRight() * deltaTime);
-        }
+            movementInput += m_CameraTransform.GetRight();
         if (inputManager.IsKeyPressed(lne::eKeyD))
+            movementInput -= m_CameraTransform.GetRight();
+        if (inputManager.IsKeyPressed(lne::eKeyQ))
+            movementInput += m_CameraTransform.GetUp();
+        if (inputManager.IsKeyPressed(lne::eKeyE))
+            movementInput -= m_CameraTransform.GetUp();
+
+        if (glm::length(movementInput) > 0.0f)
         {
-            m_CameraTransform.Position -= glm::vec3(m_CameraTransform.GetRight() * deltaTime);
+            movementInput = glm::normalize(movementInput);
+            m_CameraTarget.Position += movementInput * movementSpeed * deltaTime;
         }
 
         glm::vec2 mouseDelta{};
         if (inputManager.IsMouseButtonPressed(lne::eMouseButton0))
         {
             inputManager.GetMouseDelta(mouseDelta.x, mouseDelta.y);
-            m_CameraTransform.Rotation.x -= mouseDelta.y * 0.1f;
-            m_CameraTransform.Rotation.y -= mouseDelta.x * 0.1f;
+            m_CameraTarget.Rotation.x -= mouseDelta.y * rotationSpeed;
+            m_CameraTarget.Rotation.y -= mouseDelta.x * rotationSpeed;
         }
+
+        // Clamp pitch to avoid gimbal lock
+        const float maxPitch = 89.9f;
+        m_CameraTarget.Rotation.x = glm::clamp(m_CameraTarget.Rotation.x, -maxPitch, maxPitch);
+
+        // Smoothly interpolate actual position and rotation towards target values
+        float positionLerpFactor = 0.99f;
+        float rotationLerpFactor = 0.99f;
+
+        m_CameraTransform.Position = Lerp3(m_CameraTransform.Position, m_CameraTarget.Position, positionLerpFactor, deltaTime);
+        m_CameraTransform.Rotation = Lerp3(m_CameraTransform.Rotation, m_CameraTarget.Rotation, rotationLerpFactor, deltaTime);
+
 
         m_Camera.UpdateView(m_CameraTransform);
     }
@@ -243,9 +266,14 @@ private:
     lne::TransformComponent m_SkyboxTransform{};
 
     lne::CameraComponent m_Camera{};
-    lne::TransformComponent m_CameraTransform{};
+    lne::TransformComponent m_CameraTransform{}; 
+    struct CameraTarget
+    {
+        glm::vec3 Position;
+        glm::vec3 Rotation;
+    } m_CameraTarget;
 
-    glm::vec3 m_LightDirection{ -1.0f, 1.0f, -1.0f };
+    glm::vec3 m_LightDirection{ 1.0f, -1.0f, -1.0f };
     float m_Metalness{ 0.0f };
     float m_Roughness{ 0.0f };
 
@@ -338,7 +366,7 @@ private:
 
                 vertices[count].Position = { radius * point.x, radius * point.y, radius * point.z, 1.0f };
                 vertices[count].TexCoord = { (float)j / (float)nLongitude, (float)i / (float)(nLatitude + 1) };
-                vertices[count].Normal = glm::vec4(point, 1.0f);
+                vertices[count].Normal = glm::vec4(point, 0.0f);
 
                 ++count;
             }
@@ -392,6 +420,20 @@ private:
             indices[count++] = southPoleIndex - (nLongitude + 1) + i;
             indices[count++] = southPoleIndex - (nLongitude + 1) + i + 1;
         }
+    }
+
+    float Lerp(float a, float b, float t, float deltaTime)
+    {
+        return glm::mix(a, b, 1.0f - std::pow(1.0f - t, deltaTime));
+    }
+
+    glm::vec3 Lerp3(const glm::vec3& from, const glm::vec3& to, float t, float deltaTime)
+    {
+        return glm::vec3(
+            Lerp(from.x, to.x, t, deltaTime),
+            Lerp(from.y, to.y, t, deltaTime),
+            Lerp(from.z, to.z, t, deltaTime)
+        );
     }
 };
 

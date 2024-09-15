@@ -61,7 +61,7 @@ void main() {
 
     oWorldPos = (uModel * vertexBuffer.vertices[currentIndex].position).xyz;
 
-    mat3 normalMatrix = inverse(mat3(uModel));
+    mat3 normalMatrix = transpose(inverse(mat3(uModel)));
     oNormal = normalize(normalMatrix * vertexBuffer.vertices[currentIndex].normal.xyz);
 }
 
@@ -103,7 +103,7 @@ void main() {
     vec3 albedo = texture(globalTextures[tAlbedo], iUVs).xyz;
     vec3 normal = normalize(iNormal);
     vec3 viewDir = normalize(uEyePos - iWorldPos);
-    vec3 lightDir = normalize(uSunDir);
+    vec3 lightDir = normalize(-uSunDir);
     vec3 halfDir = normalize(lightDir + viewDir);
 
     float nDotL = max(0.0, dot(normal, lightDir));

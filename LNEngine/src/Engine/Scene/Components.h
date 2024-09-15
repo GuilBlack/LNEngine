@@ -31,14 +31,29 @@ struct TransformComponent
         return rotation;
     }
 
-    glm::vec4 GetForward() const
+    glm::vec3 GetForward() const
     {
-        return GetRotationMatrix() * glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
+        glm::vec4 forward = GetRotationMatrix() * glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
+        return glm::normalize(glm::vec3(forward));
     }
 
-    glm::vec4 GetRight() const
+    glm::vec3 GetRight() const
     {
-        return GetRotationMatrix() * glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+        glm::vec4 right = GetRotationMatrix() * glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
+        return glm::normalize(glm::vec3(right));
+    }
+
+    glm::vec3 GetUp() const
+    {
+        glm::vec4 up = GetRotationMatrix() * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+        return glm::normalize(glm::vec3(up));
+    }
+
+    void LookAt(const glm::vec3& target)
+    {
+        glm::vec3 direction = glm::normalize(target - Position);
+        Rotation.x = glm::degrees(asin(-direction.y));
+        Rotation.y = glm::degrees(atan2(direction.x, direction.z));
     }
 
     lne::SafePtr<lne::UniformBufferManager> UniformBuffers;
