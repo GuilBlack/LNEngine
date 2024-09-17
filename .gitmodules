@@ -14,6 +14,6 @@
 [submodule "LNEngine/vendor/ENKITS/enkiTS"]
 	path = LNEngine/vendor/ENKITS/enkiTS
 	url = https://github.com/dougbinks/enkiTS.git
-[submodule "LNApp/Assets/Models/glTF-Sample-Assets"]
+[submodule "LNApp/Assets/Models/gltf"]
 	path = LNApp/Assets/Models/gltf
 	url = https://github.com/KhronosGroup/glTF-Sample-Assets.git
