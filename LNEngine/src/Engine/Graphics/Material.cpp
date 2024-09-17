@@ -31,14 +31,39 @@ Material::~Material()
         ub.Destroy();
 }
 
-void Material::SetProperty(std::string_view name, const glm::vec4& value)
+void Material::SetProperty(std::string_view name, float value)
+{
+    SetProperty<float>(std::string(name), value);
+}
+
+void Material::SetProperty(std::string_view name, const glm::vec2& value)
+{
+    SetProperty<glm::vec2>(std::string(name), value);
+}
+
+void Material::SetProperty(std::string_view name, const glm::vec3 & value)
+{
+    SetProperty<glm::vec3>(std::string(name), value);
+}
+
+void Material::SetProperty(std::string_view name, const glm::vec4 & value)
 {
     SetProperty<glm::vec4>(std::string(name), value);
 }
 
-void Material::SetProperty(std::string_view name, float value)
+void Material::SetProperty(std::string_view name, const glm::mat2& value)
 {
-    SetProperty<float>(std::string(name), value);
+    SetProperty<glm::mat2>(std::string(name), value);
+}
+
+void Material::SetProperty(std::string_view name, const glm::mat3& value)
+{
+    SetProperty<glm::mat3>(std::string(name), value);
+}
+
+void Material::SetProperty(std::string_view name, const glm::mat4& value)
+{
+    SetProperty<glm::mat4>(std::string(name), value);
 }
 
 void Material::SetTexture(std::string_view name, SafePtr<Texture> texture)

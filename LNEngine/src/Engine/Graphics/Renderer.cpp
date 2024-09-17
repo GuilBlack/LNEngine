@@ -14,6 +14,7 @@
 #include "Scene/Components.h"
 #include "Material.h"
 #include "Resources/GfxLoader.h"
+#include "Mesh.h"
 
 // TODO: move this to a resource manager
 #include <stb/stb_image.h>
@@ -203,6 +204,92 @@ void Renderer::Draw(SafePtr<Material> material, struct Geometry& geometry, Trans
 
     cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0, { m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorSet, geometryDescSet, objDescSet, matDescSet, m_Context->GetBindlessDescriptorSet() }, {});
     cmdBuffer.draw(geometry.IndexCount, 1, 0, 0);
+}
+
+void Renderer::Draw(SafePtr<StaticMesh> mesh, TransformComponent& objTransform)
+{
+    auto& cmdBuffer = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
+    auto pipeline = mesh->GetPipeline();
+    auto& geometry = mesh->GetGeometry();
+    pipeline->Bind(cmdBuffer);
+
+    auto& submeshes = mesh->GetSubMeshes();
+    for (const auto& submesh : submeshes)
+    {
+        auto material = mesh->GetMaterial(submesh.MaterialIndex);
+
+
+        // Create & update geometry descriptor set
+        auto geometryDescSetLayout = pipeline->GetDescriptorSetLayouts()[1];
+        vk::DescriptorSet geometryDescSet = m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorAllocator->Allocate(geometryDescSetLayout);
+
+        auto vertexInfo = geometry.VertexGPUBuffer->GetDescriptorInfo();
+        auto indexInfo = geometry.IndexGPUBuffer->GetDescriptorInfo();
+        std::vector<vk::WriteDescriptorSet> writeGeoDescriptorSets;
+        writeGeoDescriptorSets.emplace_back(vk::WriteDescriptorSet{
+            geometryDescSet,
+            0,
+            0,
+            1,
+            vk::DescriptorType::eStorageBuffer,
+            nullptr,
+            &vertexInfo,
+            nullptr
+            });
+        writeGeoDescriptorSets.emplace_back(vk::WriteDescriptorSet{
+            geometryDescSet,
+            1,
+            0,
+            1,
+            vk::DescriptorType::eStorageBuffer,
+            nullptr,
+            &indexInfo,
+            nullptr
+            });
+
+        m_Context->GetDevice().updateDescriptorSets(writeGeoDescriptorSets, nullptr);
+
+        // Create & update object descriptor set
+        objTransform.UniformBuffers->CopyData(cmdBuffer, objTransform.GetModelMatrix());
+        auto objDescSetLayout = pipeline->GetDescriptorSetLayouts()[2];
+        vk::DescriptorSet objDescSet = m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorAllocator->Allocate(objDescSetLayout);
+
+        auto objInfo = objTransform.UniformBuffers->GetCurrentBuffer().GetDescriptorInfo();
+        vk::WriteDescriptorSet writeObjDescriptorSet = vk::WriteDescriptorSet{
+            objDescSet,
+            0,
+            0,
+            1,
+            vk::DescriptorType::eUniformBuffer,
+            nullptr,
+            &objInfo,
+            nullptr
+        };
+        m_Context->GetDevice().updateDescriptorSets(writeObjDescriptorSet, nullptr);
+
+        std::vector<vk::WriteDescriptorSet> matWriteDescriptorSets;
+        std::vector<vk::DescriptorBufferInfo> matUbInfo;
+        matUbInfo.reserve(material->m_UniformBuffers.size());
+        vk::DescriptorSet matDescSet = m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[3]);
+        for (const auto& [binding, ub] : material->m_UniformBuffers)
+        {
+            matUbInfo.emplace_back(ub.GetDescriptorInfo());
+            matWriteDescriptorSets.emplace_back(vk::WriteDescriptorSet{
+                matDescSet,
+                binding,
+                0,
+                1,
+                vk::DescriptorType::eUniformBuffer,
+                nullptr,
+                &matUbInfo.back(),
+                nullptr
+                });
+        }
+        m_Context->GetDevice().updateDescriptorSets(matWriteDescriptorSets, nullptr);
+
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0, { m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorSet, geometryDescSet, objDescSet, matDescSet, m_Context->GetBindlessDescriptorSet() }, {});
+        cmdBuffer.draw(submesh.IndexCount, 1, submesh.BaseIndex, 0);
+    }
 }
 
 SafePtr<GfxPipeline> Renderer::CreateGraphicsPipeline(const GraphicsPipelineDesc& createInfo)

@@ -42,4 +42,10 @@ struct ImageAllocation
     VmaAllocation Allocation;
     VmaAllocationInfo AllocationInfo;
 };
+
+struct AABB
+{
+    glm::vec3 Min;
+    glm::vec3 Max;
+};
 }

@@ -55,6 +55,7 @@ public:
     void EndRenderPass(const class Framebuffer& framebuffer) const;
 
     void Draw(SafePtr<class Material> pipeline, struct Geometry& geometry, struct TransformComponent& objTransform);
+    void Draw(SafePtr<class StaticMesh> mesh, struct TransformComponent& objTransform);
 
     // TODO: move to a resource manager
     [[nodiscard]] SafePtr<class GfxPipeline> CreateGraphicsPipeline(const struct GraphicsPipelineDesc& createInfo);

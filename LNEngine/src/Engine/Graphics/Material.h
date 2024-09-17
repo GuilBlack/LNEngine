@@ -14,8 +14,15 @@ public:
 
     SafePtr<class GfxPipeline> GetPipeline() const { return m_Pipeline; }
 
-    void SetProperty(std::string_view name, const glm::vec4& value);
     void SetProperty(std::string_view name, float value);
+    void SetProperty(std::string_view name, const glm::vec2& value);
+    void SetProperty(std::string_view name, const glm::vec3& value);
+    void SetProperty(std::string_view name, const glm::vec4& value);
+
+    void SetProperty(std::string_view name, const glm::mat2& value);
+    void SetProperty(std::string_view name, const glm::mat3& value);
+    void SetProperty(std::string_view name, const glm::mat4& value);
+    
     void SetTexture(std::string_view name, SafePtr<class Texture> texture);
 
 private:

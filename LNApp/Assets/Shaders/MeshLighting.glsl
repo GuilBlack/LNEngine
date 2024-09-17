@@ -33,16 +33,14 @@ const float TWO_OVER_PI = 2.0 / PI;
 
 #ifdef VERT
 
-layout(location = 0) out vec4 oColor;
-layout(location = 1) out vec2 oUVs;
-layout(location = 2) out vec3 oNormal;
-layout(location = 3) out vec3 oWorldPos;
+layout(location = 0) out vec2 oUVs;
+layout(location = 1) out vec3 oNormal;
+layout(location = 2) out vec3 oWorldPos;
 
 struct Vertex {
-    vec4 position;
-    vec4 normal;
+    vec3 position;
+    vec3 normal;
     vec2 uv;
-    vec4 color;
 };
 
 layout(scalar, set = 1, binding = 0) readonly buffer VertexBuffer {
@@ -55,24 +53,22 @@ layout(set = 1, binding = 1) readonly buffer IndexBuffer {
 
 void main() {
     uint currentIndex = indexBuffer.indices[gl_VertexIndex];
-    gl_Position = uViewProj * uModel * vec4(vertexBuffer.vertices[currentIndex].position);
-    oColor = vec4(vertexBuffer.vertices[currentIndex].color);
+    gl_Position = uViewProj * uModel * vec4(vertexBuffer.vertices[currentIndex].position, 1.0);
     oUVs = vertexBuffer.vertices[currentIndex].uv;
 
-    oWorldPos = (uModel * vertexBuffer.vertices[currentIndex].position).xyz;
+    oWorldPos = (uModel * vec4(vertexBuffer.vertices[currentIndex].position, 1.0)).xyz;
 
     mat3 normalMatrix = transpose(inverse(mat3(uModel)));
-    oNormal = normalize(normalMatrix * vertexBuffer.vertices[currentIndex].normal.xyz);
+    oNormal = normalize(normalMatrix * vertexBuffer.vertices[currentIndex].normal);
 }
 
 #endif
 
 #ifdef FRAG
 
-layout(location = 0) in vec4 iColor;
-layout(location = 1) in vec2 iUVs;
-layout(location = 2) in vec3 iNormal;
-layout(location = 3) in vec3 iWorldPos;
+layout(location = 0) in vec2 iUVs;
+layout(location = 1) in vec3 iNormal;
+layout(location = 2) in vec3 iWorldPos;
 
 layout(location = 0) out vec4 oColor;
 

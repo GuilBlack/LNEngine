@@ -17,7 +17,7 @@ layout(scalar, set = 2, binding = 0) uniform ObjectData {
 };
 
 layout(scalar, set = 3, binding = 0) uniform MaterialData {
-    uint tDiffuse;
+    uint tAlbedo;
 };
 
 layout(set = 4, binding = 0) uniform sampler2D      globalTextures[];
@@ -28,10 +28,9 @@ layout(set = 4, binding = 0) uniform samplerCube    globalCubemaps[];
 layout(location = 0) out vec3 oUVW;
 
 struct Vertex {
-    vec4 position;
-    vec4 normal;
+    vec3 position;
+    vec3 normal;
     vec2 uv;
-    vec4 color;
 };
 
 layout(scalar, set = 1, binding = 0) readonly buffer VertexBuffer {
@@ -62,7 +61,7 @@ layout (location = 0) in vec3 iUVW;
 layout (location = 0) out vec4 oColor;
 
 void main() {
-    oColor = texture(globalCubemaps[nonuniformEXT(tDiffuse)], iUVW);
+    oColor = texture(globalCubemaps[nonuniformEXT(tAlbedo)], iUVW);
 }
 
 #endif

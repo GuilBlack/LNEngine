@@ -2,13 +2,6 @@
 
 class AppLayer final : public lne::Layer
 {
-struct Vertex
-{
-    glm::vec4 Position{};
-    glm::vec4 Normal{};
-    glm::vec2 TexCoord{};
-    glm::vec4 Color{ 1.0f, 1.0f, 1.0f, 1.0f };
-};
 
 public:
     AppLayer()
@@ -57,12 +50,12 @@ public:
         m_SkyboxMaterial->SetTexture("tAlbedo", m_CubemapTexture);
 
     #pragma region CubeGen
-        std::vector<Vertex> tesselatedVertices{};
+        std::vector<lne::Vertex> tesselatedVertices{};
         std::vector<uint32_t> tesselatedIndices{};
         GenerateCube(tesselatedVertices, tesselatedIndices, 1);
 
         lne::SafePtr<lne::StorageBuffer> tesselatedVertexBuffer = lne::ApplicationBase::GetRenderer()
-            .CreateGeometryBuffer(tesselatedVertices.data(), tesselatedVertices.size() * sizeof(Vertex));
+            .CreateGeometryBuffer(tesselatedVertices.data(), tesselatedVertices.size() * sizeof(lne::Vertex));
         lne::SafePtr<lne::StorageBuffer> tesselatedIndexBuffer = lne::ApplicationBase::GetRenderer()
             .CreateGeometryBuffer(tesselatedIndices.data(), tesselatedIndices.size() * sizeof(uint32_t));
 
@@ -73,12 +66,12 @@ public:
     #pragma endregion
 
     #pragma region SphereGen
-        std::vector<Vertex> sphereVertices{};
+        std::vector<lne::Vertex> sphereVertices{};
         std::vector<uint32_t> sphereIndices{};
         GenerateUVSphere(sphereVertices, sphereIndices);
 
         lne::SafePtr<lne::StorageBuffer> sphereVertexBuffer = lne::ApplicationBase::GetRenderer()
-            .CreateGeometryBuffer(sphereVertices.data(), sphereVertices.size() * sizeof(Vertex));
+            .CreateGeometryBuffer(sphereVertices.data(), sphereVertices.size() * sizeof(lne::Vertex));
         lne::SafePtr<lne::StorageBuffer> sphereIndexBuffer = lne::ApplicationBase::GetRenderer()
             .CreateGeometryBuffer(sphereIndices.data(), sphereIndices.size() * sizeof(uint32_t));
 
@@ -88,6 +81,10 @@ public:
         m_SphereGeo.IndexCount = (uint32_t)sphereIndices.size();
     #pragma endregion
 
+    #pragma region LoadModels
+        m_Duck = lnnew lne::StaticMesh(lne::ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Duck\\gltf\\Duck.gltf", m_BasePipeline);
+    #pragma endregion
+
     #pragma region TransformInit
         m_CubeTransform.Position =  { -0.5f, 0.0f, 0.0f };
         m_CubeTransform.Rotation =  { 0.0f, 0.0f, 0.0f };
@@ -95,19 +92,25 @@ public:
 
         m_CubeTransform.UniformBuffers = lne::ApplicationBase::GetRenderer().RegisterObject();
 
-        m_CubeTransform2.Position = { 0.5f, 0.0f, 0.0f };
-        m_CubeTransform2.Rotation = { 0.0f, 0.0f, 0.0f };
-        m_CubeTransform2.Scale =    { 0.25f, 0.25f, 0.25f };
+        m_SphereTransform.Position = { 0.5f, 0.0f, 0.0f };
+        m_SphereTransform.Rotation = { 0.0f, 0.0f, 0.0f };
+        m_SphereTransform.Scale =    { 0.25f, 0.25f, 0.25f };
 
-        m_CubeTransform2.UniformBuffers = lne::ApplicationBase::GetRenderer().RegisterObject();
+        m_SphereTransform.UniformBuffers = lne::ApplicationBase::GetRenderer().RegisterObject();
 
         m_CameraTransform.Position = { 0.0f, 0.0f, 2.0f };
         m_CameraTransform.LookAt({ 0.0f, 0.0f, 0.0f });
 
         m_SkyboxTransform.Position = { 0.0f, 0.0f, 0.0f };
-        m_SkyboxTransform.Scale = { .25f, .25f, .25f };
+        m_SkyboxTransform.Scale = { 1.f, 1.f, 1.f };
 
         m_SkyboxTransform.UniformBuffers = lne::ApplicationBase::GetRenderer().RegisterObject();
+
+        m_DuckTransform.Position = { 0.0f, 0.0f, 0.0f };
+        m_DuckTransform.Rotation = { 0.0f, 0.0f, 0.0f };
+        m_DuckTransform.Scale = { .2f, .2f, .2f };
+
+        m_DuckTransform.UniformBuffers = lne::ApplicationBase::GetRenderer().RegisterObject();
     #pragma endregion
 
         auto& windowSettings = lne::ApplicationBase::GetWindow().GetSettings();
@@ -143,8 +146,9 @@ public:
         lne::ApplicationBase::GetRenderer().BeginRenderPass(fb);
 
         lne::ApplicationBase::GetRenderer().Draw(m_BasicMaterial, m_TesselatedCubeGeo, m_CubeTransform);
-        lne::ApplicationBase::GetRenderer().Draw(m_BasicMaterial2, m_SphereGeo, m_CubeTransform2);
-        //lne::ApplicationBase::GetRenderer().Draw(m_SkyboxMaterial, m_TesselatedCubeGeo, m_SkyboxTransform);
+        lne::ApplicationBase::GetRenderer().Draw(m_BasicMaterial2, m_SphereGeo, m_SphereTransform);
+        lne::ApplicationBase::GetRenderer().Draw(m_Duck, m_DuckTransform);
+        lne::ApplicationBase::GetRenderer().Draw(m_SkyboxMaterial, m_TesselatedCubeGeo, m_SkyboxTransform);
 
         lne::ApplicationBase::GetRenderer().EndRenderPass(fb);
     }
@@ -260,9 +264,11 @@ private:
     lne::Geometry m_SphereGeo;
     lne::SafePtr<lne::Texture> m_Texture{};
     lne::SafePtr<lne::Texture> m_CubemapTexture{};
+    lne::SafePtr<lne::StaticMesh> m_Duck{};
 
+    lne::TransformComponent m_DuckTransform{};
     lne::TransformComponent m_CubeTransform{};
-    lne::TransformComponent m_CubeTransform2{};
+    lne::TransformComponent m_SphereTransform{};
     lne::TransformComponent m_SkyboxTransform{};
 
     lne::CameraComponent m_Camera{};
@@ -277,20 +283,19 @@ private:
     float m_Metalness{ 0.0f };
     float m_Roughness{ 0.0f };
 
+
 private:
-    void GenerateCube(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, uint32_t tesselationLevel)
+    void GenerateCube(std::vector<lne::Vertex>& vertices, std::vector<uint32_t>& indices, uint32_t tesselationLevel)
     {
         float step = 2.0f / tesselationLevel;
 
-        glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
-
-        auto addQuad = [&](glm::vec4 p0, glm::vec4 p1, glm::vec4 p2, glm::vec4 p3, glm::vec4 normal)
+        auto addQuad = [&](glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, glm::vec3 normal)
         {
             uint32_t startIndex = (uint32_t)vertices.size();
-            vertices.push_back({ p0, normal, {0.0f, 0.0f}, color });
-            vertices.push_back({ p1, normal, {1.0f, 0.0f}, color });
-            vertices.push_back({ p2, normal, {1.0f, 1.0f}, color });
-            vertices.push_back({ p3, normal, {0.0f, 1.0f}, color });
+            vertices.push_back({ p0, normal, {0.0f, 0.0f} });
+            vertices.push_back({ p1, normal, {1.0f, 0.0f} });
+            vertices.push_back({ p2, normal, {1.0f, 1.0f} });
+            vertices.push_back({ p3, normal, {0.0f, 1.0f} });
 
             indices.push_back(startIndex + 0);
             indices.push_back(startIndex + 1);
@@ -310,22 +315,22 @@ private:
                 float y1 = y0 + step;
 
                 // Front face
-                addQuad({ x0, y0, 1.0f, 1.0f }, { x1, y0, 1.0f, 1.0f }, { x1, y1, 1.0f, 1.0f }, { x0, y1, 1.0f, 1.0f }, { 0.0f, 0.0f, 1.0f, 1.0f });
+                addQuad({ x0, y0, 1.0f }, { x1, y0, 1.0f }, { x1, y1, 1.0f }, { x0, y1, 1.0f }, { 0.0f, 0.0f, 1.0f });
                 // Back face
-                addQuad({ x1, y0, -1.0f, 1.0f }, { x0, y0, -1.0f, 1.0f }, { x0, y1, -1.0f, 1.0f }, { x1, y1, -1.0f, 1.0f }, { 0.0f, 0.0f, -1.0f, 1.0f });
+                addQuad({ x1, y0, -1.0f }, { x0, y0, -1.0f }, { x0, y1, -1.0f }, { x1, y1, -1.0f }, { 0.0f, 0.0f, -1.0f });
                 // Left face
-                addQuad({ -1.0f, y0, x0, 1.0f }, { -1.0f, y0, x1, 1.0f }, { -1.0f, y1, x1, 1.0f }, { -1.0f, y1, x0, 1.0f }, { -1.0f, 0.0f, 0.0f, 1.0f });
+                addQuad({ -1.0f, y0, x0 }, { -1.0f, y0, x1 }, { -1.0f, y1, x1 }, { -1.0f, y1, x0 }, { -1.0f, 0.0f, 0.0f });
                 // Right face
-                addQuad({ 1.0f, y0, x1, 1.0f }, { 1.0f, y0, x0, 1.0f }, { 1.0f, y1, x0, 1.0f }, { 1.0f, y1, x1, 1.0f }, { 1.0f, 0.0f, 0.0f, 1.0f });
+                addQuad({ 1.0f, y0, x1 }, { 1.0f, y0, x0 }, { 1.0f, y1, x0 }, { 1.0f, y1, x1 }, { 1.0f, 0.0f, 0.0f });
                 // Top face
-                addQuad({ x0, 1.0f, y0, 1.0f }, { x0, 1.0f, y1, 1.0f }, { x1, 1.0f, y1, 1.0f }, { x1, 1.0f, y0, 1.0f }, { 0.0f, 1.0f, 0.0f, 1.0f });
+                addQuad({ x0, 1.0f, y0 }, { x0, 1.0f, y1 }, { x1, 1.0f, y1 }, { x1, 1.0f, y0 }, { 0.0f, 1.0f, 0.0f });
                 // Bottom face
-                addQuad({ x0, -1.0f, y0, 1.0f }, { x1, -1.0f, y0, 1.0f }, { x1, -1.0f, y1, 1.0f }, { x0, -1.0f, y1, 1.0f }, { 0.0f, -1.0f, 0.0f, 1.0f });
+                addQuad({ x0, -1.0f, y0 }, { x1, -1.0f, y0 }, { x1, -1.0f, y1 }, { x0, -1.0f, y1 }, { 0.0f, -1.0f, 0.0f });
             }
         }
     }
 
-    void GenerateUVSphere(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, float radius = 1.f, uint32_t nLatitude = 32, uint32_t nLongitude = 32)
+    void GenerateUVSphere(std::vector<lne::Vertex>& vertices, std::vector<uint32_t>& indices, float radius = 1.f, uint32_t nLatitude = 32, uint32_t nLongitude = 32)
     {
         if (nLatitude < 1)
             nLatitude = 1;
@@ -349,9 +354,9 @@ private:
         // add north pole
         for (uint32_t i = 1; i <= nLongitude; ++i)
         {
-            vertices[count].Position = { 0.0f, radius, 0.0f, 1.0f };
+            vertices[count].Position = { 0.0f, radius, 0.0f };
             vertices[count].TexCoord = { (float)i / ((float)nLongitude + 1.0f), 0.0f };
-            vertices[count].Normal = { 0.0f, 1.0f, 0.0f, 1.0f };
+            vertices[count].Normal = { 0.0f, 1.0f, 0.0f };
             ++count;
         }
 
@@ -364,9 +369,9 @@ private:
                 float pLon = longitudeSlope * (float)j;
                 glm::vec3 point = { sinf(pLat) * cosf(pLon), cosf(pLat), sinf(pLat) * sinf(pLon) };
 
-                vertices[count].Position = { radius * point.x, radius * point.y, radius * point.z, 1.0f };
+                vertices[count].Position = { radius * point.x, radius * point.y, radius * point.z };
                 vertices[count].TexCoord = { (float)j / (float)nLongitude, (float)i / (float)(nLatitude + 1) };
-                vertices[count].Normal = glm::vec4(point, 0.0f);
+                vertices[count].Normal = glm::vec3(point);
 
                 ++count;
             }
@@ -375,9 +380,9 @@ private:
         //add south pole
         for (uint32_t i = 1; i <= nLongitude; ++i)
         {
-            vertices[count].Position = { 0.0f, -radius, 0.0f, 1.0f };
+            vertices[count].Position = { 0.0f, -radius, 0.0f };
             vertices[count].TexCoord = { (float)i / ((float)nLongitude + 1.0f), 1.0f };
-            vertices[count].Normal = { 0.0f, -1.0f, 0.0f, 1.0f };
+            vertices[count].Normal = { 0.0f, -1.0f, 0.0f };
             ++count;
         }
 
