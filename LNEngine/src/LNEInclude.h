@@ -50,6 +50,8 @@
 #include "Engine/Graphics/ImGui/ImGuiService.h"
 #include "Engine/Graphics/Material.h"
 #include "Engine/Graphics/Mesh.h"
+#include "Engine/Graphics/FrameGraph.h"
+
 #include "Engine/Scene/Components.h"
 
 #include <vulkan/vulkan.hpp>

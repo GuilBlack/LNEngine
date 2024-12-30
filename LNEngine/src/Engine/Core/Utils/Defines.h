@@ -6,8 +6,11 @@
 #define lnnew   new
 #endif
 
+namespace lne
+{
 using byte = uint8_t;
-
+using SizeT = std::size_t;
+}
 #define MOVABLE_ONLY(T) \
     T(const T&) = delete; \
     T& operator=(const T&) = delete;

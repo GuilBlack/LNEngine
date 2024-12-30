@@ -27,6 +27,12 @@ public:
 #define APP_WARN(...)       lne::Log::s_ClientLogger->warn(__VA_ARGS__)
 #define APP_ERROR(...)      lne::Log::s_ClientLogger->error(__VA_ARGS__)
 #define APP_CRITICAL(...)   lne::Log::s_ClientLogger->critical(__VA_ARGS__)
+
+#define LNE_TRACE(...)      
+#define LNE_INFO(...)       
+#define LNE_WARN(...)       
+#define LNE_ERROR(...)      
+#define LNE_CRITICAL(...)   
 #endif
 
 #else

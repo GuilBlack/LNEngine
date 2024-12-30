@@ -12,6 +12,32 @@ public:
         APP_INFO("AppLayer::OnAttach");
         lne::ApplicationBase::GetEventHub().RegisterListener<lne::WindowResizeEvent>(this, &AppLayer::OnWindowResize, 10);
 
+        auto[width, height] = lne::ApplicationBase::GetWindow().GetSwapchain()->GetViewport().GetExtent();
+        lne::FrameGraph fg{};
+
+        lne::FrameGraphResourceDescBuilder resourceBuilder = lne::FrameGraphResourceDescBuilder();
+        lne::FrameGraphResourceDesc colorAttachmentDesc = resourceBuilder.SetName("Color")
+            .SetType(lne::FrameGraphResourceType::eTexture)
+            .SetDefaultColorAttachmentInfos()
+            .SetImageDimension(width, height)
+            .Build();
+        resourceBuilder.SetDefaultDepthAttachmentInfos()
+            .SetName("Depth");
+        lne::FrameGraphResourceDesc depthAttachmentDesc = resourceBuilder.Build();
+
+        lne::FrameGraphNodeDescBuilder nodeBuilder = lne::FrameGraphNodeDescBuilder();
+        lne::FrameGraphNodeDesc mainPassDesc = nodeBuilder.SetName("MainPass")
+            .AddInputResource(depthAttachmentDesc)
+            .AddOutputResource(colorAttachmentDesc)
+            .Build();
+        nodeBuilder.Clear();
+        lne::FrameGraphNodeDesc depthPrePassDesc = nodeBuilder.SetName("DepthPrePass")
+            .AddOutputResource(depthAttachmentDesc)
+            .Build();
+
+        fg.CreateNode(mainPassDesc);
+        fg.CreateNode(depthPrePassDesc);
+
         auto& fb = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
         fb.SetClearColor({0.105f, 0.117f, 0.149f, 1.0f });
         lne::GraphicsPipelineDesc desc{};

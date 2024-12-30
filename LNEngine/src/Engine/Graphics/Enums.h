@@ -56,6 +56,25 @@ namespace UniformElementType
     }
 }
 
+namespace FrameGraphResourceType
+{
+enum Enum : byte
+{
+    eUnknown = 0,
+    eTexture,
+    eBuffer,
+    eAttachment,
+    eProxy
+};
+
+extern const char** s_Enum;
+
+inline std::string_view ToString(Enum type)
+{
+    return s_Enum[type];
+}
+}
+
 enum class EFillMode : byte
 {
     Solid = 0,
