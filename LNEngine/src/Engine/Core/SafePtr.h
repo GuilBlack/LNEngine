@@ -61,6 +61,20 @@ public:
         other.m_Ptr = nullptr;
     }
 
+    template<typename CastType>
+    SafePtr(const SafePtr<CastType>& other)
+        : m_Ptr((RefCountType*)other.m_Ptr)
+    {
+        IncreaseCount();
+    }
+
+    template<typename CastType>
+    SafePtr(SafePtr<CastType>&& other) noexcept
+        : m_Ptr((RefCountType*)other.m_Ptr)
+    {
+        other.m_Ptr = nullptr;
+    }
+
     SafePtr<RefCountType>& operator=(const SafePtr<RefCountType>& other)
     {
         if (this == &other)
@@ -107,6 +121,12 @@ public:
     }
 
     RefCountType* GetPtr() { return m_Ptr; }
+
+    template<typename CastType>
+    SafePtr<CastType> GetAs()
+    {
+        return SafePtr<CastType>(*this);
+    }
 
     RefCountType* operator->() const
     {
