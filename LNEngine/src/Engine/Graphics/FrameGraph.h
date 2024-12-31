@@ -208,15 +208,20 @@ public:
     void Execute();
 
     FrameGraphNodeHandle CreateNode(const FrameGraphNodeDesc& desc);
+
+    void OutputGraphToMermaid(const std::string& filename);
+
 private:
     // normally, it will be topologically sorted
-    std::vector<FrameGraphNode> m_Nodes{};
+    std::vector<FrameGraphNodeHandle> m_Nodes{};
     ObjectCache<std::string, FrameGraphResource> m_ResourceCache;
     ObjectCache<std::string, FrameGraphNode> m_NodeCache;
 
 private:
     FrameGraphResourceHandle CreateInputResource(const FrameGraphResourceDesc& desc);
     FrameGraphResourceHandle CreateOutputResource(const FrameGraphResourceDesc& desc, FrameGraphNodeHandle producer);
+
+    void CreateNodeDependents(FrameGraphNodeHandle node);
 };
 }
 

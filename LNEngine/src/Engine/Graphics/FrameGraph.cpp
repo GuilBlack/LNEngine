@@ -10,7 +10,78 @@ namespace lne
 ////////////////////////////////////////////////////////////////////
 void FrameGraph::Compile()
 {
+    // 1) compute dependencies for each nodes
+    for (FrameGraphNodeHandle nodeHandle : m_Nodes)
+    {
+        CreateNodeDependents(nodeHandle);
+    }
 
+    // 2) top sort nodes using DFS
+    std::stack<FrameGraphNodeHandle> nodeStack;
+
+    std::vector<byte> visited(m_Nodes.size(), 0);
+    std::vector<FrameGraphNodeHandle> sortedNodes;
+
+    for (int n = 0; n < m_Nodes.size(); ++n)
+    {
+        if (visited[n])
+            continue;
+
+        nodeStack.push(m_Nodes[n]);
+
+        while (!nodeStack.empty())
+        {
+            FrameGraphNodeHandle node = nodeStack.top();
+
+            if (visited[node] == 2)
+            {
+                nodeStack.pop();
+                continue;
+            }
+
+            if (visited[node] == 1)
+            {
+                sortedNodes.push_back(node);
+                visited[node] = 2;
+                continue;
+            }
+
+            visited[node] = 1;
+
+            FrameGraphNode& nodeData = *m_NodeCache.GetPool().Access(node);
+
+            for (FrameGraphNodeHandle dependent : nodeData.Dependents)
+            {
+                if (!visited[dependent])
+                    nodeStack.push(dependent);
+            }
+
+        }
+    }
+    m_Nodes.clear();
+    for (int i = sortedNodes.size() - 1; i >= 0; --i)
+    {
+        m_Nodes.push_back(sortedNodes[i]);
+    }
+
+    OutputGraphToMermaid("Profiling/framegraph.txt");
+
+    // 3) create resources
+    //std::list<SafePtr<Texture>> freeTextures;
+
+    //for (FrameGraphNodeHandle nodeHandle : m_Nodes)
+    //{
+    //    FrameGraphNode& node = *m_NodeCache.GetPool().Access(nodeHandle);
+    //    for (FrameGraphResourceHandle outputResourceHandle : node.OutputResources)
+    //    {
+    //        FrameGraphResource& outputResource = *m_ResourceCache.GetPool().Access(outputResourceHandle);
+
+    //        if (outputResource.Type == FrameGraphResourceType::eAttachment)
+    //        {
+
+    //        }
+    //    }
+    //}
 }
 
 void FrameGraph::Execute()
@@ -70,9 +141,32 @@ FrameGraphResourceHandle FrameGraph::CreateOutputResource(const FrameGraphResour
     return handle;
 }
 
+void FrameGraph::CreateNodeDependents(FrameGraphNodeHandle node)
+{
+    FrameGraphNode& nodeData = *m_NodeCache.GetPool().Access(node);
+
+    for (FrameGraphResourceHandle inputResourceHandle : nodeData.InputResources)
+    {
+        FrameGraphResource* inputResource = m_ResourceCache.GetPool().Access(inputResourceHandle);
+        FrameGraphResource* associatedOutputResource = m_ResourceCache.Access(inputResource->Name);
+
+        LNE_ASSERT(associatedOutputResource != nullptr, "Input resource has no associated output resource");
+
+        inputResource->Producer = associatedOutputResource->Producer;
+        inputResource->ProducerResourceHandle = associatedOutputResource->ProducerResourceHandle;
+        inputResource->Info = associatedOutputResource->Info;
+
+        ++associatedOutputResource->RefCount;
+
+        FrameGraphNode& producerNode = *m_NodeCache.GetPool().Access(associatedOutputResource->Producer);
+        producerNode.Dependents.push_back(node);
+    }
+}
+
 FrameGraphNodeHandle FrameGraph::CreateNode(const FrameGraphNodeDesc& desc)
 {
     FrameGraphNodeHandle handle = m_NodeCache.Insert(desc.Name);
+    m_Nodes.emplace_back(handle);
 
     if (handle == INVALID_OBJECT_POOL_HANDLE)
     {
@@ -98,6 +192,52 @@ FrameGraphNodeHandle FrameGraph::CreateNode(const FrameGraphNodeDesc& desc)
     }
 
     return handle;
+}
+
+void FrameGraph::OutputGraphToMermaid(const std::string& filename)
+{
+    std::ofstream file(filename);
+    if (!file.is_open())
+    {
+        throw std::runtime_error("Unable to open file for writing: " + filename);
+    }
+
+    file << "graph TD\n";
+
+    // Add nodes and resources with styles
+    for (FrameGraphNodeHandle nodeHandle : m_Nodes)
+    {
+        FrameGraphNode& nodeData = *m_NodeCache.GetPool().Access(nodeHandle);
+
+        // Add the node
+        file << "    " << nodeData.Name << "[\"" << nodeData.Name << "\"]:::node\n";
+
+        // Add input resources and arrows from resources to nodes
+        for (FrameGraphResourceHandle inputHandle : nodeData.InputResources)
+        {
+            FrameGraphResource* inputResource = m_ResourceCache.GetPool().Access(inputHandle);
+            std::string resourceType = std::string(FrameGraphResourceType::ToString(inputResource->Type));
+            file << "    " << inputResource->Name << "[\"" << inputResource->Name
+                << "<br/><i>(" << resourceType << ")</i>\"]:::resource\n";
+            file << "    " << inputResource->Name << " -->|" << resourceType << "| " << nodeData.Name << "\n";
+        }
+
+        // Add output resources and arrows from nodes to resources
+        for (FrameGraphResourceHandle outputHandle : nodeData.OutputResources)
+        {
+            FrameGraphResource* outputResource = m_ResourceCache.GetPool().Access(outputHandle);
+            std::string resourceType = std::string(FrameGraphResourceType::ToString(outputResource->Type));
+            file << "    " << outputResource->Name << "[\"" << outputResource->Name
+                << "<br/><i>(" << resourceType << ")</i>\"]:::resource\n";
+            file << "    " << nodeData.Name << " -->|" << resourceType << "| " << outputResource->Name << "\n";
+        }
+    }
+
+    // Define styles
+    file << "classDef node fill:#DB5C27,color:#333,stroke:#333,stroke-width:4px,rx:10px,ry:10px;\n";
+    file << "classDef resource fill:#27DBC3,color:#333,stroke:#f66,stroke-width:2px,stroke-dasharray: 10 10;\n";
+    file << "linkStyle default stroke:#000,stroke-width:2px;\n"; // Default link style
+    file.close();
 }
 
 ////////////////////////////////////////////////////////////////////

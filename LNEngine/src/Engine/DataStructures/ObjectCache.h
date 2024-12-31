@@ -43,7 +43,7 @@ public:
         if (it == m_Cache.end())
             return nullptr;
 
-        return m_Pool.Get(it->second);
+        return m_Pool.Access(it->second);
     }
 
     bool Contains(const KeyType& key) const

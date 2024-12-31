@@ -16,27 +16,54 @@ public:
         lne::FrameGraph fg{};
 
         lne::FrameGraphResourceDescBuilder resourceBuilder = lne::FrameGraphResourceDescBuilder();
-        lne::FrameGraphResourceDesc colorAttachmentDesc = resourceBuilder.SetName("Color")
-            .SetType(lne::FrameGraphResourceType::eTexture)
+        lne::FrameGraphNodeDescBuilder nodeBuilder = lne::FrameGraphNodeDescBuilder();
+
+        lne::FrameGraphResourceDesc colorAttachmentDesc = resourceBuilder.SetName("color")
+            .SetType(lne::FrameGraphResourceType::eAttachment)
             .SetDefaultColorAttachmentInfos()
             .SetImageDimension(width, height)
             .Build();
-        resourceBuilder.SetDefaultDepthAttachmentInfos()
-            .SetName("Depth");
-        lne::FrameGraphResourceDesc depthAttachmentDesc = resourceBuilder.Build();
+        lne::FrameGraphResourceDesc metRoughOccAttachmentDesc = resourceBuilder.SetName("metallic_roughness_occlusion")
+            .Build();
+        lne::FrameGraphResourceDesc normalAttachmentDesc = resourceBuilder.SetName("normal")
+            .SetImageFormat(vk::Format::eR16G16B16A16Sfloat)
+            .Build();
+        lne::FrameGraphResourceDesc positionAttachmentDesc = resourceBuilder.SetName("position")
+            .Build();
+        lne::FrameGraphResourceDesc depthAttachmentDesc = resourceBuilder.SetDefaultDepthAttachmentInfos()
+            .SetName("Depth").Build();
 
-        lne::FrameGraphNodeDescBuilder nodeBuilder = lne::FrameGraphNodeDescBuilder();
-        lne::FrameGraphNodeDesc mainPassDesc = nodeBuilder.SetName("MainPass")
+        lne::FrameGraphNodeDesc gBufferPassDesc = nodeBuilder.SetName("GBuffer")
             .AddInputResource(depthAttachmentDesc)
+            .AddOutputResource(metRoughOccAttachmentDesc)
+            .AddOutputResource(normalAttachmentDesc)
+            .AddOutputResource(positionAttachmentDesc)
             .AddOutputResource(colorAttachmentDesc)
+            .Build();
+        nodeBuilder.Clear();
+        metRoughOccAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
+        normalAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
+        positionAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
+        colorAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
+        lne::FrameGraphNodeDesc lightingPassDesc = nodeBuilder.SetName("Lighting")
+            .AddInputResource(metRoughOccAttachmentDesc)
+            .AddInputResource(normalAttachmentDesc)
+            .AddInputResource(positionAttachmentDesc)
+            .AddInputResource(colorAttachmentDesc)
+            .AddOutputResource(resourceBuilder.SetName("Final")
+                .SetDefaultColorAttachmentInfos()
+                .Build())
             .Build();
         nodeBuilder.Clear();
         lne::FrameGraphNodeDesc depthPrePassDesc = nodeBuilder.SetName("DepthPrePass")
             .AddOutputResource(depthAttachmentDesc)
             .Build();
 
-        fg.CreateNode(mainPassDesc);
+        fg.CreateNode(gBufferPassDesc);
+        fg.CreateNode(lightingPassDesc);
         fg.CreateNode(depthPrePassDesc);
+
+        fg.Compile();
 
         auto& fb = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
         fb.SetClearColor({0.105f, 0.117f, 0.149f, 1.0f });

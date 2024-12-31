@@ -29,10 +29,13 @@ const char** s_Enum = enumValues;
 }
 namespace FrameGraphResourceType
 {
-const char* enumValues[3] = {
+const char* enumValues[5] = {
+    "Unknown",
     "Texture",
     "Buffer",
-    "Sampler"
+    "Attachment",
+    "Proxy"
 };
+const char** s_Enum = enumValues;
 }
 }
