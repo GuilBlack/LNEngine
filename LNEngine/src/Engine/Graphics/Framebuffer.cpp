@@ -17,6 +17,16 @@ Framebuffer::Framebuffer(SafePtr<class GfxContext> ctx, std::vector<AttachmentDe
         m_HasDepth = true;
 }
 
+void Framebuffer::Init(SafePtr<class GfxContext> ctx, std::vector<AttachmentDesc> attachments, AttachmentDesc depth)
+{
+    m_Context = ctx;
+    m_ColorAttachments = attachments;
+    m_DepthAttachment = depth;
+    LNE_ASSERT(m_ColorAttachments.size() > 0, "Framebuffer must have at least one color attachment");
+    if (m_DepthAttachment.Texture != nullptr)
+        m_HasDepth = true;
+}
+
 void Framebuffer::SetClearColor(const vk::ClearColorValue& color)
 {
     for (auto& attachment : m_ColorAttachments)

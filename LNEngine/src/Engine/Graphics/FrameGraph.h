@@ -197,10 +197,7 @@ public:
     static constexpr uint32_t MAX_RENDERPASS_NODE_COUNT = 1024;
 
 public:
-    FrameGraph()
-        : m_ResourceCache{ MAX_RESOURCE_COUNT }
-        , m_NodeCache{ MAX_RENDERPASS_NODE_COUNT }
-    {}
+    FrameGraph();
 
     ~FrameGraph() = default;
 
@@ -212,6 +209,7 @@ public:
     void OutputGraphToMermaid(const std::string& filename);
 
 private:
+    SafePtr<class GfxContext> m_Context{};
     // normally, it will be topologically sorted
     std::vector<FrameGraphNodeHandle> m_Nodes{};
     ObjectCache<std::string, FrameGraphResource> m_ResourceCache;

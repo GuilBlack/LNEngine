@@ -28,6 +28,12 @@ public:
     {
         return m_Count.load();
     }
+protected:
+    virtual std::string_view GetDebugName() const 
+    {
+        static constexpr std::string_view unknown = "Unknown";
+        return unknown; 
+    }
 private:
     mutable std::atomic<uint32_t> m_Count = 0;
 };
@@ -63,15 +69,15 @@ public:
 
     template<typename CastType>
     SafePtr(const SafePtr<CastType>& other)
-        : m_Ptr((RefCountType*)other.m_Ptr)
     {
+        m_Ptr = static_cast<RefCountType*>(other.m_Ptr);
         IncreaseCount();
     }
 
     template<typename CastType>
     SafePtr(SafePtr<CastType>&& other) noexcept
-        : m_Ptr((RefCountType*)other.m_Ptr)
     {
+        m_Ptr = static_cast<RefCountType*>(other.m_Ptr);
         other.m_Ptr = nullptr;
     }
 
@@ -168,6 +174,8 @@ public:
     }
 
 private:
+    template<class T2>
+    friend class SafePtr;
     RefCountType* m_Ptr{};
 };
 }

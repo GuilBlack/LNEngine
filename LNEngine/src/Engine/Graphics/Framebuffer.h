@@ -24,6 +24,10 @@ public:
         AttachmentDesc depth = {});
     ~Framebuffer() = default;
 
+    void Init(SafePtr<class GfxContext> ctx,
+        std::vector<AttachmentDesc> attachments,
+        AttachmentDesc depth = {});
+
     void SetClearColor(const vk::ClearColorValue& color);
     void ChangeColorAttachmentsOps(vk::AttachmentLoadOp loadOp, vk::AttachmentStoreOp storeOp);
 

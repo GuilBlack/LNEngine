@@ -2,12 +2,23 @@
 #include "Texture.h"
 #include "GfxContext.h"
 #include "FrameGraph.h"
+#include "Core/ApplicationBase.h"
+#include "Renderer.h"
+#include "DynamicDescriptorAllocator.h"
 
 namespace lne
 {
 ////////////////////////////////////////////////////////////////////
 ////// FrameGraph //////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////
+
+FrameGraph::FrameGraph()
+    : m_ResourceCache{ MAX_RESOURCE_COUNT }
+    , m_NodeCache{ MAX_RENDERPASS_NODE_COUNT }
+{
+    m_Context = ApplicationBase::GetWindow().GetGfxContext();
+}
+
 void FrameGraph::Compile()
 {
     // 1) compute dependencies for each nodes
@@ -59,7 +70,7 @@ void FrameGraph::Compile()
         }
     }
     m_Nodes.clear();
-    for (int i = sortedNodes.size() - 1; i >= 0; --i)
+    for (int i = (int)(sortedNodes.size() - 1); i >= 0; --i)
     {
         m_Nodes.push_back(sortedNodes[i]);
     }
@@ -67,21 +78,76 @@ void FrameGraph::Compile()
     OutputGraphToMermaid("Profiling/framegraph.txt");
 
     // 3) create resources
-    //std::list<SafePtr<Texture>> freeTextures;
+    std::list<SafePtr<Texture>> freeTextures;
 
-    //for (FrameGraphNodeHandle nodeHandle : m_Nodes)
-    //{
-    //    FrameGraphNode& node = *m_NodeCache.GetPool().Access(nodeHandle);
-    //    for (FrameGraphResourceHandle outputResourceHandle : node.OutputResources)
-    //    {
-    //        FrameGraphResource& outputResource = *m_ResourceCache.GetPool().Access(outputResourceHandle);
+    for (FrameGraphNodeHandle nodeHandle : m_Nodes)
+    {
+        FrameGraphNode& node = *m_NodeCache.GetPool().Access(nodeHandle);
+        for (FrameGraphResourceHandle outputResourceHandle : node.OutputResources)
+        {
+            FrameGraphResource& outputResource = *m_ResourceCache.GetPool().Access(outputResourceHandle);
 
-    //        if (outputResource.Type == FrameGraphResourceType::eAttachment)
-    //        {
+            if (outputResource.Info.External)
+                continue;
 
-    //        }
-    //    }
-    //}
+            switch (outputResource.Type)
+            {
+            case FrameGraphResourceType::eAttachment:
+            {
+                // should implement resource aliasing later
+                bool isDepth = (outputResource.Info.Image.Format == vk::Format::eD16Unorm
+                    || outputResource.Info.Image.Format == vk::Format::eD32Sfloat
+                    || outputResource.Info.Image.Format == vk::Format::eD16UnormS8Uint
+                    || outputResource.Info.Image.Format == vk::Format::eD24UnormS8Uint
+                    || outputResource.Info.Image.Format == vk::Format::eD32SfloatS8Uint);
+
+                if (isDepth)
+                {
+                    outputResource.Resource = Texture::CreateDepthTexture(m_Context,
+                        outputResource.Info.Image.Extent.width, outputResource.Info.Image.Extent.height, outputResource.Name);
+                    break;
+                }
+                outputResource.Resource = Texture::CreateColorAttachmentTexture(m_Context,
+                    outputResource.Info.Image.Extent.width, outputResource.Info.Image.Extent.height,
+                    outputResource.Info.Image.Format, outputResource.Name);
+                break;
+            }
+            case FrameGraphResourceType::eBuffer:
+            {
+                LNE_ASSERT(false, "Buffer resource not implemented yet");
+                break;
+            }
+            }
+        }
+
+        for (FrameGraphResourceHandle inputResourceHandle : node.InputResources)
+        {
+            FrameGraphResource& inputResource = *m_ResourceCache.GetPool().Access(inputResourceHandle);
+            FrameGraphResource* associatedOutputResource = m_ResourceCache.Access(inputResource.Name);
+
+            LNE_ASSERT(associatedOutputResource != nullptr, "Input resource has no associated output resource");
+
+            --associatedOutputResource->RefCount;
+
+            if (associatedOutputResource->RefCount != 0 || associatedOutputResource->Info.External)
+                continue;
+
+            switch (inputResource.Type)
+            {
+            case FrameGraphResourceType::eAttachment:
+            case FrameGraphResourceType::eTexture:
+            {
+                freeTextures.push_back(associatedOutputResource->Resource.GetAs<Texture>());
+                break;
+            }
+            case FrameGraphResourceType::eBuffer:
+            {
+                LNE_ASSERT(false, "Buffer resource not implemented yet");
+                break;
+            }
+            }
+        }
+    }
 }
 
 void FrameGraph::Execute()
@@ -254,7 +320,7 @@ FrameGraphResourceDescBuilder& FrameGraphResourceDescBuilder::SetImageDimension(
 
 FrameGraphResourceDescBuilder& FrameGraphResourceDescBuilder::SetDefaultColorAttachmentInfos()
 {
-    m_ImageInfo.Format = vk::Format::eR8G8B8A8Unorm;
+    m_ImageInfo.Format = vk::Format::eB8G8R8A8Unorm;
     m_ImageInfo.Flags = vk::ImageUsageFlagBits::eColorAttachment;
     m_ImageInfo.Aspect = vk::ImageAspectFlagBits::eColor;
     m_ImageInfo.LoadOp = vk::AttachmentLoadOp::eClear;
@@ -286,7 +352,7 @@ FrameGraphResourceDesc FrameGraphResourceDescBuilder::Build()
         break;
     case FrameGraphResourceType::eAttachment:
     case FrameGraphResourceType::eTexture:
-        if (m_Desc.Info.Image.Extent.width == 0 || m_Desc.Info.Image.Extent.height == 0)
+        if (m_Extent == 0 || m_Extent == 0)
             LNE_ERROR("Image width or height is 0");
         m_Desc.Info.Image = m_ImageInfo;
         m_Desc.Info.Image.Extent = m_Extent;

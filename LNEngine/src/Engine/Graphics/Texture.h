@@ -9,6 +9,7 @@ class Texture : public RefCountBase
 {
 public:
     static SafePtr<Texture> CreateDepthTexture(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, const std::string& name = "");
+    static SafePtr<Texture> CreateColorAttachmentTexture(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, vk::Format format, const std::string& name = "");
     static SafePtr<Texture> CreateColorTexture2D(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, bool generateMips = true, const std::string& name = "");
     static SafePtr<Texture> CreateCubemapTexture(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, bool generateMips = true, const std::string& name = "");
     static constexpr uint32_t GetMaxMipLevels(uint32_t width, uint32_t height)
@@ -73,6 +74,9 @@ public:
 
     void UploadData(const void* data);
     void UploadData(vk::CommandBuffer cmdBuffer, BufferAllocation stagingBuffer, const void* data);
+
+protected:
+    virtual std::string_view GetDebugName() const { return m_Name; }
 
 private:
     SafePtr<class GfxContext> m_Context;

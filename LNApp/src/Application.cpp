@@ -509,7 +509,7 @@ lne::ApplicationBase* lne::CreateApplication()
 {
     return lnnew Application({
         "LNApp",
-        1280, 720,
+        1920, 1080,
         true
     });
 }

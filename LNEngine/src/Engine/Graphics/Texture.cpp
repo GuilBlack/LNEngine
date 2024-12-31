@@ -20,14 +20,37 @@ SafePtr<Texture> Texture::CreateDepthTexture(SafePtr<class GfxContext> ctx, uint
         1,
         vk::SampleCountFlagBits::e1,
         vk::ImageTiling::eOptimal,
-        vk::ImageUsageFlagBits::eDepthStencilAttachment,
+        vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled,
         vk::SharingMode::eExclusive,
         0,
         nullptr,
         vk::ImageLayout::eUndefined
     );
 
-    return SafePtr<Texture>(new Texture(ctx, imageInfo, name));
+    return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, name));
+}
+
+SafePtr<Texture> Texture::CreateColorAttachmentTexture(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, vk::Format format, const std::string& name)
+{
+    vk::ImageUsageFlags flags = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled
+        | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc;
+
+    vk::ImageCreateInfo imageInfo(
+        vk::ImageCreateFlags(),
+        vk::ImageType::e2D,
+        format,
+        vk::Extent3D(width, height, 1),
+        1,
+        1,
+        vk::SampleCountFlagBits::e1,
+        vk::ImageTiling::eOptimal,
+        flags,
+        vk::SharingMode::eExclusive,
+        0,
+        nullptr,
+        vk::ImageLayout::eUndefined
+    );
+    return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, name));
 }
 
 SafePtr<Texture> Texture::CreateColorTexture2D(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, bool generateMips, const std::string& name)
