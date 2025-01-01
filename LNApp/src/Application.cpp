@@ -2,6 +2,48 @@
 
 class AppLayer final : public lne::Layer
 {
+    // TODO: we really need a scene structure...
+    class DepthPrePass : public lne::IRenderPass
+    {
+    public:
+        DepthPrePass()
+        {
+            m_Name = "DepthPrePass";
+        };
+
+        virtual void Render(vk::CommandBuffer, lne::FrameGraphNode* node) override
+        {
+            // Render depth
+        }
+    };
+
+    class GBufferPass : public lne::IRenderPass
+    {
+    public:
+        GBufferPass()
+        {
+            m_Name = "GBufferPass";
+        };
+
+        virtual void Render(vk::CommandBuffer, lne::FrameGraphNode* node) override
+        {
+            // Render GBuffer
+        }
+    };
+
+    class LightingPass : public lne::IRenderPass
+    {
+    public:
+        LightingPass()
+        {
+            m_Name = "LightingPass";
+        };
+
+        virtual void Render(vk::CommandBuffer, lne::FrameGraphNode* node) override
+        {
+            // Render lighting
+        }
+    };
 
 public:
     AppLayer()
@@ -12,8 +54,122 @@ public:
         APP_INFO("AppLayer::OnAttach");
         lne::ApplicationBase::GetEventHub().RegisterListener<lne::WindowResizeEvent>(this, &AppLayer::OnWindowResize, 10);
 
-        auto[width, height] = lne::ApplicationBase::GetWindow().GetSwapchain()->GetViewport().GetExtent();
-        lne::FrameGraph fg{};
+        lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
+
+        InitFrameGraph();
+
+        auto& fb = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
+        fb.SetClearColor({0.105f, 0.117f, 0.149f, 1.0f });
+        lne::GraphicsPipelineDesc desc{};
+        desc.PathToShaders = lne::ApplicationBase::GetAssetsPath() + "Shaders\\MeshLighting.glsl";
+        desc.Name = "Basic";
+        desc.EnableDepthTest(true);
+        desc.Framebuffer = fb;
+        desc.Blend.EnableBlend(false);
+
+        m_BasePipeline = renderer.CreateGraphicsPipeline(desc);
+        m_BasicMaterial = lnnew lne::Material(m_BasePipeline);
+        m_BasicMaterial2 = lnnew lne::Material(m_BasePipeline);
+        
+        desc.PathToShaders = lne::ApplicationBase::GetAssetsPath() + "Shaders\\Skybox.glsl";
+        desc.Name = "Skybox";
+        desc.CullMode = lne::ECullMode::None;
+        desc.EnableDepthTest(true);
+
+        m_SkyboxPipeline = renderer.CreateGraphicsPipeline(desc);
+        m_SkyboxMaterial = lnnew lne::Material(m_SkyboxPipeline);
+
+        m_Texture = renderer.CreateTexture(lne::ApplicationBase::GetAssetsPath() + "Textures\\UVChecker.png");
+        std::string cubemapPath = lne::ApplicationBase::GetAssetsPath() + "Textures\\Skybox\\";
+        m_CubemapTexture = renderer.CreateCubemapTexture({
+            cubemapPath + "px.png",
+            cubemapPath + "nx.png",
+            cubemapPath + "py.png",
+            cubemapPath + "ny.png",
+            cubemapPath + "pz.png",
+            cubemapPath + "nz.png"
+        });
+
+        m_BasicMaterial->SetProperty("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+        m_BasicMaterial->SetTexture("tAlbedo", m_Texture);
+        m_BasicMaterial2->SetProperty("uColor", glm::vec4(0.25f, 0.25f, 0.25f, 0.25f));
+        m_SkyboxMaterial->SetTexture("tAlbedo", m_CubemapTexture);
+
+    #pragma region CubeGen
+        std::vector<lne::Vertex> tesselatedVertices{};
+        std::vector<uint32_t> tesselatedIndices{};
+        GenerateCube(tesselatedVertices, tesselatedIndices, 1);
+
+        lne::SafePtr<lne::StorageBuffer> tesselatedVertexBuffer = renderer
+            .CreateGeometryBuffer(tesselatedVertices.data(), tesselatedVertices.size() * sizeof(lne::Vertex));
+        lne::SafePtr<lne::StorageBuffer> tesselatedIndexBuffer = renderer
+            .CreateGeometryBuffer(tesselatedIndices.data(), tesselatedIndices.size() * sizeof(uint32_t));
+
+        m_TesselatedCubeGeo.VertexGPUBuffer = tesselatedVertexBuffer;
+        m_TesselatedCubeGeo.VertexCount = (uint32_t)tesselatedVertices.size();
+        m_TesselatedCubeGeo.IndexGPUBuffer = tesselatedIndexBuffer;
+        m_TesselatedCubeGeo.IndexCount = (uint32_t)tesselatedIndices.size();
+    #pragma endregion
+
+    #pragma region SphereGen
+        std::vector<lne::Vertex> sphereVertices{};
+        std::vector<uint32_t> sphereIndices{};
+        GenerateUVSphere(sphereVertices, sphereIndices);
+
+        lne::SafePtr<lne::StorageBuffer> sphereVertexBuffer = renderer
+            .CreateGeometryBuffer(sphereVertices.data(), sphereVertices.size() * sizeof(lne::Vertex));
+        lne::SafePtr<lne::StorageBuffer> sphereIndexBuffer = renderer
+            .CreateGeometryBuffer(sphereIndices.data(), sphereIndices.size() * sizeof(uint32_t));
+
+        m_SphereGeo.VertexGPUBuffer = sphereVertexBuffer;
+        m_SphereGeo.VertexCount = (uint32_t)sphereVertices.size();
+        m_SphereGeo.IndexGPUBuffer = sphereIndexBuffer;
+        m_SphereGeo.IndexCount = (uint32_t)sphereIndices.size();
+    #pragma endregion
+
+    #pragma region LoadModels
+        m_Duck = lnnew lne::StaticMesh(lne::ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Duck\\gltf\\Duck.gltf", m_BasePipeline);
+    #pragma endregion
+
+    #pragma region TransformInit
+        m_CubeTransform.Position =  { -0.5f, 0.0f, 0.0f };
+        m_CubeTransform.Rotation =  { 0.0f, 0.0f, 0.0f };
+        m_CubeTransform.Scale =     { 0.25f, 0.25f, 0.25f };
+
+        m_CubeTransform.UniformBuffers = renderer.RegisterObject();
+
+        m_SphereTransform.Position = { 0.5f, 0.0f, 0.0f };
+        m_SphereTransform.Rotation = { 0.0f, 0.0f, 0.0f };
+        m_SphereTransform.Scale =    { 0.25f, 0.25f, 0.25f };
+
+        m_SphereTransform.UniformBuffers = renderer.RegisterObject();
+
+        m_CameraTransform.Position = { 0.0f, 0.0f, 2.0f };
+        m_CameraTransform.LookAt({ 0.0f, 0.0f, 0.0f });
+
+        m_SkyboxTransform.Position = { 0.0f, 0.0f, 0.0f };
+        m_SkyboxTransform.Scale = { 1.f, 1.f, 1.f };
+
+        m_SkyboxTransform.UniformBuffers = renderer.RegisterObject();
+
+        m_DuckTransform.Position = { 0.0f, 0.0f, 0.0f };
+        m_DuckTransform.Rotation = { 0.0f, 0.0f, 0.0f };
+        m_DuckTransform.Scale = { .2f, .2f, .2f };
+
+        m_DuckTransform.UniformBuffers = renderer.RegisterObject();
+    #pragma endregion
+
+        auto& windowSettings = lne::ApplicationBase::GetWindow().GetSettings();
+        m_Camera.SetPerspective(45.0f, windowSettings.Width / (float)windowSettings.Height, 0.001f, 10000.0f);
+
+        m_CameraTarget.Position = m_CameraTransform.Position;
+        m_CameraTarget.Rotation = m_CameraTransform.Rotation;
+        m_Camera.UpdateView(m_CameraTransform);
+    }
+
+    void InitFrameGraph()
+    {
+        auto [width, height] = lne::ApplicationBase::GetWindow().GetSwapchain()->GetViewport().GetExtent();
 
         lne::FrameGraphResourceDescBuilder resourceBuilder = lne::FrameGraphResourceDescBuilder();
         lne::FrameGraphNodeDescBuilder nodeBuilder = lne::FrameGraphNodeDescBuilder();
@@ -33,7 +189,7 @@ public:
         lne::FrameGraphResourceDesc depthAttachmentDesc = resourceBuilder.SetDefaultDepthAttachmentInfos()
             .SetName("Depth").Build();
 
-        lne::FrameGraphNodeDesc gBufferPassDesc = nodeBuilder.SetName("GBuffer")
+        lne::FrameGraphNodeDesc gBufferPassDesc = nodeBuilder.SetName("GBufferPass")
             .AddInputResource(depthAttachmentDesc)
             .AddOutputResource(metRoughOccAttachmentDesc)
             .AddOutputResource(normalAttachmentDesc)
@@ -45,7 +201,7 @@ public:
         normalAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
         positionAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
         colorAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
-        lne::FrameGraphNodeDesc lightingPassDesc = nodeBuilder.SetName("Lighting")
+        lne::FrameGraphNodeDesc lightingPassDesc = nodeBuilder.SetName("LightingPass")
             .AddInputResource(metRoughOccAttachmentDesc)
             .AddInputResource(normalAttachmentDesc)
             .AddInputResource(positionAttachmentDesc)
@@ -59,119 +215,19 @@ public:
             .AddOutputResource(depthAttachmentDesc)
             .Build();
 
-        fg.CreateNode(gBufferPassDesc);
-        fg.CreateNode(lightingPassDesc);
-        fg.CreateNode(depthPrePassDesc);
+        m_FrameGraph.CreateNode(gBufferPassDesc);
+        m_FrameGraph.CreateNode(lightingPassDesc);
+        m_FrameGraph.CreateNode(depthPrePassDesc);
 
-        fg.Compile();
+        m_FrameGraph.Compile();
 
-        auto& fb = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
-        fb.SetClearColor({0.105f, 0.117f, 0.149f, 1.0f });
-        lne::GraphicsPipelineDesc desc{};
-        desc.PathToShaders = lne::ApplicationBase::GetAssetsPath() + "Shaders\\MeshLighting.glsl";
-        desc.Name = "Basic";
-        desc.EnableDepthTest(true);
-        desc.Framebuffer = fb;
-        desc.Blend.EnableBlend(false);
+        m_DepthPrePass = lnnew DepthPrePass();
+        m_GBufferPass = lnnew GBufferPass();
+        m_LightingPass = lnnew LightingPass();
 
-        m_BasePipeline = lne::ApplicationBase::GetRenderer().CreateGraphicsPipeline(desc);
-        m_BasicMaterial = lnnew lne::Material(m_BasePipeline);
-        m_BasicMaterial2 = lnnew lne::Material(m_BasePipeline);
-        
-        desc.PathToShaders = lne::ApplicationBase::GetAssetsPath() + "Shaders\\Skybox.glsl";
-        desc.Name = "Skybox";
-        desc.CullMode = lne::ECullMode::None;
-        desc.EnableDepthTest(true);
-
-        m_SkyboxPipeline = lne::ApplicationBase::GetRenderer().CreateGraphicsPipeline(desc);
-        m_SkyboxMaterial = lnnew lne::Material(m_SkyboxPipeline);
-
-        m_Texture = lne::ApplicationBase::GetRenderer().CreateTexture(lne::ApplicationBase::GetAssetsPath() + "Textures\\UVChecker.png");
-        std::string cubemapPath = lne::ApplicationBase::GetAssetsPath() + "Textures\\Skybox\\";
-        m_CubemapTexture = lne::ApplicationBase::GetRenderer().CreateCubemapTexture({
-            cubemapPath + "px.png",
-            cubemapPath + "nx.png",
-            cubemapPath + "py.png",
-            cubemapPath + "ny.png",
-            cubemapPath + "pz.png",
-            cubemapPath + "nz.png"
-        });
-
-        m_BasicMaterial->SetProperty("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
-        m_BasicMaterial->SetTexture("tAlbedo", m_Texture);
-        m_BasicMaterial2->SetProperty("uColor", glm::vec4(0.25f, 0.25f, 0.25f, 0.25f));
-        m_SkyboxMaterial->SetTexture("tAlbedo", m_CubemapTexture);
-
-    #pragma region CubeGen
-        std::vector<lne::Vertex> tesselatedVertices{};
-        std::vector<uint32_t> tesselatedIndices{};
-        GenerateCube(tesselatedVertices, tesselatedIndices, 1);
-
-        lne::SafePtr<lne::StorageBuffer> tesselatedVertexBuffer = lne::ApplicationBase::GetRenderer()
-            .CreateGeometryBuffer(tesselatedVertices.data(), tesselatedVertices.size() * sizeof(lne::Vertex));
-        lne::SafePtr<lne::StorageBuffer> tesselatedIndexBuffer = lne::ApplicationBase::GetRenderer()
-            .CreateGeometryBuffer(tesselatedIndices.data(), tesselatedIndices.size() * sizeof(uint32_t));
-
-        m_TesselatedCubeGeo.VertexGPUBuffer = tesselatedVertexBuffer;
-        m_TesselatedCubeGeo.VertexCount = (uint32_t)tesselatedVertices.size();
-        m_TesselatedCubeGeo.IndexGPUBuffer = tesselatedIndexBuffer;
-        m_TesselatedCubeGeo.IndexCount = (uint32_t)tesselatedIndices.size();
-    #pragma endregion
-
-    #pragma region SphereGen
-        std::vector<lne::Vertex> sphereVertices{};
-        std::vector<uint32_t> sphereIndices{};
-        GenerateUVSphere(sphereVertices, sphereIndices);
-
-        lne::SafePtr<lne::StorageBuffer> sphereVertexBuffer = lne::ApplicationBase::GetRenderer()
-            .CreateGeometryBuffer(sphereVertices.data(), sphereVertices.size() * sizeof(lne::Vertex));
-        lne::SafePtr<lne::StorageBuffer> sphereIndexBuffer = lne::ApplicationBase::GetRenderer()
-            .CreateGeometryBuffer(sphereIndices.data(), sphereIndices.size() * sizeof(uint32_t));
-
-        m_SphereGeo.VertexGPUBuffer = sphereVertexBuffer;
-        m_SphereGeo.VertexCount = (uint32_t)sphereVertices.size();
-        m_SphereGeo.IndexGPUBuffer = sphereIndexBuffer;
-        m_SphereGeo.IndexCount = (uint32_t)sphereIndices.size();
-    #pragma endregion
-
-    #pragma region LoadModels
-        m_Duck = lnnew lne::StaticMesh(lne::ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Duck\\gltf\\Duck.gltf", m_BasePipeline);
-    #pragma endregion
-
-    #pragma region TransformInit
-        m_CubeTransform.Position =  { -0.5f, 0.0f, 0.0f };
-        m_CubeTransform.Rotation =  { 0.0f, 0.0f, 0.0f };
-        m_CubeTransform.Scale =     { 0.25f, 0.25f, 0.25f };
-
-        m_CubeTransform.UniformBuffers = lne::ApplicationBase::GetRenderer().RegisterObject();
-
-        m_SphereTransform.Position = { 0.5f, 0.0f, 0.0f };
-        m_SphereTransform.Rotation = { 0.0f, 0.0f, 0.0f };
-        m_SphereTransform.Scale =    { 0.25f, 0.25f, 0.25f };
-
-        m_SphereTransform.UniformBuffers = lne::ApplicationBase::GetRenderer().RegisterObject();
-
-        m_CameraTransform.Position = { 0.0f, 0.0f, 2.0f };
-        m_CameraTransform.LookAt({ 0.0f, 0.0f, 0.0f });
-
-        m_SkyboxTransform.Position = { 0.0f, 0.0f, 0.0f };
-        m_SkyboxTransform.Scale = { 1.f, 1.f, 1.f };
-
-        m_SkyboxTransform.UniformBuffers = lne::ApplicationBase::GetRenderer().RegisterObject();
-
-        m_DuckTransform.Position = { 0.0f, 0.0f, 0.0f };
-        m_DuckTransform.Rotation = { 0.0f, 0.0f, 0.0f };
-        m_DuckTransform.Scale = { .2f, .2f, .2f };
-
-        m_DuckTransform.UniformBuffers = lne::ApplicationBase::GetRenderer().RegisterObject();
-    #pragma endregion
-
-        auto& windowSettings = lne::ApplicationBase::GetWindow().GetSettings();
-        m_Camera.SetPerspective(45.0f, windowSettings.Width / (float)windowSettings.Height, 0.001f, 10000.0f);
-
-        m_CameraTarget.Position = m_CameraTransform.Position;
-        m_CameraTarget.Rotation = m_CameraTransform.Rotation;
-        m_Camera.UpdateView(m_CameraTransform);
+        m_FrameGraph.BindRenderPass(m_DepthPrePass);
+        m_FrameGraph.BindRenderPass(m_GBufferPass);
+        m_FrameGraph.BindRenderPass(m_LightingPass);
     }
 
     void OnDetach() override
@@ -192,18 +248,23 @@ public:
 
         m_CubeTransform.Position.y = sinTime * 0.5f;
 
-        lne::ApplicationBase::GetRenderer().BeginScene(m_CameraTransform, m_Camera, m_LightDirection);
+        lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
+
+        renderer.BeginScene(m_CameraTransform, m_Camera, m_LightDirection);
 
         auto& fb = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
 
-        lne::ApplicationBase::GetRenderer().BeginRenderPass(fb);
+        renderer.BeginRenderPass(fb);
 
-        lne::ApplicationBase::GetRenderer().Draw(m_BasicMaterial, m_TesselatedCubeGeo, m_CubeTransform);
-        lne::ApplicationBase::GetRenderer().Draw(m_BasicMaterial2, m_SphereGeo, m_SphereTransform);
-        lne::ApplicationBase::GetRenderer().Draw(m_Duck, m_DuckTransform);
-        lne::ApplicationBase::GetRenderer().Draw(m_SkyboxMaterial, m_TesselatedCubeGeo, m_SkyboxTransform);
+        renderer.Draw(m_BasicMaterial, m_TesselatedCubeGeo, m_CubeTransform);
+        renderer.Draw(m_BasicMaterial2, m_SphereGeo, m_SphereTransform);
+        renderer.Draw(m_Duck, m_DuckTransform);
+        renderer.Draw(m_SkyboxMaterial, m_TesselatedCubeGeo, m_SkyboxTransform);
 
-        lne::ApplicationBase::GetRenderer().EndRenderPass(fb);
+        renderer.EndRenderPass(fb);
+
+        // we really need a scene structure...
+        m_FrameGraph.Execute(renderer.GetGraphicsCommandBufferManager()->GetCurrentCommandBuffer());
     }
 
     void OnImGuiRender() override
@@ -330,12 +391,16 @@ private:
     {
         glm::vec3 Position;
         glm::vec3 Rotation;
-    } m_CameraTarget;
+    } m_CameraTarget{};
 
     glm::vec3 m_LightDirection{ 1.0f, -1.0f, -1.0f };
     float m_Metalness{ 0.0f };
     float m_Roughness{ 0.0f };
 
+    lne::FrameGraph m_FrameGraph{};
+    lne::SafePtr<DepthPrePass> m_DepthPrePass{};
+    lne::SafePtr<GBufferPass> m_GBufferPass{};
+    lne::SafePtr<LightingPass> m_LightingPass{};
 
 private:
     void GenerateCube(std::vector<lne::Vertex>& vertices, std::vector<uint32_t>& indices, uint32_t tesselationLevel)

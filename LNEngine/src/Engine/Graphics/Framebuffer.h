@@ -36,6 +36,8 @@ public:
 
     [[nodiscard]] const std::vector<AttachmentDesc>& GetColorAttachments() const { return m_ColorAttachments; }
     [[nodiscard]] const AttachmentDesc& GetDepthAttachment() const { return m_DepthAttachment; }
+    [[nodiscard]] vk::Extent3D GetExtent() const;
+    [[nodiscard]] uint32_t GetLayerCount() const;
     [[nodiscard]] bool HasDepth() const { return m_HasDepth; }
 
 

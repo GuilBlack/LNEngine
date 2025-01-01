@@ -82,11 +82,11 @@ void Framebuffer::Bind(vk::CommandBuffer cmdBuffer) const
         );
     }
 
-    auto texture = m_ColorAttachments[0].Texture;
+    vk::Extent3D extent = GetExtent();
     vk::RenderingInfo renderingInfo = vk::RenderingInfo{
         vk::RenderingFlags{},
-        vk::Rect2D{ {0,0}, {texture->GetDimensions().width, texture->GetDimensions().height} },
-        texture->GetNumLayers(),
+        vk::Rect2D{ {0,0}, {extent.width, extent.height} },
+        GetLayerCount(),
         0,
         colorRenderingAttachments,
         m_HasDepth ? &depthRenderingAttachmentInfo : nullptr
@@ -104,5 +104,21 @@ void Framebuffer::Unbind(vk::CommandBuffer cmdBuffer) const
 
     if (m_HasDepth)
         m_DepthAttachment.Texture->TransitionLayout(cmdBuffer, m_DepthAttachment.FinalLayout);
+}
+vk::Extent3D Framebuffer::GetExtent() const
+{
+    if (m_ColorAttachments.size() > 0)
+        return m_ColorAttachments[0].Texture->GetDimensions();
+    
+    if (m_DepthAttachment.Texture != nullptr)
+        return m_DepthAttachment.Texture->GetDimensions();
+}
+uint32_t Framebuffer::GetLayerCount() const
+{
+    if (m_ColorAttachments.size() > 0)
+        return m_ColorAttachments[0].Texture->GetNumLayers();
+
+    if (m_DepthAttachment.Texture != nullptr)
+        return m_DepthAttachment.Texture->GetNumLayers();
 }
 }

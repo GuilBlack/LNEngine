@@ -109,10 +109,52 @@ void FrameGraph::Compile()
     }
 }
 
-void FrameGraph::Execute()
+void FrameGraph::Execute(vk::CommandBuffer commandBuffer)
 {
+    // traverse nodes in topological order
+    for (FrameGraphNodeHandle nodeHandle : m_Nodes)
+    {
+        FrameGraphNode* node = m_NodeCache.GetPool().Access(nodeHandle);
 
+        if (!node->Enabled)
+            continue;
+
+        node->RenderPass->PreRender(commandBuffer, node);
+
+        for (FrameGraphResourceHandle inputResourceHandle : node->InputResources)
+        {
+            FrameGraphResource* inputResource = m_ResourceCache.GetPool().Access(inputResourceHandle);
+
+            switch (inputResource->Type)
+            {
+            case FrameGraphResourceType::eTexture:
+            {
+                SafePtr<Texture> texture = inputResource->Resource.GetAs<Texture>();
+                texture->TransitionLayout(commandBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
+                break;
+            }
+            }
+        }
+        vk::Extent3D extent = node->Framebuffer.GetExtent();
+        vk::Viewport viewport = { 0.0f, 0.0f, (float)extent.width, (float)extent.height, 0.0f, 1.0f };
+        commandBuffer.setViewport(0, viewport);
+        vk::Rect2D scissor = { {0, 0}, vk::Extent2D{ extent.width, extent.height } };
+        commandBuffer.setScissor(0, scissor);
+
+        LNE_ASSERT(node->RenderPass != nullptr, "Node has no render pass");
+
+        node->Framebuffer.Bind(commandBuffer);
+
+        node->RenderPass->Render(commandBuffer, node);
+
+        node->Framebuffer.Unbind(commandBuffer);
+
+        node->RenderPass->PostRender(commandBuffer, node);
+    }
 }
+
+void FrameGraph::OnResize(WindowResizeEvent& e)
+{}
 
 FrameGraphResourceHandle FrameGraph::CreateInputResource(const FrameGraphResourceDesc& desc)
 {
@@ -255,6 +297,7 @@ void FrameGraph::CreateFramebuffers(FrameGraphNodeHandle nodeHandle)
         switch (inputResource.Type)
         {
         case FrameGraphResourceType::eAttachment:
+        case FrameGraphResourceType::eTexture:
         {
             vk::Extent3D attachmentExtent = inputResource.Info.Image.Extent;
             if (extent.width == 0)
@@ -266,6 +309,8 @@ void FrameGraph::CreateFramebuffers(FrameGraphNodeHandle nodeHandle)
                 extent.height = attachmentExtent.height;
             else
                 LNE_ASSERT(extent.height == attachmentExtent.height, "Inconsistent attachment height");
+
+            inputResource.Resource = associatedOutputResource->Resource;
 
             SafePtr<Texture> texture = associatedOutputResource->Resource.GetAs<Texture>();
 
@@ -343,6 +388,15 @@ void FrameGraph::SortGraph(std::vector<FrameGraphNodeHandle>& nodes)
     }
 
     OutputGraphToMermaid("Profiling/framegraph.txt");
+}
+
+void FrameGraph::BindRenderPass(SafePtr<IRenderPass> renderPass)
+{
+    FrameGraphNode* node = m_NodeCache.Access(std::string(renderPass->GetName()));
+
+    LNE_ASSERT(node != nullptr, "Node not found");
+
+    node->RenderPass = renderPass;
 }
 
 FrameGraphNodeHandle FrameGraph::CreateNode(const FrameGraphNodeDesc& desc)

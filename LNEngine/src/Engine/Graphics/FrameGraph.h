@@ -8,6 +8,28 @@ namespace lne
 {
 using FrameGraphResourceHandle = ObjectPoolHandle;
 using FrameGraphNodeHandle = ObjectPoolHandle;
+struct FrameGraphNode;
+
+class IRenderPass : public RefCountBase
+{
+public:
+    IRenderPass() = default;
+    virtual ~IRenderPass() = default;
+
+    virtual void Init() {};
+    virtual void PreRender(vk::CommandBuffer, FrameGraphNode* node) {};
+    virtual void Render(vk::CommandBuffer, FrameGraphNode* node) = 0;
+    virtual void PostRender(vk::CommandBuffer, FrameGraphNode* node) {};
+    virtual void Cleanup() {};
+    
+    virtual void OnResize(glm::vec2 dimension) {};
+
+    std::string_view GetName() const { return m_Name; }
+    virtual std::string_view GetDebugName() const { return m_Name; }
+
+protected:
+    std::string m_Name{};
+};
 
 struct FrameGraphResourceBufferInfo
 {
@@ -55,6 +77,7 @@ struct FrameGraphNode
     std::vector<FrameGraphResourceHandle> OutputResources{};
 
     Framebuffer Framebuffer{};
+    SafePtr<IRenderPass> RenderPass{};
 
     std::vector<FrameGraphNodeHandle> Dependents{};
 
@@ -179,17 +202,6 @@ private:
     FrameGraphNodeDesc m_Desc{};
 };
 
-class INodeRenderPass
-{
-public:
-    INodeRenderPass() = default;
-    virtual ~INodeRenderPass() = default;
-
-    virtual void PreRender() {};
-    virtual void Render() = 0;
-    virtual void PostRender() {};
-};
-
 class FrameGraph
 {
 public:
@@ -202,8 +214,10 @@ public:
     ~FrameGraph() = default;
 
     void Compile();
-    void Execute();
+    void Execute(vk::CommandBuffer commandBuffer);
+    void OnResize(class WindowResizeEvent& e);
 
+    void BindRenderPass(SafePtr<IRenderPass> renderPass);
     FrameGraphNodeHandle CreateNode(const FrameGraphNodeDesc& desc);
 
     void OutputGraphToMermaid(const std::string& filename);

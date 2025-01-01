@@ -41,6 +41,7 @@
 #include "Engine/Core/Events/WindowEvents.h"
 #include "Engine/Core/Inputs/InputCodes.h"
 #include "Engine/Graphics/GfxContext.h"
+#include "Engine/Graphics/CommandBufferManager.h"
 #include "Engine/Graphics/Renderer.h"
 #include "Engine/Graphics/Framebuffer.h"
 #include "Engine/Graphics/Pipeline.h"
