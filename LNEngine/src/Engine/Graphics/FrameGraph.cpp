@@ -28,54 +28,7 @@ void FrameGraph::Compile()
     }
 
     // 2) top sort nodes using DFS
-    std::stack<FrameGraphNodeHandle> nodeStack;
-
-    std::vector<byte> visited(m_Nodes.size(), 0);
-    std::vector<FrameGraphNodeHandle> sortedNodes;
-
-    for (int n = 0; n < m_Nodes.size(); ++n)
-    {
-        if (visited[n])
-            continue;
-
-        nodeStack.push(m_Nodes[n]);
-
-        while (!nodeStack.empty())
-        {
-            FrameGraphNodeHandle node = nodeStack.top();
-
-            if (visited[node] == 2)
-            {
-                nodeStack.pop();
-                continue;
-            }
-
-            if (visited[node] == 1)
-            {
-                sortedNodes.push_back(node);
-                visited[node] = 2;
-                continue;
-            }
-
-            visited[node] = 1;
-
-            FrameGraphNode& nodeData = *m_NodeCache.GetPool().Access(node);
-
-            for (FrameGraphNodeHandle dependent : nodeData.Dependents)
-            {
-                if (!visited[dependent])
-                    nodeStack.push(dependent);
-            }
-
-        }
-    }
-    m_Nodes.clear();
-    for (int i = (int)(sortedNodes.size() - 1); i >= 0; --i)
-    {
-        m_Nodes.push_back(sortedNodes[i]);
-    }
-
-    OutputGraphToMermaid("Profiling/framegraph.txt");
+    SortGraph(m_Nodes);
 
     // 3) create resources
     std::list<SafePtr<Texture>> freeTextures;
@@ -147,6 +100,12 @@ void FrameGraph::Compile()
             }
             }
         }
+    }
+
+    // 4) create framebuffers
+    for (FrameGraphNodeHandle nodeHandle : m_Nodes)
+    {
+        CreateFramebuffers(nodeHandle);
     }
 }
 
@@ -227,6 +186,163 @@ void FrameGraph::CreateNodeDependents(FrameGraphNodeHandle node)
         FrameGraphNode& producerNode = *m_NodeCache.GetPool().Access(associatedOutputResource->Producer);
         producerNode.Dependents.push_back(node);
     }
+}
+
+void FrameGraph::CreateFramebuffers(FrameGraphNodeHandle nodeHandle)
+{
+    FrameGraphNode& node = *m_NodeCache.GetPool().Access(nodeHandle);
+
+    std::vector<AttachmentDesc> colorAttachments;
+    AttachmentDesc depthAttachment;
+
+    vk::Extent2D extent = { 0, 0 };
+
+    for (FrameGraphResourceHandle outputResourceHandle : node.OutputResources)
+    {
+        FrameGraphResource& outputResource = *m_ResourceCache.GetPool().Access(outputResourceHandle);
+
+        if (outputResource.Info.External)
+            continue;
+
+        switch (outputResource.Type)
+        {
+        case FrameGraphResourceType::eAttachment:
+        {
+            vk::Extent3D attachmentExtent = outputResource.Info.Image.Extent;
+            if (extent.width == 0)
+                extent.width = attachmentExtent.width;
+            else
+                LNE_ASSERT(extent.width == attachmentExtent.width, "Inconsistent attachment width");
+
+            if (extent.height == 0)
+                extent.height = attachmentExtent.height;
+            else
+                LNE_ASSERT(extent.height == attachmentExtent.height, "Inconsistent attachment height");
+
+            SafePtr<Texture> texture = outputResource.Resource.GetAs<Texture>();
+
+            vk::ImageLayout attachmentLayout = texture->IsDepth()
+                ? vk::ImageLayout::eDepthStencilAttachmentOptimal
+                : vk::ImageLayout::eColorAttachmentOptimal;
+
+            auto attachmentDesc = AttachmentDesc{
+                texture,
+                outputResource.Info.Image.LoadOp,
+                vk::AttachmentStoreOp::eStore,
+                attachmentLayout,
+                attachmentLayout,
+                vk::ClearValue().setColor(std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f })
+                    .setDepthStencil({ 1.0f, 0 })
+            };
+            if (texture->IsDepth())
+                depthAttachment = attachmentDesc;
+            else
+                colorAttachments.push_back(attachmentDesc);
+            break;
+        }
+        }
+    }
+
+    for (FrameGraphResourceHandle inputResourceHandle : node.InputResources)
+    {
+        FrameGraphResource& inputResource = *m_ResourceCache.GetPool().Access(inputResourceHandle);
+        FrameGraphResource* associatedOutputResource = m_ResourceCache.Access(inputResource.Name);
+        LNE_ASSERT(associatedOutputResource != nullptr, "Input resource has no associated output resource");
+
+        if (associatedOutputResource->Info.External)
+            continue;
+
+        switch (inputResource.Type)
+        {
+        case FrameGraphResourceType::eAttachment:
+        {
+            vk::Extent3D attachmentExtent = inputResource.Info.Image.Extent;
+            if (extent.width == 0)
+                extent.width = attachmentExtent.width;
+            else
+                LNE_ASSERT(extent.width == attachmentExtent.width, "Inconsistent attachment width");
+
+            if (extent.height == 0)
+                extent.height = attachmentExtent.height;
+            else
+                LNE_ASSERT(extent.height == attachmentExtent.height, "Inconsistent attachment height");
+
+            SafePtr<Texture> texture = associatedOutputResource->Resource.GetAs<Texture>();
+
+            vk::ImageLayout attachmentLayout = texture->IsDepth()
+                ? vk::ImageLayout::eDepthStencilAttachmentOptimal
+                : vk::ImageLayout::eColorAttachmentOptimal;
+
+            auto attachmentDesc = AttachmentDesc{
+                texture,
+                vk::AttachmentLoadOp::eLoad,
+                vk::AttachmentStoreOp::eStore,
+                attachmentLayout,
+                attachmentLayout,
+                vk::ClearValue().setColor(std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f })
+                    .setDepthStencil({ 1.0f, 0 })
+            };
+            if (texture->IsDepth())
+                depthAttachment = attachmentDesc;
+            else
+                colorAttachments.push_back(attachmentDesc);
+            break;
+        }
+        }
+    }
+    node.Framebuffer = Framebuffer(m_Context, colorAttachments, depthAttachment);
+}
+
+void FrameGraph::SortGraph(std::vector<FrameGraphNodeHandle>& nodes)
+{
+    std::stack<FrameGraphNodeHandle> nodeStack;
+
+    std::vector<byte> visited(nodes.size(), 0);
+    std::vector<FrameGraphNodeHandle> sortedNodes;
+
+    for (int n = 0; n < nodes.size(); ++n)
+    {
+        if (visited[n])
+            continue;
+
+        nodeStack.push(nodes[n]);
+
+        while (!nodeStack.empty())
+        {
+            FrameGraphNodeHandle node = nodeStack.top();
+
+            if (visited[node] == 2)
+            {
+                nodeStack.pop();
+                continue;
+            }
+
+            if (visited[node] == 1)
+            {
+                sortedNodes.push_back(node);
+                visited[node] = 2;
+                continue;
+            }
+
+            visited[node] = 1;
+
+            FrameGraphNode& nodeData = *m_NodeCache.GetPool().Access(node);
+
+            for (FrameGraphNodeHandle dependent : nodeData.Dependents)
+            {
+                if (!visited[dependent])
+                    nodeStack.push(dependent);
+            }
+
+        }
+    }
+    nodes.clear();
+    for (int i = (int)(sortedNodes.size() - 1); i >= 0; --i)
+    {
+        nodes.push_back(sortedNodes[i]);
+    }
+
+    OutputGraphToMermaid("Profiling/framegraph.txt");
 }
 
 FrameGraphNodeHandle FrameGraph::CreateNode(const FrameGraphNodeDesc& desc)

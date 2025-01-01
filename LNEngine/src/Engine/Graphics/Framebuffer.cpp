@@ -12,7 +12,7 @@ Framebuffer::Framebuffer(SafePtr<class GfxContext> ctx, std::vector<AttachmentDe
     , m_ColorAttachments{ attachments }
     , m_DepthAttachment{ depth }
 {
-    LNE_ASSERT(m_ColorAttachments.size() > 0, "Framebuffer must have at least one color attachment");
+    LNE_ASSERT(m_ColorAttachments.size() > 0 || m_DepthAttachment.Texture != nullptr, "Framebuffer must have at least one attachment");
     if (m_DepthAttachment.Texture != nullptr)
         m_HasDepth = true;
 }

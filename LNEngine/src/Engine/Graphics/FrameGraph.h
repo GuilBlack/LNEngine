@@ -220,6 +220,8 @@ private:
     FrameGraphResourceHandle CreateOutputResource(const FrameGraphResourceDesc& desc, FrameGraphNodeHandle producer);
 
     void CreateNodeDependents(FrameGraphNodeHandle node);
+    void SortGraph(std::vector<FrameGraphNodeHandle>& nodes);
+    void CreateFramebuffers(lne::FrameGraphNodeHandle nodeHandle);
 };
 }
 
