@@ -22,6 +22,7 @@ public:
 private:
     SafePtr<class GfxContext> m_Context;
     BufferAllocation m_Allocation;
+    BufferAllocation m_StagingAllocation;
     uint64_t m_Size;
     vk::MemoryPropertyFlags m_MemoryFlags;
 };

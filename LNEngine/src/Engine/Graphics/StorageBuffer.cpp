@@ -6,6 +6,7 @@
 #include "CommandBufferManager.h"
 #include "DynamicDescriptorAllocator.h"
 #include "Texture.h"
+#include "Renderer.h"
 
 namespace lne
 {
@@ -27,11 +28,12 @@ StorageBuffer::StorageBuffer(SafePtr<class GfxContext> ctx, uint64_t size, const
 
     m_Context->AllocateBuffer(m_Allocation, bufferCI, allocCI);
 
-    BufferAllocation stagingAllocation = m_Context->AllocateStagingBuffer(size);
+    // TODO: make it work with the async loader
+    m_StagingAllocation = m_Context->AllocateStagingBuffer(size);
 
-    memcpy(stagingAllocation.AllocationInfo.pMappedData, data, size);
+    memcpy(m_StagingAllocation.AllocationInfo.pMappedData, data, size);
 
-    auto cmdBuffer = m_Context->GetTransferCommandBufferManager().BeginSingleTimeCommands();
+    auto cmdBuffer = ApplicationBase::GetRenderer().GetGraphicsCommandBufferManager()->GetCurrentCommandBuffer();
 
     vk::BufferCopy copyRegion = vk::BufferCopy{
         0,
@@ -39,14 +41,14 @@ StorageBuffer::StorageBuffer(SafePtr<class GfxContext> ctx, uint64_t size, const
         size
     };
 
-    cmdBuffer.copyBuffer(stagingAllocation.Buffer, m_Allocation.Buffer, copyRegion);
-
-    m_Context->GetTransferCommandBufferManager().EndSingleTimeCommands();
-    m_Context->FreeBuffer(stagingAllocation);
+    cmdBuffer.copyBuffer(m_StagingAllocation.Buffer, m_Allocation.Buffer, copyRegion);
+    
 }
 
 StorageBuffer::~StorageBuffer()
 {
+    // TODO: make a deletion queue instead of deleting immediately
     m_Context->FreeBuffer(m_Allocation);
+    m_Context->FreeBuffer(m_StagingAllocation);
 }
 }
