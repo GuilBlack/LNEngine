@@ -17,6 +17,11 @@ project "GLM"
         "./"
     }
 
+    defines
+    {
+        "GLM_ENABLE_EXPERIMENTAL"
+    }
+
     filter "system:windows"
         cppdialect "C++20"
         staticruntime "On"

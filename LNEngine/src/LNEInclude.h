@@ -12,6 +12,8 @@
 #include <filesystem>
 #include <cstddef>
 #include <atomic>
+#include <type_traits>
+#include <limits>
 
 // Data Structures
 #include <string>
@@ -22,11 +24,20 @@
 #include <stack>
 #include <queue>
 #include <array>
+#include <span>
 #include <tuple>
+#include <bitset>
 
+#define GLM_ENABLE_EXPERIMENTAL
 #include "../vendor/GLM/glm/glm.hpp"
+#include "../vendor/GLM/glm/gtc/quaternion.hpp"
 #include "../vendor/GLM/glm/gtc/constants.hpp"
+#include "../vendor/GLM/glm/gtc/type_ptr.hpp"
+#include "../vendor/GLM/glm/gtc/epsilon.hpp"
 #include "../vendor/GLM/glm/gtc/matrix_transform.hpp"
+#include "../vendor/GLM/glm/gtx/quaternion.hpp"
+#include "../vendor/GLM/glm/gtx/transform.hpp"
+
 #include "../vendor/VKBOOTSTRAP/vkbootstrap/src/VkBootstrap.h"
 #include "../vendor/IMGUI/imgui/imgui.h"
 

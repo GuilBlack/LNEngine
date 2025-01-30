@@ -34,10 +34,19 @@
 // Math
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/epsilon.hpp>
+#include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/transform.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
+#include <glm/gtx/matrix_interpolation.hpp>
+#include <glm/gtx/euler_angles.hpp>
+
 
 // Logging
 #include "spdlog/spdlog.h"

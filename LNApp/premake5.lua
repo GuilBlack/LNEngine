@@ -10,7 +10,8 @@ project "LNApp"
     files 
     {
         "src/**.h",
-        "src/**.cpp"
+        "src/**.cpp",
+        "Assets/**.glsl",
     }
 
     includedirs
