@@ -39,6 +39,29 @@ lne::StaticMesh::StaticMesh(std::filesystem::path path, SafePtr<GfxPipeline> pip
     LoadData(scene);
 }
 
+lne::StaticMesh::StaticMesh(const Geometry& geometry,
+    SafePtr<Material> material, std::vector<SafePtr<class Texture>> textures,
+    SafePtr<class GfxPipeline> pipeline)
+        : m_Geometry(geometry), m_Pipeline(pipeline)
+{
+    m_TotalIndexCount = geometry.IndexCount;
+    m_TotalVertexCount = geometry.VertexCount;
+    m_Materials.push_back(material);
+    m_Textures = textures;
+
+    SubMesh submesh{
+        .BaseVertex = 0,
+        .BaseIndex = 0,
+        .VertexCount = geometry.VertexCount,
+        .IndexCount = geometry.IndexCount,
+        .MaterialIndex = 0,
+        .BoundingBox = AABB{},
+        .Name = "Default"
+    };
+
+    m_SubMeshes.push_back(submesh);
+}
+
 void lne::StaticMesh::InitSubmeshes(const aiScene* scene)
 {
     m_SubMeshes.reserve(scene->mNumMeshes);

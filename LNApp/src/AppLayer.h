@@ -10,7 +10,7 @@ class AppLayer final : public lne::Layer
         DepthPrePass()
         {
             m_Name = "DepthPrePass";
-        };
+        }
 
         virtual void Render(vk::CommandBuffer, lne::FrameGraphNode* node) override;
     };
@@ -21,7 +21,7 @@ class AppLayer final : public lne::Layer
         GBufferPass()
         {
             m_Name = "GBufferPass";
-        };
+        }
 
         virtual void Render(vk::CommandBuffer, lne::FrameGraphNode* node) override;
     };
@@ -32,7 +32,7 @@ class AppLayer final : public lne::Layer
         LightingPass()
         {
             m_Name = "LightingPass";
-        };
+        }
 
         virtual void Render(vk::CommandBuffer, lne::FrameGraphNode* node) override;
     };
@@ -61,18 +61,6 @@ private:
     lne::SafePtr<lne::Material> m_BasicMaterial2{};
 
     lne::SafePtr<lne::GfxPipeline> m_SkyboxPipeline{};
-    lne::SafePtr<lne::Material> m_SkyboxMaterial{};
-
-    lne::Geometry m_TesselatedCubeGeo{};
-    lne::Geometry m_SphereGeo{};
-    lne::SafePtr<lne::Texture> m_Texture{};
-    lne::SafePtr<lne::Texture> m_CubemapTexture{};
-    lne::SafePtr<lne::StaticMesh> m_Duck{};
-
-    lne::TransformComponent m_DuckTransform{};
-    lne::TransformComponent m_CubeTransform{};
-    lne::TransformComponent m_SphereTransform{};
-    lne::TransformComponent m_SkyboxTransform{};
 
     struct CameraTarget
     {
@@ -82,6 +70,10 @@ private:
 
     lne::HierarchicalScene m_Scene{};
     lne::Entity m_CameraEntity;
+    lne::Entity m_DuckEntity;
+    lne::Entity m_CubeEntity;
+    lne::Entity m_SkyboxEntity;
+    lne::Entity m_SphereEntity;
 
     glm::vec3 m_LightDirection{ 1.0f, -1.0f, -1.0f };
     float m_Metalness{ 0.0f };

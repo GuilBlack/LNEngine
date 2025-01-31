@@ -37,6 +37,9 @@ class StaticMesh : public RefCountBase
 {
 public:
     StaticMesh(std::filesystem::path path, SafePtr<class GfxPipeline> pipeline);
+    StaticMesh(const Geometry& geometry,
+        SafePtr<class Material> material, std::vector<SafePtr<class Texture>> textures,
+        SafePtr<class GfxPipeline> pipeline);
 
     std::vector<SubMesh>& GetSubMeshes() { return m_SubMeshes; }
     const Geometry& GetGeometry() const { return m_Geometry; }

@@ -69,13 +69,20 @@ struct TransformComponent
         Rotation = glm::quat(glm::radians(EulerAngles));
     }
 
-    SafePtr<UniformBufferManager> UniformBuffers;
+    SafePtr<UniformBufferManager> UniformBuffers{};
 };
 
 struct CameraComponent
 {
-    glm::mat4 View;
-    glm::mat4 Proj;
+    glm::mat4 View{};
+    glm::mat4 Proj{};
+    enum class ProjectionType
+    {
+        Perspective,
+        Orthographic
+    };
+    ProjectionType Projection{};
+    bool IsPrimary{ false };
 
     glm::mat4 GetViewProj() const
     {
@@ -113,7 +120,6 @@ struct CameraComponent
 
 struct StaticMeshComponent
 {
-    SafePtr<class StaticMesh> Mesh;
-    SafePtr<class Material> Material;
+    SafePtr<class StaticMesh> Mesh{};
 };
 }

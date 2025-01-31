@@ -133,6 +133,8 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer)
                 texture->TransitionLayout(commandBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
                 break;
             }
+            default:
+                break;
             }
         }
         vk::Extent3D extent = node->Framebuffer.GetExtent();
