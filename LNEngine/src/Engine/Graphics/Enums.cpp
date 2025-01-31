@@ -12,10 +12,9 @@ const char* enumValues[6] = {
     "Fragment",
     "Compute"
 };
-
 const char** s_Enum = enumValues;
-
 }
+
 namespace UniformElementType
 {
 const char* enumValues[17] = {
@@ -27,6 +26,7 @@ const char* enumValues[17] = {
 };
 const char** s_Enum = enumValues;
 }
+
 namespace FrameGraphResourceType
 {
 const char* enumValues[5] = {
@@ -35,6 +35,18 @@ const char* enumValues[5] = {
     "Buffer",
     "Attachment",
     "Proxy"
+};
+const char** s_Enum = enumValues;
+}
+
+namespace ResourceType
+{
+const char* enumValues[5] = {
+    "Unknown",
+    "Texture",
+    "Buffer",
+    "Pipeline",
+    "Shader",
 };
 const char** s_Enum = enumValues;
 }

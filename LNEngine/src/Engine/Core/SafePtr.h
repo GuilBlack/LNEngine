@@ -11,7 +11,7 @@ public:
 ;
 #else
     {
-        ++m_Count;
+        m_Count.fetch_add(1, std::memory_order_acq_rel);;
     }
 #endif // LNE_DEBUG
 
@@ -20,13 +20,12 @@ public:
 ;
 #else
     {
-        assert(m_Count > 0);
-        return --m_Count;
+        return m_Count.fetch_sub(1, std::memory_order_acq_rel);
     }
 #endif // LNE_DEBUG
     uint32_t GetCount() const
     {
-        return m_Count.load();
+        return m_Count.load(std::memory_order_acquire);
     }
 protected:
     virtual std::string_view GetDebugName() const 

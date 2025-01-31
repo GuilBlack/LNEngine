@@ -50,6 +50,7 @@ Window::Window(WindowSettings&& settings)
     glfwCreateWindowSurface(GfxContext::VulkanInstance(), m_Handle, nullptr, &surface);
 
     m_GfxContext.Reset(lnnew GfxContext(surface));
+    m_GfxContext->InitDefaultResources();
 
     m_SwapChain.Reset(lnnew Swapchain(m_GfxContext, surface));
 

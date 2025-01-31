@@ -69,7 +69,7 @@ void GfxLoader::Init(Renderer* renderer, SafePtr<class GfxContext> context, std:
 
 void GfxLoader::Nuke()
 {
-    m_GraphicsContext->FreeBuffer(m_StagingBuffer);
+    m_GraphicsContext->FreeBufferAllocation(m_StagingBuffer);
     m_GraphicsContext->GetDevice().destroySemaphore(m_TransferSemaphore);
     m_LoadRequests.clear();
     m_GPUUploadRequests.clear();
@@ -77,14 +77,21 @@ void GfxLoader::Nuke()
 
 void GfxLoader::Update()
 {
-    if (m_ReadyTexture)
-    {
-        m_Renderer->AddTextureToUpdate(m_ReadyTexture);
-        m_ReadyTexture.Reset();
-    }
+    auto& cbManager = m_GraphicsContext->GetTransferCommandBufferManager();
 
+    // this condition is here instead of in the ProcessUploadRequests because it can clash with the deletion
+    // of textures
+    if (cbManager.GetFenceStatus(0) == true)
+    {
+        if (m_ReadyTexture)
+        {
+            m_Renderer->AddTextureToUpdate(m_ReadyTexture);
+            m_ReadyTexture.Reset();
+        }
+
+        ProcessUploadRequests();
+    }
     ProcessLoadRequests();
-    ProcessUploadRequests();
 }
 
 SafePtr<Texture> GfxLoader::CreateTexture(std::string_view fullPath)
@@ -182,8 +189,6 @@ void GfxLoader::ProcessUploadRequests()
 
     if (m_GPUUploadRequests.empty())
         return;
-    if (cbManager.GetFenceStatus(0) == false)
-        return;
 
     cbManager.StartCommandBuffer(0);
 
@@ -205,6 +210,7 @@ void GfxLoader::ProcessUploadRequests()
     case ResourceTypes::eCubemap:
     {
         UploadTexture(request);
+        m_ReadyTexture = request.Texture;
         break;
     }
     default:

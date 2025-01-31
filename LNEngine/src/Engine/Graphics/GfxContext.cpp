@@ -140,6 +140,10 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
 
 GfxContext::~GfxContext()
 {
+    for (auto& resource : m_ResourceDeletionQueue)
+        NukeResource(resource);
+    m_ResourceDeletionQueue.clear();
+    
     m_TransferCommandBufferManager.reset();
     m_Device.resetDescriptorPool(m_BindlessDescriptorPool);
     m_Device.destroyDescriptorPool(m_BindlessDescriptorPool);
@@ -237,8 +241,6 @@ void GfxContext::InitDefaultResources()
         "DefaultSampler"
     );
 
-    uint8_t whitePixel[4] = { 255, 0, 255, 255 };
-
     vk::ImageCreateInfo imageInfo(
         vk::ImageCreateFlags(),
         vk::ImageType::e2D,
@@ -256,13 +258,34 @@ void GfxContext::InitDefaultResources()
     );
 
     m_DefaultTexture = lnnew Texture(this, imageInfo, "DefaultTexture");
-    m_DefaultTexture->UploadData(whitePixel);
+}
+
+void GfxContext::UploadDefaultResources()
+{
+    uint8_t defaultPixel[4] = { 255, 0, 255, 255 };
+    m_DefaultTexture->UploadData(defaultPixel);
 }
 
 void GfxContext::NukeDefaultResources()
 {
     delete m_DefaultTexture;
     m_Device.destroySampler(m_DefaultSampler);
+}
+
+void GfxContext::DeferredNukeResources()
+{
+    for (int i = m_ResourceDeletionQueue.size() - 1; i >= 0; --i)
+    {
+        ResourceDeletion& resource = m_ResourceDeletionQueue[i];
+        if (resource.ElapsedFrames <= m_MaxFramesInFlight)
+        {
+            ++resource.ElapsedFrames;
+            continue;
+        }
+        NukeResource(resource);
+        std::swap(m_ResourceDeletionQueue[i], m_ResourceDeletionQueue.back());
+        m_ResourceDeletionQueue.pop_back();
+    }
 }
 
 void GfxContext::WaitIdle() const
@@ -403,13 +426,16 @@ vk::ImageView GfxContext::CreateImageView(vk::Image image, vk::ImageViewType vie
     return imageView;
 }
 
-uint32_t GfxContext::RegisterBindlessTexture(Texture* texture)
+BindlessImageHandle GfxContext::RegisterBindlessTexture(Texture* texture)
 {
     vk::Sampler sampler = texture->GetSampler();
     if (sampler == nullptr)
+    {
+        assert(m_DefaultSampler);
         sampler = m_DefaultSampler;
+    }
 
-    uint32_t textureIndex = m_FreeBindlessIndices.front();
+    BindlessImageHandle handle = m_FreeBindlessIndices.front();
     auto imageInfo = vk::DescriptorImageInfo{
         sampler,
         texture->GetImageView(),
@@ -418,18 +444,13 @@ uint32_t GfxContext::RegisterBindlessTexture(Texture* texture)
     vk::WriteDescriptorSet descriptorWrite{
         m_BindlessDescriptorSet,
         0,
-        textureIndex,
+        handle,
         vk::DescriptorType::eCombinedImageSampler,
         imageInfo
     };
     m_Device.updateDescriptorSets({ descriptorWrite }, nullptr);
     m_FreeBindlessIndices.pop();
-    return textureIndex;
-}
-
-void GfxContext::FreeBindlessImage(uint32_t index)
-{
-    m_FreeBindlessIndices.push(index);
+    return handle;
 }
 
 vk::Sampler GfxContext::CreateSampler(vk::Filter magFilter, vk::Filter minFilter, vk::SamplerMipmapMode mipmapMode, 
@@ -501,7 +522,7 @@ BufferAllocation GfxContext::AllocateStagingBuffer(uint64_t size)
     return stagingAllocation;
 }
 
-void GfxContext::FreeBuffer(BufferAllocation& allocation)
+void GfxContext::FreeBufferAllocation(const BufferAllocation& allocation)
 {
     vmaDestroyBuffer(m_MemoryAllocator, allocation.Buffer, allocation.Allocation);
 }
@@ -515,7 +536,7 @@ void GfxContext::AllocateImage(ImageAllocation& allocation, VkImageCreateInfo im
     allocation.Image = image;
 }
 
-void GfxContext::FreeImage(ImageAllocation & allocation)
+void GfxContext::FreeImageAllocation(const ImageAllocation & allocation)
 {
     vmaDestroyImage(m_MemoryAllocator, allocation.Image, allocation.Allocation);
 }
@@ -547,6 +568,69 @@ VkBool32 VKAPI_CALL GfxContext::DebugPrintfCallback(VkDebugUtilsMessageSeverityF
     }
 
     return VK_FALSE;
+}
+
+void GfxContext::NukeResource(const ResourceDeletion& resource)
+{
+    switch (resource.Type)
+    {
+    case ResourceType::eBuffer:
+    {
+        const BufferResourceDeletion& buffer = std::get<BufferResourceDeletion>(resource.Resource);
+        NukeBuffer(buffer);
+        break;
+    }
+    case ResourceType::eTexture:
+    {
+        const TextureResourceDeletion& texture = std::get<TextureResourceDeletion>(resource.Resource);
+        NukeImage(texture);
+        break;
+    }
+    case ResourceType::ePipeline:
+    {
+        const PipelineResourceDeletion& pipeline = std::get<PipelineResourceDeletion>(resource.Resource);
+        NukePipeline(pipeline);
+        break;
+    }
+    case ResourceType::eShader:
+    {
+        const ShaderResourceDeletion& shader = std::get<ShaderResourceDeletion>(resource.Resource);
+        NukeShader(shader);
+        break;
+    }
+    default:
+        LNE_ERROR("Invalid resource type");
+        break;
+    }
+}
+
+void GfxContext::NukeBuffer(const BufferResourceDeletion& buffer)
+{
+    FreeBufferAllocation(buffer.MainAllocation);
+    if (buffer.HasStaging)
+        FreeBufferAllocation(buffer.StagingAllocation);
+}
+
+void GfxContext::NukeImage(const TextureResourceDeletion& image)
+{
+    m_Device.destroyImageView(image.ImageView);
+    if (image.OwnsAllocation)
+        FreeImageAllocation(image.Allocation);
+    FreeBindlessImage(image.BindlessHandle);
+}
+
+void GfxContext::NukePipeline(const PipelineResourceDeletion& pipeline)
+{
+    m_Device.destroyPipeline(pipeline.Pipeline);
+    m_Device.destroyPipelineLayout(pipeline.Layout);
+}
+
+void GfxContext::NukeShader(const ShaderResourceDeletion& shader)
+{
+    for (auto descSetLayout : shader.DescriptorSetLayouts)
+        m_Device.destroyDescriptorSetLayout(descSetLayout);
+    for (auto module : shader.ShaderModules)
+        m_Device.destroyShaderModule(module);
 }
 
 void GfxContext::CreateMemoryAllocator()

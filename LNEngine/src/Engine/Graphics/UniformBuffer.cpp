@@ -51,9 +51,16 @@ UniformBuffer& UniformBuffer::operator=(UniformBuffer&& other) noexcept
 
 void UniformBuffer::Destroy()
 {
-    m_Context->FreeBuffer(m_MainAllocation);
-    if (bool(m_MainAllocation.MemoryFlags & vk::MemoryPropertyFlagBits::eHostVisible) == false)
-        m_Context->FreeBuffer(m_StagingAllocation);
+    BufferResourceDeletion bufferDeletion{
+        .MainAllocation = m_MainAllocation,
+        .StagingAllocation = m_StagingAllocation,
+        .HasStaging = bool(m_MainAllocation.MemoryFlags & vk::MemoryPropertyFlagBits::eHostVisible) == false,
+    };
+    ResourceDeletion deletion{
+        .Type = ResourceType::eBuffer,
+        .Resource = bufferDeletion,
+    };
+    m_Context->EnqueueResourceDeletion(deletion);
 }
 
 void UniformBuffer::CopyData(vk::CommandBuffer cb, const void* data, uint32_t size, uint32_t offset)

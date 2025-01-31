@@ -103,6 +103,11 @@ void Renderer::EndFrame()
     m_GraphicsCommandBufferManager->Submit(submitInfo);
 }
 
+void Renderer::PostFrame()
+{
+    m_Context->DeferredNukeResources();
+}
+
 void Renderer::BeginScene(const TransformComponent& cameraTransform, const CameraComponent& camera, const glm::vec3& sunDirection)
 {
     uint32_t imageIndex = m_Swapchain->GetCurrentFrameIndex();

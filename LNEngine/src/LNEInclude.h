@@ -27,6 +27,7 @@
 #include <span>
 #include <tuple>
 #include <bitset>
+#include <variant>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include "../vendor/GLM/glm/glm.hpp"

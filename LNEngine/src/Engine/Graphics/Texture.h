@@ -5,6 +5,7 @@
 
 namespace lne
 {
+
 class Texture : public RefCountBase
 {
 public:
@@ -40,7 +41,7 @@ public:
     [[nodiscard]] uint32_t GetMipLevels() const { return m_MipLevels; }
     [[nodiscard]] bool ShouldGenerateMips() const { return m_GenerateMips; }
     [[nodiscard]] vk::Sampler GetSampler() const { return m_Sampler; }
-    [[nodiscard]] uint32_t GetBindlessHandle() const { return m_BindlessHandle; }
+    [[nodiscard]] BindlessImageHandle GetBindlessHandle() const { return m_BindlessHandle; }
     [[nodiscard]] const std::string& GetName() const { return m_Name; }
 
     [[nodiscard]] bool IsDepth();
@@ -79,21 +80,21 @@ protected:
     virtual std::string_view GetDebugName() const { return m_Name; }
 
 private:
-    SafePtr<class GfxContext> m_Context;
-    ImageAllocation m_Allocation{};
-    vk::ImageView m_ImageView{};
-    vk::Sampler m_Sampler{};
-    uint32_t m_BindlessHandle{ 0 };
-    vk::Format m_Format{};
-    vk::Extent3D m_Extents{};
-    vk::ImageType m_ImageType{ vk::ImageType::e2D };
-    vk::ImageTiling m_Tiling{ vk::ImageTiling::eOptimal };
-    vk::ImageLayout m_Layout{ vk::ImageLayout::eUndefined };
-    uint32_t m_NumLayers{ 1 };
-    uint32_t m_MipLevels{ 1 };
-    bool m_GenerateMips{ false };
-    std::string m_Name{};
-    bool m_OwnsImage{ true };
+    SafePtr<class GfxContext>   m_Context;
+    ImageAllocation             m_Allocation{};
+    vk::ImageView               m_ImageView{};
+    vk::Sampler                 m_Sampler{};
+    BindlessImageHandle         m_BindlessHandle{ 0 };
+    vk::Format                  m_Format{};
+    vk::Extent3D                m_Extents{};
+    vk::ImageType               m_ImageType{ vk::ImageType::e2D };
+    vk::ImageTiling             m_Tiling{ vk::ImageTiling::eOptimal };
+    vk::ImageLayout             m_Layout{ vk::ImageLayout::eUndefined };
+    uint32_t                    m_NumLayers{ 1 };
+    uint32_t                    m_MipLevels{ 1 };
+    std::string                 m_Name{};
+    bool                        m_GenerateMips{ false };
+    bool                        m_OwnsImage{ true };
 
 private:
     constexpr uint32_t FormatToBytesPerPixel(vk::Format format);

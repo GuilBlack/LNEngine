@@ -152,10 +152,17 @@ Shader::Shader(SafePtr<class GfxContext> ctx, std::string_view filePath)
 
 Shader::~Shader()
 {
-    for (auto descSetLayout : m_DescriptorSetLayouts)
-        m_Context->GetDevice().destroyDescriptorSetLayout(descSetLayout);
-    for (auto&[stage, module] : m_Modules)
-        m_Context->GetDevice().destroyShaderModule(module);
+    ShaderResourceDeletion shaderDeletion {
+        .DescriptorSetLayouts = m_DescriptorSetLayouts,
+    };
+    for (auto& [stage, module] : m_Modules)
+        shaderDeletion.ShaderModules.push_back(module);
+
+    ResourceDeletion deletion {
+        .Type = ResourceType::eShader,
+        .Resource = shaderDeletion
+    };
+    m_Context->EnqueueResourceDeletion(deletion);
 }
 
 std::string Shader::ShaderStageToExtension(ShaderStage::Enum stage)

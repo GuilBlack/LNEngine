@@ -7,17 +7,17 @@ namespace lne
 #ifdef LNE_DEBUG
 void RefCountBase::Capture() const
 {
-    if (m_Count++ == 0)
+    if (m_Count.fetch_add(1, std::memory_order_acq_rel) == 0)
         LNE_TRACE("Reference {}: {}", typeid(*this).name(), GetDebugName());
 }
 
 uint32_t RefCountBase::Release() const
 {
-    assert(m_Count > 0);
-    m_Count--;
-    if (m_Count == 0)
+    assert(m_Count.load(std::memory_order_acquire) > 0);
+    uint32_t newCount = m_Count.fetch_sub(1, std::memory_order_acq_rel) - 1;
+    if (newCount == 0)
         LNE_TRACE("Delete {}: {}", typeid(*this).name(), GetDebugName());
-    return m_Count.load();
+    return newCount;
 }
 #endif
 }

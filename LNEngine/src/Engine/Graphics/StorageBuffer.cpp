@@ -47,8 +47,15 @@ StorageBuffer::StorageBuffer(SafePtr<class GfxContext> ctx, uint64_t size, const
 
 StorageBuffer::~StorageBuffer()
 {
-    // TODO: make a deletion queue instead of deleting immediately
-    m_Context->FreeBuffer(m_Allocation);
-    m_Context->FreeBuffer(m_StagingAllocation);
+    BufferResourceDeletion bufferDeletion{
+        .MainAllocation = m_Allocation,
+        .StagingAllocation = m_StagingAllocation,
+        .HasStaging = true,
+    };
+    ResourceDeletion deletion{
+        .Type = ResourceType::eBuffer,
+        .Resource = bufferDeletion,
+    };
+    m_Context->EnqueueResourceDeletion(deletion);
 }
 }

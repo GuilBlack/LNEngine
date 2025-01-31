@@ -181,9 +181,15 @@ GfxPipeline::GfxPipeline(SafePtr<GfxContext> ctx, const GraphicsPipelineDesc& de
 
 GfxPipeline::~GfxPipeline()
 {
-    m_Context->GetDevice().destroyPipelineLayout(m_Layout);
-    if (m_Pipeline)
-        m_Context->GetDevice().destroyPipeline(m_Pipeline);
+    PipelineResourceDeletion pipelineDeletion{
+        .Pipeline = m_Pipeline,
+        .Layout = m_Layout
+    };
+    ResourceDeletion deletion{
+        .Type = ResourceType::ePipeline,
+        .Resource = pipelineDeletion
+    };
+    m_Context->EnqueueResourceDeletion(deletion);
 }
 
 void GfxPipeline::Bind(const vk::CommandBuffer& cmdBuffer) const

@@ -4,8 +4,8 @@
 
 #include "VulkanUtils.h"
 #include "Swapchain.h"
-#include "GfxEnums.h"
 #include "Enums.h"
+#include "Structs.h"
 #include "Shader.h"
 #include "Engine/Core/SafePtr.h"
 
@@ -37,7 +37,13 @@ public:
     static void NukeVulkan();
 
     void InitDefaultResources();
+    void UploadDefaultResources();
     void NukeDefaultResources();
+    void DeferredNukeResources();
+    void EnqueueResourceDeletion(const ResourceDeletion& deletion)
+    {
+        m_ResourceDeletionQueue.push_back(deletion);
+    }
 
     void WaitIdle() const;
 
@@ -78,8 +84,8 @@ public:
     [[nodiscard]] vk::ImageView CreateImageView(vk::Image image, vk::ImageViewType viewType,
         vk::Format format, uint32_t numMipLevels = 1,
         uint32_t layers = 1, vk::ImageAspectFlags aspect = vk::ImageAspectFlagBits::eColor, const std::string& name = "");
-    [[nodiscard]] uint32_t RegisterBindlessTexture(class Texture* texture);
-    void FreeBindlessImage(uint32_t index);
+    [[nodiscard]] BindlessImageHandle RegisterBindlessTexture(class Texture* texture);
+    void FreeBindlessImage(BindlessImageHandle handle) { m_FreeBindlessIndices.push(handle); }
 
     [[nodiscard]] vk::Sampler CreateSampler(vk::Filter magFilter = vk::Filter::eLinear, vk::Filter minFilter = vk::Filter::eLinear, 
         vk::SamplerMipmapMode mipmapMode = vk::SamplerMipmapMode::eLinear,
@@ -90,16 +96,18 @@ public:
     [[nodiscard]] vk::DescriptorSetLayout GetBindlessDescriptorSetLayout() const { return m_BindlessDescriptorSetLayout; }
     [[nodiscard]] vk::DescriptorSet GetBindlessDescriptorSet() const { return m_BindlessDescriptorSet; }
 
+    void AddToDeletionQueue(ResourceDeletion deletion) { m_ResourceDeletionQueue.push_back(deletion); }
+
 #pragma endregion
 
 #pragma region Allocations
 
     void AllocateBuffer(BufferAllocation& allocation, VkBufferCreateInfo bufferCI, VmaAllocationCreateInfo allocCI);
     BufferAllocation AllocateStagingBuffer(uint64_t size);
-    void FreeBuffer(BufferAllocation& allocation);
+    void FreeBufferAllocation(const BufferAllocation& allocation);
 
     void AllocateImage(ImageAllocation& allocation, VkImageCreateInfo imageCI, VmaAllocationCreateInfo allocCI);
-    void FreeImage(ImageAllocation& allocation);
+    void FreeImageAllocation(const ImageAllocation& allocation);
 
 #pragma endregion
 
@@ -157,7 +165,9 @@ private:
     vk::DescriptorPool m_BindlessDescriptorPool;
     vk::DescriptorSetLayout m_BindlessDescriptorSetLayout;
     vk::DescriptorSet m_BindlessDescriptorSet;
-    std::queue<uint32_t> m_FreeBindlessIndices{};
+
+    std::queue<BindlessImageHandle> m_FreeBindlessIndices{};
+    std::vector<ResourceDeletion> m_ResourceDeletionQueue{};
 
     friend class Swapchain;
 
@@ -170,6 +180,12 @@ private:
 
 private:
     vkb::PhysicalDevice VkbSelectPhysicalDevice(const vkb::Instance& instance, vk::SurfaceKHR surface);
+
+    void NukeResource(const ResourceDeletion& resource);
+    void NukeBuffer(const BufferResourceDeletion& buffer);
+    void NukeImage(const TextureResourceDeletion& image);
+    void NukePipeline(const PipelineResourceDeletion& pipeline);
+    void NukeShader(const ShaderResourceDeletion& shader);
 
     void CreateMemoryAllocator();
     void DumpMemoryStats(std::string_view fileName) const;

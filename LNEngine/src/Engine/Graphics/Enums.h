@@ -75,6 +75,25 @@ inline std::string_view ToString(Enum type)
 }
 }
 
+namespace ResourceType
+{
+enum Enum : byte
+{
+    eUnknown = 0,
+    eTexture,
+    eBuffer,
+    ePipeline,
+    eShader,
+};
+
+extern const char** s_Enum;
+
+inline std::string_view ToString(Enum type)
+{
+    return s_Enum[type];
+}
+}
+
 enum class EFillMode : byte
 {
     Solid = 0,
@@ -115,5 +134,13 @@ enum class ECompareOperation : byte
     NotEqual = 5,
     GreaterOrEqual = 6,
     Always = 7
+};
+
+enum class EQueueFamilyType : uint8_t
+{
+    Graphics,
+    Compute,
+    Transfer,
+    Present
 };
 }

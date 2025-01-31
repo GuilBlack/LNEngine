@@ -1,5 +1,5 @@
 #pragma once
-#include "GfxEnums.h"
+#include "Enums.h"
 #include "Engine/Core/SafePtr.h"
 
 namespace lne

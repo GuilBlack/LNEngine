@@ -155,17 +155,22 @@ Texture::Texture(SafePtr<class GfxContext> ctx, vk::ImageCreateInfo imageCI, con
     m_ImageView = m_Context->CreateImageView(m_Allocation.Image, viewType, m_Format,
         imageCI.mipLevels, m_NumLayers, aspectMask, std::format("ImageView: {}", name));
 
-    if (IsDepth() == false && IsStencil() == false)
-        m_BindlessHandle = m_Context->RegisterBindlessTexture(this);
+    m_BindlessHandle = m_Context->RegisterBindlessTexture(this);
 }
 
 Texture::~Texture()
 {
-    vk::Device device = m_Context->GetDevice();
-    device.destroyImageView(m_ImageView);
-    if (m_OwnsImage)
-        m_Context->FreeImage(m_Allocation);
-    m_Context->FreeBindlessImage(m_BindlessHandle);
+    TextureResourceDeletion textureDeletion{
+        .ImageView = m_ImageView,
+        .Allocation = m_Allocation,
+        .BindlessHandle = m_BindlessHandle,
+        .OwnsAllocation = m_OwnsImage,
+    };
+    ResourceDeletion deletion{
+        .Type = ResourceType::eTexture,
+        .Resource = textureDeletion,
+    };
+    m_Context->EnqueueResourceDeletion(deletion);
 }
 
 bool Texture::IsDepth()
@@ -366,7 +371,7 @@ void Texture::UploadData(const void* data)
 
     m_Context->GetTransferCommandBufferManager().EndSingleTimeCommands();
 
-    m_Context->FreeBuffer(stagingBuffer);
+    m_Context->FreeBufferAllocation(stagingBuffer);
 
     cmdBuffer = ApplicationBase::GetRenderer().GetGraphicsCommandBufferManager()->GetCurrentCommandBuffer();
     

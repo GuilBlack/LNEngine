@@ -97,7 +97,7 @@ void ApplicationBase::Run()
     Profiler::Get().BeginSession("Run");
     LNE_PROFILE_FUNCTION();
     m_Renderer->GetGraphicsCommandBufferManager()->BeginSingleTimeCommands();
-    m_Window->GetGfxContext()->InitDefaultResources();
+    m_Window->GetGfxContext()->UploadDefaultResources();
 
     for (auto layer : m_LayerStack)
         layer->OnAttach();
@@ -123,6 +123,7 @@ void ApplicationBase::Run()
 
         m_Renderer->EndFrame();
         m_Window->Present();
+        m_Renderer->PostFrame();
 
         auto appUpdatedEvent = AppUpdatedEvent();
         m_EventHub->FireEvent(appUpdatedEvent);

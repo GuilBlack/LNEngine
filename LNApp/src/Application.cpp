@@ -258,7 +258,8 @@ public:
 
         renderer.Draw(m_BasicMaterial, m_TesselatedCubeGeo, m_CubeTransform);
         renderer.Draw(m_BasicMaterial2, m_SphereGeo, m_SphereTransform);
-        renderer.Draw(m_Duck, m_DuckTransform);
+        if (m_Duck)
+            renderer.Draw(m_Duck, m_DuckTransform);
         renderer.Draw(m_SkyboxMaterial, m_TesselatedCubeGeo, m_SkyboxTransform);
 
         renderer.EndRenderPass(fb);
@@ -297,6 +298,11 @@ public:
             ImGui::SameLine();  // This will keep the next input on the same line
             ImGui::DragFloat("Z", &m_LightDirection.z, 0.1f, -FLT_MAX, FLT_MAX, "%.3f");
         ImGui::PopItemWidth(); // Restore the previous item width
+
+        if (ImGui::Button("Delete Duck"))
+        {
+            m_Duck.Reset();
+        }
 
         ImGui::Text("This is some useful text.");
         ImGui::End();

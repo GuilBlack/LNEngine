@@ -1,5 +1,5 @@
 #pragma once
-#include "GfxEnums.h"
+#include "Enums.h"
 #include "Engine/Core/SafePtr.h"
 #include "Engine/Resources/GfxLoader.h"
 #include "UniformBuffer.h"
@@ -48,6 +48,7 @@ public:
 
     void BeginFrame();
     void EndFrame();
+    void PostFrame();
 
     void BeginScene(const struct TransformComponent& cameraTransform, const struct CameraComponent& camera, const glm::vec3& sunDirection);
 

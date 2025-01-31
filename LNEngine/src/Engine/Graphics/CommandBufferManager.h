@@ -1,5 +1,5 @@
 #pragma once
-#include "GfxEnums.h"
+#include "Enums.h"
 #include "Engine/Core/SafePtr.h"
 
 namespace lne
@@ -15,6 +15,7 @@ public:
         return m_CommandBuffers[m_CurrentBufferIndex]; 
     }
     [[nodiscard]] bool GetFenceStatus(uint32_t index);
+    [[nodiscard]] vk::Queue GetQueue() const { return m_Queue; }
     void StartCommandBuffer(uint32_t index);
 
     void Submit(vk::SubmitInfo& submitInfo, uint32_t index = UINT32_MAX);
