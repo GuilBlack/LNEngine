@@ -353,7 +353,7 @@ public:
         if (inputManager.IsMouseButtonPressed(lne::eMouseButton0))
         {
             inputManager.GetMouseDelta(mouseDelta.x, mouseDelta.y);
-            m_CameraTarget.Rotation.x -= mouseDelta.y * rotationSpeed;
+            m_CameraTarget.Rotation.x += mouseDelta.y * rotationSpeed;
             m_CameraTarget.Rotation.y -= mouseDelta.x * rotationSpeed;
         }
 
