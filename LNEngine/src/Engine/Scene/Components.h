@@ -8,45 +8,37 @@ namespace lne
 struct TransformComponent
 {
     glm::vec3 Position{};
-    glm::vec3 Rotation{};
+    glm::quat Rotation{};
+    glm::vec3 EulerAngles{};
     glm::vec3 Scale{ 1.0f, 1.0f, 1.0f };
 
     glm::mat4 GetModelMatrix() const
     {
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, Position);
-        model = glm::rotate(model, glm::radians(Rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
-        model = glm::rotate(model, glm::radians(Rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-        model = glm::rotate(model, glm::radians(Rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+        model *= glm::mat4_cast(Rotation);
         model = glm::scale(model, Scale);
         return model;
     }
 
     glm::mat4 GetRotationMatrix() const
     {
-        glm::mat4 rotation = glm::mat4(1.0f);
-        rotation = glm::rotate(rotation, glm::radians(Rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-        rotation = glm::rotate(rotation, glm::radians(Rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
-        rotation = glm::rotate(rotation, glm::radians(Rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
-        return rotation;
+        return glm::mat4_cast(Rotation);
     }
 
     glm::vec3 GetForward() const
     {
-        glm::vec4 forward = GetRotationMatrix() * glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-        return glm::normalize(glm::vec3(forward));
+        return glm::normalize(Rotation * glm::vec3(0.0f, 0.0f, -1.0f));
     }
 
     glm::vec3 GetRight() const
     {
-        glm::vec4 right = GetRotationMatrix() * glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
-        return glm::normalize(glm::vec3(right));
+        return glm::normalize(Rotation * glm::vec3(1.0f, 0.0f, 0.0f));
     }
 
     glm::vec3 GetUp() const
     {
-        glm::vec4 up = GetRotationMatrix() * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-        return glm::normalize(glm::vec3(up));
+        return glm::normalize(Rotation * glm::vec3(0.0f, 1.0f, 0.0f));
     }
 
     void LookAt(const glm::vec3& target)
@@ -56,7 +48,28 @@ struct TransformComponent
         Rotation.y = glm::degrees(atan2(direction.x, direction.z));
     }
 
-    lne::SafePtr<lne::UniformBufferManager> UniformBuffers;
+    void Rotate(float yaw, float pitch, float roll)
+    {
+        glm::quat yawRot = glm::angleAxis(glm::radians(yaw), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::quat pitchRot = glm::angleAxis(glm::radians(pitch), glm::vec3(1.0f, 0.0f, 0.0f));
+        glm::quat rollRot = glm::angleAxis(glm::radians(roll), glm::vec3(0.0f, 0.0f, 1.0f));
+        Rotation = glm::normalize(yawRot * pitchRot * rollRot * Rotation);
+        EulerAngles = glm::degrees(glm::eulerAngles(Rotation));
+    }
+
+    void Rotate(glm::quat rotation)
+    {
+        Rotation = rotation * Rotation;
+        EulerAngles = glm::degrees(glm::eulerAngles(Rotation));
+    }
+
+    void SetEulerAngles(const glm::vec3& eulerAngles)
+    {
+        EulerAngles = eulerAngles;
+        Rotation = glm::quat(glm::radians(EulerAngles));
+    }
+
+    SafePtr<UniformBufferManager> UniformBuffers;
 };
 
 struct CameraComponent

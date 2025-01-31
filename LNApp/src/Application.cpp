@@ -133,13 +133,11 @@ public:
 
     #pragma region TransformInit
         m_CubeTransform.Position =  { -0.5f, 0.0f, 0.0f };
-        m_CubeTransform.Rotation =  { 0.0f, 0.0f, 0.0f };
         m_CubeTransform.Scale =     { 0.25f, 0.25f, 0.25f };
 
         m_CubeTransform.UniformBuffers = renderer.RegisterObject();
 
         m_SphereTransform.Position = { 0.5f, 0.0f, 0.0f };
-        m_SphereTransform.Rotation = { 0.0f, 0.0f, 0.0f };
         m_SphereTransform.Scale =    { 0.25f, 0.25f, 0.25f };
 
         m_SphereTransform.UniformBuffers = renderer.RegisterObject();
@@ -153,7 +151,6 @@ public:
         m_SkyboxTransform.UniformBuffers = renderer.RegisterObject();
 
         m_DuckTransform.Position = { 0.0f, 0.0f, 0.0f };
-        m_DuckTransform.Rotation = { 0.0f, 0.0f, 0.0f };
         m_DuckTransform.Scale = { .2f, .2f, .2f };
 
         m_DuckTransform.UniformBuffers = renderer.RegisterObject();
@@ -163,7 +160,7 @@ public:
         m_Camera.SetPerspective(45.0f, windowSettings.Width / (float)windowSettings.Height, 0.001f, 10000.0f);
 
         m_CameraTarget.Position = m_CameraTransform.Position;
-        m_CameraTarget.Rotation = m_CameraTransform.Rotation;
+        m_CameraTarget.Rotation = m_CameraTransform.EulerAngles;
         m_Camera.UpdateView(m_CameraTransform);
     }
 
@@ -328,7 +325,7 @@ public:
             movementSpeed *= 10.0f;
         if (inputManager.IsKeyPressed(lne::eKeyLeftControl) || inputManager.IsKeyPressed(lne::eKeyRightControl))
             movementSpeed *= 0.1f;
-
+        
         glm::vec3 movementInput{ 0.0f };
         if (inputManager.IsKeyPressed(lne::eKeyW))
             movementInput += m_CameraTransform.GetForward();
@@ -353,7 +350,7 @@ public:
         if (inputManager.IsMouseButtonPressed(lne::eMouseButton0))
         {
             inputManager.GetMouseDelta(mouseDelta.x, mouseDelta.y);
-            m_CameraTarget.Rotation.x += mouseDelta.y * rotationSpeed;
+            m_CameraTarget.Rotation.x -= mouseDelta.y * rotationSpeed;
             m_CameraTarget.Rotation.y -= mouseDelta.x * rotationSpeed;
         }
 
@@ -366,9 +363,8 @@ public:
         float rotationLerpFactor = 0.99f;
 
         m_CameraTransform.Position = Lerp3(m_CameraTransform.Position, m_CameraTarget.Position, positionLerpFactor, deltaTime);
-        m_CameraTransform.Rotation = Lerp3(m_CameraTransform.Rotation, m_CameraTarget.Rotation, rotationLerpFactor, deltaTime);
-
-
+        m_CameraTransform.SetEulerAngles(Lerp3(m_CameraTransform.EulerAngles, m_CameraTarget.Rotation, rotationLerpFactor, deltaTime));
+        APP_TRACE("Camera Euler Angles: x - {0}, y - {1}, z - {2}", m_CameraTransform.EulerAngles.x, m_CameraTransform.EulerAngles.y, m_CameraTransform.EulerAngles.z);
         m_Camera.UpdateView(m_CameraTransform);
     }
 
