@@ -66,8 +66,7 @@
 #include "Engine/Graphics/FrameGraph.h"
 
 #include "Engine/Scene/Components.h"
+#include "Engine/Scene/HierarchicalScene.h"
+#include "Engine/Scene/Entity.h"
 
 #include <vulkan/vulkan.hpp>
-
-// Entry point
-#include "Engine/Main.h"

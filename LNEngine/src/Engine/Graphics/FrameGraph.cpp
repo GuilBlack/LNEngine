@@ -137,6 +137,8 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer)
         }
         vk::Extent3D extent = node->Framebuffer.GetExtent();
         vk::Viewport viewport = { 0.0f, 0.0f, (float)extent.width, (float)extent.height, 0.0f, 1.0f };
+        viewport.y += viewport.height;
+        viewport.height *= -1;
         commandBuffer.setViewport(0, viewport);
         vk::Rect2D scissor = { {0, 0}, vk::Extent2D{ extent.width, extent.height } };
         commandBuffer.setScissor(0, scissor);

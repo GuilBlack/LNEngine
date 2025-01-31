@@ -8,6 +8,8 @@ namespace lne
 {
 HierarchicalScene::HierarchicalScene()
 {
-    EntityRegistry::RegisterComponentTypes<TransformComponent, CameraComponent, StaticMeshComponent>();
+    EntityRegistry::RegisterComponentType<TransformComponent>();
+    EntityRegistry::RegisterComponentType<CameraComponent>();
+    EntityRegistry::RegisterComponentType<StaticMeshComponent>();
 }
 }

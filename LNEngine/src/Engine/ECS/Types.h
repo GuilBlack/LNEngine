@@ -37,9 +37,9 @@ concept IsConstructibleConstraint = std::is_constructible_v<T, Args...>;
 template<typename T>
 concept SystemConstraint = DerivedFromConstraint<BaseSystem, T>&& std::is_default_constructible_v<T>;
 
-ECS_FORCE_INLINE static const ComponentTypeIndex CreateComponentTypeIndex()
+ECS_FORCE_INLINE const ComponentTypeIndex CreateComponentTypeIndex()
 {
-    static std::atomic<uint32_t> typeCounter{ 0 };
+    static uint32_t typeCounter{ 0 };
     return typeCounter++;
 }
 

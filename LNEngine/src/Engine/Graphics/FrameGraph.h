@@ -16,16 +16,16 @@ public:
     IRenderPass() = default;
     virtual ~IRenderPass() = default;
 
-    virtual void Init() {};
-    virtual void PreRender(vk::CommandBuffer, FrameGraphNode* node) {};
+    virtual void Init() {}
+    virtual void PreRender(vk::CommandBuffer, FrameGraphNode* node) {}
     virtual void Render(vk::CommandBuffer, FrameGraphNode* node) = 0;
-    virtual void PostRender(vk::CommandBuffer, FrameGraphNode* node) {};
-    virtual void Cleanup() {};
+    virtual void PostRender(vk::CommandBuffer, FrameGraphNode* node) {}
+    virtual void Cleanup() {}
     
-    virtual void OnResize(glm::vec2 dimension) {};
+    virtual void OnResize(glm::vec2 dimension) {}
 
     std::string_view GetName() const { return m_Name; }
-    virtual std::string_view GetDebugName() const { return m_Name; }
+    virtual std::string_view GetDebugName() const override { return m_Name; }
 
 protected:
     std::string m_Name{};
@@ -202,7 +202,7 @@ private:
     FrameGraphNodeDesc m_Desc{};
 };
 
-class FrameGraph
+class FrameGraph : public RefCountBase
 {
 public:
     static constexpr uint32_t MAX_RESOURCE_COUNT = 2048;
