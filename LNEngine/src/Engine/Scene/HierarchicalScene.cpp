@@ -6,10 +6,23 @@
 
 namespace lne
 {
+bool HierarchicalScene::s_Initialized = false;
 HierarchicalScene::HierarchicalScene()
 {
-    EntityRegistry::RegisterComponentType<TransformComponent>();
-    EntityRegistry::RegisterComponentType<CameraComponent>();
-    EntityRegistry::RegisterComponentType<StaticMeshComponent>();
+    if (!s_Initialized)
+    {
+        EntityRegistry::RegisterComponentType<TransformComponent>();
+        EntityRegistry::RegisterComponentType<CameraComponent>();
+        EntityRegistry::RegisterComponentType<StaticMeshComponent>();
+        s_Initialized = true;
+    }
+}
+
+void HierarchicalScene::BeginScene()
+{}
+
+void HierarchicalScene::EndScene()
+{
+    m_EntityRegistry.Flush();
 }
 }

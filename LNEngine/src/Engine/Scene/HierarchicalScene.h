@@ -27,6 +27,9 @@ public:
         m_EntityIDMap.erase(entity.GetID());
     }
 
+    void BeginScene();
+    void EndScene();
+
 public:
     operator EntityRegistry& () { return m_EntityRegistry; }
     operator const EntityRegistry& () const { return m_EntityRegistry; }
@@ -34,5 +37,6 @@ public:
 private:
     EntityRegistry m_EntityRegistry{ 8192 };
     EntityIDMap m_EntityIDMap;
+    static bool s_Initialized;
 };
 }

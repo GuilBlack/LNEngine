@@ -9,6 +9,7 @@ namespace lne
 using FrameGraphResourceHandle = ObjectPoolHandle;
 using FrameGraphNodeHandle = ObjectPoolHandle;
 struct FrameGraphNode;
+class FrameGraph;
 
 class IRenderPass : public RefCountBase
 {
@@ -17,9 +18,9 @@ public:
     virtual ~IRenderPass() = default;
 
     virtual void Init() {}
-    virtual void PreRender(vk::CommandBuffer, FrameGraphNode* node) {}
-    virtual void Render(vk::CommandBuffer, FrameGraphNode* node) = 0;
-    virtual void PostRender(vk::CommandBuffer, FrameGraphNode* node) {}
+    virtual void PreRender(vk::CommandBuffer, FrameGraph* frameGraph, FrameGraphNode* node) {}
+    virtual void Render(vk::CommandBuffer, FrameGraph* frameGraph, FrameGraphNode* node) = 0;
+    virtual void PostRender(vk::CommandBuffer, FrameGraph* frameGraph, FrameGraphNode* node) {}
     virtual void Cleanup() {}
     
     virtual void OnResize(glm::vec2 dimension) {}
@@ -48,13 +49,20 @@ struct FrameGraphResourceImageInfo
     vk::AttachmentLoadOp    LoadOp;
 };
 
+struct FrameGraphResourceProxyInfo
+{
+    std::string OriginalName{};
+};
+
+using FrameGraphResourceInfoVariant = std::variant<
+    FrameGraphResourceBufferInfo,
+    FrameGraphResourceImageInfo,
+    FrameGraphResourceProxyInfo
+>;
+
 struct FrameGraphResourceInfo
 {
-    union
-    {
-        FrameGraphResourceBufferInfo Buffer;
-        FrameGraphResourceImageInfo Image;
-    };
+    FrameGraphResourceInfoVariant Variant{};
     bool External = false;
 };
 
@@ -120,7 +128,14 @@ public:
         return *this;
     }
 
+    FrameGraphResourceDescBuilder& SetProxyInfo(const std::string& originalResourceName)
+    {
+        m_ProxyInfo = FrameGraphResourceProxyInfo{ originalResourceName };
+        return *this;
+    }
+
     FrameGraphResourceDescBuilder& SetImageDimension(uint32_t width, uint32_t height, uint32_t depth = 1);
+
     FrameGraphResourceDescBuilder& SetImageFormat(vk::Format format)
     {
         m_ImageInfo.Format = format;
@@ -161,6 +176,7 @@ public:
 private:
     FrameGraphResourceBufferInfo m_BufferInfo{};
     FrameGraphResourceImageInfo m_ImageInfo{};
+    FrameGraphResourceProxyInfo m_ProxyInfo{};
     vk::Extent3D m_Extent{};
     FrameGraphResourceDesc m_Desc{};
 };
@@ -212,6 +228,12 @@ public:
     FrameGraph();
 
     ~FrameGraph() = default;
+
+    FrameGraphResource* GetResource(FrameGraphResourceHandle resourceHandle) 
+    {
+        return m_ResourceCache.GetPool().Access(resourceHandle);
+    }
+    FrameGraphResource* GetResource(const std::string& name) { return m_ResourceCache.Access(name); }
 
     void Compile();
     void Execute(vk::CommandBuffer commandBuffer);

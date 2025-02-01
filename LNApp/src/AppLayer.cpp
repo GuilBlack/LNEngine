@@ -1,12 +1,6 @@
 ﻿#include "pch.h"
 #include "AppLayer.h"
 
-void AppLayer::DepthPrePass::Render(vk::CommandBuffer, lne::FrameGraphNode* node) {}
-
-void AppLayer::GBufferPass::Render(vk::CommandBuffer, lne::FrameGraphNode* node) {}
-
-void AppLayer::LightingPass::Render(vk::CommandBuffer, lne::FrameGraphNode* node) {}
-
 void AppLayer::OnAttach()
 {
     using namespace lne;
@@ -182,33 +176,58 @@ void AppLayer::InitFrameGraph()
     normalAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
     positionAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
     colorAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
+    lne::FrameGraphResourceDesc lightingResource = resourceBuilder.SetName("Lighting")
+        .SetType(lne::FrameGraphResourceType::eAttachment)
+        .SetDefaultColorAttachmentInfos()
+        .Build();
     lne::FrameGraphNodeDesc lightingPassDesc = nodeBuilder.SetName("LightingPass")
         .AddInputResource(metRoughOccAttachmentDesc)
         .AddInputResource(normalAttachmentDesc)
         .AddInputResource(positionAttachmentDesc)
         .AddInputResource(colorAttachmentDesc)
-        .AddOutputResource(resourceBuilder.SetName("Final")
-            .SetDefaultColorAttachmentInfos()
-            .Build())
+        .AddOutputResource(lightingResource)
         .Build();
     nodeBuilder.Clear();
     lne::FrameGraphNodeDesc depthPrePassDesc = nodeBuilder.SetName("DepthPrePass")
         .AddOutputResource(depthAttachmentDesc)
         .Build();
+    nodeBuilder.Clear();
+    lne::FrameGraphNodeDesc dofPass = nodeBuilder.SetName("DoFPass")
+        .AddInputResource(resourceBuilder.SetName("Lighting_Ref")
+            .SetType(lne::FrameGraphResourceType::eProxy)
+            .SetProxyInfo("Lighting")
+            .Build()
+        )
+        .AddOutputResource(resourceBuilder.SetName("Final")
+            .SetType(lne::FrameGraphResourceType::eAttachment)
+            .SetDefaultColorAttachmentInfos()
+            .Build()
+        )
+        .Build();
+    nodeBuilder.Clear();
+    lne::FrameGraphNodeDesc transparentPass = nodeBuilder.SetName("TransparentPass")
+        .AddInputResource(depthAttachmentDesc)
+        .AddInputResource(lightingResource)
+        .AddOutputResource(resourceBuilder.SetName("Lighting_Ref")
+            .SetType(lne::FrameGraphResourceType::eProxy)
+            .SetProxyInfo("Lighting")
+            .Build()
+        )
+        .Build();
 
     m_FrameGraphTest.CreateNode(gBufferPassDesc);
     m_FrameGraphTest.CreateNode(lightingPassDesc);
     m_FrameGraphTest.CreateNode(depthPrePassDesc);
+    m_FrameGraphTest.CreateNode(dofPass);
+    m_FrameGraphTest.CreateNode(transparentPass);
 
     m_FrameGraphTest.Compile();
 
-    m_DepthPrePass = lnnew DepthPrePass();
-    m_GBufferPass = lnnew GBufferPass();
-    m_LightingPass = lnnew LightingPass();
-
-    m_FrameGraphTest.BindRenderPass(m_DepthPrePass);
-    m_FrameGraphTest.BindRenderPass(m_GBufferPass);
-    m_FrameGraphTest.BindRenderPass(m_LightingPass);
+    m_FrameGraphTest.BindRenderPass(lnnew DepthPrePass());
+    m_FrameGraphTest.BindRenderPass(lnnew GBufferPass());
+    m_FrameGraphTest.BindRenderPass(lnnew LightingPass());
+    m_FrameGraphTest.BindRenderPass(lnnew DoFPass());
+    m_FrameGraphTest.BindRenderPass(lnnew TransparentPass());
 }
 
 void AppLayer::OnDetach()
@@ -219,6 +238,7 @@ void AppLayer::OnDetach()
 
 void AppLayer::OnUpdate(float deltaTime)
 {
+    m_Scene.BeginScene();
     double currentTime = lne::ApplicationBase::GetClock().GetElapsedTime();
     HandleInput(deltaTime);
     static int frameIndex = 0;
@@ -245,8 +265,8 @@ void AppLayer::OnUpdate(float deltaTime)
 
     renderer.EndRenderPass(fb);
 
-    // we really need a scene structure...
     m_FrameGraphTest.Execute(renderer.GetGraphicsCommandBufferManager()->GetCurrentCommandBuffer());
+    m_Scene.EndScene();
 }
 
 void AppLayer::OnImGuiRender()

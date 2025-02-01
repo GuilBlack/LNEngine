@@ -48,21 +48,22 @@ void FrameGraph::Compile()
             case FrameGraphResourceType::eAttachment:
             {
                 // should implement resource aliasing later
-                bool isDepth = (outputResource.Info.Image.Format == vk::Format::eD16Unorm
-                    || outputResource.Info.Image.Format == vk::Format::eD32Sfloat
-                    || outputResource.Info.Image.Format == vk::Format::eD16UnormS8Uint
-                    || outputResource.Info.Image.Format == vk::Format::eD24UnormS8Uint
-                    || outputResource.Info.Image.Format == vk::Format::eD32SfloatS8Uint);
+                auto& imageInfo = std::get<FrameGraphResourceImageInfo>(outputResource.Info.Variant);
+                bool isDepth = (imageInfo.Format == vk::Format::eD16Unorm
+                    || imageInfo.Format == vk::Format::eD32Sfloat
+                    || imageInfo.Format == vk::Format::eD16UnormS8Uint
+                    || imageInfo.Format == vk::Format::eD24UnormS8Uint
+                    || imageInfo.Format == vk::Format::eD32SfloatS8Uint);
 
                 if (isDepth)
                 {
                     outputResource.Resource = Texture::CreateDepthTexture(m_Context,
-                        outputResource.Info.Image.Extent.width, outputResource.Info.Image.Extent.height, outputResource.Name);
+                        imageInfo.Extent.width, imageInfo.Extent.height, outputResource.Name);
                     break;
                 }
                 outputResource.Resource = Texture::CreateColorAttachmentTexture(m_Context,
-                    outputResource.Info.Image.Extent.width, outputResource.Info.Image.Extent.height,
-                    outputResource.Info.Image.Format, outputResource.Name);
+                    imageInfo.Extent.width, imageInfo.Extent.height,
+                    imageInfo.Format, outputResource.Name);
                 break;
             }
             case FrameGraphResourceType::eBuffer:
@@ -80,12 +81,20 @@ void FrameGraph::Compile()
 
             LNE_ASSERT(associatedOutputResource != nullptr, "Input resource has no associated output resource");
 
+            if (associatedOutputResource->Type == FrameGraphResourceType::eProxy)
+            {
+                const auto& proxyInfo = std::get<FrameGraphResourceProxyInfo>(associatedOutputResource->Info.Variant);
+                FrameGraphResource* realResource = m_ResourceCache.Access(proxyInfo.OriginalName);
+                LNE_ASSERT(realResource != nullptr, "Proxy resource has no original resource");
+                associatedOutputResource = realResource;
+            }
+
             --associatedOutputResource->RefCount;
 
             if (associatedOutputResource->RefCount != 0 || associatedOutputResource->Info.External)
                 continue;
 
-            switch (inputResource.Type)
+            switch (associatedOutputResource->Type)
             {
             case FrameGraphResourceType::eAttachment:
             case FrameGraphResourceType::eTexture:
@@ -111,7 +120,7 @@ void FrameGraph::Compile()
 
 void FrameGraph::Execute(vk::CommandBuffer commandBuffer)
 {
-    // traverse nodes in topological order
+     // traverse nodes in topological order
     for (FrameGraphNodeHandle nodeHandle : m_Nodes)
     {
         FrameGraphNode* node = m_NodeCache.GetPool().Access(nodeHandle);
@@ -119,7 +128,7 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer)
         if (!node->Enabled)
             continue;
 
-        node->RenderPass->PreRender(commandBuffer, node);
+        node->RenderPass->PreRender(commandBuffer, this, node);
 
         for (FrameGraphResourceHandle inputResourceHandle : node->InputResources)
         {
@@ -149,11 +158,11 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer)
 
         node->Framebuffer.Bind(commandBuffer);
 
-        node->RenderPass->Render(commandBuffer, node);
+        node->RenderPass->Render(commandBuffer, this, node);
 
         node->Framebuffer.Unbind(commandBuffer);
 
-        node->RenderPass->PostRender(commandBuffer, node);
+        node->RenderPass->PostRender(commandBuffer, this, node);
     }
 }
 
@@ -186,10 +195,7 @@ FrameGraphResourceHandle FrameGraph::CreateOutputResource(const FrameGraphResour
     auto& pool = m_ResourceCache.GetPool();
     FrameGraphResourceHandle handle = INVALID_OBJECT_POOL_HANDLE;
 
-    if (desc.Type == FrameGraphResourceType::eProxy)
-        handle = pool.Allocate();
-    else
-        handle = m_ResourceCache.Insert(desc.Name);
+    handle = m_ResourceCache.Insert(desc.Name);
 
     if (handle == INVALID_OBJECT_POOL_HANDLE)
     {
@@ -201,13 +207,9 @@ FrameGraphResourceHandle FrameGraph::CreateOutputResource(const FrameGraphResour
 
     resource.Name = desc.Name;
     resource.Type = desc.Type;
-
-    if (desc.Type != FrameGraphResourceType::eProxy)
-    {
-        resource.Info = desc.Info;
-        resource.Producer = producer;
-        resource.ProducerResourceHandle = handle;
-    }
+    resource.Info = desc.Info;
+    resource.Producer = producer;
+    resource.ProducerResourceHandle = handle;
 
     return handle;
 }
@@ -225,9 +227,20 @@ void FrameGraph::CreateNodeDependents(FrameGraphNodeHandle node)
 
         inputResource->Producer = associatedOutputResource->Producer;
         inputResource->ProducerResourceHandle = associatedOutputResource->ProducerResourceHandle;
-        inputResource->Info = associatedOutputResource->Info;
 
-        ++associatedOutputResource->RefCount;
+        if (associatedOutputResource->Type == FrameGraphResourceType::eProxy)
+        {
+            const auto& proxyInfo = std::get<FrameGraphResourceProxyInfo>(associatedOutputResource->Info.Variant);
+            FrameGraphResource* realResource = m_ResourceCache.Access(proxyInfo.OriginalName);
+            LNE_ASSERT(realResource != nullptr, "Proxy resource has no original resource");
+            inputResource->Info = realResource->Info;
+            ++realResource->RefCount;
+        }
+        else
+        {
+            inputResource->Info = associatedOutputResource->Info;
+            ++associatedOutputResource->RefCount;
+        }
 
         FrameGraphNode& producerNode = *m_NodeCache.GetPool().Access(associatedOutputResource->Producer);
         producerNode.Dependents.push_back(node);
@@ -254,7 +267,8 @@ void FrameGraph::CreateFramebuffers(FrameGraphNodeHandle nodeHandle)
         {
         case FrameGraphResourceType::eAttachment:
         {
-            vk::Extent3D attachmentExtent = outputResource.Info.Image.Extent;
+            auto& imageInfo = std::get<FrameGraphResourceImageInfo>(outputResource.Info.Variant);
+            vk::Extent3D attachmentExtent = imageInfo.Extent;
             if (extent.width == 0)
                 extent.width = attachmentExtent.width;
             else
@@ -273,7 +287,7 @@ void FrameGraph::CreateFramebuffers(FrameGraphNodeHandle nodeHandle)
 
             auto attachmentDesc = AttachmentDesc{
                 texture,
-                outputResource.Info.Image.LoadOp,
+                imageInfo.LoadOp,
                 vk::AttachmentStoreOp::eStore,
                 attachmentLayout,
                 attachmentLayout,
@@ -303,7 +317,8 @@ void FrameGraph::CreateFramebuffers(FrameGraphNodeHandle nodeHandle)
         case FrameGraphResourceType::eAttachment:
         case FrameGraphResourceType::eTexture:
         {
-            vk::Extent3D attachmentExtent = inputResource.Info.Image.Extent;
+            auto& imageInfo = std::get<FrameGraphResourceImageInfo>(inputResource.Info.Variant);
+            vk::Extent3D attachmentExtent = imageInfo.Extent;
             if (extent.width == 0)
                 extent.width = attachmentExtent.width;
             else
@@ -331,6 +346,10 @@ void FrameGraph::CreateFramebuffers(FrameGraphNodeHandle nodeHandle)
                 vk::ClearValue().setColor(std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f })
                     .setDepthStencil({ 1.0f, 0 })
             };
+
+            if (inputResource.Type == FrameGraphResourceType::eTexture)
+                break;
+
             if (texture->IsDepth())
                 depthAttachment = attachmentDesc;
             else
@@ -391,7 +410,7 @@ void FrameGraph::SortGraph(std::vector<FrameGraphNodeHandle>& nodes)
         nodes.push_back(sortedNodes[i]);
     }
 
-    OutputGraphToMermaid("Profiling/framegraph.txt");
+    OutputGraphToMermaid("Profiling/framegraph.mmd");
 }
 
 void FrameGraph::BindRenderPass(SafePtr<IRenderPass> renderPass)
@@ -520,17 +539,28 @@ FrameGraphResourceDesc FrameGraphResourceDescBuilder::Build()
     switch (m_Desc.Type)
     {
     case FrameGraphResourceType::eBuffer:
-        if (m_Desc.Info.Buffer.Size == 0)
+    {
+        if (m_BufferInfo.Size == 0)
             LNE_ERROR("Buffer size is 0");
-        m_Desc.Info.Buffer = m_BufferInfo;
+        m_Desc.Info.Variant = m_BufferInfo;
         break;
+    }
     case FrameGraphResourceType::eAttachment:
     case FrameGraphResourceType::eTexture:
+    {
         if (m_Extent == 0 || m_Extent == 0)
             LNE_ERROR("Image width or height is 0");
-        m_Desc.Info.Image = m_ImageInfo;
-        m_Desc.Info.Image.Extent = m_Extent;
+        m_ImageInfo.Extent = m_Extent;
+        m_Desc.Info.Variant = m_ImageInfo;
         break;
+    }
+    case FrameGraphResourceType::eProxy:
+    {
+        if (m_ProxyInfo.OriginalName.empty())
+            LNE_ERROR("Proxy resource has no original resource name");
+        m_Desc.Info.Variant = m_ProxyInfo;
+        break;
+    }
     default:
         LNE_ERROR("Unknown resource type");
         break;

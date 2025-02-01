@@ -24,6 +24,7 @@
 #include <queue>
 #include <array>
 #include <tuple>
+#include <variant>
 
 // Platform
 #ifdef LNE_PLATFORM_WINDOWS

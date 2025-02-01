@@ -3,7 +3,6 @@
 
 class AppLayer final : public lne::Layer
 {
-    // TODO: we really need a scene structure...
     class DepthPrePass : public lne::IRenderPass
     {
     public:
@@ -12,7 +11,7 @@ class AppLayer final : public lne::Layer
             m_Name = "DepthPrePass";
         }
 
-        virtual void Render(vk::CommandBuffer, lne::FrameGraphNode* node) override;
+        virtual void Render(vk::CommandBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override {}
     };
 
     class GBufferPass : public lne::IRenderPass
@@ -23,7 +22,7 @@ class AppLayer final : public lne::Layer
             m_Name = "GBufferPass";
         }
 
-        virtual void Render(vk::CommandBuffer, lne::FrameGraphNode* node) override;
+        virtual void Render(vk::CommandBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override {}
     };
 
     class LightingPass : public lne::IRenderPass
@@ -34,7 +33,29 @@ class AppLayer final : public lne::Layer
             m_Name = "LightingPass";
         }
 
-        virtual void Render(vk::CommandBuffer, lne::FrameGraphNode* node) override;
+        virtual void Render(vk::CommandBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override {}
+    };
+
+    class DoFPass : public lne::IRenderPass
+    {
+    public:
+        DoFPass()
+        {
+            m_Name = "DoFPass";
+        }
+
+        virtual void Render(vk::CommandBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override {}
+    };
+
+    class TransparentPass : public lne::IRenderPass
+    {
+    public:
+        TransparentPass()
+        {
+            m_Name = "TransparentPass";
+        }
+
+        virtual void Render(vk::CommandBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override {}
     };
 
 public:
