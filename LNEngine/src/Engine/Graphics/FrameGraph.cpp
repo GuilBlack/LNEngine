@@ -128,6 +128,9 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer)
         if (!node->Enabled)
             continue;
 
+        auto& renderer = ApplicationBase::GetRenderer();
+        renderer.PushLabel(commandBuffer, node->Name);
+
         node->RenderPass->PreRender(commandBuffer, this, node);
 
         for (FrameGraphResourceHandle inputResourceHandle : node->InputResources)
@@ -163,6 +166,8 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer)
         node->Framebuffer.Unbind(commandBuffer);
 
         node->RenderPass->PostRender(commandBuffer, this, node);
+
+        renderer.PopLabel(commandBuffer);
     }
 }
 

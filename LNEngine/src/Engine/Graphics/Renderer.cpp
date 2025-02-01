@@ -53,6 +53,16 @@ void Renderer::Nuke()
     m_GfxLoader.Reset();
 }
 
+void Renderer::PushLabel(vk::CommandBuffer cmdBuffer, std::string_view label) const
+{
+    cmdBuffer.beginDebugUtilsLabelEXT({ label.data() });
+}
+
+void Renderer::PopLabel(vk::CommandBuffer cmdBuffer) const
+{
+    cmdBuffer.endDebugUtilsLabelEXT();
+}
+
 void Renderer::BeginFrame()
 {
     uint32_t imageIndex = m_Swapchain->GetCurrentFrameIndex();

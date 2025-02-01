@@ -46,6 +46,10 @@ public:
 
     [[nodiscard]] std::unique_ptr<class CommandBufferManager>& GetGraphicsCommandBufferManager() { return m_GraphicsCommandBufferManager; }
 
+    void PushLabel(vk::CommandBuffer cmdBuffer, std::string_view label) const;
+
+    void PopLabel(vk::CommandBuffer cmdBuffer) const;
+
     void BeginFrame();
     void EndFrame();
     void PostFrame();

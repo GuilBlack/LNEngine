@@ -118,6 +118,7 @@ public:
 
 #pragma endregion
 
+#pragma region Utils
     template<typename T>
     void SetVkObjectName(T handle, std::string_view name) const
     {
@@ -133,6 +134,8 @@ public:
         (void)name;
     #endif
     }
+
+#pragma endregion
 
 private:
     static class vk::Instance s_VulkanInstance;

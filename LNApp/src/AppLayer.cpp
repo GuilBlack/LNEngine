@@ -9,7 +9,7 @@ void AppLayer::OnAttach()
 
     Renderer& renderer = ApplicationBase::GetRenderer();
 
-    InitFrameGraph();
+    InitTestFrameGraph();
 
     auto& fb = ApplicationBase::GetWindow().GetCurrentFramebuffer();
     fb.SetClearColor({0.105f, 0.117f, 0.149f, 1.0f });
@@ -142,7 +142,7 @@ void AppLayer::OnAttach()
     cameraComponent.UpdateView(cameraTransform);
 }
 
-void AppLayer::InitFrameGraph()
+void AppLayer::InitTestFrameGraph()
 {
     auto [width, height] = lne::ApplicationBase::GetWindow().GetSwapchain()->GetViewport().GetExtent();
 

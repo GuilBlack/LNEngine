@@ -123,16 +123,21 @@ void ImGuiService::BeginFrame()
 void ImGuiService::EndFrame()
 {
     ImGui::ShowDemoWindow();
+
+
     ImGui::Render();
 
     uint32_t imageIndex = m_Swapchain->GetCurrentFrameIndex();
 
-    auto cmdBuffer = ApplicationBase::GetRenderer().GetGraphicsCommandBufferManager()->GetCurrentCommandBuffer();
+    auto& renderer = ApplicationBase::GetRenderer();
+    auto cmdBuffer = renderer.GetGraphicsCommandBufferManager()->GetCurrentCommandBuffer();
 
+    renderer.PushLabel(cmdBuffer, "ImGui");
     m_Framebuffers[imageIndex].Bind(cmdBuffer);
 
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmdBuffer);
 
     m_Framebuffers[imageIndex].Unbind(cmdBuffer);
+    renderer.PopLabel(cmdBuffer);
 }
 }

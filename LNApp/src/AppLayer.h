@@ -64,7 +64,7 @@ public:
     {}
     void OnAttach() override;
 
-    void InitFrameGraph();
+    void InitTestFrameGraph();
 
     void OnDetach() override;
 
@@ -101,9 +101,6 @@ private:
     float m_Roughness{ 0.0f };
 
     lne::FrameGraph m_FrameGraphTest{};
-    lne::SafePtr<DepthPrePass> m_DepthPrePass{};
-    lne::SafePtr<GBufferPass> m_GBufferPass{};
-    lne::SafePtr<LightingPass> m_LightingPass{};
 
 private:
     void GenerateCube(std::vector<lne::Vertex>& vertices, std::vector<uint32_t>& indices, uint32_t tesselationLevel);
