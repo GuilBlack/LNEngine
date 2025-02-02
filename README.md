@@ -24,8 +24,13 @@ This README is more of a way for me to keep track of what I did and what I'll be
 - Texture loading in async
 - Simple PBR shader
 - Simple model loading (needs more testing)
+- Frame graph implementation working with a simple forward renderer
+- ECS which is Archetype-based. I took it from [my other ECS project](https://github.com/GuilBlack/ECS) and adapted it to this project
+- Simple scene system. Still a big WIP
 
 ## Next steps
+- Deferred rendering & resource aliasing as well as compute shaders
+- Some comments in the code would be nice...
 - Make a better interface with ImGui
 - Make a resource loader
 - Shader Spirv caching + just shader cache in general
@@ -47,34 +52,15 @@ That's about it for now. With all of this, you should be able to run the applica
 
 ![square-image](github-images/preview.gif)
 
+The frame graph generates a graph in mermaid (mmd) format in the profiling directory. Here is a basic and a complex frame graph in image:
+
+| Basic Frame Graph | Complex Frame Graph |
+| --- | --- |
+| ![square-image](github-images/BasicFrameGraph.png) | ![square-image](github-images/ComplexFrameGraph.png) |
+
+Currently, we are using the basic frame graph to render the scene. The complex frame graph is a work in progress.
+
 ### Code example
-To setup a graphics pipeline, with some materials, it's as simple as this:
-```cpp
-        auto& fb = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
-        // Setting the clear color
-        fb.SetClearColor({0.105f, 0.117f, 0.149f, 1.0f });
-        // Creating the pipeline with depth test enabled
-        lne::GraphicsPipelineDesc desc{};
-        desc.PathToShaders = lne::ApplicationBase::GetAssetsPath() + "Shaders\\HelloTriangle.glsl";
-        desc.Name = "Basic";
-        desc.EnableDepthTest(true);
-        desc.Framebuffer = fb;
-        desc.Blend.EnableBlend(false);
 
-        m_BasePipeline = lne::ApplicationBase::GetRenderer().CreateGraphicsPipeline(desc);
-
-        // Creating the texture
-        m_Texture = lne::ApplicationBase::GetRenderer().CreateTexture(lne::ApplicationBase::GetAssetsPath() + "Textures\\UVChecker.png");
-
-        // Creating the material
-        m_BasicMaterial = lnnew lne::Material(m_BasePipeline);
-        m_BasicMaterial2 = lnnew lne::Material(m_BasePipeline);
-
-        // setting up some properties of the material
-        m_BasicMaterial->SetProperty("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
-        m_BasicMaterial->SetTexture("tDiffuse", m_Texture);
-        m_BasicMaterial2->SetProperty("uColor", glm::vec4(0.25f, 0.25f, 0.25f, 0.25f));
-        // if a texture is not set, the material will use a default texture in the bindless array of textures
-```
-This example code can be found in LNApp.
+You'll find a code example on how everything works in the LNApp/src/AppLayer.cpp and .h.
 
