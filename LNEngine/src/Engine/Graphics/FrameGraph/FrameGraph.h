@@ -1,8 +1,9 @@
 #pragma once
 #include "Engine/Core/DataStructures/ObjectCache.h"
 #include "Engine/Core/SafePtr.h"
-#include "Enums.h"
-#include "Framebuffer.h"
+#include "Engine/Graphics/Enums.h"
+#include "Engine/Graphics/Framebuffer.h"
+#include "Engine/ECS/Types.h"
 
 namespace lne
 {
@@ -10,27 +11,7 @@ using FrameGraphResourceHandle = ObjectPoolHandle;
 using FrameGraphNodeHandle = ObjectPoolHandle;
 struct FrameGraphNode;
 class FrameGraph;
-
-class IRenderPass : public RefCountBase
-{
-public:
-    IRenderPass() = default;
-    virtual ~IRenderPass() = default;
-
-    virtual void Init() {}
-    virtual void PreRender(vk::CommandBuffer, FrameGraph* frameGraph, FrameGraphNode* node) {}
-    virtual void Render(vk::CommandBuffer, FrameGraph* frameGraph, FrameGraphNode* node) = 0;
-    virtual void PostRender(vk::CommandBuffer, FrameGraph* frameGraph, FrameGraphNode* node) {}
-    virtual void Cleanup() {}
-    
-    virtual void OnResize(glm::vec2 dimension) {}
-
-    std::string_view GetName() const { return m_Name; }
-    virtual std::string_view GetDebugName() const override { return m_Name; }
-
-protected:
-    std::string m_Name{};
-};
+class IRenderPass;
 
 struct FrameGraphResourceBufferInfo
 {
@@ -91,6 +72,7 @@ struct FrameGraphNode
 
     std::string Name{};
     bool Enabled{ true };
+    RenderPassType::Enum Type{ RenderPassType::eGraphics };
 };
 
 struct FrameGraphResourceDesc
@@ -107,6 +89,7 @@ struct FrameGraphNodeDesc
 
     std::string Name{};
     bool Enabled{ true };
+    RenderPassType::Enum Type{ RenderPassType::eGraphics };
 };
 
 class FrameGraphResourceDescBuilder
@@ -193,6 +176,12 @@ public:
         return *this;
     }
 
+    FrameGraphNodeDescBuilder& SetType(RenderPassType::Enum type)
+    {
+        m_Desc.Type = type;
+        return *this;
+    }
+
     FrameGraphNodeDescBuilder& SetEnabled(bool enabled)
     {
         m_Desc.Enabled = enabled;
@@ -226,6 +215,7 @@ public:
 
 public:
     FrameGraph();
+    FrameGraph(const std::string& name);
 
     ~FrameGraph() = default;
 
@@ -234,22 +224,31 @@ public:
         return m_ResourceCache.GetPool().Access(resourceHandle);
     }
     FrameGraphResource* GetResource(const std::string& name) { return m_ResourceCache.Access(name); }
+    std::vector<SafePtr<IRenderPass>> GetRenderPassesWithSignature(EntitySignature signature);
+    const std::vector<FrameGraphNodeHandle>& GetNodes() const { return m_Nodes; }
+    FrameGraphNode* GetNode(FrameGraphNodeHandle nodeHandle) { return m_NodeCache.GetPool().Access(nodeHandle); }
 
     void Compile();
-    void Execute(vk::CommandBuffer commandBuffer);
+    void Execute(vk::CommandBuffer commandBuffer, class WorldRenderer* worldRenderer);
     void OnResize(class WindowResizeEvent& e);
 
     void BindRenderPass(SafePtr<IRenderPass> renderPass);
     FrameGraphNodeHandle CreateNode(const FrameGraphNodeDesc& desc);
 
-    void OutputGraphToMermaid(const std::string& filename);
+    void OutputGraphToMermaid();
 
+protected:
+    virtual std::string_view GetDebugName() const override
+    {
+        return m_Name.empty() ? "FrameGraph" : m_Name;
+    }
 private:
     SafePtr<class GfxContext> m_Context{};
     // normally, it will be topologically sorted
     std::vector<FrameGraphNodeHandle> m_Nodes{};
     ObjectCache<std::string, FrameGraphResource> m_ResourceCache;
     ObjectCache<std::string, FrameGraphNode> m_NodeCache;
+    std::string m_Name{};
 
 private:
     FrameGraphResourceHandle CreateInputResource(const FrameGraphResourceDesc& desc);

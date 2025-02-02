@@ -1,4 +1,4 @@
-//#lne_head [[Vt main][Fg main]]
+﻿//#lne_head [[Vt main][Fg main]]
 #version 460
 
 #extension GL_EXT_scalar_block_layout :     enable
@@ -53,13 +53,12 @@ layout(set = 2, binding = 1) readonly buffer IndexBuffer {
 
 void main() {
     uint currentIndex = indexBuffer.indices[gl_VertexIndex];
-    mat4 model = transformBuffer.transforms[gl_InstanceIndex];
-    gl_Position = uViewProj * model * vec4(vertexBuffer.vertices[currentIndex].position, 1.0);
+    gl_Position = uViewProj * uModel * vec4(vertexBuffer.vertices[currentIndex].position, 1.0);
     oUVs = vertexBuffer.vertices[currentIndex].uv;
 
-    oWorldPos = (model * vec4(vertexBuffer.vertices[currentIndex].position, 1.0)).xyz;
+    oWorldPos = (uModel * vec4(vertexBuffer.vertices[currentIndex].position, 1.0)).xyz;
 
-    mat3 normalMatrix = transpose(inverse(mat3(model)));
+    mat3 normalMatrix = transpose(inverse(mat3(uModel)));
     oNormal = normalize(normalMatrix * vertexBuffer.vertices[currentIndex].normal);
 }
 

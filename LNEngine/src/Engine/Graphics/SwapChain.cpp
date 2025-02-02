@@ -133,7 +133,7 @@ void Swapchain::CreateSwapchain()
         surfaceFormat.colorSpace,
         sc.currentExtent,
         1,
-        vk::ImageUsageFlagBits::eColorAttachment,
+        vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst,
         sameQueueFamily ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent,
         queueFamilyIndices,
         preTransform,

@@ -274,7 +274,7 @@ void GfxContext::NukeDefaultResources()
 
 void GfxContext::DeferredNukeResources()
 {
-    for (int i = m_ResourceDeletionQueue.size() - 1; i >= 0; --i)
+    for (int i = (int)m_ResourceDeletionQueue.size() - 1; i >= 0; --i)
     {
         ResourceDeletion& resource = m_ResourceDeletionQueue[i];
         if (resource.ElapsedFrames <= m_MaxFramesInFlight)

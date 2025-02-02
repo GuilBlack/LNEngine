@@ -1,0 +1,119 @@
+﻿#include "lnepch.h"
+#include "FrameGraph/FrameGraph.h"
+#include "DynamicDescriptorAllocator.h"
+#include "Core/ApplicationBase.h"
+#include "Renderer.h"
+#include "Material.h"
+#include "CommandBufferManager.h"
+#include "WorldRenderer.h"
+#include <Graphics/FrameGraph/RenderPass/IRenderPass.h>
+#include "ECS/EntityRegistry.h"
+#include "Scene/Components.h"
+#include "Mesh.h"
+
+
+namespace lne
+{
+WorldRenderer::WorldRenderer(const SafePtr<FrameGraph>& frameGraph)
+    : m_FrameGraph(frameGraph)
+{
+    SafePtr<GfxContext> gfxContext = ApplicationBase::GetWindow().GetGfxContext();
+    uint32_t maxFramesInFlight = gfxContext->GetMaxFramesInFlight();
+
+    m_TransformBuffers.resize(maxFramesInFlight);
+    // 1 MB of transform data per frame since a mat4 is 64 bytes. 1024 * 16 = 16k transforms
+    for (uint32_t i = 0; i < maxFramesInFlight; ++i)
+    {
+        m_TransformBuffers[i].Buffer.Reset(lnnew StorageBuffer(gfxContext, sizeof(glm::mat4) * 1024 * 16, nullptr, StorageBufferType::eDynamic));
+        m_TransformBuffers[i].Data = lnnew glm::mat4[1024*16];
+    }
+}
+
+WorldRenderer::~WorldRenderer()
+{
+    for (uint32_t i = 0; i < m_TransformBuffers.size(); ++i)
+    {
+        delete[] m_TransformBuffers[i].Data;
+    }
+}
+
+void WorldRenderer::BeginFrame()
+{
+    auto& nodes = m_FrameGraph->GetNodes();
+    for (auto& nodeHandle : nodes)
+    {
+        FrameGraphNode* node = m_FrameGraph->GetNode(nodeHandle);
+        node->RenderPass->BeginFrame();
+    }
+    m_Transfroms.clear();
+}
+
+void WorldRenderer::Render(EntityRegistry& registry)
+{
+    auto& renderer = ApplicationBase::GetRenderer();
+    
+    auto staticMeshView = registry.GetView<TransformComponent, StaticMeshComponent>();
+
+    std::vector<SafePtr<IRenderPass>> staticMeshRenderPasses = m_FrameGraph->GetRenderPassesWithSignature(ComponentType<StaticMeshComponent>());
+    std::vector<IDrawStaticMeshes*> drawStaticMeshesAdders;
+
+    for (auto& renderPass : staticMeshRenderPasses)
+    {
+        IDrawStaticMeshes* drawStaticMeshesAdder = dynamic_cast<IDrawStaticMeshes*>(renderPass.GetPtr());
+        if (drawStaticMeshesAdder)
+            drawStaticMeshesAdders.push_back(drawStaticMeshesAdder);
+    }
+
+    for (auto& index : staticMeshView)
+    {
+        auto [transform, staticMesh] = staticMeshView.Get(index);
+
+        // TODO: will probably insert frustum culling here
+        auto& subMeshes = staticMesh.Mesh->GetSubMeshes();
+        for (uint32_t i = 0; i < subMeshes.size(); ++i)
+        {
+            const SubMesh& subMesh = subMeshes[i];
+
+            glm::mat4 model = transform.GetModelMatrix() * subMesh.WorldTransform;
+            StaticMeshHash hash{ (uint64_t)staticMesh.Mesh.GetPtr(), i };
+            m_Transfroms[hash].Transforms.emplace_back(model);
+
+            for (auto& drawStaticMeshesAdder : drawStaticMeshesAdders)
+                drawStaticMeshesAdder->AddStaticMeshDrawCommand(hash, staticMesh.Mesh, i);
+        }
+    }
+
+    uint32_t offset = 0;
+    for (auto& [hash, subMeshArray] : m_Transfroms)
+    {
+        uint32_t size = (uint32_t)subMeshArray.Transforms.size();
+        if (size == 0)
+            continue;
+        subMeshArray.Offset = offset;
+        // copy submesh transforms to the transform buffer
+        void* dst = m_TransformBuffers[renderer.GetCurrentFrameIndex()].Data + offset;
+        std::memcpy(dst, subMeshArray.Transforms.data(), size * sizeof(glm::mat4));
+        offset += size;
+    }
+    uint32_t totalSizeBytes = offset * sizeof(glm::mat4);
+    vk::CommandBuffer cmdBuffer = renderer.GetGraphicsCommandBufferManager()->GetCurrentCommandBuffer();
+    m_TransformBuffers[renderer.GetCurrentFrameIndex()].Buffer->CopyData(
+        cmdBuffer,
+        m_TransformBuffers[renderer.GetCurrentFrameIndex()].Data, totalSizeBytes, 0);
+    renderer.PushLabel(cmdBuffer, "Frame");
+
+    m_FrameGraph->Execute(cmdBuffer, this);
+
+    renderer.PopLabel(cmdBuffer);
+}
+
+void WorldRenderer::EndFrame()
+{
+    auto& nodes = m_FrameGraph->GetNodes();
+    for (auto& nodeHandle : nodes)
+    {
+        FrameGraphNode* node = m_FrameGraph->GetNode(nodeHandle);
+        node->RenderPass->EndFrame();
+    }
+}
+}

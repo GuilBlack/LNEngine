@@ -12,7 +12,6 @@ Framebuffer::Framebuffer(SafePtr<class GfxContext> ctx, std::vector<AttachmentDe
     , m_ColorAttachments{ attachments }
     , m_DepthAttachment{ depth }
 {
-    LNE_ASSERT(m_ColorAttachments.size() > 0 || m_DepthAttachment.Texture != nullptr, "Framebuffer must have at least one attachment");
     if (m_DepthAttachment.Texture != nullptr)
         m_HasDepth = true;
 }
@@ -47,6 +46,8 @@ void Framebuffer::ChangeColorAttachmentsOps(vk::AttachmentLoadOp loadOp, vk::Att
 
 void Framebuffer::Bind(vk::CommandBuffer cmdBuffer) const
 {
+    if (!(m_ColorAttachments.size() > 0 || m_DepthAttachment.Texture != nullptr))
+        return;
     std::vector<vk::RenderingAttachmentInfo> colorRenderingAttachments;
     colorRenderingAttachments.reserve(m_ColorAttachments.size());
 
@@ -97,6 +98,8 @@ void Framebuffer::Bind(vk::CommandBuffer cmdBuffer) const
 
 void Framebuffer::Unbind(vk::CommandBuffer cmdBuffer) const
 {
+    if (!(m_ColorAttachments.size() > 0 || m_DepthAttachment.Texture != nullptr))
+        return;
     cmdBuffer.endRendering();
 
     for (const auto& attachment : m_ColorAttachments)
@@ -112,6 +115,7 @@ vk::Extent3D Framebuffer::GetExtent() const
     
     if (m_DepthAttachment.Texture != nullptr)
         return m_DepthAttachment.Texture->GetDimensions();
+    return {};
 }
 uint32_t Framebuffer::GetLayerCount() const
 {
@@ -120,5 +124,6 @@ uint32_t Framebuffer::GetLayerCount() const
 
     if (m_DepthAttachment.Texture != nullptr)
         return m_DepthAttachment.Texture->GetNumLayers();
+    return {};
 }
 }

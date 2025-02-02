@@ -12,11 +12,16 @@ layout(scalar, set=0, binding=0) uniform GlobalUBO {
     vec3 uSunDir;
 };
 
-layout(scalar, set = 2, binding = 0) uniform ObjectData {
-    mat4 uModel;
-};
+layout(scalar, set = 1, binding = 0) readonly buffer TransformBuffer {
+    mat4 transforms[];
+} transformBuffer;
 
 layout(scalar, set = 3, binding = 0) uniform MaterialData {
+    vec4 uColor;
+    float uMetalness;
+    float uRoughness;
+
+    // texture indices
     uint tAlbedo;
 };
 
@@ -33,11 +38,11 @@ struct Vertex {
     vec2 uv;
 };
 
-layout(scalar, set = 1, binding = 0) readonly buffer VertexBuffer {
+layout(scalar, set = 2, binding = 0) readonly buffer VertexBuffer {
     Vertex vertices[];
 } vertexBuffer;
 
-layout(set = 1, binding = 1) readonly buffer IndexBuffer {
+layout(set = 2, binding = 1) readonly buffer IndexBuffer {
     uint indices[];
 } indexBuffer;
 

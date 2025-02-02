@@ -89,4 +89,31 @@ struct ResourceDeletion
         PipelineResourceDeletion, ShaderResourceDeletion> Resource;
     uint32_t                ElapsedFrames;
 };
+
+struct StaticMeshHash
+{
+    // TODO: Should probably change this to an ID instead of a pointer...
+    uint64_t MeshAddress;
+    uint32_t SubMeshIndex;
+    
+    bool operator==(const StaticMeshHash& other) const
+    {
+        return MeshAddress == other.MeshAddress && SubMeshIndex == other.SubMeshIndex;
+    }
+};
+}
+
+namespace std
+{
+// based on boost's hash_combine
+template <>
+struct hash<lne::StaticMeshHash>
+{
+    std::size_t operator()(const lne::StaticMeshHash& k) const noexcept
+    {
+        std::size_t seed = std::hash<uint64_t>()(k.MeshAddress);
+        seed ^= std::hash<uint32_t>()(k.SubMeshIndex) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        return seed;
+    }
+};
 }

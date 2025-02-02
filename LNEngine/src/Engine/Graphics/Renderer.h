@@ -1,8 +1,10 @@
 #pragma once
-#include "Enums.h"
 #include "Engine/Core/SafePtr.h"
 #include "Engine/Resources/GfxLoader.h"
 #include "UniformBuffer.h"
+#include "DynamicDescriptorAllocator.h"
+#include "Mesh.h"
+#include "GfxContext.h"
 
 namespace enki
 {
@@ -45,6 +47,9 @@ public:
     void Nuke();
 
     [[nodiscard]] std::unique_ptr<class CommandBufferManager>& GetGraphicsCommandBufferManager() { return m_GraphicsCommandBufferManager; }
+    [[nodiscard]] uint32_t GetCurrentFrameIndex() const { return m_Context->GetCurrentFrameIndex(); }
+    [[nodiscard]] SafePtr<class GfxContext> GetGfxContext() const { return m_Context; }
+    [[nodiscard]] SafePtr<class GfxLoader> GetGfxLoader() const { return m_GfxLoader; }
 
     void PushLabel(vk::CommandBuffer cmdBuffer, std::string_view label) const;
 
@@ -61,6 +66,9 @@ public:
 
     void Draw(SafePtr<class Material> pipeline, struct Geometry& geometry, struct TransformComponent& objTransform);
     void Draw(SafePtr<class StaticMesh> mesh, struct TransformComponent& objTransform);
+    void Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>& mesh, const SafePtr<lne::StorageBuffer>& transformBuffer, uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount);
+
+    void Blit(vk::CommandBuffer cmdBuffer, SafePtr<class Texture> src, SafePtr<class Texture> dst);
 
     // TODO: move to a resource manager
     [[nodiscard]] SafePtr<class GfxPipeline> CreateGraphicsPipeline(const struct GraphicsPipelineDesc& createInfo);
@@ -82,6 +90,9 @@ private:
     // TODO: move to a command buffer manager to the context (maybe)
     std::unique_ptr<class CommandBufferManager> m_GraphicsCommandBufferManager;
     std::vector<FrameData> m_FrameData;
+
+    SafePtr<class GfxPipeline> m_LastUsedPipeline;
+    SafePtr<class StaticMesh> m_LastUsedStaticMesh;
 private:
     void InitFrameData(uint32_t index);
     void UpdateTextures();

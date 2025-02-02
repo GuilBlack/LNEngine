@@ -1,10 +1,14 @@
 #include "lnepch.h"
-#include "Texture.h"
-#include "GfxContext.h"
+#include "../Texture.h"
+#include "../GfxContext.h"
 #include "FrameGraph.h"
 #include "Core/ApplicationBase.h"
-#include "Renderer.h"
-#include "DynamicDescriptorAllocator.h"
+#include "../Renderer.h"
+#include "../Mesh.h"
+#include "../Material.h"
+#include "../DynamicDescriptorAllocator.h"
+#include "Scene/Components.h"
+#include "RenderPass/IRenderPass.h"
 
 namespace lne
 {
@@ -14,6 +18,14 @@ namespace lne
 
 FrameGraph::FrameGraph()
     : m_ResourceCache{ MAX_RESOURCE_COUNT }
+    , m_NodeCache{ MAX_RENDERPASS_NODE_COUNT }
+{
+    m_Context = ApplicationBase::GetWindow().GetGfxContext();
+}
+
+FrameGraph::FrameGraph(const std::string& name)
+    : m_Name(name)
+    , m_ResourceCache{ MAX_RESOURCE_COUNT }
     , m_NodeCache{ MAX_RENDERPASS_NODE_COUNT }
 {
     m_Context = ApplicationBase::GetWindow().GetGfxContext();
@@ -118,7 +130,7 @@ void FrameGraph::Compile()
     }
 }
 
-void FrameGraph::Execute(vk::CommandBuffer commandBuffer)
+void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRenderer)
 {
      // traverse nodes in topological order
     for (FrameGraphNodeHandle nodeHandle : m_Nodes)
@@ -130,8 +142,6 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer)
 
         auto& renderer = ApplicationBase::GetRenderer();
         renderer.PushLabel(commandBuffer, node->Name);
-
-        node->RenderPass->PreRender(commandBuffer, this, node);
 
         for (FrameGraphResourceHandle inputResourceHandle : node->InputResources)
         {
@@ -149,23 +159,28 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer)
                 break;
             }
         }
-        vk::Extent3D extent = node->Framebuffer.GetExtent();
-        vk::Viewport viewport = { 0.0f, 0.0f, (float)extent.width, (float)extent.height, 0.0f, 1.0f };
-        viewport.y += viewport.height;
-        viewport.height *= -1;
-        commandBuffer.setViewport(0, viewport);
-        vk::Rect2D scissor = { {0, 0}, vk::Extent2D{ extent.width, extent.height } };
-        commandBuffer.setScissor(0, scissor);
+        if (node->Type == RenderPassType::eGraphics)
+        {
+            vk::Extent3D extent = node->Framebuffer.GetExtent();
+            vk::Viewport viewport = { 0.0f, 0.0f, (float)extent.width, (float)extent.height, 0.0f, 1.0f };
+            viewport.y += viewport.height;
+            viewport.height *= -1;
+            commandBuffer.setViewport(0, viewport);
+            vk::Rect2D scissor = { {0, 0}, vk::Extent2D{ extent.width, extent.height } };
+            commandBuffer.setScissor(0, scissor);
+        }
 
         LNE_ASSERT(node->RenderPass != nullptr, "Node has no render pass");
 
-        node->Framebuffer.Bind(commandBuffer);
+        node->RenderPass->PreExecute(commandBuffer, this, node);
+        if (node->Type == RenderPassType::eGraphics)
+            node->Framebuffer.Bind(commandBuffer);
 
-        node->RenderPass->Render(commandBuffer, this, node);
-
-        node->Framebuffer.Unbind(commandBuffer);
-
-        node->RenderPass->PostRender(commandBuffer, this, node);
+        node->RenderPass->Execute(commandBuffer, worldRenderer, this, node);
+        
+        if (node->Type == RenderPassType::eGraphics)
+            node->Framebuffer.Unbind(commandBuffer);
+        node->RenderPass->PostExecute(commandBuffer, this, node);
 
         renderer.PopLabel(commandBuffer);
     }
@@ -415,7 +430,7 @@ void FrameGraph::SortGraph(std::vector<FrameGraphNodeHandle>& nodes)
         nodes.push_back(sortedNodes[i]);
     }
 
-    OutputGraphToMermaid("Profiling/framegraph.mmd");
+    OutputGraphToMermaid();
 }
 
 void FrameGraph::BindRenderPass(SafePtr<IRenderPass> renderPass)
@@ -425,6 +440,7 @@ void FrameGraph::BindRenderPass(SafePtr<IRenderPass> renderPass)
     LNE_ASSERT(node != nullptr, "Node not found");
 
     node->RenderPass = renderPass;
+    renderPass->OnBind();
 }
 
 FrameGraphNodeHandle FrameGraph::CreateNode(const FrameGraphNodeDesc& desc)
@@ -441,6 +457,7 @@ FrameGraphNodeHandle FrameGraph::CreateNode(const FrameGraphNodeDesc& desc)
     FrameGraphNode& node = *m_NodeCache.GetPool().Access(handle);
     node.Enabled = desc.Enabled;
     node.Name = desc.Name;
+    node.Type = desc.Type;
     // node.Framebuffer is created at compile time
 
     for (const auto& inputResource : desc.InputResources)
@@ -458,13 +475,20 @@ FrameGraphNodeHandle FrameGraph::CreateNode(const FrameGraphNodeDesc& desc)
     return handle;
 }
 
-void FrameGraph::OutputGraphToMermaid(const std::string& filename)
+void FrameGraph::OutputGraphToMermaid()
 {
-    std::ofstream file(filename);
+    namespace fs = std::filesystem;
+
+    fs::path workingDir = fs::current_path();
+    std::string fileName = m_Name + ".mmd";
+    fs::path filePath = workingDir / "Profiling" / fileName;
+
+    if (!fs::exists(workingDir / "Profiling"))
+        fs::create_directory(workingDir / "Profiling");
+    
+    std::ofstream file(filePath);
     if (!file.is_open())
-    {
-        throw std::runtime_error("Unable to open file for writing: " + filename);
-    }
+        return;
 
     file << "graph TD\n";
 
@@ -502,6 +526,20 @@ void FrameGraph::OutputGraphToMermaid(const std::string& filename)
     file << "classDef resource fill:#27DBC3,color:#333,stroke:#f66,stroke-width:2px,stroke-dasharray: 10 10;\n";
     file << "linkStyle default stroke:#000,stroke-width:2px;\n"; // Default link style
     file.close();
+}
+
+std::vector<SafePtr<IRenderPass>> FrameGraph::GetRenderPassesWithSignature(EntitySignature signature)
+{
+    std::vector<SafePtr<IRenderPass>> renderPasses;
+    for (auto nodeHandle : m_Nodes)
+    {
+        SafePtr<IRenderPass> renderPass = m_NodeCache.GetPool().Access(nodeHandle)->RenderPass;
+        const EntitySignature& renderPassSignature = renderPass->MustHaveComponents();
+        if ((renderPassSignature & signature) == renderPassSignature)
+            renderPasses.push_back(renderPass);
+    }
+
+    return renderPasses;
 }
 
 ////////////////////////////////////////////////////////////////////

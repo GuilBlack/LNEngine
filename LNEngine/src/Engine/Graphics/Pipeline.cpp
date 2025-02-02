@@ -103,7 +103,7 @@ GfxPipeline::GfxPipeline(SafePtr<GfxContext> ctx, const GraphicsPipelineDesc& de
             .setAlphaBlendOp((vk::BlendOp)desc.Blend.ColorOp);
     }
 
-    auto& colorAttachments = desc.Framebuffer.GetColorAttachments();
+    auto colorAttachments = desc.Framebuffer.GetColorAttachments();
     std::vector<vk::PipelineColorBlendAttachmentState> blendAttachments(colorAttachments.size(), blendState);
 
     vk::PipelineColorBlendStateCreateInfo colorBlendStateInfo = vk::PipelineColorBlendStateCreateInfo(
@@ -121,8 +121,11 @@ GfxPipeline::GfxPipeline(SafePtr<GfxContext> ctx, const GraphicsPipelineDesc& de
     std::vector<vk::Format> colorFormats{};
     colorFormats.reserve(colorAttachments.size());
 
-    for (auto& colorAttachments : colorAttachments)
-        colorFormats.emplace_back(colorAttachments.Texture->GetFormat());
+    // TODO: use the framegraph to get the formats
+    for (auto& colorAttachment : colorAttachments)
+    {
+        colorFormats.emplace_back(vk::Format::eB8G8R8A8Unorm);
+    }
 
     vk::Format depthFormat = vk::Format::eUndefined;
     if (desc.Framebuffer.HasDepth())

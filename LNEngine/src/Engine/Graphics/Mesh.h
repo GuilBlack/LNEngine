@@ -1,6 +1,10 @@
 #pragma once
 #include "StorageBuffer.h"
 #include "Structs.h"
+#include <unordered_map>
+#include "Engine/Graphics/Texture.h"
+#include "Engine/Graphics/Material.h"
+
 
 namespace lne
 {

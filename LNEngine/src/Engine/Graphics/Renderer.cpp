@@ -40,6 +40,8 @@ void Renderer::Nuke()
 {
     m_Context->WaitIdle();
     m_GfxLoader->Nuke();
+    m_LastUsedPipeline.Reset();
+    m_LastUsedStaticMesh.Reset();
     for (auto& frameData : m_FrameData)
     {
         frameData.GlobalUniforms.Destroy();
@@ -104,6 +106,8 @@ void Renderer::BeginFrame()
 
 void Renderer::EndFrame()
 {
+    m_LastUsedStaticMesh.Reset();
+    m_LastUsedPipeline.Reset();
     auto currentImage = m_Swapchain->GetCurrentImage();
     const vk::CommandBuffer& cb = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
     currentImage->TransitionLayout(cb, vk::ImageLayout::ePresentSrcKHR);
@@ -305,6 +309,135 @@ void Renderer::Draw(SafePtr<StaticMesh> mesh, TransformComponent& objTransform)
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0, { m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorSet, geometryDescSet, objDescSet, matDescSet, m_Context->GetBindlessDescriptorSet() }, {});
         cmdBuffer.draw(submesh.IndexCount, 1, submesh.BaseIndex, 0);
     }
+}
+
+void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>& mesh, const SafePtr<lne::StorageBuffer>& transformBuffer,
+    uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount)
+{
+    auto& submesh = mesh->GetSubMeshes()[subMeshIndex];
+    auto material = mesh->GetMaterial(submesh.MaterialIndex);
+    auto pipeline = material->GetPipeline();
+    vk::Device device = m_Context->GetDevice();
+    LNE_ASSERT(pipeline, "Pipeline is null");
+    bool hasPipelineChanged = false;
+    if (pipeline != m_LastUsedPipeline)
+    {
+        pipeline->Bind(cmdBuffer);
+        m_LastUsedPipeline = pipeline;
+        hasPipelineChanged = true;
+        
+        auto transformDescSet = m_FrameData[m_Swapchain->GetCurrentFrameIndex()]
+            .DescriptorAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[1]);
+
+        vk::DescriptorBufferInfo transformInfo = transformBuffer->GetDescriptorInfo();
+        vk::WriteDescriptorSet writeTransformDescriptorSet = vk::WriteDescriptorSet{
+            transformDescSet,
+            0,
+            0,
+            1,
+            vk::DescriptorType::eStorageBuffer,
+            nullptr,
+            &transformInfo,
+            nullptr
+        };
+        device.updateDescriptorSets(writeTransformDescriptorSet, nullptr);
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
+        { m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorSet, transformDescSet }, {});
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 4,
+        { m_Context->GetBindlessDescriptorSet() }, {});
+    }
+    if (hasPipelineChanged || mesh != m_LastUsedStaticMesh)
+    {
+        const Geometry& geometry = mesh->GetGeometry();
+        vk::DescriptorSet geometryDescSet = m_FrameData[m_Swapchain->GetCurrentFrameIndex()]
+            .DescriptorAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[2]);
+        
+        vk::DescriptorBufferInfo vertexInfo = geometry.VertexGPUBuffer->GetDescriptorInfo();
+        vk::DescriptorBufferInfo indexInfo = geometry.IndexGPUBuffer->GetDescriptorInfo();
+        
+        std::vector<vk::WriteDescriptorSet> writeGeoDescriptorSets;
+        writeGeoDescriptorSets.emplace_back(
+            geometryDescSet, 0, 0, 1,
+            vk::DescriptorType::eStorageBuffer, nullptr, &vertexInfo, nullptr
+        );
+        writeGeoDescriptorSets.emplace_back(
+            geometryDescSet, 1, 0, 1,
+            vk::DescriptorType::eStorageBuffer, nullptr, &indexInfo, nullptr
+        );
+        
+        device.updateDescriptorSets(writeGeoDescriptorSets, nullptr);
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 2,
+        { geometryDescSet }, {});
+    }
+    
+    std::vector<vk::WriteDescriptorSet> matWriteDescriptorSets;
+    std::vector<vk::DescriptorBufferInfo> matUbInfo;
+    matUbInfo.reserve(material->m_UniformBuffers.size());
+    vk::DescriptorSet matDescSet = m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[3]);
+    for (const auto& [binding, ub] : material->m_UniformBuffers)
+    {
+        matUbInfo.emplace_back(ub.GetDescriptorInfo());
+        matWriteDescriptorSets.emplace_back(vk::WriteDescriptorSet{
+            matDescSet,
+            binding,
+            0,
+            1,
+            vk::DescriptorType::eUniformBuffer,
+            nullptr,
+            &matUbInfo.back(),
+            nullptr
+            });
+    }
+    m_Context->GetDevice().updateDescriptorSets(matWriteDescriptorSets, nullptr);
+    cmdBuffer.bindDescriptorSets(
+        vk::PipelineBindPoint::eGraphics,
+        pipeline->GetLayout(), 3,
+        { matDescSet },
+        {}
+    );
+    cmdBuffer.draw(submesh.IndexCount, instanceCount, submesh.BaseIndex, offset);
+}
+
+void Renderer::Blit(vk::CommandBuffer cmdBuffer, SafePtr<class Texture> src, SafePtr<class Texture> dst)
+{
+    vk::ImageLayout srcLayout = src->GetLayout();
+    vk::ImageLayout dstLayout = dst->GetLayout();
+    src->TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferSrcOptimal);
+    dst->TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferDstOptimal);
+
+    auto srcExtent = src->GetDimensions();
+    auto dstExtent = dst->GetDimensions();
+    vk::ImageBlit blit{
+        vk::ImageSubresourceLayers{
+            vk::ImageAspectFlagBits::eColor,
+            0,
+            0,
+            1
+        },
+        {
+            vk::Offset3D{ 0, 0, 0 },
+            vk::Offset3D{ (int)srcExtent.width, (int)srcExtent.height, 1 }
+        },
+        vk::ImageSubresourceLayers{
+            vk::ImageAspectFlagBits::eColor,
+            0,
+            0,
+            1
+        },
+        {
+            vk::Offset3D{ 0, 0, 0 },
+            vk::Offset3D{ (int)dstExtent.width, (int)dstExtent.height, 1 }
+        }
+    };
+    
+    cmdBuffer.blitImage(
+        src->m_Allocation.Image, vk::ImageLayout::eTransferSrcOptimal,
+        dst->m_Allocation.Image, vk::ImageLayout::eTransferDstOptimal,
+        1, &blit, vk::Filter::eLinear
+    );
+
+    src->TransitionLayout(cmdBuffer, srcLayout);
+    dst->TransitionLayout(cmdBuffer, dstLayout);
 }
 
 SafePtr<GfxPipeline> Renderer::CreateGraphicsPipeline(const GraphicsPipelineDesc& createInfo)

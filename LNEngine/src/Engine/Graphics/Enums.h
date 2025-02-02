@@ -94,6 +94,25 @@ inline std::string_view ToString(Enum type)
 }
 }
 
+namespace StorageBufferType
+{
+enum Enum : byte
+{
+    eStatic = 0,
+    eDynamic
+};
+}
+
+namespace RenderPassType
+{
+enum Enum : byte
+{
+    eGraphics = 0,
+    eCompute,
+    eTransfer
+};
+}
+
 enum class EFillMode : byte
 {
     Solid = 0,

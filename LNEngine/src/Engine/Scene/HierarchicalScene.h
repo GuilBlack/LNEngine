@@ -7,7 +7,7 @@
 namespace lne
 {
 
-class HierarchicalScene : RefCountBase
+class HierarchicalScene : public RefCountBase
 {
     using EntityIDMap = std::map<EntityID, Entity>;
 public:

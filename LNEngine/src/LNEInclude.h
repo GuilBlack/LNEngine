@@ -63,7 +63,9 @@
 #include "Engine/Graphics/ImGui/ImGuiService.h"
 #include "Engine/Graphics/Material.h"
 #include "Engine/Graphics/Mesh.h"
-#include "Engine/Graphics/FrameGraph.h"
+#include "Engine/Graphics/FrameGraph/FrameGraph.h"
+#include "Engine/Graphics/FrameGraph/RenderPass/RenderPasses.h"
+#include "Engine/Graphics/WorldRenderer.h"
 
 #include "Engine/Scene/Components.h"
 #include "Engine/Scene/HierarchicalScene.h"

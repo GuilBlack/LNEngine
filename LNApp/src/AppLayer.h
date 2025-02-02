@@ -11,7 +11,7 @@ class AppLayer final : public lne::Layer
             m_Name = "DepthPrePass";
         }
 
-        virtual void Render(vk::CommandBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override {}
+        virtual void Execute(vk::CommandBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override {}
     };
 
     class GBufferPass : public lne::IRenderPass
@@ -22,7 +22,7 @@ class AppLayer final : public lne::Layer
             m_Name = "GBufferPass";
         }
 
-        virtual void Render(vk::CommandBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override {}
+        virtual void Execute(vk::CommandBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override{}
     };
 
     class LightingPass : public lne::IRenderPass
@@ -33,7 +33,7 @@ class AppLayer final : public lne::Layer
             m_Name = "LightingPass";
         }
 
-        virtual void Render(vk::CommandBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override {}
+        virtual void Execute(vk::CommandBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override{}
     };
 
     class DoFPass : public lne::IRenderPass
@@ -44,7 +44,7 @@ class AppLayer final : public lne::Layer
             m_Name = "DoFPass";
         }
 
-        virtual void Render(vk::CommandBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override {}
+        virtual void Execute(vk::CommandBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override{}
     };
 
     class TransparentPass : public lne::IRenderPass
@@ -55,7 +55,18 @@ class AppLayer final : public lne::Layer
             m_Name = "TransparentPass";
         }
 
-        virtual void Render(vk::CommandBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override {}
+        virtual void Execute(vk::CommandBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override{}
+    };
+
+    class FinalPass : public lne::IRenderPass
+    {
+    public:
+        FinalPass()
+        {
+            m_Name = "FinalPass";
+        }
+
+        virtual void Execute(vk::CommandBuffer cmdBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;    
     };
 
 public:
@@ -65,6 +76,8 @@ public:
     void OnAttach() override;
 
     void InitTestFrameGraph();
+
+    void InitFrameGraph();
 
     void OnDetach() override;
 
@@ -89,7 +102,7 @@ private:
         glm::vec3 Rotation;
     } m_CameraTarget{};
 
-    lne::HierarchicalScene m_Scene{};
+    lne::SafePtr<lne::HierarchicalScene> m_Scene{};
     lne::Entity m_CameraEntity;
     lne::Entity m_DuckEntity;
     lne::Entity m_CubeEntity;
@@ -100,7 +113,9 @@ private:
     float m_Metalness{ 0.0f };
     float m_Roughness{ 0.0f };
 
-    lne::FrameGraph m_FrameGraphTest{};
+    lne::FrameGraph m_FrameGraphTest{ "ComplexFrameGraph" };
+    lne::SafePtr<lne::FrameGraph> m_FrameGraph{};
+    lne::SafePtr<lne::WorldRenderer> m_WorldRenderer{};
 
 private:
     void GenerateCube(std::vector<lne::Vertex>& vertices, std::vector<uint32_t>& indices, uint32_t tesselationLevel);

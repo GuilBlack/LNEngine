@@ -1,6 +1,22 @@
 ﻿#include "pch.h"
 #include "AppLayer.h"
 
+void AppLayer::FinalPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worldRenderer,
+    lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
+{
+    lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
+    lne::Framebuffer& swapchainFramebuffer = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
+    auto renderTexture = swapchainFramebuffer.GetColorAttachments()[0].Texture;
+    lne::FrameGraphResource* colorResource = frameGraph->GetResource("Color");
+    if (colorResource == nullptr)
+    {
+        APP_WARN("FinalPass::Render: Color resource not found");
+        return;
+    }
+    lne::SafePtr<lne::Texture> colorTexture = colorResource->Resource.GetAs<lne::Texture>();
+    renderer.Blit(cmdBuffer, colorTexture, renderTexture);
+}
+
 void AppLayer::OnAttach()
 {
     using namespace lne;
@@ -8,8 +24,10 @@ void AppLayer::OnAttach()
     ApplicationBase::GetEventHub().RegisterListener<WindowResizeEvent>(this, &AppLayer::OnWindowResize, 10);
 
     Renderer& renderer = ApplicationBase::GetRenderer();
-
+    m_Scene = lnnew HierarchicalScene();
     InitTestFrameGraph();
+    InitFrameGraph();
+    m_WorldRenderer = lnnew WorldRenderer(m_FrameGraph);
 
     auto& fb = ApplicationBase::GetWindow().GetCurrentFramebuffer();
     fb.SetClearColor({0.105f, 0.117f, 0.149f, 1.0f });
@@ -49,14 +67,14 @@ void AppLayer::OnAttach()
     skyboxMaterial->SetTexture("tAlbedo", skyboxTexture);
 
 #pragma region CreateEntities
-    m_CameraEntity = m_Scene.CreateEntity();
+    m_CameraEntity = m_Scene->CreateEntity();
     CameraComponent& cameraComponent = m_CameraEntity.EmplaceComponent<CameraComponent>();
     TransformComponent& cameraTransform = m_CameraEntity.GetComponent<TransformComponent>();
 
-    m_DuckEntity = m_Scene.CreateEntity();
-    m_CubeEntity = m_Scene.CreateEntity();
-    m_SkyboxEntity = m_Scene.CreateEntity();
-    m_SphereEntity = m_Scene.CreateEntity();
+    m_DuckEntity = m_Scene->CreateEntity();
+    m_CubeEntity = m_Scene->CreateEntity();
+    m_SkyboxEntity = m_Scene->CreateEntity();
+    m_SphereEntity = m_Scene->CreateEntity();
     
     m_DuckEntity.EmplaceComponent<StaticMeshComponent>();
     m_CubeEntity.EmplaceComponent<StaticMeshComponent>();
@@ -126,7 +144,7 @@ void AppLayer::OnAttach()
     skyboxTransform.UniformBuffers = renderer.RegisterObject();
 
     duckTransform.Position = { 0.0f, 0.0f, 0.0f };
-    duckTransform.Scale = { .2f, .2f, .2f };
+    duckTransform.Scale = { 4.f, 4.f, 4.f };
 
     duckTransform.UniformBuffers = renderer.RegisterObject();
 #pragma endregion
@@ -149,17 +167,17 @@ void AppLayer::InitTestFrameGraph()
     lne::FrameGraphResourceDescBuilder resourceBuilder = lne::FrameGraphResourceDescBuilder();
     lne::FrameGraphNodeDescBuilder nodeBuilder = lne::FrameGraphNodeDescBuilder();
 
-    lne::FrameGraphResourceDesc colorAttachmentDesc = resourceBuilder.SetName("color")
+    lne::FrameGraphResourceDesc colorAttachmentDesc = resourceBuilder.SetName("Color")
         .SetType(lne::FrameGraphResourceType::eAttachment)
         .SetDefaultColorAttachmentInfos()
         .SetImageDimension(width, height)
         .Build();
-    lne::FrameGraphResourceDesc metRoughOccAttachmentDesc = resourceBuilder.SetName("metallic_roughness_occlusion")
+    lne::FrameGraphResourceDesc metRoughOccAttachmentDesc = resourceBuilder.SetName("MetallicRoughnessOcclusion")
         .Build();
-    lne::FrameGraphResourceDesc normalAttachmentDesc = resourceBuilder.SetName("normal")
+    lne::FrameGraphResourceDesc normalAttachmentDesc = resourceBuilder.SetName("Normal")
         .SetImageFormat(vk::Format::eR16G16B16A16Sfloat)
         .Build();
-    lne::FrameGraphResourceDesc positionAttachmentDesc = resourceBuilder.SetName("position")
+    lne::FrameGraphResourceDesc positionAttachmentDesc = resourceBuilder.SetName("Position")
         .Build();
     lne::FrameGraphResourceDesc depthAttachmentDesc = resourceBuilder.SetDefaultDepthAttachmentInfos()
         .SetName("Depth").Build();
@@ -230,6 +248,41 @@ void AppLayer::InitTestFrameGraph()
     m_FrameGraphTest.BindRenderPass(lnnew TransparentPass());
 }
 
+void AppLayer::InitFrameGraph()
+{
+    auto [width, height] = lne::ApplicationBase::GetWindow().GetSwapchain()->GetViewport().GetExtent();
+    m_FrameGraph = lnnew lne::FrameGraph("BasicFrameGraph");
+    lne::FrameGraphResourceDescBuilder resourceBuilder = lne::FrameGraphResourceDescBuilder();
+    lne::FrameGraphNodeDescBuilder nodeBuilder = lne::FrameGraphNodeDescBuilder();
+
+    lne::FrameGraphResourceDesc colorAttachmentDesc = resourceBuilder.SetName("Color")
+        .SetType(lne::FrameGraphResourceType::eAttachment)
+        .SetDefaultColorAttachmentInfos()
+        .SetImageDimension(width, height)
+        .Build();
+    
+    lne::FrameGraphResourceDesc depthAttachmentDesc = resourceBuilder.SetDefaultDepthAttachmentInfos()
+        .SetName("Depth").Build();
+
+    lne::FrameGraphNodeDesc offscreenPassDesc = nodeBuilder.SetName("BasicForwardPass")
+        .AddOutputResource(colorAttachmentDesc)
+        .AddOutputResource(depthAttachmentDesc)
+        .Build();
+
+    nodeBuilder.Clear();
+
+    lne::FrameGraphNodeDesc finalPassDesc = nodeBuilder.SetName("FinalPass")
+        .AddInputResource(colorAttachmentDesc)
+        .SetType(lne::RenderPassType::eTransfer)
+        .Build();
+
+    m_FrameGraph->CreateNode(finalPassDesc);
+    m_FrameGraph->CreateNode(offscreenPassDesc);
+    m_FrameGraph->Compile();
+    m_FrameGraph->BindRenderPass(lnnew lne::BasicForwardPass());
+    m_FrameGraph->BindRenderPass(lnnew FinalPass());
+}
+
 void AppLayer::OnDetach()
 {
     APP_INFO("AppLayer::OnDetach");
@@ -238,7 +291,7 @@ void AppLayer::OnDetach()
 
 void AppLayer::OnUpdate(float deltaTime)
 {
-    m_Scene.BeginScene();
+    m_Scene->BeginScene();
     double currentTime = lne::ApplicationBase::GetClock().GetElapsedTime();
     HandleInput(deltaTime);
     static int frameIndex = 0;
@@ -255,18 +308,12 @@ void AppLayer::OnUpdate(float deltaTime)
 
     auto& fb = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
 
-    renderer.BeginRenderPass(fb);
-
-    renderer.Draw(m_CubeEntity.GetComponent<lne::StaticMeshComponent>().Mesh, m_CubeEntity.GetComponent<lne::TransformComponent>());
-    renderer.Draw(m_SphereEntity.GetComponent<lne::StaticMeshComponent>().Mesh, m_SphereEntity.GetComponent<lne::TransformComponent>());
-    if (m_DuckEntity.IsValid())
-        renderer.Draw(m_DuckEntity.GetComponent<lne::StaticMeshComponent>().Mesh, m_DuckEntity.GetComponent<lne::TransformComponent>());
-    renderer.Draw(m_SkyboxEntity.GetComponent<lne::StaticMeshComponent>().Mesh, m_SkyboxEntity.GetComponent<lne::TransformComponent>());
-
-    renderer.EndRenderPass(fb);
-
-    m_FrameGraphTest.Execute(renderer.GetGraphicsCommandBufferManager()->GetCurrentCommandBuffer());
-    m_Scene.EndScene();
+    m_WorldRenderer->BeginFrame();
+    m_WorldRenderer->Render(*m_Scene.GetPtr());
+    m_WorldRenderer->EndFrame();
+    
+    //m_FrameGraphTest.Execute(renderer.GetGraphicsCommandBufferManager()->GetCurrentCommandBuffer());
+    m_Scene->EndScene();
 }
 
 void AppLayer::OnImGuiRender()
@@ -302,7 +349,7 @@ void AppLayer::OnImGuiRender()
 
     if (ImGui::Button("Delete Duck"))
     {
-        m_Scene.DestroyEntity(m_DuckEntity);
+        m_Scene->DestroyEntity(m_DuckEntity);
         m_DuckEntity = lne::Entity{};
     }
 

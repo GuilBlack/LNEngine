@@ -13,6 +13,7 @@
 #include <filesystem>
 #include <cstddef>
 #include <atomic>
+#include <filesystem>
 
 // Data Structures
 #include <string>
