@@ -1,5 +1,4 @@
-﻿#include "lnepch.h"
-#include "BasicForwardPass.h"
+﻿#include "BasicForwardPass.h"
 
 #include <Core/ApplicationBase.h>
 #include <Graphics/Renderer.h>

@@ -2,6 +2,7 @@
 #include "Engine/Core/SafePtr.h"
 #include "Engine/Graphics/Structs.h"
 #include "Engine/Graphics/StorageBuffer.h"
+#include "Engine/Core/DataStructures/CircularBuffer.h"
 
 class FrameGraph;
 

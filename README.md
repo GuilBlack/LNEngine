@@ -52,6 +52,10 @@ That's about it for now. With all of this, you should be able to run the applica
 
 ![square-image](github-images/preview.gif)
 
+And here is a stress test with 32k spheres which are entities and not particles that runs smoothly at 75fps on my laptop equipped with a GTX 3070ti and a Ryzen 7 6800H:
+
+![square-image](github-images/StressTest.png)
+
 The frame graph generates a graph in mermaid (mmd) format in the profiling directory. Here is a basic and a complex frame graph in image:
 
 | Basic Frame Graph | Complex Frame Graph |

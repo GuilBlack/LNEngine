@@ -106,7 +106,7 @@ void AppLayer::OnAttach()
 #pragma region SphereGen
     std::vector<Vertex> sphereVertices{};
     std::vector<uint32_t> sphereIndices{};
-    GenerateUVSphere(sphereVertices, sphereIndices);
+    GenerateUVSphere(sphereVertices, sphereIndices, 1.0f, 32, 32);
 
     SafePtr<StorageBuffer> sphereVertexBuffer = renderer
         .CreateGeometryBuffer(sphereVertices.data(), sphereVertices.size() * sizeof(Vertex));
@@ -131,23 +131,37 @@ void AppLayer::OnAttach()
     cubeTransform.Position =  { -0.5f, 0.0f, 0.0f };
     cubeTransform.Scale =     { 0.25f, 0.25f, 0.25f };
 
-    cubeTransform.UniformBuffers = renderer.RegisterObject();
-
     sphereTransform.Position = { 0.5f, 0.0f, 0.0f };
     sphereTransform.Scale =    { 0.25f, 0.25f, 0.25f };
-
-    sphereTransform.UniformBuffers = renderer.RegisterObject();
 
     skyboxTransform.Position = { 0.0f, 0.0f, 0.0f };
     skyboxTransform.Scale = { 1.f, 1.f, 1.f };
 
-    skyboxTransform.UniformBuffers = renderer.RegisterObject();
-
     duckTransform.Position = { 0.0f, 0.0f, 0.0f };
     duckTransform.Scale = { 4.f, 4.f, 4.f };
 
-    duckTransform.UniformBuffers = renderer.RegisterObject();
 #pragma endregion
+    SafePtr<StaticMesh> purpleSphere = sphereMeshComponent.Mesh;
+    SafePtr<StaticMesh> uvSphere = lnnew StaticMesh(sphereGeo, m_BasicMaterial, { uvChecker }, m_BasePipeline);
+
+    for (int i = 0; i < 32000; i++)
+    {
+        Entity temp = m_Scene->CreateEntity();
+        temp.EmplaceComponent<StaticMeshComponent>();
+
+        auto [tempTransform, tempMeshComp] =
+            temp.GetComponents<TransformComponent, StaticMeshComponent>();
+
+        float xRand = (rand() / (float)RAND_MAX) * 60;
+        float yRand = (rand() / (float)RAND_MAX) * 60;
+        float zRand = (rand() / (float)RAND_MAX) * 60;
+        tempTransform.Position = { xRand, yRand, -zRand };
+        tempTransform.Scale = { 0.25f, 0.25f, 0.25f };
+        if (i < 16000)
+            tempMeshComp.Mesh = purpleSphere;
+        else
+            tempMeshComp.Mesh = uvSphere;
+    }
 
     cameraTransform.Position = { 0.0f, 0.0f, 2.0f };
     cameraTransform.LookAt({ 0.0f, 0.0f, 0.0f });
@@ -260,7 +274,7 @@ void AppLayer::InitFrameGraph()
         .SetDefaultColorAttachmentInfos()
         .SetImageDimension(width, height)
         .Build();
-    
+
     lne::FrameGraphResourceDesc depthAttachmentDesc = resourceBuilder.SetDefaultDepthAttachmentInfos()
         .SetName("Depth").Build();
 

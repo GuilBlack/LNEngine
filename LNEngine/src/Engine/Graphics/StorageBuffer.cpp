@@ -14,7 +14,7 @@
 namespace lne
 {
 StorageBuffer::StorageBuffer(SafePtr<class GfxContext> ctx, uint64_t size, const void* data, StorageBufferType::Enum type)
-    : m_Context(ctx), m_Size(size)
+    : m_Context(ctx), m_Size(size), m_Type(type)
 {
     switch (type)
     {

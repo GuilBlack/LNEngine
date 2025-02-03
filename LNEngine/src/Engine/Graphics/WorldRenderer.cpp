@@ -21,11 +21,11 @@ WorldRenderer::WorldRenderer(const SafePtr<FrameGraph>& frameGraph)
     uint32_t maxFramesInFlight = gfxContext->GetMaxFramesInFlight();
 
     m_TransformBuffers.resize(maxFramesInFlight);
-    // 1 MB of transform data per frame since a mat4 is 64 bytes. 1024 * 16 = 16k transforms
+    // 2 MB of transform data per frame since a mat4 is 64 bytes. 1024 * 32 = 32k transforms
     for (uint32_t i = 0; i < maxFramesInFlight; ++i)
     {
-        m_TransformBuffers[i].Buffer.Reset(lnnew StorageBuffer(gfxContext, sizeof(glm::mat4) * 1024 * 16, nullptr, StorageBufferType::eDynamic));
-        m_TransformBuffers[i].Data = lnnew glm::mat4[1024*16];
+        m_TransformBuffers[i].Buffer.Reset(lnnew StorageBuffer(gfxContext, sizeof(glm::mat4) * 1024 * 32, nullptr, StorageBufferType::eDynamic));
+        m_TransformBuffers[i].Data = lnnew glm::mat4[1024*32];
     }
 }
 
@@ -33,6 +33,7 @@ WorldRenderer::~WorldRenderer()
 {
     for (uint32_t i = 0; i < m_TransformBuffers.size(); ++i)
     {
+        m_TransformBuffers[i].Buffer.Reset();
         delete[] m_TransformBuffers[i].Data;
     }
 }

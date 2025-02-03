@@ -1,4 +1,3 @@
-#include "lnepch.h"
 #include "../Texture.h"
 #include "../GfxContext.h"
 #include "FrameGraph.h"
