@@ -192,27 +192,28 @@ private:
 template<ComponentConstraint... Comps>
 class ComponentView
 {
+public:
     struct Index
     {
         EntityID Entity;
         uint32_t ArchetypeIndex;
         uint32_t ComponentIndex;
+        uint32_t ComposedIndex; // Global index in the view
 
         Index(EntityID entity, uint32_t archetypeIndex, uint32_t componentIndex)
             : Entity(entity)
             , ArchetypeIndex(archetypeIndex)
             , ComponentIndex(componentIndex)
+            , ComposedIndex(0) // Will be updated in the iterator
         {}
 
         bool operator==(const Index& other) const
         {
-            
             return Entity == other.Entity
                 && ArchetypeIndex == other.ArchetypeIndex
                 && ComponentIndex == other.ComponentIndex;
+            // Note: ComposedIndex is derived from the other three.
         }
-
-    private:
     };
 
     struct Iterator
@@ -223,11 +224,17 @@ class ComponentView
         using pointer = Index*;
         using reference = Index&;
 
-        Iterator(Index index, const std::vector<uint32_t>& archetypeSizes, const std::vector<std::vector<EntityID>*>& entityData)
+        Iterator(Index index,
+            uint32_t totalSize,
+            const std::vector<uint32_t>& archetypeSizes,
+            const std::vector<std::vector<EntityID>*>& entityData)
             : m_Index(index)
+            , m_TotalSize(totalSize)
             , m_ArchetypeSizes(archetypeSizes)
             , m_EntityData(entityData)
-        {}
+        {
+            UpdateComposedIndex();
+        }
 
         reference operator*() { return m_Index; }
         pointer operator->() { return &m_Index; }
@@ -241,29 +248,81 @@ class ComponentView
                 if (m_Index.ArchetypeIndex >= m_ArchetypeSizes.size())
                 {
                     m_Index.Entity = m_EntityData.back()->back();
+                    m_Index.ComposedIndex = m_TotalSize;
                     return *this;
                 }
             }
             m_Index.Entity = (*m_EntityData[m_Index.ArchetypeIndex])[m_Index.ComponentIndex];
+            UpdateComposedIndex();
             return *this;
         }
 
-        Iterator& operator++(int)
+        Iterator operator++(int)
         {
             Iterator tmp = *this;
             ++(*this);
             return tmp;
         }
 
+        Iterator& operator+=(uint32_t n)
+        {
+            uint32_t numComponentsLeft = m_ArchetypeSizes[m_Index.ArchetypeIndex] - m_Index.ComponentIndex;
+            if (n < numComponentsLeft)
+            {
+                m_Index.ComponentIndex += n;
+                m_Index.Entity = (*m_EntityData[m_Index.ArchetypeIndex])[m_Index.ComponentIndex];
+                UpdateComposedIndex();
+                return *this;
+            }
+            n -= numComponentsLeft;
+            for (uint32_t i = m_Index.ArchetypeIndex + 1; i < m_ArchetypeSizes.size(); ++i)
+            {
+                if (n < m_ArchetypeSizes[i])
+                {
+                    m_Index.ArchetypeIndex = i;
+                    m_Index.ComponentIndex = n;
+                    m_Index.Entity = (*m_EntityData[m_Index.ArchetypeIndex])[m_Index.ComponentIndex];
+                    UpdateComposedIndex();
+                    return *this;
+                }
+                n -= m_ArchetypeSizes[i];
+            }
+            throw std::out_of_range("Iterator out of range");
+        }
+
+        Iterator operator+(uint32_t n) const
+        {
+            Iterator tmp = *this;
+            return tmp += n;
+        }
+
         friend bool operator==(const Iterator& a, const Iterator& b) { return a.m_Index == b.m_Index; }
         friend bool operator!=(const Iterator& a, const Iterator& b) { return a.m_Index != b.m_Index; }
 
     private:
+        void UpdateComposedIndex()
+        {
+            if (m_Index.ArchetypeIndex >= m_ArchetypeSizes.size())
+            {
+                m_Index.ComposedIndex = m_TotalSize;
+            }
+            else
+            {
+                uint32_t prefix = 0;
+                for (uint32_t i = 0; i < m_Index.ArchetypeIndex; i++)
+                {
+                    prefix += m_ArchetypeSizes[i];
+                }
+                m_Index.ComposedIndex = prefix + m_Index.ComponentIndex;
+            }
+        }
+
         Index m_Index;
+        uint32_t m_TotalSize;
         const std::vector<uint32_t>& m_ArchetypeSizes;
         const std::vector<std::vector<EntityID>*>& m_EntityData;
     };
-    
+
 public:
     ComponentView(std::span<Archetype*> archetypeView)
     {
@@ -274,34 +333,62 @@ public:
             if (entityData->empty())
                 continue;
             m_EntityData.push_back(entityData);
-            m_ArchetypeSizes.push_back(archetype->GetEntityCount());
-            m_TotalSize += archetype->GetEntityCount();
+            uint32_t count = archetype->GetEntityCount();
+            m_ArchetypeSizes.push_back(count);
+            m_TotalSize += count;
             m_ComponentData.push_back(archetype->GetComponentStorages<Comps...>());
         }
     }
 
     ~ComponentView() = default;
 
-    ECS_FORCE_INLINE std::tuple<Comps&...> Get(const Index& index)
+    // Retrieve components for the given index.
+    ECS_FORCE_INLINE constexpr std::tuple<Comps&...> Get(const Index& index)
     {
         return { std::get<ComponentStorage<Comps>&>(m_ComponentData[index.ArchetypeIndex]).Components[index.ComponentIndex]... };
     }
 
+    ECS_FORCE_INLINE constexpr uint32_t TotalSize() const { return m_TotalSize; }
+
     ECS_FORCE_INLINE Iterator begin() const
     {
-        return Iterator{ Index{ m_EntityData.front()->front(), 0, 0 }, m_ArchetypeSizes, m_EntityData };
+        return Iterator{ Index{ m_EntityData.front()->front(), 0, 0 },
+                         m_TotalSize,
+                         m_ArchetypeSizes,
+                         m_EntityData };
     }
 
     ECS_FORCE_INLINE Iterator end() const
     {
-        return Iterator{ Index{ m_EntityData.back()->back(), (uint32_t)m_ArchetypeSizes.size(), 0 }, m_ArchetypeSizes, m_EntityData };
+        return Iterator{ Index{ m_EntityData.back()->back(), static_cast<uint32_t>(m_ArchetypeSizes.size()), 0 },
+                         m_TotalSize,
+                         m_ArchetypeSizes,
+                         m_EntityData };
+    }
+
+    ECS_FORCE_INLINE constexpr Index operator[](uint32_t composedIndex) const
+    {
+        if (composedIndex >= m_TotalSize)
+            throw std::out_of_range("ComponentView index out of range");
+        uint32_t runningSum = 0;
+        for (uint32_t i = 0; i < m_ArchetypeSizes.size(); i++)
+        {
+            if (composedIndex < runningSum + m_ArchetypeSizes[i])
+            {
+                uint32_t compIndex = composedIndex - runningSum;
+                return Index{ (*m_EntityData[i])[compIndex], i, compIndex };
+            }
+            runningSum += m_ArchetypeSizes[i];
+        }
+        throw std::out_of_range("ComponentView index out of range");
     }
 
 private:
     std::vector<std::vector<EntityID>*> m_EntityData;
     std::vector<std::tuple<ComponentStorage<Comps>&...>> m_ComponentData;
     std::vector<uint32_t> m_ArchetypeSizes;
-    uint32_t m_TotalSize{0};
+    uint32_t m_TotalSize{ 0 };
+
     friend class EntityRegistry;
 };
 }
