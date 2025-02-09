@@ -41,5 +41,35 @@ vk::CommandBufferSubmitInfo CommandBufferSubmitInfo(vk::CommandBuffer cmdBuffer)
 {
     return vk::CommandBufferSubmitInfo(cmdBuffer);
 }
+bool IsDepthFormat(vk::Format format)
+{
+    return (format == vk::Format::eD16Unorm
+        || format == vk::Format::eD32Sfloat
+        || format == vk::Format::eD16UnormS8Uint
+        || format == vk::Format::eD24UnormS8Uint
+        || format == vk::Format::eD32SfloatS8Uint);
+}
+bool IsStencilFormat(vk::Format format)
+{
+    return (format == vk::Format::eS8Uint
+        || format == vk::Format::eD16UnormS8Uint
+        || format == vk::Format::eD24UnormS8Uint
+        || format == vk::Format::eD32SfloatS8Uint);
+}
+
+vk::ImageUsageFlags GetImageUsageFlags(TextureUsageType::Enum usageType)
+{
+    switch (usageType)
+    {
+    case TextureUsageType::eSampled:
+        return vk::ImageUsageFlagBits::eSampled;
+    case TextureUsageType::eStorage:
+        return vk::ImageUsageFlagBits::eStorage;
+    case TextureUsageType::eSampledAndStorage:
+        return vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage;
+    default:
+        return {};
+    }
+}
 }
 }

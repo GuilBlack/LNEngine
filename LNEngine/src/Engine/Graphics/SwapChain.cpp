@@ -165,7 +165,9 @@ void Swapchain::CreateSwapchain()
     auto images = device.getSwapchainImagesKHR(m_Swapchain);
     m_ColorAttachments.resize(images.size());
     m_Framebuffers.reserve(images.size());
-    m_DepthAttachment = Texture::CreateDepthTexture(m_Context, sc.currentExtent.width, sc.currentExtent.height, "SwapchainDepth");
+    m_DepthAttachment = Texture::CreateDepthTexture(m_Context, 
+        sc.currentExtent.width, sc.currentExtent.height, 
+        TextureUsageType::eSampled, "SwapchainDepth");
 
     AttachmentDesc colorAttachmentDesc{
         .LoadOp = vk::AttachmentLoadOp::eClear,

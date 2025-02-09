@@ -85,7 +85,7 @@ public:
         vk::Format format, uint32_t numMipLevels = 1,
         uint32_t layers = 1, vk::ImageAspectFlags aspect = vk::ImageAspectFlagBits::eColor, const std::string& name = "");
     [[nodiscard]] BindlessImageHandle RegisterBindlessTexture(class Texture* texture);
-    void FreeBindlessImage(BindlessImageHandle handle) { m_FreeBindlessIndices.push(handle); }
+    [[nodiscard]] BindlessImageHandle RegisterBindlessImage(vk::ImageView imageView);
 
     [[nodiscard]] vk::Sampler CreateSampler(vk::Filter magFilter = vk::Filter::eLinear, vk::Filter minFilter = vk::Filter::eLinear, 
         vk::SamplerMipmapMode mipmapMode = vk::SamplerMipmapMode::eLinear,
@@ -161,15 +161,17 @@ private:
     uint32_t m_MaxFramesInFlight{ 2 };
 
     std::unique_ptr<class CommandBufferManager> m_TransferCommandBufferManager;
-        
+
     vk::Sampler m_DefaultSampler;
     class Texture* m_DefaultTexture;
 
     vk::DescriptorPool m_BindlessDescriptorPool;
     vk::DescriptorSetLayout m_BindlessDescriptorSetLayout;
     vk::DescriptorSet m_BindlessDescriptorSet;
+    std::queue<BindlessImageHandle> m_FreeBindlessTextureIndices{};
+    std::queue<BindlessImageHandle> m_FreeBindlessImageIndices{};
+    std::mutex                      m_BindlessMutex{};
 
-    std::queue<BindlessImageHandle> m_FreeBindlessIndices{};
     std::vector<ResourceDeletion> m_ResourceDeletionQueue{};
 
     friend class Swapchain;

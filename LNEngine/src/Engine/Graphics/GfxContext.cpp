@@ -86,7 +86,8 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
     static constexpr uint32_t bindlessPoolSize = 2048;
 
     std::vector<vk::DescriptorPoolSize> poolSizesBindless{
-        vk::DescriptorPoolSize{ vk::DescriptorType::eCombinedImageSampler, bindlessPoolSize },
+        vk::DescriptorPoolSize{ vk::DescriptorType::eCombinedImageSampler,  bindlessPoolSize },
+        vk::DescriptorPoolSize{ vk::DescriptorType::eStorageImage,          bindlessPoolSize },
     };
 
     vk::DescriptorPoolCreateInfo poolInfoBindless{
@@ -98,14 +99,23 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
     m_BindlessDescriptorPool = m_Device.createDescriptorPool(poolInfoBindless);
     SetVkObjectName(m_BindlessDescriptorPool, "BindlessDescriptorPool");
 
-    vk::DescriptorSetLayoutBinding bindlessLayoutBinding = vk::DescriptorSetLayoutBinding{
-        0,
-        vk::DescriptorType::eCombinedImageSampler,
-        bindlessPoolSize,
-        vk::ShaderStageFlagBits::eAll
+    std::array<vk::DescriptorSetLayoutBinding, 2> bindlessLayoutBindings{
+        vk::DescriptorSetLayoutBinding{
+            0,
+            vk::DescriptorType::eCombinedImageSampler,
+            bindlessPoolSize,
+            vk::ShaderStageFlagBits::eAll
+        },
+        vk::DescriptorSetLayoutBinding{
+            1,
+            vk::DescriptorType::eStorageImage,
+            bindlessPoolSize,
+            vk::ShaderStageFlagBits::eAll
+        }
     };
 
-    std::array<vk::DescriptorBindingFlags, 1> bindlessBindingFlags{
+    std::array<vk::DescriptorBindingFlags, 2> bindlessBindingFlags{
+        vk::DescriptorBindingFlagBits::eUpdateAfterBind | vk::DescriptorBindingFlagBits::ePartiallyBound,
         vk::DescriptorBindingFlagBits::eUpdateAfterBind | vk::DescriptorBindingFlagBits::ePartiallyBound
     };
 
@@ -116,7 +126,7 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
     vk::StructureChain<vk::DescriptorSetLayoutCreateInfo, vk::DescriptorSetLayoutBindingFlagsCreateInfo> bindlessLayoutChain{
         vk::DescriptorSetLayoutCreateInfo{
             vk::DescriptorSetLayoutCreateFlagBits::eUpdateAfterBindPool,
-            bindlessLayoutBinding
+            bindlessLayoutBindings
         },
         bindlessLayoutBindingFlags
     };
@@ -132,9 +142,12 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
     m_BindlessDescriptorSet = result.back();
     SetVkObjectName(m_BindlessDescriptorSet, "BindlessDescriptorSet");
 
-    m_FreeBindlessIndices = std::queue<uint32_t>();
+    m_FreeBindlessTextureIndices = std::queue<uint32_t>();
     for (uint32_t i = 0; i < bindlessPoolSize; i++)
-        m_FreeBindlessIndices.push(i);
+    {
+        m_FreeBindlessTextureIndices.push(i);
+        m_FreeBindlessImageIndices.push(i);
+    }
 #pragma endregion
 }
 
@@ -250,14 +263,14 @@ void GfxContext::InitDefaultResources()
         1,
         vk::SampleCountFlagBits::e1,
         vk::ImageTiling::eOptimal,
-        vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst,
+        vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferDst,
         vk::SharingMode::eExclusive,
         0,
         nullptr,
         vk::ImageLayout::eUndefined
     );
 
-    m_DefaultTexture = lnnew Texture(this, imageInfo, "DefaultTexture");
+    m_DefaultTexture = lnnew Texture(this, imageInfo, TextureUsageType::eSampledAndStorage, "DefaultTexture");
 }
 
 void GfxContext::UploadDefaultResources()
@@ -428,6 +441,7 @@ vk::ImageView GfxContext::CreateImageView(vk::Image image, vk::ImageViewType vie
 
 BindlessImageHandle GfxContext::RegisterBindlessTexture(Texture* texture)
 {
+    std::lock_guard<std::mutex> lock(m_BindlessMutex);
     vk::Sampler sampler = texture->GetSampler();
     if (sampler == nullptr)
     {
@@ -435,7 +449,7 @@ BindlessImageHandle GfxContext::RegisterBindlessTexture(Texture* texture)
         sampler = m_DefaultSampler;
     }
 
-    BindlessImageHandle handle = m_FreeBindlessIndices.front();
+    BindlessImageHandle handle = m_FreeBindlessTextureIndices.front();
     auto imageInfo = vk::DescriptorImageInfo{
         sampler,
         texture->GetImageView(),
@@ -449,7 +463,28 @@ BindlessImageHandle GfxContext::RegisterBindlessTexture(Texture* texture)
         imageInfo
     };
     m_Device.updateDescriptorSets({ descriptorWrite }, nullptr);
-    m_FreeBindlessIndices.pop();
+    m_FreeBindlessTextureIndices.pop();
+    return handle;
+}
+
+BindlessImageHandle GfxContext::RegisterBindlessImage(vk::ImageView imageView)
+{
+    std::lock_guard<std::mutex> lock(m_BindlessMutex);
+    BindlessImageHandle handle = m_FreeBindlessImageIndices.front();
+    auto imageInfo = vk::DescriptorImageInfo{
+        nullptr,
+        imageView,
+        vk::ImageLayout::eGeneral
+    };
+    vk::WriteDescriptorSet descriptorWrite{
+        m_BindlessDescriptorSet,
+        1,
+        handle,
+        vk::DescriptorType::eStorageImage,
+        imageInfo
+    };
+    m_Device.updateDescriptorSets({ descriptorWrite }, nullptr);
+    m_FreeBindlessImageIndices.pop();
     return handle;
 }
 
@@ -613,10 +648,28 @@ void GfxContext::NukeBuffer(const BufferResourceDeletion& buffer)
 
 void GfxContext::NukeImage(const TextureResourceDeletion& image)
 {
+    std::lock_guard<std::mutex> lock(m_BindlessMutex);
     m_Device.destroyImageView(image.ImageView);
-    if (image.OwnsAllocation)
-        FreeImageAllocation(image.Allocation);
-    FreeBindlessImage(image.BindlessHandle);
+    if (image.OwnsAllocation == false)
+        return;
+
+    FreeImageAllocation(image.Allocation);
+    switch (image.UsageType)
+    {
+    case TextureUsageType::eSampled:
+        m_FreeBindlessTextureIndices.push(image.BindlessTextureHandle);
+        break;
+    case TextureUsageType::eStorage:
+        m_FreeBindlessImageIndices.push(image.BindlessStorageHandle);
+        break;
+    case TextureUsageType::eSampledAndStorage:
+        m_FreeBindlessTextureIndices.push(image.BindlessTextureHandle);
+        m_FreeBindlessImageIndices.push(image.BindlessStorageHandle);
+        break;
+    default:
+        LNE_ERROR("Invalid texture usage type");
+        break;
+    }
 }
 
 void GfxContext::NukePipeline(const PipelineResourceDeletion& pipeline)

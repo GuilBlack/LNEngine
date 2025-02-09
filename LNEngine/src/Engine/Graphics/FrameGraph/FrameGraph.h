@@ -227,6 +227,7 @@ public:
     std::vector<SafePtr<IRenderPass>> GetRenderPassesWithSignature(EntitySignature signature);
     const std::vector<FrameGraphNodeHandle>& GetNodes() const { return m_Nodes; }
     FrameGraphNode* GetNode(FrameGraphNodeHandle nodeHandle) { return m_NodeCache.GetPool().Access(nodeHandle); }
+    const FrameGraphNode* GetNode(const std::string& name) const { return m_NodeCache.Access(name); }
 
     void Compile();
     void Execute(vk::CommandBuffer commandBuffer, class WorldRenderer* worldRenderer);

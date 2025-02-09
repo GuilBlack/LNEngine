@@ -10,10 +10,33 @@ namespace lne
 class Texture : public RefCountBase
 {
 public:
-    static SafePtr<Texture> CreateDepthTexture(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, const std::string& name = "");
-    static SafePtr<Texture> CreateColorAttachmentTexture(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, vk::Format format, const std::string& name = "");
-    static SafePtr<Texture> CreateColorTexture2D(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, bool generateMips = true, const std::string& name = "");
-    static SafePtr<Texture> CreateCubemapTexture(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, bool generateMips = true, const std::string& name = "");
+    static SafePtr<Texture> CreateDepthTexture(
+        SafePtr<class GfxContext> ctx, 
+        uint32_t width, uint32_t height,
+        TextureUsageType::Enum usage = TextureUsageType::eSampled, 
+        const std::string& name = ""
+    );
+    static SafePtr<Texture> CreateColorAttachmentTexture(
+        SafePtr<class GfxContext> ctx, 
+        uint32_t width, uint32_t height, vk::Format format,
+        TextureUsageType::Enum usage = TextureUsageType::eSampled,
+        const std::string& name = ""
+    );
+    static SafePtr<Texture> CreateColorTexture2D(
+        SafePtr<class GfxContext> ctx, 
+        uint32_t width, uint32_t height, vk::Format format = vk::Format::eR8G8B8A8Srgb,
+        TextureUsageType::Enum usage = TextureUsageType::eSampled, 
+        bool generateMips = true, 
+        const std::string& name = ""
+    );
+    static SafePtr<Texture> CreateCubemapTexture(
+        SafePtr<class GfxContext> ctx,
+        uint32_t width, uint32_t height,
+        TextureUsageType::Enum usage = TextureUsageType::eSampled,
+        bool generateMips = true,
+        const std::string& name = ""
+    );
+
     static constexpr uint32_t GetMaxMipLevels(uint32_t width, uint32_t height)
     {
         uint32_t mipLevels = 1;
@@ -28,7 +51,7 @@ public:
 public:
     explicit Texture(SafePtr<class GfxContext> ctx, vk::Image image,
         vk::Format format, vk::Extent3D extents, uint32_t numlayers = 1, const std::string& name = "");
-    explicit Texture(SafePtr<class GfxContext> ctx, vk::ImageCreateInfo imageCI, const std::string& name = "");
+    explicit Texture(SafePtr<class GfxContext> ctx, vk::ImageCreateInfo imageCI, TextureUsageType::Enum usage, const std::string& name = "");
     virtual ~Texture();
 
     [[nodiscard]] vk::ImageView GetImageView() const { return m_ImageView; }
@@ -42,7 +65,9 @@ public:
     [[nodiscard]] uint32_t GetMipLevels() const { return m_MipLevels; }
     [[nodiscard]] bool ShouldGenerateMips() const { return m_GenerateMips; }
     [[nodiscard]] vk::Sampler GetSampler() const { return m_Sampler; }
-    [[nodiscard]] BindlessImageHandle GetBindlessHandle() const { return m_BindlessHandle; }
+    [[nodiscard]] BindlessImageHandle GetBindlessTextureHandle() const { return m_BindlessTextureHandle; }
+    [[nodiscard]] BindlessImageHandle GetBindlessStorageHandle() const { return m_BindlessStorageHandle; }
+    [[nodiscard]] TextureUsageType::Enum GetUsageType() const { return m_UsageType; }
     [[nodiscard]] const std::string& GetName() const { return m_Name; }
 
     [[nodiscard]] bool IsDepth();
@@ -85,7 +110,8 @@ private:
     ImageAllocation             m_Allocation{};
     vk::ImageView               m_ImageView{};
     vk::Sampler                 m_Sampler{};
-    BindlessImageHandle         m_BindlessHandle{ 0 };
+    BindlessImageHandle         m_BindlessTextureHandle{ 0 };
+    BindlessImageHandle         m_BindlessStorageHandle{ 0 };
     vk::Format                  m_Format{};
     vk::Extent3D                m_Extents{};
     vk::ImageType               m_ImageType{ vk::ImageType::e2D };
@@ -94,6 +120,7 @@ private:
     uint32_t                    m_NumLayers{ 1 };
     uint32_t                    m_MipLevels{ 1 };
     std::string                 m_Name{};
+    TextureUsageType::Enum      m_UsageType{};
     bool                        m_GenerateMips{ false };
     bool                        m_OwnsImage{ true };
 

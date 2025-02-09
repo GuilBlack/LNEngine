@@ -106,7 +106,7 @@ SafePtr<Texture> GfxLoader::CreateTexture(std::string_view fullPath)
 
     std::filesystem::path fsFullPath = fullPath;
     // TODO: change mipmap gen to true when I'll implement the mipmap gen on the renderer side
-    SafePtr<Texture> texture = Texture::CreateColorTexture2D(m_GraphicsContext, texWidth, texHeight, true, std::format("Texture: {}", fsFullPath.filename().string()));
+    SafePtr<Texture> texture = Texture::CreateColorTexture2D(m_GraphicsContext, texWidth, texHeight, vk::Format::eR8G8B8A8Srgb, TextureUsageType::eSampled, true, std::format("Texture: {}", fsFullPath.filename().string()));
 
     LoadRequest request;
     request.Type = ResourceTypes::eTexture;
@@ -165,7 +165,7 @@ SafePtr<Texture> GfxLoader::CreateCubemap(std::vector<std::string> faces)
     texChannels = 4;
 
     std::filesystem::path fsFullPath = faces[0];
-    SafePtr<Texture> texture = Texture::CreateCubemapTexture(m_GraphicsContext, texWidth, texHeight, true,
+    SafePtr<Texture> texture = Texture::CreateCubemapTexture(m_GraphicsContext, texWidth, texHeight, TextureUsageType::eSampled, true,
         std::format("Texture: {}", fsFullPath.parent_path().filename().string()));
 
     LoadRequest request;

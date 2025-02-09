@@ -69,12 +69,12 @@ void FrameGraph::Compile()
                 if (isDepth)
                 {
                     outputResource.Resource = Texture::CreateDepthTexture(m_Context,
-                        imageInfo.Extent.width, imageInfo.Extent.height, outputResource.Name);
+                        imageInfo.Extent.width, imageInfo.Extent.height, TextureUsageType::eSampled, outputResource.Name);
                     break;
                 }
                 outputResource.Resource = Texture::CreateColorAttachmentTexture(m_Context,
                     imageInfo.Extent.width, imageInfo.Extent.height,
-                    imageInfo.Format, outputResource.Name);
+                    imageInfo.Format, TextureUsageType::eSampled, outputResource.Name);
                 break;
             }
             case FrameGraphResourceType::eBuffer:

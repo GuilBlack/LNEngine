@@ -1,9 +1,28 @@
 ﻿#include "pch.h"
 #include "AppLayer.h"
 
+AppLayer::FinalPass::FinalPass()
+{
+    using namespace lne;
+    m_Name = "FinalPass";
+    ComputePipelineDesc desc{};
+    desc.Name = "Test";
+    desc.PathToShader = ApplicationBase::GetAssetsPath() + "Shaders\\Test.comp";
+    auto context = ApplicationBase::GetRenderer().GetGfxContext();
+    m_Pipeline = lnnew ComputePipeline(context, desc);
+    m_Program = lnnew ComputeProgram(m_Pipeline);
+    m_OutputTexture = Texture::CreateColorAttachmentTexture(context, 1920, 1080, vk::Format::eR8G8B8A8Unorm, TextureUsageType::eSampledAndStorage, "Test");
+
+    m_Program->SetProperty("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+    m_Program->SetTexture("tOutput", m_OutputTexture);
+
+    m_Program->Dispatch((1920 + 16) / 16, (1080 + 16) / 16, 1);
+}
+
 void AppLayer::FinalPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worldRenderer,
     lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
+    m_OutputTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
     lne::Framebuffer& swapchainFramebuffer = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
     auto renderTexture = swapchainFramebuffer.GetColorAttachments()[0].Texture;
@@ -14,7 +33,7 @@ void AppLayer::FinalPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRendere
         return;
     }
     lne::SafePtr<lne::Texture> colorTexture = colorResource->Resource.GetAs<lne::Texture>();
-    renderer.Blit(cmdBuffer, colorTexture, renderTexture);
+    renderer.Blit(cmdBuffer, m_OutputTexture, renderTexture);
 }
 
 void AppLayer::OnAttach()
@@ -34,8 +53,8 @@ void AppLayer::OnAttach()
     GraphicsPipelineDesc desc{};
     desc.PathToShaders = ApplicationBase::GetAssetsPath() + "Shaders\\MeshLighting.glsl";
     desc.Name = "Basic";
+    desc.FrameGraph = m_FrameGraph.GetPtr();
     desc.EnableDepthTest(true);
-    desc.Framebuffer = fb;
     desc.Blend.EnableBlend(false);
 
     m_BasePipeline = renderer.CreateGraphicsPipeline(desc);
@@ -141,27 +160,27 @@ void AppLayer::OnAttach()
     duckTransform.Scale = { 4.f, 4.f, 4.f };
 
 #pragma endregion
-    SafePtr<StaticMesh> purpleSphere = sphereMeshComponent.Mesh;
-    SafePtr<StaticMesh> uvSphere = lnnew StaticMesh(sphereGeo, m_BasicMaterial, { uvChecker }, m_BasePipeline);
+    //SafePtr<StaticMesh> purpleSphere = sphereMeshComponent.Mesh;
+    //SafePtr<StaticMesh> uvSphere = lnnew StaticMesh(sphereGeo, m_BasicMaterial, { uvChecker }, m_BasePipeline);
 
-    for (int i = 0; i < 32000; i++)
-    {
-        Entity temp = m_Scene->CreateEntity();
-        temp.EmplaceComponent<StaticMeshComponent>();
+    //for (int i = 0; i < 32000; i++)
+    //{
+    //    Entity temp = m_Scene->CreateEntity();
+    //    temp.EmplaceComponent<StaticMeshComponent>();
 
-        auto [tempTransform, tempMeshComp] =
-            temp.GetComponents<TransformComponent, StaticMeshComponent>();
+    //    auto [tempTransform, tempMeshComp] =
+    //        temp.GetComponents<TransformComponent, StaticMeshComponent>();
 
-        float xRand = (rand() / (float)RAND_MAX) * 60;
-        float yRand = (rand() / (float)RAND_MAX) * 60;
-        float zRand = (rand() / (float)RAND_MAX) * 60;
-        tempTransform.Position = { xRand, yRand, -zRand };
-        tempTransform.Scale = { 0.25f, 0.25f, 0.25f };
-        if (i < 16000)
-            tempMeshComp.Mesh = purpleSphere;
-        else
-            tempMeshComp.Mesh = uvSphere;
-    }
+    //    float xRand = (rand() / (float)RAND_MAX) * 60;
+    //    float yRand = (rand() / (float)RAND_MAX) * 60;
+    //    float zRand = (rand() / (float)RAND_MAX) * 60;
+    //    tempTransform.Position = { xRand, yRand, -zRand };
+    //    tempTransform.Scale = { 0.25f, 0.25f, 0.25f };
+    //    if (i < 16000)
+    //        tempMeshComp.Mesh = purpleSphere;
+    //    else
+    //        tempMeshComp.Mesh = uvSphere;
+    //}
 
     cameraTransform.Position = { 0.0f, 0.0f, 2.0f };
     cameraTransform.LookAt({ 0.0f, 0.0f, 0.0f });

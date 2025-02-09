@@ -82,7 +82,6 @@ ApplicationBase::~ApplicationBase()
     m_LayerStack.Clear();
     m_Window.reset();
     glfwTerminate();
-
     LNE_INFO("Application {0} nuked", m_Settings.Name);
     Log::Nuke();
 }

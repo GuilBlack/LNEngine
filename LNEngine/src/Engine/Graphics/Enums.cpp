@@ -4,13 +4,14 @@ namespace lne
 {
 namespace ShaderStage
 {
-const char* enumValues[6] = {
+const char* enumValues[7] = {
     "Vertex",
     "TessellationControl",
     "TessellationEvaluation",
     "Geometry",
     "Fragment",
-    "Compute"
+    "Compute",
+    "Unknown"
 };
 const char** s_Enum = enumValues;
 }

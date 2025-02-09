@@ -57,10 +57,12 @@ struct AABB
 
 struct TextureResourceDeletion
 {
-    vk::ImageView       ImageView;
-    ImageAllocation     Allocation;
-    BindlessImageHandle BindlessHandle;
-    bool                OwnsAllocation;
+    vk::ImageView           ImageView;
+    ImageAllocation         Allocation;
+    TextureUsageType::Enum  UsageType;
+    BindlessImageHandle     BindlessTextureHandle;
+    BindlessImageHandle     BindlessStorageHandle;
+    bool                    OwnsAllocation;
 };
 
 struct BufferResourceDeletion

@@ -1,4 +1,4 @@
-//#lne_head [[Vt main][Fg main]]
+//#lne_head [Vt main][Fg main][Rp BasicForwardPass]
 #version 460
 
 #extension GL_EXT_scalar_block_layout :     enable
@@ -27,6 +27,10 @@ layout(scalar, set = 3, binding = 0) uniform MaterialData {
 
 layout(set = 4, binding = 0) uniform sampler2D      globalTextures[];
 layout(set = 4, binding = 0) uniform samplerCube    globalCubemaps[];
+
+layout(set = 4, binding = 1, rgba8) uniform writeonly image2D   globalImageRgba8[];
+layout(set = 4, binding = 1, rgba16f) uniform writeonly image2D globalImageRgba16f[];
+layout(set = 4, binding = 1, rgba32f) uniform writeonly image2D globalImageRgba32f[];
 
 #ifdef VERT
 

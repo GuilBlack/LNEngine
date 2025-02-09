@@ -18,13 +18,22 @@ class Shader : public RefCountBase
     {
         std::string EntryPoint;
     };
-    using Header = std::unordered_map<ShaderStage::Enum, ShaderHeaderInfo>;
+
+    struct Header
+    {
+        std::unordered_map<ShaderStage::Enum, ShaderHeaderInfo> StageHeaders;
+        std::string RenderPass;
+        uint64_t RenderPassHash;
+    };
+
 public:
     Shader(SafePtr<class GfxContext> ctx, std::string_view filePath);
     [[nodiscard]] std::unordered_map<ShaderStage::Enum, vk::ShaderModule> GetModules() const { return m_Modules; }
     [[nodiscard]] uint32_t GetStageCount() const { return (uint32_t)m_Modules.size(); }
     [[nodiscard]] const std::vector<vk::DescriptorSetLayout>& GetDescriptorSetLayouts() const { return m_DescriptorSetLayouts; }
     [[nodiscard]] const ReflectedData& GetReflectedData() const { return m_ReflectedData; }
+    [[nodiscard]] Shader::Header GetHeader() const { return m_Header; }
+    [[nodiscard]] std::string GetName() const { return m_Name; }
     virtual ~Shader();
 
 private:
@@ -35,6 +44,7 @@ private:
     std::unordered_map<ShaderStage::Enum, vk::ShaderModule> m_Modules{};
     std::vector<vk::DescriptorSetLayout> m_DescriptorSetLayouts{};
     ReflectedData m_ReflectedData{};
+    Header m_Header{};
 
 private:
     std::string ShaderStageToExtension(ShaderStage::Enum stage);

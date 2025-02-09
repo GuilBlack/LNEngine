@@ -25,6 +25,7 @@ struct GlobalUniforms
 struct FrameData {
     UniformBuffer GlobalUniforms;
     SafePtr<class DynamicDescriptorAllocator> DescriptorAllocator;
+    vk::DescriptorPool GlobalDescriptorPool;
     vk::DescriptorSet DescriptorSet;
     vk::DescriptorSetLayout DescriptorSetLayout;
 
@@ -68,6 +69,8 @@ public:
     void Draw(SafePtr<class StaticMesh> mesh, struct TransformComponent& objTransform);
     void Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>& mesh, const SafePtr<lne::StorageBuffer>& transformBuffer, uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount);
 
+    void Dispatch(SafePtr<class ComputeProgram> program, uint32_t x, uint32_t y, uint32_t z, bool async);
+
     void Blit(vk::CommandBuffer cmdBuffer, SafePtr<class Texture> src, SafePtr<class Texture> dst);
 
     // TODO: move to a resource manager
@@ -89,6 +92,7 @@ private:
 
     // TODO: move to a command buffer manager to the context (maybe)
     std::unique_ptr<class CommandBufferManager> m_GraphicsCommandBufferManager;
+    std::unique_ptr<class CommandBufferManager> m_ComputeCommandBufferManager;
     std::vector<FrameData> m_FrameData;
 
     SafePtr<class GfxPipeline> m_LastUsedPipeline;

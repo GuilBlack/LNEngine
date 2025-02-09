@@ -132,6 +132,24 @@ UniformElementType::Enum SpirvTypeToUniformElementType(spirv_cross::SPIRType typ
     }
 }
 
+ShaderStage::Enum MapShaderToken(const std::string& token)
+{
+    if (token == "Vt")
+        return ShaderStage::eVertex;
+    else if (token == "Fg")
+        return ShaderStage::eFragment;
+    else if (token == "Gm")
+        return ShaderStage::eGeometry;
+    else if (token == "Tc")
+        return ShaderStage::eTessellationControl;
+    else if (token == "Te")
+        return ShaderStage::eTessellationEvaluation;
+    else if (token == "Cp")
+        return ShaderStage::eCompute;
+    else
+        return ShaderStage::eUnknown;
+}
+
 #pragma endregion
 
 Shader::Shader(SafePtr<class GfxContext> ctx, std::string_view filePath)
@@ -191,67 +209,76 @@ std::tuple<std::string, Shader::Header> Shader::ReadFile(std::string_view filePa
     std::string headerSource;
     std::getline(shaderSourceFile, headerSource);
 
-    auto header = ParseHeader(headerSource);
+    m_Header = ParseHeader(headerSource);
 
-    return { { std::istreambuf_iterator<char>{shaderSourceFile}, {} }, header };
+    return { { std::istreambuf_iterator<char>{shaderSourceFile}, {} }, m_Header };
 }
 
 Shader::Header Shader::ParseHeader(std::string& headerSource)
 {
-    static const std::string headerPrefix = std::string("//#lne_head ");
+    static std::string headerPrefix = std::string("//#lne_head ");
 
     if (headerSource.substr(0, headerPrefix.length()) != headerPrefix)
         LNE_ASSERT(false, "Ill-formed header or header not found");
 
     Shader::Header header{};
-    headerSource = headerSource.substr(headerPrefix.length());
-    std::stack<char> brackets;
+    size_t index = headerPrefix.size();
 
-    uint32_t index = 0;
-
-    std::function<std::string(uint32_t&, std::string_view)> getEntryPoint = [](uint32_t& index, std::string_view headerSource) -> auto
-    {
-        index += 3;
-        std::string entryPoint;
-        while (headerSource[index] != ']')
-        {
-            entryPoint += headerSource[index];
-            index++;
-        }
-        return entryPoint;
-    };
-
-    while (index < headerSource.length())
+    while (index < headerSource.size())
     {
         if (headerSource[index] == '[')
-           brackets.push('[');
+        {
+            index++; // Entering an individual stage declaration, e.g., "[Vt main]"
+            std::string token;
+            // Read the token (e.g., "Vt" or "Fg")
+            while (index < headerSource.size() && !std::isspace(headerSource[index]))
+            {
+                token.push_back(headerSource[index]);
+                index++;
+            }
+            // Skip the whitespace between the token and the value
+            while (index < headerSource.size() && std::isspace(headerSource[index]))
+            {
+                index++;
+            }
+            std::string value;
+            while (index < headerSource.size() && headerSource[index] != ']')
+            {
+                value.push_back(headerSource[index]);
+                index++;
+            }
+            LNE_ASSERT(index < headerSource.size() && headerSource[index] == ']',
+                "Missing closing bracket in stage declaration");
+            index++; // skip the closing ']'
+
+            auto stage = MapShaderToken(token);
+            if (stage != ShaderStage::eUnknown)
+            {
+                header.StageHeaders[stage] = ShaderHeaderInfo{ value };
+                continue;
+            }
+            if (token == "Rp")
+            {
+                header.RenderPass = value;
+                header.RenderPassHash = std::hash<std::string>{}(value);
+                continue;
+            }
+            LNE_WARN("Unknown token in shader header: {}", token);
+        }
         else if (headerSource[index] == ']')
         {
-            if (brackets.empty())
-                LNE_ASSERT(false, "Mismatched brackets in shader header");
-            brackets.pop();
+            index++;
+            if (index < headerSource.size() && headerSource[index] == ']')
+            {
+                index++; // End of nested stage declarations
+                break;
+            }
         }
         else
         {
-            if (headerSource.substr(index, 2) == "Vt")
-            {
-                header[ShaderStage::eVertex] = ShaderHeaderInfo{ getEntryPoint(index, headerSource) };
-            }
-            else if (headerSource.substr(index, 2) == "Fg")
-            {
-                header[ShaderStage::eFragment] = ShaderHeaderInfo{ getEntryPoint(index, headerSource) };
-            }
-            else
-            {
-                LNE_ASSERT(false, "Ill-formed header with some non-conformed tokens");
-            }
-            continue;
+            index++;
         }
-
-        index++;
     }
-    if (brackets.empty() == false)
-        LNE_ASSERT(false, "Ill-formed header");
 
     return header;
 }
@@ -265,10 +292,10 @@ std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> Shader::CompileToSp
     options.SetOptimizationLevel(optimize ? shaderc_optimization_level_performance : shaderc_optimization_level_zero);
     options.SetWarningsAsErrors();
     std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> spirvCode;
-    std::vector<shaderc::CompileOptions> optionsForShaders(header.size(), options);
+    std::vector<shaderc::CompileOptions> optionsForShaders(header.StageHeaders.size(), options);
     uint32_t optionsIndex = 0;
 
-    for (auto& [stage, headerInfo] : header)
+    for (auto& [stage, headerInfo] : header.StageHeaders)
     {
         auto& options = optionsForShaders.back();
         options.AddMacroDefinition(ShaderStageToDefine(stage), "1");
@@ -417,7 +444,7 @@ void Shader::CreateDescriptorSetLayouts()
             switch (setIndex)
             {
             case 0:
-                stages = vk::ShaderStageFlagBits::eAllGraphics;
+                stages = vk::ShaderStageFlagBits::eAll;
                 break;
             }
             bindings.emplace_back(vk::DescriptorSetLayoutBinding(buffer.BindingIndex, vk::DescriptorType::eUniformBuffer, 1, stages));

@@ -61,12 +61,14 @@ class AppLayer final : public lne::Layer
     class FinalPass : public lne::IRenderPass
     {
     public:
-        FinalPass()
-        {
-            m_Name = "FinalPass";
-        }
+        FinalPass();
 
-        virtual void Execute(vk::CommandBuffer cmdBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;    
+        virtual void Execute(vk::CommandBuffer cmdBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
+
+    private:
+        lne::SafePtr<lne::ComputePipeline> m_Pipeline{};
+        lne::SafePtr<lne::ComputeProgram> m_Program{};
+        lne::SafePtr<lne::Texture> m_OutputTexture{};
     };
 
 public:

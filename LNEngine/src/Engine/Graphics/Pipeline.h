@@ -5,8 +5,36 @@
 
 namespace lne
 {
+class FrameGraph;
 
-#pragma region Creation structs
+class PipelineBase : public RefCountBase
+{
+public:
+    virtual ~PipelineBase();
+
+    // Pure virtual binding method
+    void Bind(const vk::CommandBuffer& cmdBuffer) const;
+
+    vk::PipelineLayout GetLayout() const { return m_Layout; }
+    vk::Pipeline GetPipeline() const { return m_Pipeline; }
+    [[nodiscard]] std::vector<vk::DescriptorSetLayout> GetDescriptorSetLayouts() const { return m_Shader->GetDescriptorSetLayouts(); }
+
+protected:
+    // Constructor takes the context and a name for identification.
+    PipelineBase(SafePtr<GfxContext> ctx, const std::string& name, vk::PipelineBindPoint bindPoint);
+
+    // Helper to create a pipeline layout, appending your bindless descriptor set layout.
+    vk::PipelineLayout CreatePipelineLayout(const std::vector<vk::DescriptorSetLayout>& layouts);
+
+    SafePtr<GfxContext>     m_Context{};
+    SafePtr<Shader>         m_Shader{};
+    vk::Pipeline            m_Pipeline{};
+    vk::PipelineLayout      m_Layout{};
+    vk::PipelineBindPoint   m_BindPoint{};
+    std::string             m_Name{};
+};
+
+#pragma region Graphics pipeline
 
 struct DepthDesc
 {
@@ -39,7 +67,6 @@ struct BlendState
     BlendState& SetColorWriteMask(EBlendColorWriteMask mask);
 };
 
-#pragma endregion
 
 struct GraphicsPipelineDesc
 {
@@ -48,47 +75,74 @@ struct GraphicsPipelineDesc
     std::unordered_set<ShaderStage::Enum>    ShaderStages{};
 
     // rasterization settings
-    ECullMode   CullMode =              ECullMode::Back;
-    EWindingOrder WindingOrder =        EWindingOrder::CounterClockwise;
-    EFillMode Fill =                    EFillMode::Solid;
+    ECullMode   CullMode = ECullMode::Back;
+    EWindingOrder WindingOrder = EWindingOrder::CounterClockwise;
+    EFillMode Fill = EFillMode::Solid;
 
     // depth stencil settings
     DepthDesc   Depth{};
     BlendState  Blend{};
 
-    Framebuffer Framebuffer;
-     
+    FrameGraph* FrameGraph = nullptr;
+
     GraphicsPipelineDesc& SetName(const std::string& name) { Name = name; return *this; }
     GraphicsPipelineDesc& AddStage(ShaderStage::Enum stage) { ShaderStages.insert(stage); return *this; }
     GraphicsPipelineDesc& SetCulling(ECullMode cullMode) { CullMode = cullMode; return *this; }
     GraphicsPipelineDesc& SetWinding(EWindingOrder front) { WindingOrder = front; return *this; }
     GraphicsPipelineDesc& SetFill(EFillMode fill) { Fill = fill; return *this; }
-    GraphicsPipelineDesc& EnableDepthTest(bool enable, ECompareOperation compareOp = ECompareOperation::LessOrEqual) 
-    { 
-        Depth.SetDepthTest(enable, compareOp); return *this; 
+    GraphicsPipelineDesc& EnableDepthTest(bool enable, ECompareOperation compareOp = ECompareOperation::LessOrEqual)
+    {
+        Depth.SetDepthTest(enable, compareOp); return *this;
     }
 };
 
-class GfxPipeline : public RefCountBase
+class GfxPipeline : public PipelineBase
 {
 public:
     GfxPipeline(SafePtr<class GfxContext> ctx, const GraphicsPipelineDesc& desc);
-    virtual ~GfxPipeline();
+    virtual ~GfxPipeline() {}
 
-    void Bind(const vk::CommandBuffer& cmdBuffer) const;
-
-    [[nodiscard]] vk::PipelineLayout CreatePipelineLayout(const std::vector<vk::DescriptorSetLayout>& layouts);
-    [[nodiscard]] vk::PipelineLayout GetLayout() const { return m_Layout; }
-    [[nodiscard]] std::vector<vk::DescriptorSetLayout> GetDescriptorSetLayouts() const { return m_Shader->GetDescriptorSetLayouts(); }
+protected:
+    virtual std::string_view GetDebugName() const override
+    {
+        return m_Name.empty() ? "GraphicsPipeline" : m_Name;
+    }
 
 private:
-    SafePtr<class GfxContext> m_Context;
-    SafePtr<Shader> m_Shader{};
-    vk::Pipeline m_Pipeline{};
-    vk::PipelineLayout m_Layout{};
-    vk::PipelineBindPoint m_BindPoint = vk::PipelineBindPoint::eGraphics;
-    GraphicsPipelineDesc m_Desc{};
+    GraphicsPipelineDesc        m_Desc{};
+    std::string                 m_AssociatedRenderPassName{};
+    uint64_t                    m_AssociatedRenderPassNameHash{};
 
     friend class Material;
 };
+
+#pragma endregion
+
+#pragma region Compute pipeline
+
+struct ComputePipelineDesc
+{
+    std::string                         Name{};
+    std::string                         PathToShader{};
+};
+
+class ComputePipeline : public PipelineBase
+{
+public:
+    ComputePipeline(SafePtr<GfxContext> ctx, const ComputePipelineDesc& desc);
+    virtual ~ComputePipeline() override {}
+
+protected:
+    virtual std::string_view GetDebugName() const override
+    {
+        return m_Name.empty() ? "ComputePipeline" : m_Name;
+    }
+
+private:
+    ComputePipelineDesc m_Desc;
+
+    friend class ComputeProgram;
+};
+#pragma endregion
+
 }

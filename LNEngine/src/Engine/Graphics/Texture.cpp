@@ -9,8 +9,16 @@
 
 namespace lne
 {
-SafePtr<Texture> Texture::CreateDepthTexture(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, const std::string& name)
+
+
+SafePtr<Texture> Texture::CreateDepthTexture(
+    SafePtr<class GfxContext> ctx,
+    uint32_t width, uint32_t height,
+    TextureUsageType::Enum usage,
+    const std::string& name)
 {
+    vk::ImageUsageFlags flags = vk::ImageUsageFlagBits::eDepthStencilAttachment | vkut::GetImageUsageFlags(usage);
+
     vk::ImageCreateInfo imageInfo(
         vk::ImageCreateFlags(),
         vk::ImageType::e2D,
@@ -20,19 +28,23 @@ SafePtr<Texture> Texture::CreateDepthTexture(SafePtr<class GfxContext> ctx, uint
         1,
         vk::SampleCountFlagBits::e1,
         vk::ImageTiling::eOptimal,
-        vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled,
+        flags,
         vk::SharingMode::eExclusive,
         0,
         nullptr,
         vk::ImageLayout::eUndefined
     );
 
-    return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, name));
+    return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, usage, name));
 }
 
-SafePtr<Texture> Texture::CreateColorAttachmentTexture(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, vk::Format format, const std::string& name)
+SafePtr<Texture> Texture::CreateColorAttachmentTexture(
+    SafePtr<class GfxContext> ctx,
+    uint32_t width, uint32_t height, vk::Format format,
+    TextureUsageType::Enum usage,
+    const std::string& name)
 {
-    vk::ImageUsageFlags flags = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled
+    vk::ImageUsageFlags flags = vk::ImageUsageFlagBits::eColorAttachment | vkut::GetImageUsageFlags(usage)
         | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc;
 
     vk::ImageCreateInfo imageInfo(
@@ -50,18 +62,24 @@ SafePtr<Texture> Texture::CreateColorAttachmentTexture(SafePtr<class GfxContext>
         nullptr,
         vk::ImageLayout::eUndefined
     );
-    return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, name));
+    return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, usage, name));
 }
 
-SafePtr<Texture> Texture::CreateColorTexture2D(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, bool generateMips, const std::string& name)
+SafePtr<Texture> Texture::CreateColorTexture2D(
+    SafePtr<class GfxContext> ctx,
+    uint32_t width, uint32_t height, vk::Format format,
+    TextureUsageType::Enum usage,
+    bool generateMips,
+    const std::string& name)
 {
-    vk::ImageUsageFlags flags = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst;
+    vk::ImageUsageFlags flags = vkut::GetImageUsageFlags(usage) | vk::ImageUsageFlagBits::eTransferDst;
+
     if (generateMips)
         flags |= vk::ImageUsageFlagBits::eTransferSrc;
     vk::ImageCreateInfo imageInfo(
         vk::ImageCreateFlags(),
         vk::ImageType::e2D,
-        vk::Format::eR8G8B8A8Srgb,
+        format,
         vk::Extent3D(width, height, 1),
         generateMips ? GetMaxMipLevels(width, height) : 1,
         1,
@@ -73,12 +91,17 @@ SafePtr<Texture> Texture::CreateColorTexture2D(SafePtr<class GfxContext> ctx, ui
         nullptr,
         vk::ImageLayout::eUndefined
     );
-    return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, name));
+    return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, usage, name));
 }
 
-SafePtr<Texture> Texture::CreateCubemapTexture(SafePtr<class GfxContext> ctx, uint32_t width, uint32_t height, bool generateMips, const std::string& name)
+SafePtr<Texture> Texture::CreateCubemapTexture(
+    SafePtr<class GfxContext> ctx,
+    uint32_t width, uint32_t height,
+    TextureUsageType::Enum usage,
+    bool generateMips,
+    const std::string& name)
 {
-    vk::ImageUsageFlags flags = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst;
+    vk::ImageUsageFlags flags = vkut::GetImageUsageFlags(usage) | vk::ImageUsageFlagBits::eTransferDst;
     if (generateMips)
         flags |= vk::ImageUsageFlagBits::eTransferSrc;
     vk::ImageCreateInfo imageInfo = vk::ImageCreateInfo{
@@ -96,7 +119,7 @@ SafePtr<Texture> Texture::CreateCubemapTexture(SafePtr<class GfxContext> ctx, ui
         nullptr,
         vk::ImageLayout::eUndefined
     };
-    return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, name));
+    return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, usage, name));
 }
 
 Texture::Texture(SafePtr<class GfxContext> ctx, vk::Image image, vk::Format format, vk::Extent3D extents, uint32_t numlayers, const std::string& name)
@@ -117,7 +140,7 @@ Texture::Texture(SafePtr<class GfxContext> ctx, vk::Image image, vk::Format form
     m_ImageView = m_Context->CreateImageView(m_Allocation.Image, vk::ImageViewType::e2D, m_Format, 1, m_NumLayers, aspectMask, name);
 }
 
-Texture::Texture(SafePtr<class GfxContext> ctx, vk::ImageCreateInfo imageCI, const std::string& name)
+Texture::Texture(SafePtr<class GfxContext> ctx, vk::ImageCreateInfo imageCI, TextureUsageType::Enum usage, const std::string& name)
     : m_Context{ ctx }
     , m_Format{ imageCI.format }
     , m_Extents{ imageCI.extent }
@@ -127,6 +150,7 @@ Texture::Texture(SafePtr<class GfxContext> ctx, vk::ImageCreateInfo imageCI, con
     , m_NumLayers{ imageCI.arrayLayers }
     , m_MipLevels{ imageCI.mipLevels }
     , m_Name{ name }
+    , m_UsageType{ usage }
     , m_OwnsImage{ true }
 {
     if (m_MipLevels > 1)
@@ -155,7 +179,21 @@ Texture::Texture(SafePtr<class GfxContext> ctx, vk::ImageCreateInfo imageCI, con
     m_ImageView = m_Context->CreateImageView(m_Allocation.Image, viewType, m_Format,
         imageCI.mipLevels, m_NumLayers, aspectMask, std::format("ImageView: {}", name));
 
-    m_BindlessHandle = m_Context->RegisterBindlessTexture(this);
+    switch (usage)
+    {
+    case TextureUsageType::eSampled:
+        m_BindlessTextureHandle = m_Context->RegisterBindlessTexture(this);
+        break;
+    case TextureUsageType::eStorage:
+        m_BindlessStorageHandle = m_Context->RegisterBindlessImage(m_ImageView);
+        break;
+    case TextureUsageType::eSampledAndStorage:
+        m_BindlessTextureHandle = m_Context->RegisterBindlessTexture(this);
+        m_BindlessStorageHandle = m_Context->RegisterBindlessImage(m_ImageView);
+        break;
+    default:
+        break;
+    }
 }
 
 Texture::~Texture()
@@ -163,7 +201,8 @@ Texture::~Texture()
     TextureResourceDeletion textureDeletion{
         .ImageView = m_ImageView,
         .Allocation = m_Allocation,
-        .BindlessHandle = m_BindlessHandle,
+        .UsageType = m_UsageType,
+        .BindlessTextureHandle = m_BindlessTextureHandle,
         .OwnsAllocation = m_OwnsImage,
     };
     ResourceDeletion deletion{
@@ -175,19 +214,12 @@ Texture::~Texture()
 
 bool Texture::IsDepth()
 {
-    return (m_Format == vk::Format::eD16Unorm 
-        || m_Format == vk::Format::eD32Sfloat 
-        || m_Format == vk::Format::eD16UnormS8Uint 
-        || m_Format == vk::Format::eD24UnormS8Uint 
-        || m_Format == vk::Format::eD32SfloatS8Uint);
+    return vkut::IsDepthFormat(m_Format);
 }
 
 bool Texture::IsStencil()
 {
-    return (m_Format == vk::Format::eS8Uint 
-        || m_Format == vk::Format::eD16UnormS8Uint 
-        || m_Format == vk::Format::eD24UnormS8Uint 
-        || m_Format == vk::Format::eD32SfloatS8Uint);
+    return vkut::IsStencilFormat(m_Format);
 }
 
 void Texture::TransitionLayout(vk::CommandBuffer cmdBuffer, vk::ImageLayout oldLayout, vk::ImageLayout newLayout,

@@ -49,7 +49,7 @@ UniformBuffer& UniformBuffer::operator=(UniformBuffer&& other) noexcept
     return *this;
 }
 
-void UniformBuffer::Destroy()
+void UniformBuffer::Nuke()
 {
     BufferResourceDeletion bufferDeletion{
         .MainAllocation = m_MainAllocation,
@@ -155,6 +155,6 @@ UniformBufferManager::UniformBufferManager(UniformBufferManager&& other) noexcep
 UniformBufferManager::~UniformBufferManager()
 {
     for (auto& buffer : m_Buffers)
-        buffer.Destroy();
+        buffer.Nuke();
 }
 }

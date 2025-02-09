@@ -18,7 +18,7 @@ public:
     UniformBuffer& operator=(UniformBuffer&& other) noexcept;
 
     ~UniformBuffer() = default;
-    void Destroy();
+    void Nuke();
     vk::DescriptorBufferInfo GetDescriptorInfo() const 
     { 
         return vk::DescriptorBufferInfo{

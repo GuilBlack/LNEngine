@@ -1,4 +1,5 @@
 #pragma once
+#include "Enums.h"
 
 namespace lne
 {
@@ -34,5 +35,9 @@ vk::SubmitInfo2 SubmitInfo(vk::CommandBufferSubmitInfo* cmd, vk::SemaphoreSubmit
 
 vk::CommandBufferSubmitInfo CommandBufferSubmitInfo(vk::CommandBuffer cmdBuffer);
 
+bool IsDepthFormat(vk::Format format);
+bool IsStencilFormat(vk::Format format);
+
+vk::ImageUsageFlags GetImageUsageFlags(TextureUsageType::Enum usageType);
 }
 }

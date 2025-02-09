@@ -12,6 +12,7 @@ enum Enum : byte
     eGeometry = 3,
     eFragment = 4,
     eCompute = 5,
+    eUnknown = 6
 };
 
 enum Mask
@@ -22,6 +23,7 @@ enum Mask
     mGeometry = 1 << 3,
     mFragment = 1 << 4,
     mCompute = 1 << 5,
+    mUnknown = 1 << 6
 };
 
     extern const char** s_Enum;
@@ -113,6 +115,18 @@ enum Enum : byte
 };
 }
 
+namespace TextureUsageType
+{
+enum Enum : byte
+{
+    eUnknown = 0,
+    eSampled,
+    eStorage,
+    eSampledAndStorage
+};
+}
+
+// TODO: convert these to enum namespaces
 enum class EFillMode : byte
 {
     Solid = 0,

@@ -26,6 +26,7 @@ void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskS
     m_Context = window->GetGfxContext();
     m_Swapchain = window->GetSwapchain();
     m_GraphicsCommandBufferManager = std::make_unique<CommandBufferManager>(m_Context.GetPtr(), m_Swapchain->GetImageCount(), EQueueFamilyType::Graphics);
+    m_ComputeCommandBufferManager = std::make_unique<CommandBufferManager>(m_Context.GetPtr(), 1, EQueueFamilyType::Compute);
     m_TaskScheduler = taskScheduler;
     m_GfxLoader = lnnew GfxLoader();
     m_GfxLoader->Init(this, m_Context, m_TaskScheduler);
@@ -44,12 +45,14 @@ void Renderer::Nuke()
     m_LastUsedStaticMesh.Reset();
     for (auto& frameData : m_FrameData)
     {
-        frameData.GlobalUniforms.Destroy();
+        frameData.GlobalUniforms.Nuke();
         frameData.DescriptorAllocator.Reset();
+        m_Context->GetDevice().destroyDescriptorPool(frameData.GlobalDescriptorPool);
         m_Context->GetDevice().destroyDescriptorSetLayout(frameData.DescriptorSetLayout);
     }
     m_FrameData.clear();
     m_GraphicsCommandBufferManager.reset();
+    m_ComputeCommandBufferManager.reset();
     m_Context.Reset();
     m_Swapchain.Reset();
     m_GfxLoader.Reset();
@@ -83,25 +86,6 @@ void Renderer::BeginFrame()
     cmdBuffer.setViewport(0, vp);
 
     m_FrameData[imageIndex].DescriptorAllocator->Clear();
-
-    m_FrameData[imageIndex].DescriptorSet = m_FrameData[imageIndex].DescriptorAllocator->Allocate(m_FrameData[imageIndex].DescriptorSetLayout);
-
-    auto bufferInfo = m_FrameData[imageIndex].GlobalUniforms.GetDescriptorInfo();
-    vk::WriteDescriptorSet writeDescriptorSet = vk::WriteDescriptorSet{
-            m_FrameData[imageIndex].DescriptorSet,
-            0,
-            0,
-            1,
-            vk::DescriptorType::eUniformBuffer,
-            nullptr,
-            &bufferInfo,
-            nullptr
-    };
-
-    writeDescriptorSet.dstSet = m_FrameData[imageIndex].DescriptorSet;
-    writeDescriptorSet.dstBinding = 0;
-
-    m_Context->GetDevice().updateDescriptorSets(writeDescriptorSet, nullptr);
 }
 
 void Renderer::EndFrame()
@@ -320,14 +304,14 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>&
     vk::Device device = m_Context->GetDevice();
     LNE_ASSERT(pipeline, "Pipeline is null");
     bool hasPipelineChanged = false;
+    SafePtr descAllocator = m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorAllocator;
     if (pipeline != m_LastUsedPipeline)
     {
         pipeline->Bind(cmdBuffer);
         m_LastUsedPipeline = pipeline;
         hasPipelineChanged = true;
-        
-        auto transformDescSet = m_FrameData[m_Swapchain->GetCurrentFrameIndex()]
-            .DescriptorAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[1]);
+
+        auto transformDescSet = descAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[1]);
 
         vk::DescriptorBufferInfo transformInfo = transformBuffer->GetDescriptorInfo();
         vk::WriteDescriptorSet writeTransformDescriptorSet = vk::WriteDescriptorSet{
@@ -349,8 +333,7 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>&
     if (hasPipelineChanged || mesh != m_LastUsedStaticMesh)
     {
         const Geometry& geometry = mesh->GetGeometry();
-        vk::DescriptorSet geometryDescSet = m_FrameData[m_Swapchain->GetCurrentFrameIndex()]
-            .DescriptorAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[2]);
+        vk::DescriptorSet geometryDescSet = descAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[2]);
         
         vk::DescriptorBufferInfo vertexInfo = geometry.VertexGPUBuffer->GetDescriptorInfo();
         vk::DescriptorBufferInfo indexInfo = geometry.IndexGPUBuffer->GetDescriptorInfo();
@@ -373,7 +356,7 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>&
     std::vector<vk::WriteDescriptorSet> matWriteDescriptorSets;
     std::vector<vk::DescriptorBufferInfo> matUbInfo;
     matUbInfo.reserve(material->m_UniformBuffers.size());
-    vk::DescriptorSet matDescSet = m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[3]);
+    vk::DescriptorSet matDescSet = descAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[3]);
     for (const auto& [binding, ub] : material->m_UniformBuffers)
     {
         matUbInfo.emplace_back(ub.GetDescriptorInfo());
@@ -398,7 +381,54 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>&
     cmdBuffer.draw(submesh.IndexCount, instanceCount, submesh.BaseIndex, offset);
 }
 
-void Renderer::Blit(vk::CommandBuffer cmdBuffer, SafePtr<class Texture> src, SafePtr<class Texture> dst)
+void Renderer::Dispatch(SafePtr<ComputeProgram> program, uint32_t x, uint32_t y, uint32_t z, bool async)
+{
+    vk::CommandBuffer cmdBuffer{};
+    if (async == false)
+    {
+        cmdBuffer = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
+    }
+    else
+    {
+        cmdBuffer = m_ComputeCommandBufferManager->BeginSingleTimeCommands();
+    }
+    PushLabel(cmdBuffer, std::format("Compute Dispatch"));
+    auto pipeline = program->GetPipeline();
+    pipeline->Bind(cmdBuffer);
+    auto descSetAlloc = m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorAllocator;
+
+    cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipeline->GetLayout(), 0, { m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorSet }, {});
+
+    std::vector<vk::WriteDescriptorSet> progWriteDescriptorSets;
+    std::vector<vk::DescriptorBufferInfo> progUbInfo;
+    progUbInfo.reserve(program->m_UniformBuffers.size());
+    vk::DescriptorSet progDescSet = descSetAlloc->Allocate(pipeline->GetDescriptorSetLayouts()[1]);
+    for (const auto& [binding, ub] : program->m_UniformBuffers)
+    {
+        progUbInfo.emplace_back(ub.GetDescriptorInfo());
+        progWriteDescriptorSets.emplace_back(vk::WriteDescriptorSet{
+            progDescSet,
+            binding,
+            0,
+            1,
+            vk::DescriptorType::eUniformBuffer,
+            nullptr,
+            &progUbInfo.back(),
+            nullptr
+            });
+    }
+    m_Context->GetDevice().updateDescriptorSets(progWriteDescriptorSets, nullptr);
+
+    cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipeline->GetLayout(), 1, { progDescSet, m_Context->GetBindlessDescriptorSet() }, {});
+
+    cmdBuffer.dispatch(x, y, z);
+
+    PopLabel(cmdBuffer);
+    if (async)
+        m_ComputeCommandBufferManager->EndSingleTimeCommands();
+}
+
+void Renderer::Blit(vk::CommandBuffer cmdBuffer, SafePtr<Texture> src, SafePtr<Texture> dst)
 {
     vk::ImageLayout srcLayout = src->GetLayout();
     vk::ImageLayout dstLayout = dst->GetLayout();
@@ -492,10 +522,50 @@ void Renderer::InitFrameData(uint32_t index)
                     0,
                     vk::DescriptorType::eUniformBuffer,
                     1,
-                    vk::ShaderStageFlagBits::eAllGraphics
+                    vk::ShaderStageFlagBits::eAll
                 }
             })
         );
+
+    std::array<vk::DescriptorPoolSize, 1> poolSizes = {
+        vk::DescriptorPoolSize{
+            vk::DescriptorType::eUniformBuffer,
+            8
+        },
+    };
+    vk::Device device = m_Context->GetDevice();
+    m_FrameData[index].GlobalDescriptorPool = device.createDescriptorPool(
+        vk::DescriptorPoolCreateInfo{
+            vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+            8, poolSizes
+        },
+        nullptr
+    );
+
+    m_FrameData[index].DescriptorSet = device.allocateDescriptorSets(vk::DescriptorSetAllocateInfo{
+            m_FrameData[index].GlobalDescriptorPool,
+            1, &m_FrameData[index].DescriptorSetLayout
+        }
+    ).front();
+
+    auto bufferInfo = m_FrameData[index].GlobalUniforms.GetDescriptorInfo();
+    m_Context->SetVkObjectName(m_FrameData[index].GlobalDescriptorPool, "GlobalDescriptorPool " + std::to_string(index));
+    m_Context->SetVkObjectName(m_FrameData[index].DescriptorSet, "GlobalDescriptorSet " + std::to_string(index));
+    vk::WriteDescriptorSet writeDescriptorSet = vk::WriteDescriptorSet{
+            m_FrameData[index].DescriptorSet,
+            0,
+            0,
+            1,
+            vk::DescriptorType::eUniformBuffer,
+            nullptr,
+            &bufferInfo,
+            nullptr
+    };
+
+    writeDescriptorSet.dstSet = m_FrameData[index].DescriptorSet;
+    writeDescriptorSet.dstBinding = 0;
+
+    device.updateDescriptorSets(writeDescriptorSet, nullptr);
 }
 
 void Renderer::UpdateTextures()
