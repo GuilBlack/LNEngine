@@ -381,6 +381,91 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>&
     cmdBuffer.draw(submesh.IndexCount, instanceCount, submesh.BaseIndex, offset);
 }
 
+void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>& mesh, const SafePtr<lne::StorageBuffer>& transformBuffer, SafePtr<Material> overrideMaterial, uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount)
+{
+    auto& submesh = mesh->GetSubMeshes()[subMeshIndex];
+    auto material = overrideMaterial;
+    auto pipeline = material->GetPipeline();
+    vk::Device device = m_Context->GetDevice();
+    LNE_ASSERT(pipeline, "Pipeline is null");
+    bool hasPipelineChanged = false;
+    SafePtr descAllocator = m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorAllocator;
+    if (pipeline != m_LastUsedPipeline)
+    {
+        pipeline->Bind(cmdBuffer);
+        m_LastUsedPipeline = pipeline;
+        hasPipelineChanged = true;
+
+        auto transformDescSet = descAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[1]);
+
+        vk::DescriptorBufferInfo transformInfo = transformBuffer->GetDescriptorInfo();
+        vk::WriteDescriptorSet writeTransformDescriptorSet = vk::WriteDescriptorSet{
+            transformDescSet,
+            0,
+            0,
+            1,
+            vk::DescriptorType::eStorageBuffer,
+            nullptr,
+            &transformInfo,
+            nullptr
+        };
+        device.updateDescriptorSets(writeTransformDescriptorSet, nullptr);
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
+            { m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorSet, transformDescSet }, {});
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 4,
+            { m_Context->GetBindlessDescriptorSet() }, {});
+    }
+    if (hasPipelineChanged || mesh != m_LastUsedStaticMesh)
+    {
+        const Geometry& geometry = mesh->GetGeometry();
+        vk::DescriptorSet geometryDescSet = descAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[2]);
+
+        vk::DescriptorBufferInfo vertexInfo = geometry.VertexGPUBuffer->GetDescriptorInfo();
+        vk::DescriptorBufferInfo indexInfo = geometry.IndexGPUBuffer->GetDescriptorInfo();
+
+        std::vector<vk::WriteDescriptorSet> writeGeoDescriptorSets;
+        writeGeoDescriptorSets.emplace_back(
+            geometryDescSet, 0, 0, 1,
+            vk::DescriptorType::eStorageBuffer, nullptr, &vertexInfo, nullptr
+        );
+        writeGeoDescriptorSets.emplace_back(
+            geometryDescSet, 1, 0, 1,
+            vk::DescriptorType::eStorageBuffer, nullptr, &indexInfo, nullptr
+        );
+
+        device.updateDescriptorSets(writeGeoDescriptorSets, nullptr);
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 2,
+            { geometryDescSet }, {});
+    }
+
+    std::vector<vk::WriteDescriptorSet> matWriteDescriptorSets;
+    std::vector<vk::DescriptorBufferInfo> matUbInfo;
+    matUbInfo.reserve(material->m_UniformBuffers.size());
+    vk::DescriptorSet matDescSet = descAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[3]);
+    for (const auto& [binding, ub] : material->m_UniformBuffers)
+    {
+        matUbInfo.emplace_back(ub.GetDescriptorInfo());
+        matWriteDescriptorSets.emplace_back(vk::WriteDescriptorSet{
+            matDescSet,
+            binding,
+            0,
+            1,
+            vk::DescriptorType::eUniformBuffer,
+            nullptr,
+            &matUbInfo.back(),
+            nullptr
+            });
+    }
+    m_Context->GetDevice().updateDescriptorSets(matWriteDescriptorSets, nullptr);
+    cmdBuffer.bindDescriptorSets(
+        vk::PipelineBindPoint::eGraphics,
+        pipeline->GetLayout(), 3,
+        { matDescSet },
+        {}
+    );
+    cmdBuffer.draw(submesh.IndexCount, instanceCount, submesh.BaseIndex, offset);
+}
+
 void Renderer::Dispatch(SafePtr<ComputeProgram> program, uint32_t x, uint32_t y, uint32_t z, bool async)
 {
     vk::CommandBuffer cmdBuffer{};

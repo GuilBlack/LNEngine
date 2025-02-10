@@ -50,7 +50,7 @@ vk::PipelineLayout PipelineBase::CreatePipelineLayout(const std::vector<vk::Desc
 
 #pragma region Graphics pipeline
 
-DepthDesc& DepthDesc::SetDepthTest(bool isEnabled, ECompareOperation compare)
+DepthDesc& DepthDesc::SetDepthTest(bool isEnabled, bool write, ECompareOperation compare)
 {
     DepthTestEnable = isEnabled;
     DepthWriteEnable = isEnabled;

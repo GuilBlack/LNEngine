@@ -17,6 +17,7 @@ project "LNEngine"
     {
         "src/**.h",
         "src/**.cpp",
+        "Assets/**.glsl",
         "vendor/VMA/**.h"
     }
 

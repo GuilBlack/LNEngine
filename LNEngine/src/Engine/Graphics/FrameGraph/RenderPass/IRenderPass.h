@@ -14,9 +14,8 @@ class IRenderPass : public RefCountBase
 public:
     IRenderPass() = default;
     virtual ~IRenderPass() = default;
-    virtual void Init(FrameGraph* frameGraph, FrameGraphNode* node) {}
 
-    virtual void OnBind() {}
+    virtual void OnBind(FrameGraph* frameGraph, FrameGraphNode* node) {}
     virtual void BeginFrame() {}
 
     virtual void PreExecute(vk::CommandBuffer cmdBuffer, FrameGraph* frameGraph, FrameGraphNode* node) {}

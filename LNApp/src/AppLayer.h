@@ -3,16 +3,6 @@
 
 class AppLayer final : public lne::Layer
 {
-    class DepthPrePass : public lne::IRenderPass
-    {
-    public:
-        DepthPrePass()
-        {
-            m_Name = "DepthPrePass";
-        }
-
-        virtual void Execute(vk::CommandBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override {}
-    };
 
     class GBufferPass : public lne::IRenderPass
     {
@@ -96,8 +86,6 @@ private:
     lne::SafePtr<lne::Material> m_BasicMaterial{};
     lne::SafePtr<lne::Material> m_BasicMaterial2{};
 
-    lne::SafePtr<lne::GfxPipeline> m_SkyboxPipeline{};
-
     struct CameraTarget
     {
         glm::vec3 Position;
@@ -108,7 +96,6 @@ private:
     lne::Entity m_CameraEntity;
     lne::Entity m_DuckEntity;
     lne::Entity m_CubeEntity;
-    lne::Entity m_SkyboxEntity;
     lne::Entity m_SphereEntity;
 
     glm::vec3 m_LightDirection{ 1.0f, -1.0f, -1.0f };
@@ -120,10 +107,6 @@ private:
     lne::SafePtr<lne::WorldRenderer> m_WorldRenderer{};
 
 private:
-    void GenerateCube(std::vector<lne::Vertex>& vertices, std::vector<uint32_t>& indices, uint32_t tesselationLevel);
-
-    void GenerateUVSphere(std::vector<lne::Vertex>& vertices, std::vector<uint32_t>& indices, float radius = 1.f, uint32_t nLatitude = 32, uint32_t nLongitude = 32);
-
     float Lerp(float a, float b, float t, float deltaTime)
     {
         return glm::mix(a, b, 1.0f - std::pow(1.0f - t, deltaTime));

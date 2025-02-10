@@ -8,13 +8,26 @@
 
 namespace lne
 {
+struct Vertex
+{
+    glm::vec3 Position;
+    glm::vec3 Normal;
+    glm::vec2 TexCoord;
+};
+
 struct Geometry
 {
-    SafePtr<StorageBuffer> VertexGPUBuffer;
-    SafePtr<StorageBuffer> IndexGPUBuffer;
+    SafePtr<StorageBuffer>  VertexGPUBuffer;
+    SafePtr<StorageBuffer>  IndexGPUBuffer;
+    std::vector<Vertex>     Vertices{};
+    std::vector<uint32_t>   Indices{};
 
     uint32_t VertexCount;
     uint32_t IndexCount;
+
+    static Geometry GenerateCube(uint32_t tesselationLevel);
+
+    static Geometry GenerateUVSphere(float radius = 1.f, uint32_t nLatitude = 32, uint32_t nLongitude = 32);
 };
 
 struct SubMesh
@@ -28,13 +41,6 @@ struct SubMesh
     std::string Name;
 
     glm::mat4 WorldTransform = glm::mat4(1.0f);
-};
-
-struct Vertex
-{
-    glm::vec3 Position;
-    glm::vec3 Normal;
-    glm::vec2 TexCoord;
 };
 
 class StaticMesh : public RefCountBase
@@ -55,8 +61,6 @@ private:
     std::vector<SubMesh> m_SubMeshes{};
 
     Geometry m_Geometry{};
-    std::vector<Vertex> m_Vertices{};
-    std::vector<uint32_t> m_Indices{};
     uint32_t m_TotalVertexCount{};
     uint32_t m_TotalIndexCount{};
 

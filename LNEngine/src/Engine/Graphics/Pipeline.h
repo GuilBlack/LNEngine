@@ -20,12 +20,16 @@ public:
     [[nodiscard]] std::vector<vk::DescriptorSetLayout> GetDescriptorSetLayouts() const { return m_Shader->GetDescriptorSetLayouts(); }
 
 protected:
-    // Constructor takes the context and a name for identification.
     PipelineBase(SafePtr<GfxContext> ctx, const std::string& name, vk::PipelineBindPoint bindPoint);
 
-    // Helper to create a pipeline layout, appending your bindless descriptor set layout.
     vk::PipelineLayout CreatePipelineLayout(const std::vector<vk::DescriptorSetLayout>& layouts);
 
+    virtual std::string_view GetDebugName() const override
+    {
+        return m_Name;
+    }
+
+protected:
     SafePtr<GfxContext>     m_Context{};
     SafePtr<Shader>         m_Shader{};
     vk::Pipeline            m_Pipeline{};
@@ -43,7 +47,7 @@ struct DepthDesc
     ECompareOperation       DepthCompareOp = ECompareOperation::Less;
     bool                StencilTestEnable = false;
 
-    DepthDesc& SetDepthTest(bool write, ECompareOperation compare);
+    DepthDesc& SetDepthTest(bool read, bool write, ECompareOperation compare);
 };
 
 struct BlendState
@@ -67,7 +71,6 @@ struct BlendState
     BlendState& SetColorWriteMask(EBlendColorWriteMask mask);
 };
 
-
 struct GraphicsPipelineDesc
 {
     std::string                         Name{};
@@ -90,9 +93,9 @@ struct GraphicsPipelineDesc
     GraphicsPipelineDesc& SetCulling(ECullMode cullMode) { CullMode = cullMode; return *this; }
     GraphicsPipelineDesc& SetWinding(EWindingOrder front) { WindingOrder = front; return *this; }
     GraphicsPipelineDesc& SetFill(EFillMode fill) { Fill = fill; return *this; }
-    GraphicsPipelineDesc& EnableDepthTest(bool enable, ECompareOperation compareOp = ECompareOperation::LessOrEqual)
+    GraphicsPipelineDesc& EnableDepthTest(bool enable, bool write, ECompareOperation compareOp = ECompareOperation::LessOrEqual)
     {
-        Depth.SetDepthTest(enable, compareOp); return *this;
+        Depth.SetDepthTest(enable, write, compareOp); return *this;
     }
 };
 
@@ -101,12 +104,6 @@ class GfxPipeline : public PipelineBase
 public:
     GfxPipeline(SafePtr<class GfxContext> ctx, const GraphicsPipelineDesc& desc);
     virtual ~GfxPipeline() {}
-
-protected:
-    virtual std::string_view GetDebugName() const override
-    {
-        return m_Name.empty() ? "GraphicsPipeline" : m_Name;
-    }
 
 private:
     GraphicsPipelineDesc        m_Desc{};
@@ -131,12 +128,6 @@ class ComputePipeline : public PipelineBase
 public:
     ComputePipeline(SafePtr<GfxContext> ctx, const ComputePipelineDesc& desc);
     virtual ~ComputePipeline() override {}
-
-protected:
-    virtual std::string_view GetDebugName() const override
-    {
-        return m_Name.empty() ? "ComputePipeline" : m_Name;
-    }
 
 private:
     ComputePipelineDesc m_Desc;

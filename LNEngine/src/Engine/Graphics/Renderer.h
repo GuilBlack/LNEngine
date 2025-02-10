@@ -68,6 +68,7 @@ public:
     void Draw(SafePtr<class Material> pipeline, struct Geometry& geometry, struct TransformComponent& objTransform);
     void Draw(SafePtr<class StaticMesh> mesh, struct TransformComponent& objTransform);
     void Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>& mesh, const SafePtr<lne::StorageBuffer>& transformBuffer, uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount);
+    void Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>& mesh, const SafePtr<lne::StorageBuffer>& transformBuffer, SafePtr<Material> overrideMaterial, uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount);
 
     void Dispatch(SafePtr<class ComputeProgram> program, uint32_t x, uint32_t y, uint32_t z, bool async);
 
