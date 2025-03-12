@@ -13,3 +13,7 @@
 [submodule "LNApp/Assets/Models/gltf"]
 	path = LNApp/Assets/Models/gltf
 	url = https://github.com/KhronosGroup/glTF-Sample-Assets.git
+[submodule "LNEngine/vendor/IMGUI/imgui"]
+	path = LNEngine/vendor/IMGUI/imgui
+	url = https://github.com/GuilBlack/imgui.git
+	branch = docking
