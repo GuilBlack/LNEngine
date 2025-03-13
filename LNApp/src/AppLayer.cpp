@@ -44,7 +44,7 @@ void AppLayer::OnAttach()
 
     Renderer& renderer = ApplicationBase::GetRenderer();
     m_Scene = lnnew HierarchicalScene();
-    InitTestFrameGraph();
+    //InitTestFrameGraph();
     InitFrameGraph();
     m_WorldRenderer = lnnew WorldRenderer(m_FrameGraph);
 
@@ -54,6 +54,7 @@ void AppLayer::OnAttach()
     desc.PathToShaders = ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\MeshLighting.glsl";
     desc.Name = "Basic";
     desc.FrameGraph = m_FrameGraph.GetPtr();
+    desc.CullMode = ECullMode::Back; 
     desc.EnableDepthTest(true, true);
     desc.Blend.EnableBlend(false);
 
@@ -98,7 +99,8 @@ void AppLayer::OnAttach()
 #pragma region LoadModels
     duckMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Duck\\gltf\\Duck.gltf", m_BasePipeline);
     cubeMeshComponent.Mesh = lnnew StaticMesh(cubeGeo, m_BasicMaterial, { uvChecker }, m_BasePipeline);
-    sphereMeshComponent.Mesh = lnnew StaticMesh(sphereGeo, m_BasicMaterial, { uvChecker }, m_BasePipeline);
+    SafePtr sphereMesh = lnnew StaticMesh(sphereGeo, m_BasicMaterial, { uvChecker }, m_BasePipeline);
+    sphereMeshComponent.Mesh = sphereMesh;
 #pragma endregion
 
 #pragma region TransformInit
@@ -128,10 +130,7 @@ void AppLayer::OnAttach()
     //    float zRand = (rand() / (float)RAND_MAX) * 60;
     //    tempTransform.Position = { xRand, yRand, -zRand };
     //    tempTransform.Scale = { 0.25f, 0.25f, 0.25f };
-    //    if (i < 16000)
-    //        tempMeshComp.Mesh = purpleSphere;
-    //    else
-    //        tempMeshComp.Mesh = uvSphere;
+    //        tempMeshComp.Mesh = sphereMesh;
     //}
 
     cameraTransform.Position = { 0.0f, 0.0f, 2.0f };
@@ -226,7 +225,7 @@ void AppLayer::InitTestFrameGraph()
 
     m_FrameGraphTest.Compile();
 
-    m_FrameGraphTest.BindRenderPass(lnnew GBufferPass());
+    //m_FrameGraphTest.BindRenderPass(lnnew GBufferPass());
     m_FrameGraphTest.BindRenderPass(lnnew LightingPass());
     m_FrameGraphTest.BindRenderPass(lnnew DoFPass());
     m_FrameGraphTest.BindRenderPass(lnnew TransparentPass());
@@ -243,6 +242,14 @@ void AppLayer::InitFrameGraph()
         .SetType(lne::FrameGraphResourceType::eAttachment)
         .SetDefaultColorAttachmentInfos()
         .SetImageDimension(width, height)
+        .Build();
+    lne::FrameGraphResourceDesc normalAttachmentDesc = resourceBuilder.SetName("Normal")
+        .SetType(lne::FrameGraphResourceType::eAttachment)
+        .SetImageFormat(vk::Format::eR16G16B16A16Sfloat)
+        .Build();
+    lne::FrameGraphResourceDesc positionAttachmentDesc = resourceBuilder.SetName("Position")
+        .SetType(lne::FrameGraphResourceType::eAttachment)
+        .SetImageFormat(vk::Format::eR16G16B16A16Sfloat)
         .Build();
 
     lne::FrameGraphResourceDesc depthAttachmentDesc = resourceBuilder.SetDefaultDepthAttachmentInfos()
@@ -266,14 +273,25 @@ void AppLayer::InitFrameGraph()
         .SetType(lne::RenderPassType::eTransfer)
         .Build();
 
+    nodeBuilder.Clear();
+    colorAttachmentDesc.Name = "GBufferColor";
+    lne::FrameGraphNodeDesc gBufferPassDesc = nodeBuilder.SetName("GBufferPass")
+        .AddInputResource(depthAttachmentDesc)
+        .AddOutputResource(colorAttachmentDesc)
+        .AddOutputResource(normalAttachmentDesc)
+        .AddOutputResource(positionAttachmentDesc)
+        .Build();
+
     m_FrameGraph->CreateNode(finalPassDesc);
     m_FrameGraph->CreateNode(depthPrePassDesc);
     m_FrameGraph->CreateNode(offscreenPassDesc);
+    m_FrameGraph->CreateNode(gBufferPassDesc);
     m_FrameGraph->Compile();
 
     m_FrameGraph->BindRenderPass(lnnew lne::DepthPrePass());
     m_FrameGraph->BindRenderPass(lnnew lne::BasicForwardPass());
     m_FrameGraph->BindRenderPass(lnnew FinalPass());
+    m_FrameGraph->BindRenderPass(lnnew lne::GBufferPass());
 }
 
 void AppLayer::OnDetach()

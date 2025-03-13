@@ -3,18 +3,6 @@
 
 class AppLayer final : public lne::Layer
 {
-
-    class GBufferPass : public lne::IRenderPass
-    {
-    public:
-        GBufferPass()
-        {
-            m_Name = "GBufferPass";
-        }
-
-        virtual void Execute(vk::CommandBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override{}
-    };
-
     class LightingPass : public lne::IRenderPass
     {
     public:
