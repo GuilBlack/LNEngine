@@ -37,6 +37,7 @@ struct UploadRequest
     SafePtr<class StorageBuffer> Buffer;
     uint32_t Size;
     void* Data;
+    bool ShouldFreeData{true};
 };
 
 struct LoadRequest
@@ -79,6 +80,12 @@ public:
 
     SafePtr<class Texture> CreateTexture(std::string_view fullPath);
     SafePtr<class Texture> CreateCubemap(std::vector<std::string> faces);
+
+    void Upload(UploadRequest request)
+    {
+        std::lock_guard<std::mutex> lock(m_UploadRequestsMutex);
+        m_GPUUploadRequests.push_back(request);
+    }
 
 private:
     class Renderer* m_Renderer;

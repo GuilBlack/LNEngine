@@ -192,7 +192,7 @@ void GfxLoader::ProcessUploadRequests()
 
     cbManager.StartCommandBuffer(0);
 
-    UploadRequest request;
+    UploadRequest request = {};
     {
         std::lock_guard<std::mutex> lock(m_UploadRequestsMutex);
         request = m_GPUUploadRequests.back();
@@ -264,16 +264,13 @@ void GfxLoader::LoadTexture(LoadRequest& request)
     if (!pixels)
         LNE_ERROR("Failed to load texture image: {0}", path);
 
-    UploadRequest gpuRequest;
+    UploadRequest gpuRequest {};
     gpuRequest.Type = request.Type;
     gpuRequest.Texture = request.Texture;
     gpuRequest.Data = pixels;
     gpuRequest.Size = texWidth * texHeight * 4;
 
-    {
-        std::lock_guard<std::mutex> lock(m_UploadRequestsMutex);
-        m_GPUUploadRequests.push_back(gpuRequest);
-    }
+    Upload(gpuRequest);
 }
 
 void GfxLoader::LoadCubemap(LoadRequest& request)
@@ -297,7 +294,7 @@ void GfxLoader::LoadCubemap(LoadRequest& request)
         stbi_image_free(pixels);
     }
 
-    UploadRequest gpuRequest;
+    UploadRequest gpuRequest = {};
     gpuRequest.Type = request.Type;
     gpuRequest.Texture = request.Texture;
     gpuRequest.Data = allPixels;
@@ -315,6 +312,10 @@ void GfxLoader::UploadTexture(UploadRequest& request)
     auto& cmdBuffer = cbManager.GetCurrentCommandBuffer();
 
     request.Texture->UploadData(cmdBuffer, m_StagingBuffer, request.Data);
+
+    if (request.ShouldFreeData == false)
+        return;
+    
     if (request.Type == ResourceTypes::eTexture)
         stbi_image_free(request.Data);
     else
