@@ -233,6 +233,8 @@ public:
     void Execute(vk::CommandBuffer commandBuffer, class WorldRenderer* worldRenderer);
     void OnResize(class WindowResizeEvent& e);
 
+    void RenderImGui();
+
     void BindRenderPass(SafePtr<IRenderPass> renderPass);
     FrameGraphNodeHandle CreateNode(const FrameGraphNodeDesc& desc);
 

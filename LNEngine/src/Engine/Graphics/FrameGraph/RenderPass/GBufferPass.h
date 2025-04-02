@@ -17,9 +17,14 @@ public:
 
     void Execute(vk::CommandBuffer cmdBuffer, class WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
 
+    void PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
+
+    void OnImGuiRender() override;
+
 private:
     SafePtr<class GfxPipeline> m_Pipeline{};
     SafePtr<class Material> m_Material{};
+    std::unordered_map<std::string, SafePtr<class Texture>> m_DebugTextures{};
 };
 }
 

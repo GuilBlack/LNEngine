@@ -26,6 +26,7 @@ public:
     virtual void Cleanup() {}
     
     virtual void OnResize(glm::vec2 dimension) {}
+    virtual void OnImGuiRender() {}
 
     std::string_view GetName() const { return m_Name; }
     const EntitySignature& MustHaveComponents() const { return m_MustHaveComponents; }

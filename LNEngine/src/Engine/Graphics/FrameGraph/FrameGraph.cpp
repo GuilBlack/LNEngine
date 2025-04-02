@@ -186,7 +186,70 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRe
 }
 
 void FrameGraph::OnResize(WindowResizeEvent& e)
-{}
+{
+    // TODO: resize framebuffers
+    //for (FrameGraphNodeHandle nodeHandle : m_Nodes)
+    //{
+    //    FrameGraphNode& node = *m_NodeCache.GetPool().Access(nodeHandle);
+    //    for (FrameGraphResourceHandle outputResourceHandle : node.OutputResources)
+    //    {
+    //        FrameGraphResource& outputResource = *m_ResourceCache.GetPool().Access(outputResourceHandle);
+
+    //        if (outputResource.Info.External)
+    //            continue;
+
+    //        switch (outputResource.Type)
+    //        {
+    //        case FrameGraphResourceType::eAttachment:
+    //        {
+    //            auto& imageInfo = std::get<FrameGraphResourceImageInfo>(outputResource.Info.Variant);
+    //            bool isDepth = (imageInfo.Format == vk::Format::eD16Unorm
+    //                || imageInfo.Format == vk::Format::eD32Sfloat
+    //                || imageInfo.Format == vk::Format::eD16UnormS8Uint
+    //                || imageInfo.Format == vk::Format::eD24UnormS8Uint
+    //                || imageInfo.Format == vk::Format::eD32SfloatS8Uint);
+
+    //            if (isDepth)
+    //            {
+    //                outputResource.Resource = Texture::CreateDepthTexture(m_Context,
+    //                    imageInfo.Extent.width, imageInfo.Extent.height, TextureUsageType::eSampled, outputResource.Name);
+    //                break;
+    //            }
+    //            outputResource.Resource = Texture::CreateColorAttachmentTexture(m_Context,
+    //                imageInfo.Extent.width, imageInfo.Extent.height,
+    //                imageInfo.Format, TextureUsageType::eSampled, outputResource.Name);
+    //            break;
+    //        }
+    //        case FrameGraphResourceType::eBuffer:
+    //        {
+    //            LNE_ASSERT(false, "Buffer resource not implemented yet");
+    //            break;
+    //        }
+    //        }
+    //    }
+    //}
+
+    //for (FrameGraphNodeHandle nodeHandle : m_Nodes)
+    //{
+    //    CreateFramebuffers(nodeHandle);
+    //}
+}
+
+void FrameGraph::RenderImGui()
+{
+    ImGui::Begin("Frame Graph Render Passes");
+
+    for (FrameGraphNodeHandle nodeHandle : m_Nodes)
+    {
+        FrameGraphNode* node = m_NodeCache.GetPool().Access(nodeHandle);
+        if (ImGui::CollapsingHeader(node->Name.c_str()))
+        {
+            node->RenderPass->OnImGuiRender();
+        }
+    }
+
+    ImGui::End();
+}
 
 FrameGraphResourceHandle FrameGraph::CreateInputResource(const FrameGraphResourceDesc& desc)
 {

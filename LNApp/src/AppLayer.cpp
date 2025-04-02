@@ -365,6 +365,8 @@ void AppLayer::OnImGuiRender()
     auto& transform = m_CubeEntity.GetComponent<lne::TransformComponent>();
     ImGui::Text("This is some useful text.");
     ImGui::End();
+
+    m_FrameGraph->RenderImGui();
 }
 
 bool AppLayer::OnWindowResize(lne::WindowResizeEvent& event) 
