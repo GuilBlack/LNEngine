@@ -34,6 +34,7 @@ void GBufferPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
             SafePtr<Texture> debugTexture = Texture::CreateColorTexture2D(graphicsContext,
                 texture->GetDimensions().width / 2, texture->GetDimensions().height / 2, texture->GetFormat(), TextureUsageType::eSampled, false, texture->GetName() + "ImGUI Debug");
             m_DebugTextures.emplace(texture->GetName(), debugTexture);
+            m_IsDebugOpen.emplace(texture->GetName(), false);
         }
     }
 }
@@ -52,6 +53,7 @@ void GBufferPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* world
         SubMeshTransformArray& transforms = worldRenderer->GetTransforms(hash);
         TransformBuffer& transformBuffer = worldRenderer->GetTransformBuffer(renderer.GetCurrentFrameIndex());
 
+        // should render custom material
         renderer.Draw(cmdBuffer, drawCommand.Mesh, transformBuffer.Buffer, m_Material, transforms.Offset, drawCommand.SubMeshIndex, drawCommand.InstanceCount);
     }
 }
@@ -68,6 +70,8 @@ void GBufferPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* fram
         {
             SafePtr<Texture> texture = resource.Resource.GetAs<Texture>();
             SafePtr<Texture> debugTexture = m_DebugTextures[texture->GetName()];
+            if (m_IsDebugOpen[texture->GetName()] == false)
+                continue;
             debugTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
             renderer.Blit(cmdBuffer, texture, debugTexture);
             debugTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
@@ -81,7 +85,8 @@ void GBufferPass::OnImGuiRender()
     {
         float textureRatio = (float)texture->GetDimensions().width / (float)texture->GetDimensions().height;
         float windowWidth = ImGui::GetWindowWidth();
-        if (ImGui::TreeNode(name.c_str()))
+        m_IsDebugOpen[name] = ImGui::TreeNode(name.c_str()); 
+        if (m_IsDebugOpen[name])
         {
             ImGui::Image((ImTextureID)(uint64_t)texture->GetBindlessTextureHandle(), ImVec2(windowWidth, windowWidth / textureRatio));
             ImGui::TreePop();

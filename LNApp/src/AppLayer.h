@@ -3,17 +3,6 @@
 
 class AppLayer final : public lne::Layer
 {
-    class LightingPass : public lne::IRenderPass
-    {
-    public:
-        LightingPass()
-        {
-            m_Name = "LightingPass";
-        }
-
-        virtual void Execute(vk::CommandBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override{}
-    };
-
     class DoFPass : public lne::IRenderPass
     {
     public:

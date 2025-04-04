@@ -41,21 +41,31 @@ inline Mask ToMask(Enum type)
 
 namespace UniformElementType
 {
-    enum Enum : byte
-    {
-        eUnknown,
-        eFloat,eFloat2,eFloat3,eFloat4,
-        eInt,eInt2,eInt3,eInt4,
-        eUInt,eUInt2,eUInt3,eUInt4,
-        eMatrix2x2,eMatrix3x3,eMatrix4x4
-    };
+enum Enum : byte
+{
+    eUnknown,
+    eFloat,eFloat2,eFloat3,eFloat4,
+    eInt,eInt2,eInt3,eInt4,
+    eUInt,eUInt2,eUInt3,eUInt4,
+    eMatrix2x2,eMatrix3x3,eMatrix4x4
+};
 
-    extern const char** s_Enum;
+extern const char** s_Enum;
 
-    inline std::string_view ToString(Enum type)
-    {
-        return s_Enum[type];
-    }
+inline std::string_view ToString(Enum type)
+{
+    return s_Enum[type];
+}
+}
+
+namespace MaterialType
+{
+enum Enum : byte
+{
+    eUnknown = 0,
+    eStandard = 1,
+    ePostProcess = 2,
+};
 }
 
 namespace FrameGraphResourceType

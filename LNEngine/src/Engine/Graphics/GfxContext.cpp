@@ -5,6 +5,8 @@
 #define VMA_STATIC_VULKAN_FUNCTIONS 0
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 0
 #include <vk_mem_alloc.h>
+#include <Graphics/Mesh.h>
+#include <Graphics/StorageBuffer.h>
 
 #include "Shader.h"
 #include "Core/ApplicationBase.h"
@@ -277,12 +279,41 @@ void GfxContext::UploadDefaultResources()
 {
     uint8_t defaultPixel[4] = { 255, 0, 255, 255 };
     m_DefaultTexture->UploadData(defaultPixel);
+
+    struct FSVertex
+    {
+        glm::vec3 Position;
+        glm::vec2 TexCoord;
+    };
+
+    std::array<FSVertex, 4> vertices = {
+        FSVertex{ { -1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
+        FSVertex{ { 1.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
+        FSVertex{ { -1.0f, -1.0f, 0.0f }, { 0.0f, 1.0f } },
+        FSVertex{ { 1.0f, -1.0f, 0.0f }, { 1.0f, 1.0f } }
+    };
+
+    std::array<uint32_t, 6> indices = {
+        0, 1, 2,
+        1, 3, 2
+    };
+
+    SafePtr vertexBuffer = lnnew StorageBuffer(this, sizeof(FSVertex) * vertices.size(), vertices.data());
+    SafePtr indexBuffer = lnnew StorageBuffer(this, sizeof(uint32_t) * indices.size(), indices.data());
+
+    m_DefaultFullscreenQuad = lnnew Geometry{
+        .VertexGPUBuffer = vertexBuffer,
+        .IndexGPUBuffer = indexBuffer,
+        .VertexCount = (uint32_t)vertices.size(),
+        .IndexCount = (uint32_t)indices.size(),
+    };
 }
 
 void GfxContext::NukeDefaultResources()
 {
     delete m_DefaultTexture;
     m_Device.destroySampler(m_DefaultSampler);
+    delete m_DefaultFullscreenQuad;
 }
 
 void GfxContext::DeferredNukeResources()

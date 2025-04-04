@@ -70,6 +70,8 @@ public:
     void Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>& mesh, const SafePtr<lne::StorageBuffer>& transformBuffer, uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount);
     void Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>& mesh, const SafePtr<lne::StorageBuffer>& transformBuffer, SafePtr<Material> overrideMaterial, uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount);
 
+    void DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, const SafePtr<class Material>& material);
+
     void Dispatch(SafePtr<class ComputeProgram> program, uint32_t x, uint32_t y, uint32_t z, bool async);
 
     void Blit(vk::CommandBuffer cmdBuffer, SafePtr<class Texture> src, SafePtr<class Texture> dst);
@@ -81,7 +83,7 @@ public:
     [[nodiscard]] SafePtr<class Texture> CreateCubemapTexture(const std::vector<std::string>& faces);
 
     [[nodiscard]] SafePtr<class UniformBufferManager> RegisterObject();
-    [[nodiscard]] void AddTextureToUpdate(SafePtr<class Texture> texture);
+    void AddTextureToUpdate(SafePtr<class Texture> texture);
 
 private:
     SafePtr<class GfxContext> m_Context;
@@ -98,6 +100,7 @@ private:
 
     SafePtr<class GfxPipeline> m_LastUsedPipeline;
     SafePtr<class StaticMesh> m_LastUsedStaticMesh;
+
 private:
     void InitFrameData(uint32_t index);
     void UpdateTextures();

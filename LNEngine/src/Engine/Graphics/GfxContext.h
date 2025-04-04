@@ -48,12 +48,15 @@ public:
     void WaitIdle() const;
 
     static vk::Instance VulkanInstance() { return s_VulkanInstance; }
-    class vk::PhysicalDevice GetPhysicalDevice() const { return m_PhysicalDevice; }
-    class vk::Device GetDevice() const { return m_Device; }
+    vk::PhysicalDevice GetPhysicalDevice() const { return m_PhysicalDevice; }
+    vk::Device GetDevice() const { return m_Device; }
     [[nodiscard]] constexpr uint32_t GetCurrentFrameIndex() const { return m_CurrentFrameInFlight; }
     [[nodiscard]] constexpr uint32_t GetMaxFramesInFlight() const { return m_MaxFramesInFlight; }
     [[nodiscard]] VmaAllocator GetMemoryAllocator() const { return m_MemoryAllocator; }
     [[nodiscard]] class CommandBufferManager& GetTransferCommandBufferManager() const { return *m_TransferCommandBufferManager; }
+    [[nodiscard]] const struct Geometry& GetDefaultFullscreenQuad() const { return *m_DefaultFullscreenQuad; }
+    [[nodiscard]] const class Texture* GetDefaultTexture() const { return m_DefaultTexture; }
+    [[nodiscard]] vk::Sampler GetDefaultSampler() const { return m_DefaultSampler; }
 
 #pragma region PhysicalDevice
     [[nodiscard]] const vk::PhysicalDeviceProperties& GetProperties() const { return m_Properties; }
@@ -138,36 +141,36 @@ public:
 #pragma endregion
 
 private:
-    static class vk::Instance s_VulkanInstance;
-    static vkb::Instance s_VkbInstance;
-    static bool s_DynamicLoaderInitialized;
+    static class vk::Instance   s_VulkanInstance;
+    static vkb::Instance        s_VkbInstance;
+    static bool                 s_DynamicLoaderInitialized;
 
-    class vk::PhysicalDevice m_PhysicalDevice;
-    class vk::Device m_Device;
-    VmaAllocator m_MemoryAllocator;
-    vk::PhysicalDeviceProperties m_Properties;
-    vk::PhysicalDeviceFeatures m_EnabledFeatures;
-    vk::PhysicalDeviceMemoryProperties m_MemoryProperties;
-    std::vector<vk::QueueFamilyProperties> m_QueueFamilyProperties;
+    vk::PhysicalDevice                      m_PhysicalDevice;
+    vk::Device                              m_Device;
+    VmaAllocator                            m_MemoryAllocator;
+    vk::PhysicalDeviceProperties            m_Properties;
+    vk::PhysicalDeviceFeatures              m_EnabledFeatures;
+    vk::PhysicalDeviceMemoryProperties      m_MemoryProperties;
+    std::vector<vk::QueueFamilyProperties>  m_QueueFamilyProperties;
 
-    QueueFamilyIndices m_QueueFamilyIndices;
-
-    vk::Queue m_GraphicsQueue;
-    vk::Queue m_ComputeQueue;
-    vk::Queue m_TransferQueue;
-    vk::Queue m_PresentQueue;
+    QueueFamilyIndices  m_QueueFamilyIndices;
+    vk::Queue           m_GraphicsQueue;
+    vk::Queue           m_ComputeQueue;
+    vk::Queue           m_TransferQueue;
+    vk::Queue           m_PresentQueue;
 
     uint32_t m_CurrentFrameInFlight{ 0 };
     uint32_t m_MaxFramesInFlight{ 2 };
 
     std::unique_ptr<class CommandBufferManager> m_TransferCommandBufferManager;
 
-    vk::Sampler m_DefaultSampler;
-    class Texture* m_DefaultTexture;
+    vk::Sampler          m_DefaultSampler;
+    class Texture*       m_DefaultTexture;
+    struct Geometry*      m_DefaultFullscreenQuad;
 
-    vk::DescriptorPool m_BindlessDescriptorPool;
-    vk::DescriptorSetLayout m_BindlessDescriptorSetLayout;
-    vk::DescriptorSet m_BindlessDescriptorSet;
+    vk::DescriptorPool              m_BindlessDescriptorPool;
+    vk::DescriptorSetLayout         m_BindlessDescriptorSetLayout;
+    vk::DescriptorSet               m_BindlessDescriptorSet;
     std::queue<BindlessImageHandle> m_FreeBindlessTextureIndices{};
     std::queue<BindlessImageHandle> m_FreeBindlessImageIndices{};
     std::mutex                      m_BindlessMutex{};
@@ -175,6 +178,7 @@ private:
     std::vector<ResourceDeletion> m_ResourceDeletionQueue{};
 
     friend class Swapchain;
+    friend class Renderer;
 
 private:
     static VkBool32 VKAPI_CALL DebugPrintfCallback(

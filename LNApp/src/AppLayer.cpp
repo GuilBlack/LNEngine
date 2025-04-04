@@ -225,8 +225,7 @@ void AppLayer::InitTestFrameGraph()
 
     m_FrameGraphTest.Compile();
 
-    //m_FrameGraphTest.BindRenderPass(lnnew GBufferPass());
-    m_FrameGraphTest.BindRenderPass(lnnew LightingPass());
+    //m_FrameGraphTest.BindRenderPass(lnnew LightingPass());
     m_FrameGraphTest.BindRenderPass(lnnew DoFPass());
     m_FrameGraphTest.BindRenderPass(lnnew TransparentPass());
 }
@@ -243,16 +242,8 @@ void AppLayer::InitFrameGraph()
         .SetDefaultColorAttachmentInfos()
         .SetImageDimension(width, height)
         .Build();
-    lne::FrameGraphResourceDesc normalAttachmentDesc = resourceBuilder.SetName("Normal")
-        .SetType(lne::FrameGraphResourceType::eAttachment)
-        .SetImageFormat(vk::Format::eR16G16B16A16Sfloat)
-        .Build();
-    lne::FrameGraphResourceDesc positionAttachmentDesc = resourceBuilder.SetName("Position")
-        .SetType(lne::FrameGraphResourceType::eAttachment)
-        .SetImageFormat(vk::Format::eR16G16B16A16Sfloat)
-        .Build();
 
-    lne::FrameGraphResourceDesc depthAttachmentDesc = resourceBuilder.SetDefaultDepthAttachmentInfos()
+        lne::FrameGraphResourceDesc depthAttachmentDesc = resourceBuilder.SetDefaultDepthAttachmentInfos()
         .SetName("Depth").Build();
 
     lne::FrameGraphNodeDesc offscreenPassDesc = nodeBuilder.SetName("BasicForwardPass")
@@ -273,21 +264,51 @@ void AppLayer::InitFrameGraph()
         .SetType(lne::RenderPassType::eTransfer)
         .Build();
 
-    nodeBuilder.Clear();
     colorAttachmentDesc.Name = "GBufferColor";
+    
+    lne::FrameGraphResourceDesc normalAttachmentDesc = resourceBuilder.SetName("GBufferNormal")
+        .SetType(lne::FrameGraphResourceType::eAttachment)
+        .SetDefaultColorAttachmentInfos()
+        .SetImageFormat(vk::Format::eR16G16B16A16Sfloat)
+        .Build();
+    lne::FrameGraphResourceDesc positionAttachmentDesc = resourceBuilder.SetName("GBufferPosition")
+        .SetType(lne::FrameGraphResourceType::eAttachment)
+        .SetDefaultColorAttachmentInfos()
+        .SetImageFormat(vk::Format::eR16G16B16A16Sfloat)
+        .Build();
+    
+    nodeBuilder.Clear();
     lne::FrameGraphNodeDesc gBufferPassDesc = nodeBuilder.SetName("GBufferPass")
         .AddInputResource(depthAttachmentDesc)
         .AddOutputResource(colorAttachmentDesc)
         .AddOutputResource(normalAttachmentDesc)
         .AddOutputResource(positionAttachmentDesc)
         .Build();
+    
+    normalAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
+    positionAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
+    colorAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
+    lne::FrameGraphResourceDesc lightingResource = resourceBuilder.SetName("Lighting")
+        .SetType(lne::FrameGraphResourceType::eAttachment)
+        .SetDefaultColorAttachmentInfos()
+        .Build();
+
+    nodeBuilder.Clear();
+    lne::FrameGraphNodeDesc lightingPassDesc = nodeBuilder.SetName("LightingPass")
+        .AddInputResource(normalAttachmentDesc)
+        .AddInputResource(positionAttachmentDesc)
+        .AddInputResource(colorAttachmentDesc)
+        .AddOutputResource(lightingResource)
+        .Build();
 
     m_FrameGraph->CreateNode(finalPassDesc);
     m_FrameGraph->CreateNode(depthPrePassDesc);
     m_FrameGraph->CreateNode(offscreenPassDesc);
     m_FrameGraph->CreateNode(gBufferPassDesc);
+    m_FrameGraph->CreateNode(lightingPassDesc);
     m_FrameGraph->Compile();
 
+    m_FrameGraph->BindRenderPass(lnnew lne::LightingPass());
     m_FrameGraph->BindRenderPass(lnnew lne::DepthPrePass());
     m_FrameGraph->BindRenderPass(lnnew lne::BasicForwardPass());
     m_FrameGraph->BindRenderPass(lnnew FinalPass());
@@ -322,27 +343,27 @@ void AppLayer::OnUpdate(float deltaTime)
     m_WorldRenderer->BeginFrame();
     m_WorldRenderer->Render(*m_Scene.GetPtr());
     m_WorldRenderer->EndFrame();
-    
+
     m_Scene->EndScene();
 }
 
 void AppLayer::OnImGuiRender()
 {
     ImGui::Begin("Hello, world!");
-        
+
     if (ImGui::SliderFloat("Metalness", &m_Metalness, 0.0f, 1.0f))
     { 
         m_BasicMaterial->SetProperty("uMetalness", m_Metalness);
         m_BasicMaterial2->SetProperty("uMetalness", m_Metalness);
     }
-        
+
     if (ImGui::SliderFloat("Roughness", &m_Roughness, 0.0f, 1.0f))
     {
         m_BasicMaterial->SetProperty("uRoughness", m_Roughness);
         m_BasicMaterial2->SetProperty("uRoughness", m_Roughness);
     }
 
-    ImGui::Text("Sun Dir"); 
+    ImGui::Text("Sun Dir");
     ImVec2 avail = ImGui::GetContentRegionAvail();
     float availableWidth = avail.x;
     float itemSpacing = ImGui::GetStyle().ItemSpacing.x;

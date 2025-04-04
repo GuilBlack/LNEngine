@@ -10,10 +10,11 @@ class Material : public RefCountBase
 {
 public:
     MOVABLE_ONLY(Material);
-    Material(SafePtr<class GfxPipeline> pipeline);
+    Material(SafePtr<class GfxPipeline> pipeline, MaterialType::Enum materialType = MaterialType::eStandard);
     ~Material();
 
     SafePtr<class GfxPipeline> GetPipeline() const { return m_Pipeline; }
+    MaterialType::Enum GetMaterialType() const { return m_MaterialType; }
 
     void SetProperty(std::string_view name, float value);
     void SetProperty(std::string_view name, const glm::vec2& value);
@@ -30,6 +31,7 @@ private:
     SafePtr<class GfxPipeline> m_Pipeline;
     std::unordered_map<std::string, UniformElement> m_MaterialConstants;
     std::map<uint32_t, UniformBuffer> m_UniformBuffers;
+    MaterialType::Enum m_MaterialType;
 
     friend class Renderer;
 

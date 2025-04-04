@@ -1,5 +1,8 @@
 #include "lnepch.h"
 #include "Material.h"
+
+#include <Core/Utils/Log.h>
+
 #include "Pipeline.h"
 #include "Shader.h"
 #include "Renderer.h"
@@ -10,19 +13,43 @@
 
 namespace lne
 {
-Material::Material(SafePtr<GfxPipeline> pipeline)
-    : m_Pipeline(pipeline)
+Material::Material(SafePtr<GfxPipeline> pipeline, MaterialType::Enum materialType)
+    : m_Pipeline(pipeline), m_MaterialType(materialType)
 {
-    DescriptorSet materialDescSet = m_Pipeline->m_Shader->GetReflectedData().DescriptorSets.at(3);
+    DescriptorSet materialDescSet = {};
 
+    switch (materialType)
+    {
+    case MaterialType::eStandard:
+    {
+        materialDescSet = m_Pipeline->m_Shader->GetReflectedData().DescriptorSets.at(3);
+        for (const auto& [name, element] :
+            m_Pipeline->m_Shader->GetReflectedData().UniformElements)
+        {
+            if (element.SetIndex == 3)
+                m_MaterialConstants.emplace(name, element);
+        }
+        break;
+    }
+    case MaterialType::ePostProcess:
+    {
+        materialDescSet = m_Pipeline->m_Shader->GetReflectedData().DescriptorSets.at(2);
+        for (const auto& [name, element] :
+            m_Pipeline->m_Shader->GetReflectedData().UniformElements)
+        {
+            if (element.SetIndex == 2)
+                m_MaterialConstants.emplace(name, element);
+        }
+        break;
+    }
+    case MaterialType::eUnknown:
+    default:
+        LNE_ASSERT(false, "Material type not supported");
+        break;
+    }
+    
     for (const auto& [binding, ub] : materialDescSet.UniformBuffers)
         m_UniformBuffers.emplace(std::make_pair(ub.BindingIndex, UniformBuffer(m_Pipeline->m_Context, ub.Size)));
-
-    for (const auto& [name, element] : m_Pipeline->m_Shader->GetReflectedData().UniformElements)
-    {
-        if (element.SetIndex == 3)
-            m_MaterialConstants.emplace(name, element);
-    }
 }
 
 Material::~Material()
