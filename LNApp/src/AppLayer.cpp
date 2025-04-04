@@ -26,7 +26,7 @@ void AppLayer::FinalPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRendere
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
     lne::Framebuffer& swapchainFramebuffer = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
     auto renderTexture = swapchainFramebuffer.GetColorAttachments()[0].Texture;
-    lne::FrameGraphResource* colorResource = frameGraph->GetResource("Color");
+    lne::FrameGraphResource* colorResource = frameGraph->GetResource("Lighting");
     if (colorResource == nullptr)
     {
         APP_WARN("FinalPass::Render: Color resource not found");
@@ -44,15 +44,14 @@ void AppLayer::OnAttach()
 
     Renderer& renderer = ApplicationBase::GetRenderer();
     m_Scene = lnnew HierarchicalScene();
-    //InitTestFrameGraph();
     InitFrameGraph();
     m_WorldRenderer = lnnew WorldRenderer(m_FrameGraph);
 
     auto& fb = ApplicationBase::GetWindow().GetCurrentFramebuffer();
     fb.SetClearColor({0.105f, 0.117f, 0.149f, 1.0f });
     GraphicsPipelineDesc desc{};
-    desc.PathToShaders = ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\MeshLighting.glsl";
-    desc.Name = "Basic";
+    desc.PathToShaders = ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\GBuffer.glsl";
+    desc.Name = "GBufferBasic";
     desc.FrameGraph = m_FrameGraph.GetPtr();
     desc.CullMode = ECullMode::Back; 
     desc.EnableDepthTest(true, true);
@@ -237,44 +236,46 @@ void AppLayer::InitFrameGraph()
     lne::FrameGraphResourceDescBuilder resourceBuilder = lne::FrameGraphResourceDescBuilder();
     lne::FrameGraphNodeDescBuilder nodeBuilder = lne::FrameGraphNodeDescBuilder();
 
-    lne::FrameGraphResourceDesc colorAttachmentDesc = resourceBuilder.SetName("Color")
+    lne::FrameGraphResourceDesc colorAttachmentDesc = resourceBuilder.SetName("GBufferColor")
         .SetType(lne::FrameGraphResourceType::eAttachment)
         .SetDefaultColorAttachmentInfos()
         .SetImageDimension(width, height)
-        .Build();
-
-        lne::FrameGraphResourceDesc depthAttachmentDesc = resourceBuilder.SetDefaultDepthAttachmentInfos()
-        .SetName("Depth").Build();
-
-    lne::FrameGraphNodeDesc offscreenPassDesc = nodeBuilder.SetName("BasicForwardPass")
-        .AddOutputResource(colorAttachmentDesc)
-        .AddInputResource(depthAttachmentDesc)
-        .Build();
-
-    nodeBuilder.Clear();
-
-    lne::FrameGraphNodeDesc depthPrePassDesc = nodeBuilder.SetName("DepthPrePass")
-        .AddOutputResource(depthAttachmentDesc)
-        .Build();
-
-    nodeBuilder.Clear();
-
-    lne::FrameGraphNodeDesc finalPassDesc = nodeBuilder.SetName("FinalPass")
-        .AddInputResource(colorAttachmentDesc)
-        .SetType(lne::RenderPassType::eTransfer)
-        .Build();
-
-    colorAttachmentDesc.Name = "GBufferColor";
+    .Build();
     
     lne::FrameGraphResourceDesc normalAttachmentDesc = resourceBuilder.SetName("GBufferNormal")
         .SetType(lne::FrameGraphResourceType::eAttachment)
         .SetDefaultColorAttachmentInfos()
         .SetImageFormat(vk::Format::eR16G16B16A16Sfloat)
         .Build();
+    
     lne::FrameGraphResourceDesc positionAttachmentDesc = resourceBuilder.SetName("GBufferPosition")
         .SetType(lne::FrameGraphResourceType::eAttachment)
         .SetDefaultColorAttachmentInfos()
         .SetImageFormat(vk::Format::eR16G16B16A16Sfloat)
+        .Build();
+    
+    lne::FrameGraphResourceDesc metalRoughAttachmentDesc = resourceBuilder.SetName("GBufferMetalRough")
+        .SetType(lne::FrameGraphResourceType::eAttachment)
+        .SetDefaultColorAttachmentInfos()
+        .SetImageFormat(vk::Format::eR8G8Unorm)
+        .Build();
+    
+    lne::FrameGraphResourceDesc lightingResource = resourceBuilder.SetName("Lighting")
+        .SetType(lne::FrameGraphResourceType::eAttachment)
+        .SetDefaultColorAttachmentInfos()
+        .Build();
+
+    lne::FrameGraphResourceDesc depthAttachmentDesc = resourceBuilder.SetDefaultDepthAttachmentInfos()
+        .SetName("Depth").Build();
+
+    lne::FrameGraphNodeDesc depthPrePassDesc = nodeBuilder.SetName("DepthPrePass")
+        .AddOutputResource(depthAttachmentDesc)
+        .Build();
+
+    nodeBuilder.Clear();
+    lne::FrameGraphNodeDesc finalPassDesc = nodeBuilder.SetName("FinalPass")
+        .AddInputResource(lightingResource)
+        .SetType(lne::RenderPassType::eTransfer)
         .Build();
     
     nodeBuilder.Clear();
@@ -283,34 +284,31 @@ void AppLayer::InitFrameGraph()
         .AddOutputResource(colorAttachmentDesc)
         .AddOutputResource(normalAttachmentDesc)
         .AddOutputResource(positionAttachmentDesc)
+        .AddOutputResource(metalRoughAttachmentDesc)
         .Build();
     
     normalAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
     positionAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
     colorAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
-    lne::FrameGraphResourceDesc lightingResource = resourceBuilder.SetName("Lighting")
-        .SetType(lne::FrameGraphResourceType::eAttachment)
-        .SetDefaultColorAttachmentInfos()
-        .Build();
+    metalRoughAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
 
     nodeBuilder.Clear();
     lne::FrameGraphNodeDesc lightingPassDesc = nodeBuilder.SetName("LightingPass")
         .AddInputResource(normalAttachmentDesc)
         .AddInputResource(positionAttachmentDesc)
         .AddInputResource(colorAttachmentDesc)
+        .AddInputResource(metalRoughAttachmentDesc)
         .AddOutputResource(lightingResource)
         .Build();
 
     m_FrameGraph->CreateNode(finalPassDesc);
     m_FrameGraph->CreateNode(depthPrePassDesc);
-    m_FrameGraph->CreateNode(offscreenPassDesc);
     m_FrameGraph->CreateNode(gBufferPassDesc);
     m_FrameGraph->CreateNode(lightingPassDesc);
     m_FrameGraph->Compile();
 
     m_FrameGraph->BindRenderPass(lnnew lne::LightingPass());
     m_FrameGraph->BindRenderPass(lnnew lne::DepthPrePass());
-    m_FrameGraph->BindRenderPass(lnnew lne::BasicForwardPass());
     m_FrameGraph->BindRenderPass(lnnew FinalPass());
     m_FrameGraph->BindRenderPass(lnnew lne::GBufferPass());
 }

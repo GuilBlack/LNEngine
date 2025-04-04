@@ -54,7 +54,7 @@ void GBufferPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* world
         TransformBuffer& transformBuffer = worldRenderer->GetTransformBuffer(renderer.GetCurrentFrameIndex());
 
         // should render custom material
-        renderer.Draw(cmdBuffer, drawCommand.Mesh, transformBuffer.Buffer, m_Material, transforms.Offset, drawCommand.SubMeshIndex, drawCommand.InstanceCount);
+        renderer.Draw(cmdBuffer, drawCommand.Mesh, transformBuffer.Buffer, transforms.Offset, drawCommand.SubMeshIndex, drawCommand.InstanceCount);
     }
 }
 

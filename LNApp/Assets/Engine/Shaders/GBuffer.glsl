@@ -80,12 +80,14 @@ layout(location = 2) in vec3 iWorldPos;
 layout(location = 0) out vec4 oAlbedo;
 layout(location = 1) out vec4 oNormal;
 layout(location = 2) out vec4 oPosition;
+layout(location = 3) out vec4 oMetalnessRoughness;
 
 void main()
 {
     oAlbedo = texture(globalTextures[tAlbedo], iUV);
     oNormal = vec4(iNormal, 1.0);
     oPosition = vec4(iWorldPos, 1.0);
+    oMetalnessRoughness = vec4(uMetalness, uRoughness, 0.0, 1.0);
 }
 
 #endif

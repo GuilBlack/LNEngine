@@ -55,6 +55,11 @@ void LightingPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worl
             SafePtr<Texture> colorTexture = resource->Resource.GetAs<Texture>();
             m_Material->SetTexture("tAlbedo", colorTexture);
         }
+        if (resource->Name == "GBufferMetalRough")
+        {
+            SafePtr<Texture> colorTexture = resource->Resource.GetAs<Texture>();
+            m_Material->SetTexture("tMetalnessRoughness", colorTexture);
+        }
     }
     Renderer& renderer = ApplicationBase::GetRenderer();
     renderer.DrawFullscreenQuad(cmdBuffer, m_Material);
