@@ -175,12 +175,12 @@ GfxPipeline::GfxPipeline(SafePtr<GfxContext> ctx, const GraphicsPipelineDesc& de
 
     std::vector<vk::Format> colorFormats;
     vk::Format depthFormat = vk::Format::eUndefined;
-    for (auto& inputHandle : node->InputResources)
+    for (auto& outputHandle : node->OutputResources)
     {
-        auto input = desc.FrameGraph->GetResource(inputHandle);
-        if (input != nullptr && input->Type == FrameGraphResourceType::eAttachment)
+        auto output = desc.FrameGraph->GetResource(outputHandle);
+        if (output != nullptr && output->Type == FrameGraphResourceType::eAttachment)
         {
-            FrameGraphResourceImageInfo imageInfo = std::get<FrameGraphResourceImageInfo>(input->Info.Variant);
+            FrameGraphResourceImageInfo imageInfo = std::get<FrameGraphResourceImageInfo>(output->Info.Variant);
             if (imageInfo.Flags & vk::ImageUsageFlagBits::eColorAttachment)
             {
                 colorFormats.emplace_back(imageInfo.Format);
@@ -192,12 +192,12 @@ GfxPipeline::GfxPipeline(SafePtr<GfxContext> ctx, const GraphicsPipelineDesc& de
         }
     }
 
-    for (auto& outputHandle : node->OutputResources)
+    for (auto& inputHandle : node->InputResources)
     {
-        auto output = desc.FrameGraph->GetResource(outputHandle);
-        if (output != nullptr && output->Type == FrameGraphResourceType::eAttachment)
+        auto input = desc.FrameGraph->GetResource(inputHandle);
+        if (input != nullptr && input->Type == FrameGraphResourceType::eAttachment)
         {
-            FrameGraphResourceImageInfo imageInfo = std::get<FrameGraphResourceImageInfo>(output->Info.Variant);
+            FrameGraphResourceImageInfo imageInfo = std::get<FrameGraphResourceImageInfo>(input->Info.Variant);
             if (imageInfo.Flags & vk::ImageUsageFlagBits::eColorAttachment)
             {
                 colorFormats.emplace_back(imageInfo.Format);

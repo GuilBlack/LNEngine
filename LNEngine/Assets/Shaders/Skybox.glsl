@@ -1,4 +1,4 @@
-//#lne_head [Vt main][Fg main][Rp BasicForwardPass]
+//#lne_head [Vt main][Fg main][Rp SkyboxPass]
 #version 460
 
 #extension GL_EXT_scalar_block_layout :     enable
@@ -12,64 +12,60 @@ layout(scalar, set=0, binding=0) uniform GlobalUBO {
     vec3 uSunDir;
 };
 
-layout(scalar, set = 1, binding = 0) readonly buffer TransformBuffer {
-    mat4 transforms[];
-} transformBuffer;
-
-layout(scalar, set = 3, binding = 0) uniform MaterialData {
-    vec4 uColor;
-    float uMetalness;
-    float uRoughness;
-
-    // texture indices
-    uint tAlbedo;
+layout(scalar, set = 2, binding = 0) uniform MaterialData {
+    uint tCubeAlbedo;
 };
 
-layout(set = 4, binding = 0) uniform sampler2D      globalTextures[];
-layout(set = 4, binding = 0) uniform samplerCube    globalCubemaps[];
+layout(set = 3, binding = 0) uniform sampler2D                  globalTextures[];
+layout(set = 3, binding = 0) uniform samplerCube                globalCubemaps[];
 
-layout(set = 4, binding = 1, rgba8) uniform writeonly image2D   globalImageRgba8[];
-layout(set = 4, binding = 1, rgba16f) uniform writeonly image2D globalImageRgba16f[];
-layout(set = 4, binding = 1, rgba32f) uniform writeonly image2D globalImageRgba32f[];
+layout(set = 3, binding = 1, rgba8) uniform writeonly image2D   globalImageRgba8[];
+
+const float PI = 3.14159265359;
+const float TWO_OVER_PI = 2.0 / PI;
 
 #ifdef VERT
 
-layout(location = 0) out vec3 oUVW;
-
 struct Vertex {
     vec3 position;
-    vec3 normal;
     vec2 uv;
 };
 
-layout(scalar, set = 2, binding = 0) readonly buffer VertexBuffer {
+layout(scalar, set = 1, binding = 0) readonly buffer VertexBuffer {
     Vertex vertices[];
 } vertexBuffer;
 
-layout(set = 2, binding = 1) readonly buffer IndexBuffer {
+layout(set = 1, binding = 1) readonly buffer IndexBuffer {
     uint indices[];
 } indexBuffer;
+
+layout(location = 0) out vec2 oUV;
 
 void main() {
     uint currentIndex = indexBuffer.indices[gl_VertexIndex];
     Vertex v = vertexBuffer.vertices[currentIndex];
-    oUVW = v.position.xyz;
-
-    mat4 viewMat = mat4(mat3(uView));
-    vec4 pos = uProj * viewMat * vec4(v.position.xyz, 1.0);
-    gl_Position = pos.xyww;
+    
+    gl_Position = vec4(v.position.xy, 1.0, 1.0);
+    oUV = v.position.xy;
 }
 
 #endif
 
 #ifdef FRAG
 
-layout (location = 0) in vec3 iUVW;
+layout(location = 0) in vec2 iUV;
 
-layout (location = 0) out vec4 oColor;
+layout(location = 0) out vec4 oColor;
 
 void main() {
-    oColor = texture(globalCubemaps[nonuniformEXT(tAlbedo)], iUVW);
+    vec4 clipSpacePos = vec4(iUV, 0.0, 1.0);
+    
+    // Convert clip space position to world space
+    vec4 viewDir = inverse(uProj) * clipSpacePos;
+    viewDir = vec4(viewDir.xy, -1.0, 0.0); 
+    vec3 worldDir = normalize((inverse(uView) * viewDir).xyz);
+    
+    oColor = texture(globalCubemaps[nonuniformEXT(tCubeAlbedo)], worldDir);
 }
 
 #endif

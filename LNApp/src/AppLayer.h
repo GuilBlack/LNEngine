@@ -38,6 +38,27 @@ class AppLayer final : public lne::Layer
         lne::SafePtr<lne::Texture> m_OutputTexture{};
     };
 
+    class SkyboxPass : public lne::IRenderPass
+    {
+    public:
+        SkyboxPass()
+        {
+            m_Name = "SkyboxPass";
+        }
+
+        void OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
+        void Execute(vk::CommandBuffer cmdBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;    
+        void PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
+        void OnImGuiRender() override;
+    private:
+        lne::SafePtr<lne::GfxPipeline> m_Pipeline{};
+        lne::SafePtr<lne::Material> m_Material{};
+        lne::SafePtr<lne::Texture> m_Texture{};
+
+        lne::SafePtr<lne::Texture> m_DebugTexture{};
+        bool m_IsDebugOpen{ false };
+    };
+
 public:
     AppLayer()
         : Layer("AppLayer")

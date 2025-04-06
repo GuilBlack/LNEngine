@@ -11,7 +11,7 @@ AppLayer::FinalPass::FinalPass()
     auto context = ApplicationBase::GetRenderer().GetGfxContext();
     m_Pipeline = lnnew ComputePipeline(context, desc);
     m_Program = lnnew ComputeProgram(m_Pipeline);
-    m_OutputTexture = Texture::CreateColorAttachmentTexture(context, 1920, 1080, vk::Format::eR8G8B8A8Unorm, TextureUsageType::eSampledAndStorage, "Test");
+    m_OutputTexture = lne::Texture::CreateColorAttachmentTexture(context, 1920, 1080, vk::Format::eR8G8B8A8Unorm, TextureUsageType::eSampledAndStorage, "Test");
 
     m_Program->SetProperty("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
     m_Program->SetTexture("tOutput", m_OutputTexture);
@@ -34,6 +34,90 @@ void AppLayer::FinalPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRendere
     }
     lne::SafePtr<lne::Texture> colorTexture = colorResource->Resource.GetAs<lne::Texture>();
     renderer.Blit(cmdBuffer, colorTexture, renderTexture);
+}
+
+void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
+{
+    using namespace lne;
+    lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
+    lne::GraphicsPipelineDesc desc{};
+    desc.PathToShaders = lne::ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\Skybox.glsl";
+    desc.Name = "Skybox";
+    desc.FrameGraph = frameGraph;
+    desc.EnableDepthTest(true, false);
+    desc.Blend.EnableBlend(false);
+    desc.CullMode = lne::ECullMode::None;
+    m_Pipeline = renderer.CreateGraphicsPipeline(desc);
+    m_Material = lne::SafePtr(lnnew lne::Material(m_Pipeline, lne::MaterialType::ePostProcess));
+
+    std::string cubemapPath = lne::ApplicationBase::GetAssetsPath() + "Textures\\Skybox\\";
+    m_Texture = renderer.CreateCubemapTexture({
+        cubemapPath + "px.png",
+        cubemapPath + "nx.png",
+        cubemapPath + "py.png",
+        cubemapPath + "ny.png",
+        cubemapPath + "pz.png",
+        cubemapPath + "nz.png"
+    });
+
+    m_Material->SetTexture("tCubeAlbedo", m_Texture);
+
+    for (FrameGraphResourceHandle resourceHandle : node->InputResources)
+    {
+        FrameGraphResource& resource = *frameGraph->GetResource(resourceHandle);
+
+        if (resource.Type == FrameGraphResourceType::eAttachment)
+        {
+            SafePtr<lne::Texture> texture = resource.Resource.GetAs<lne::Texture>();
+            if (texture->IsDepth())
+                continue;
+            SafePtr<lne::Texture> debugTexture = lne::Texture::CreateColorTexture2D(ApplicationBase::GetWindow().GetGfxContext(),
+                texture->GetDimensions().width / 2, texture->GetDimensions().height / 2, texture->GetFormat(), TextureUsageType::eSampled, false, texture->GetName() + "ImGUI Debug");
+            m_DebugTexture = debugTexture;
+        }
+    }
+}
+
+void AppLayer::SkyboxPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worldRenderer,
+    lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
+{
+    lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
+    renderer.DrawFullscreenQuad(cmdBuffer, m_Material);
+}
+
+void AppLayer::SkyboxPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
+{
+    using namespace lne;
+    if (m_IsDebugOpen == false)
+        return;
+
+    Renderer& renderer = ApplicationBase::GetRenderer();
+    for (FrameGraphResourceHandle resourceHandle : node->InputResources)
+    {
+        FrameGraphResource& resource = *frameGraph->GetResource(resourceHandle);
+        if (resource.Type == FrameGraphResourceType::eAttachment)
+        {
+            SafePtr<Texture> texture = resource.Resource.GetAs<Texture>();
+            if (texture->IsDepth())
+                continue;
+            SafePtr<Texture> debugTexture = m_DebugTexture;
+            debugTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
+            renderer.Blit(cmdBuffer, texture, debugTexture);
+            debugTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
+        }
+    }
+}
+
+void AppLayer::SkyboxPass::OnImGuiRender()
+{
+    float textureRatio = (float)m_DebugTexture->GetDimensions().width / (float)m_DebugTexture->GetDimensions().height;
+    float windowWidth = ImGui::GetWindowWidth();
+    m_IsDebugOpen = ImGui::TreeNode("Lighting Pass Output");
+    if (m_IsDebugOpen)
+    {
+        ImGui::Image((ImTextureID)(uint64_t)m_DebugTexture->GetBindlessTextureHandle(), ImVec2(windowWidth, windowWidth / textureRatio));
+        ImGui::TreePop();
+    }
 }
 
 void AppLayer::OnAttach()
@@ -96,7 +180,7 @@ void AppLayer::OnAttach()
 #pragma endregion
 
 #pragma region LoadModels
-    duckMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Duck\\gltf\\Duck.gltf", m_BasePipeline);
+    duckMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Duck\\glTF\\Duck.gltf", m_BasePipeline);
     cubeMeshComponent.Mesh = lnnew StaticMesh(cubeGeo, m_BasicMaterial, { uvChecker }, m_BasePipeline);
     SafePtr sphereMesh = lnnew StaticMesh(sphereGeo, m_BasicMaterial, { uvChecker }, m_BasePipeline);
     sphereMeshComponent.Mesh = sphereMesh;
@@ -143,92 +227,6 @@ void AppLayer::OnAttach()
     cameraComponent.UpdateView(cameraTransform);
 }
 
-void AppLayer::InitTestFrameGraph()
-{
-    auto [width, height] = lne::ApplicationBase::GetWindow().GetSwapchain()->GetViewport().GetExtent();
-
-    lne::FrameGraphResourceDescBuilder resourceBuilder = lne::FrameGraphResourceDescBuilder();
-    lne::FrameGraphNodeDescBuilder nodeBuilder = lne::FrameGraphNodeDescBuilder();
-
-    lne::FrameGraphResourceDesc colorAttachmentDesc = resourceBuilder.SetName("Color")
-        .SetType(lne::FrameGraphResourceType::eAttachment)
-        .SetDefaultColorAttachmentInfos()
-        .SetImageDimension(width, height)
-        .Build();
-    lne::FrameGraphResourceDesc metRoughOccAttachmentDesc = resourceBuilder.SetName("MetallicRoughnessOcclusion")
-        .Build();
-    lne::FrameGraphResourceDesc normalAttachmentDesc = resourceBuilder.SetName("Normal")
-        .SetImageFormat(vk::Format::eR16G16B16A16Sfloat)
-        .Build();
-    lne::FrameGraphResourceDesc positionAttachmentDesc = resourceBuilder.SetName("Position")
-        .Build();
-    lne::FrameGraphResourceDesc depthAttachmentDesc = resourceBuilder.SetDefaultDepthAttachmentInfos()
-        .SetName("Depth").Build();
-
-    lne::FrameGraphNodeDesc gBufferPassDesc = nodeBuilder.SetName("GBufferPass")
-        .AddInputResource(depthAttachmentDesc)
-        .AddOutputResource(metRoughOccAttachmentDesc)
-        .AddOutputResource(normalAttachmentDesc)
-        .AddOutputResource(positionAttachmentDesc)
-        .AddOutputResource(colorAttachmentDesc)
-        .Build();
-    nodeBuilder.Clear();
-    metRoughOccAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
-    normalAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
-    positionAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
-    colorAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
-    lne::FrameGraphResourceDesc lightingResource = resourceBuilder.SetName("Lighting")
-        .SetType(lne::FrameGraphResourceType::eAttachment)
-        .SetDefaultColorAttachmentInfos()
-        .Build();
-    lne::FrameGraphNodeDesc lightingPassDesc = nodeBuilder.SetName("LightingPass")
-        .AddInputResource(metRoughOccAttachmentDesc)
-        .AddInputResource(normalAttachmentDesc)
-        .AddInputResource(positionAttachmentDesc)
-        .AddInputResource(colorAttachmentDesc)
-        .AddOutputResource(lightingResource)
-        .Build();
-    nodeBuilder.Clear();
-    lne::FrameGraphNodeDesc depthPrePassDesc = nodeBuilder.SetName("DepthPrePass")
-        .AddOutputResource(depthAttachmentDesc)
-        .Build();
-    nodeBuilder.Clear();
-    lne::FrameGraphNodeDesc dofPass = nodeBuilder.SetName("DoFPass")
-        .AddInputResource(resourceBuilder.SetName("Lighting_Ref")
-            .SetType(lne::FrameGraphResourceType::eProxy)
-            .SetProxyInfo("Lighting")
-            .Build()
-        )
-        .AddOutputResource(resourceBuilder.SetName("Final")
-            .SetType(lne::FrameGraphResourceType::eAttachment)
-            .SetDefaultColorAttachmentInfos()
-            .Build()
-        )
-        .Build();
-    nodeBuilder.Clear();
-    lne::FrameGraphNodeDesc transparentPass = nodeBuilder.SetName("TransparentPass")
-        .AddInputResource(depthAttachmentDesc)
-        .AddInputResource(lightingResource)
-        .AddOutputResource(resourceBuilder.SetName("Lighting_Ref")
-            .SetType(lne::FrameGraphResourceType::eProxy)
-            .SetProxyInfo("Lighting")
-            .Build()
-        )
-        .Build();
-
-    m_FrameGraphTest.CreateNode(gBufferPassDesc);
-    m_FrameGraphTest.CreateNode(lightingPassDesc);
-    m_FrameGraphTest.CreateNode(depthPrePassDesc);
-    m_FrameGraphTest.CreateNode(dofPass);
-    m_FrameGraphTest.CreateNode(transparentPass);
-
-    m_FrameGraphTest.Compile();
-
-    //m_FrameGraphTest.BindRenderPass(lnnew LightingPass());
-    m_FrameGraphTest.BindRenderPass(lnnew DoFPass());
-    m_FrameGraphTest.BindRenderPass(lnnew TransparentPass());
-}
-
 void AppLayer::InitFrameGraph()
 {
     auto [width, height] = lne::ApplicationBase::GetWindow().GetSwapchain()->GetViewport().GetExtent();
@@ -265,7 +263,14 @@ void AppLayer::InitFrameGraph()
         .SetDefaultColorAttachmentInfos()
         .Build();
 
-    lne::FrameGraphResourceDesc depthAttachmentDesc = resourceBuilder.SetDefaultDepthAttachmentInfos()
+    lne::FrameGraphResourceDesc skyboxResource = resourceBuilder.SetName("LightingSkyboxRef")
+        .SetType(lne::FrameGraphResourceType::eProxy)
+        .SetProxyInfo("Lighting")
+        .Build();
+
+    lne::FrameGraphResourceDesc depthAttachmentDesc = resourceBuilder
+        .SetType(lne::FrameGraphResourceType::eAttachment)
+        .SetDefaultDepthAttachmentInfos()
         .SetName("Depth").Build();
 
     lne::FrameGraphNodeDesc depthPrePassDesc = nodeBuilder.SetName("DepthPrePass")
@@ -274,8 +279,15 @@ void AppLayer::InitFrameGraph()
 
     nodeBuilder.Clear();
     lne::FrameGraphNodeDesc finalPassDesc = nodeBuilder.SetName("FinalPass")
-        .AddInputResource(lightingResource)
+        .AddInputResource(skyboxResource)
         .SetType(lne::RenderPassType::eTransfer)
+        .Build();
+
+    nodeBuilder.Clear();
+    lne::FrameGraphNodeDesc skyboxPassDesc = nodeBuilder.SetName("SkyboxPass")
+        .AddInputResource(lightingResource)
+        .AddInputResource(depthAttachmentDesc)
+        .AddOutputResource(skyboxResource)
         .Build();
     
     nodeBuilder.Clear();
@@ -302,6 +314,7 @@ void AppLayer::InitFrameGraph()
         .Build();
 
     m_FrameGraph->CreateNode(finalPassDesc);
+    m_FrameGraph->CreateNode(skyboxPassDesc);
     m_FrameGraph->CreateNode(depthPrePassDesc);
     m_FrameGraph->CreateNode(gBufferPassDesc);
     m_FrameGraph->CreateNode(lightingPassDesc);
@@ -310,6 +323,7 @@ void AppLayer::InitFrameGraph()
     m_FrameGraph->BindRenderPass(lnnew lne::LightingPass());
     m_FrameGraph->BindRenderPass(lnnew lne::DepthPrePass());
     m_FrameGraph->BindRenderPass(lnnew FinalPass());
+    m_FrameGraph->BindRenderPass(lnnew SkyboxPass());
     m_FrameGraph->BindRenderPass(lnnew lne::GBufferPass());
 }
 

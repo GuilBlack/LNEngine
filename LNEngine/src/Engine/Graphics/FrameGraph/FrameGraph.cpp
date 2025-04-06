@@ -391,6 +391,14 @@ void FrameGraph::CreateFramebuffers(FrameGraphNodeHandle nodeHandle)
         FrameGraphResource* associatedOutputResource = m_ResourceCache.Access(inputResource.Name);
         LNE_ASSERT(associatedOutputResource != nullptr, "Input resource has no associated output resource");
 
+        if (associatedOutputResource->Type == FrameGraphResourceType::eProxy)
+        {
+            const auto& proxyInfo = std::get<FrameGraphResourceProxyInfo>(associatedOutputResource->Info.Variant);
+            FrameGraphResource* realResource = m_ResourceCache.Access(proxyInfo.OriginalName);
+            LNE_ASSERT(realResource != nullptr, "Proxy resource has no original resource");
+            associatedOutputResource = realResource;
+        }
+
         if (associatedOutputResource->Info.External)
             continue;
 

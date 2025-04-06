@@ -33,13 +33,11 @@ void LightingPass::OnBind(FrameGraph* frameGraph, FrameGraphNode* node)
     }
 }
 
-void LightingPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph,
-                           lne::FrameGraphNode* node)
+void LightingPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
     for (FrameGraphResourceHandle handle : node->InputResources)
     {
         FrameGraphResource* resource = frameGraph->GetResource(handle);
-        resource = frameGraph->GetResource(resource->Name);
         if (resource->Name == "GBufferPosition")
         {
             SafePtr<Texture> positionTexture = resource->Resource.GetAs<Texture>();

@@ -24,6 +24,21 @@ void GBufferPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
     m_Pipeline = renderer.CreateGraphicsPipeline(desc);
     m_Material = lnnew Material(m_Pipeline);
 
+    for (FrameGraphResourceHandle resourceHandle : node->InputResources)
+    {
+        FrameGraphResource& resource = *frameGraph->GetResource(resourceHandle);
+
+        if (resource.Type == FrameGraphResourceType::eAttachment)
+        {
+            SafePtr<Texture> texture = resource.Resource.GetAs<Texture>();
+            if (texture->IsDepth())
+                continue;
+            SafePtr<Texture> debugTexture = Texture::CreateColorTexture2D(graphicsContext,
+                texture->GetDimensions().width / 2, texture->GetDimensions().height / 2, texture->GetFormat(), TextureUsageType::eSampled, false, texture->GetName() + "ImGUI Debug");
+            m_DebugTextures.emplace(texture->GetName(), debugTexture);
+            m_IsDebugOpen.emplace(texture->GetName(), false);
+        }
+    }
     for (FrameGraphResourceHandle resourceHandle : node->OutputResources)
     {
         FrameGraphResource& resource = *frameGraph->GetResource(resourceHandle);
@@ -61,6 +76,24 @@ void GBufferPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* world
 void GBufferPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
     Renderer& renderer = ApplicationBase::GetRenderer();
+
+    for (FrameGraphResourceHandle resourceHandle : node->OutputResources)
+    {
+        FrameGraphResource& resource = *frameGraph->GetResource(resourceHandle);
+
+        if (resource.Type == FrameGraphResourceType::eAttachment)
+        {
+            SafePtr<Texture> texture = resource.Resource.GetAs<Texture>();
+            if (texture->IsDepth())
+                continue;
+            SafePtr<Texture> debugTexture = m_DebugTextures[texture->GetName()];
+            if (m_IsDebugOpen[texture->GetName()] == false)
+                continue;
+            debugTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
+            renderer.Blit(cmdBuffer, texture, debugTexture);
+            debugTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
+        }
+    }
 
     for (FrameGraphResourceHandle resourceHandle : node->OutputResources)
     {
