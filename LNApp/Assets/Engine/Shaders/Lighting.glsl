@@ -10,6 +10,7 @@ layout(scalar, set=0, binding=0) uniform GlobalUBO {
     mat4 uProj;
     vec3 uEyePos;
     vec3 uSunDir;
+    float uAmbientLight;
 };
 
 layout(scalar, set = 2, binding = 0) uniform MaterialData {
@@ -121,9 +122,8 @@ void main()
     
     vec3 specular = DFG / denom;
 
-    vec3 color = nDotL * (diffuse + specular);
-    
-    color = pow(color, vec3(1.0 / 2.2));
+    vec3 ambient = uAmbientLight * albedo;
+    vec3 color = ambient + nDotL * (diffuse + specular);
 
     oColor = vec4(color, 1.0);
 }

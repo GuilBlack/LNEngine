@@ -20,8 +20,10 @@ struct GlobalUniforms
     glm::mat4 Proj;
     glm::vec3 CameraPosition;
     glm::vec3 SunDirection;
+    float     AmbientLight;
 };
 
+// TODO: move this in the World renderer
 struct FrameData {
     UniformBuffer GlobalUniforms;
     SafePtr<class DynamicDescriptorAllocator> DescriptorAllocator;
@@ -60,7 +62,7 @@ public:
     void EndFrame();
     void PostFrame();
 
-    void BeginScene(const struct TransformComponent& cameraTransform, const struct CameraComponent& camera, const glm::vec3& sunDirection);
+    void BeginScene(const struct TransformComponent& cameraTransform, const struct CameraComponent& camera, const glm::vec3& sunDirection, float ambientLight);
 
     void BeginRenderPass(const class Framebuffer& framebuffer) const;
     void EndRenderPass(const class Framebuffer& framebuffer) const;

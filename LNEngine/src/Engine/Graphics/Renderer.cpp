@@ -106,7 +106,7 @@ void Renderer::PostFrame()
     m_Context->DeferredNukeResources();
 }
 
-void Renderer::BeginScene(const TransformComponent& cameraTransform, const CameraComponent& camera, const glm::vec3& sunDirection)
+void Renderer::BeginScene(const TransformComponent& cameraTransform, const CameraComponent& camera, const glm::vec3& sunDirection, float ambientLight)
 {
     uint32_t imageIndex = m_Swapchain->GetCurrentFrameIndex();
     auto& cmdBuffer = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
@@ -115,7 +115,8 @@ void Renderer::BeginScene(const TransformComponent& cameraTransform, const Camer
         .View = camera.View,
         .Proj = camera.Proj,
         .CameraPosition = cameraTransform.Position,
-        .SunDirection = sunDirection
+        .SunDirection = sunDirection,
+        .AmbientLight = ambientLight
     };
 
     m_FrameData[imageIndex].GlobalUniforms.CopyData(cmdBuffer, uniforms);
@@ -490,7 +491,7 @@ void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, const SafePtr<cla
     }
     vk::Device device = m_Context->GetDevice();
     const Geometry& geometry = m_Context->GetDefaultFullscreenQuad();
-    
+
     bool hasPipelineChanged = false;
     SafePtr descAllocator = m_FrameData[m_Swapchain->GetCurrentFrameIndex()].DescriptorAllocator;
     

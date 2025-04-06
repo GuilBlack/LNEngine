@@ -10,6 +10,7 @@ layout(scalar, set=0, binding=0) uniform GlobalUBO {
     mat4 uProj;
     vec3 uEyePos;
     vec3 uSunDir;
+    float uAmbientLight;
 };
 
 layout(scalar, set = 2, binding = 0) uniform MaterialData {
