@@ -122,8 +122,6 @@ void main()
     vec3 specular = DFG / denom;
 
     vec3 color = nDotL * (diffuse + specular);
-    
-    color = pow(color, vec3(1.0 / 2.2));
 
     oColor = vec4(color, 1.0);
 }

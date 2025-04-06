@@ -121,7 +121,7 @@ void StaticMesh::LoadData(const aiScene* scene)
 
             const aiFace& face = mesh->mFaces[f];
             for (uint32_t i = 0; i < face.mNumIndices; ++i)
-                m_Geometry.Indices.push_back(face.mIndices[i]);
+                m_Geometry.Indices.push_back(face.mIndices[i] + m_SubMeshes[m].BaseVertex);
         }
     }
 

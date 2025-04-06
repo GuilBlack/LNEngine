@@ -112,7 +112,7 @@ void AppLayer::SkyboxPass::OnImGuiRender()
 {
     float textureRatio = (float)m_DebugTexture->GetDimensions().width / (float)m_DebugTexture->GetDimensions().height;
     float windowWidth = ImGui::GetWindowWidth();
-    m_IsDebugOpen = ImGui::TreeNode("Lighting Pass Output");
+    m_IsDebugOpen = ImGui::TreeNode("Skybox Pass Output");
     if (m_IsDebugOpen)
     {
         ImGui::Image((ImTextureID)(uint64_t)m_DebugTexture->GetBindlessTextureHandle(), ImVec2(windowWidth, windowWidth / textureRatio));
@@ -156,15 +156,15 @@ void AppLayer::OnAttach()
     CameraComponent& cameraComponent = m_CameraEntity.EmplaceComponent<CameraComponent>();
     TransformComponent& cameraTransform = m_CameraEntity.GetComponent<TransformComponent>();
 
-    m_DuckEntity = m_Scene->CreateEntity();
+    m_ModelEntity = m_Scene->CreateEntity();
     m_CubeEntity = m_Scene->CreateEntity();
     m_SphereEntity = m_Scene->CreateEntity();
     
-    m_DuckEntity.EmplaceComponent<StaticMeshComponent>();
+    m_ModelEntity.EmplaceComponent<StaticMeshComponent>();
     m_CubeEntity.EmplaceComponent<StaticMeshComponent>();
     m_SphereEntity.EmplaceComponent<StaticMeshComponent>();
 
-    auto[duckTransform, duckMeshComponent] = m_DuckEntity.GetComponents<TransformComponent, StaticMeshComponent>();
+    auto[modelTransform, modelMeshComponent] = m_ModelEntity.GetComponents<TransformComponent, StaticMeshComponent>();
     auto[cubeTransform, cubeMeshComponent] = m_CubeEntity.GetComponents<TransformComponent, StaticMeshComponent>();
     auto[sphereTransform, sphereMeshComponent] = m_SphereEntity.GetComponents<TransformComponent, StaticMeshComponent>();
 #pragma endregion
@@ -180,7 +180,7 @@ void AppLayer::OnAttach()
 #pragma endregion
 
 #pragma region LoadModels
-    duckMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Duck\\glTF\\Duck.gltf", m_BasePipeline);
+    modelMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Sponza\\glTF\\Sponza.gltf", m_BasePipeline);
     cubeMeshComponent.Mesh = lnnew StaticMesh(cubeGeo, m_BasicMaterial, { uvChecker }, m_BasePipeline);
     SafePtr sphereMesh = lnnew StaticMesh(sphereGeo, m_BasicMaterial, { uvChecker }, m_BasePipeline);
     sphereMeshComponent.Mesh = sphereMesh;
@@ -193,8 +193,8 @@ void AppLayer::OnAttach()
     sphereTransform.Position = { 0.5f, 0.0f, 0.0f };
     sphereTransform.Scale =    { 0.25f, 0.25f, 0.25f };
 
-    duckTransform.Position = { 0.0f, 0.0f, 0.0f };
-    duckTransform.Scale = { 4.f, 4.f, 4.f };
+    modelTransform.Position = { 0.0f, 0.0f, 0.0f };
+    modelTransform.Scale = { 100.f, 100.f, 100.f };
 
 #pragma endregion
     //SafePtr<StaticMesh> purpleSphere = sphereMeshComponent.Mesh;
@@ -216,7 +216,7 @@ void AppLayer::OnAttach()
     //        tempMeshComp.Mesh = sphereMesh;
     //}
 
-    cameraTransform.Position = { 0.0f, 0.0f, 2.0f };
+    cameraTransform.Position = { -2.0f, 0.0f, 0.0f };
     cameraTransform.LookAt({ 0.0f, 0.0f, 0.0f });
 
     auto& windowSettings = ApplicationBase::GetWindow().GetSettings();
@@ -390,10 +390,10 @@ void AppLayer::OnImGuiRender()
     ImGui::DragFloat("Z", &m_LightDirection.z, 0.1f, -FLT_MAX, FLT_MAX, "%.3f");
     ImGui::PopItemWidth(); // Restore the previous item width
 
-    if (ImGui::Button("Delete Duck"))
+    if (ImGui::Button("Delete Model"))
     {
-        m_Scene->DestroyEntity(m_DuckEntity);
-        m_DuckEntity = lne::Entity{};
+        m_Scene->DestroyEntity(m_ModelEntity);
+        m_ModelEntity = lne::Entity{};
     }
     auto& transform = m_CubeEntity.GetComponent<lne::TransformComponent>();
     ImGui::Text("This is some useful text.");
