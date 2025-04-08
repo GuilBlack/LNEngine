@@ -132,9 +132,8 @@ void main() {
 
     vec3 specular = DFG / denom;
 
-    vec3 color = nDotL * (diffuse + specular);
-
-    color = pow(color, vec3(1.0 / 2.2));
+    vec3 ambientCol = uAmbientLight * albedo;
+    vec3 color = ambientCol + nDotL * (diffuse + specular);
 
     oColor = vec4(color, 1.0);
 }

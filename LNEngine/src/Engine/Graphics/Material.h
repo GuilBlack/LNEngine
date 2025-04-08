@@ -15,6 +15,8 @@ public:
 
     SafePtr<class GfxPipeline> GetPipeline() const { return m_Pipeline; }
     MaterialType::Enum GetMaterialType() const { return m_MaterialType; }
+    bool IsTransparent() const { return m_IsTransparent; }
+    void SetTransparency(bool isTransparent) { m_IsTransparent = isTransparent; }
 
     void SetProperty(std::string_view name, float value);
     void SetProperty(std::string_view name, const glm::vec2& value);
@@ -32,6 +34,7 @@ private:
     std::unordered_map<std::string, UniformElement> m_MaterialConstants;
     std::map<uint32_t, UniformBuffer> m_UniformBuffers;
     MaterialType::Enum m_MaterialType;
+    bool m_IsTransparent{ false };
 
     friend class Renderer;
 

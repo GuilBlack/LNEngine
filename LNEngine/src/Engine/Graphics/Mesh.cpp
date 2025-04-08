@@ -13,6 +13,7 @@
 #include "Graphics/DynamicDescriptorAllocator.h"
 
 #include "Mesh.h"
+#include <stb/stb_image.h>
 
 namespace lne
 {
@@ -173,15 +174,15 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
             roughness = 0.4f;
         material->SetProperty("uRoughness", roughness);
 
-        bool hasAlbedoTex = aiMat->GetTexture(AI_MATKEY_BASE_COLOR_TEXTURE, &texturePath) == AI_SUCCESS;
+        bool hasColTex = aiMat->GetTexture(AI_MATKEY_BASE_COLOR_TEXTURE, &texturePath) == AI_SUCCESS;
 
-        if (!hasAlbedoTex)
-            hasAlbedoTex = aiMat->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath) == AI_SUCCESS;
+        if (!hasColTex)
+            hasColTex = aiMat->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath) == AI_SUCCESS;
 
-        if (hasAlbedoTex)
+        if (hasColTex)
         {
             std::filesystem::path texPath = m_Path.parent_path() / texturePath.C_Str();
-            if (!std::filesystem::exists(texPath))
+            if (!std::filesystem::exists(texPath) || texturePath.C_Str() == "")
             {
                 LNE_WARN("Texture not found: {0}", texPath.string());
             }
@@ -190,6 +191,46 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
                 SafePtr<Texture> texture = renderer.CreateTexture(texPath.string());
                 material->SetTexture("tAlbedo", texture);
                 m_Textures.push_back(texture);
+            }
+        }
+
+        aiString metalTex{};
+        bool hasMetTex = aiMat->GetTexture(AI_MATKEY_METALLIC_TEXTURE, &metalTex) == AI_SUCCESS;
+        if (hasMetTex)
+        {
+            std::filesystem::path texPath = m_Path.parent_path() / metalTex.C_Str();
+            if (!std::filesystem::exists(texPath) || metalTex.C_Str() == "")
+            {
+                LNE_WARN("Texture not found: {0}", texPath.string());
+            }
+            else
+            {
+                SafePtr<Texture> texture = renderer.CreateTexture(texPath.string());
+                material->SetTexture("tMetalness", texture);
+                m_Textures.push_back(texture);
+            }
+        }
+
+        aiString roughTex{};
+        bool hasRoughTex = aiMat->GetTexture(AI_MATKEY_ROUGHNESS_TEXTURE, &roughTex) == AI_SUCCESS;
+
+        if (hasRoughTex)
+        {
+            std::filesystem::path texPath = m_Path.parent_path() / roughTex.C_Str();
+            if (!std::filesystem::exists(texPath) || roughTex.C_Str() == "")
+            {
+                LNE_WARN("Texture not found: {0}", texPath.string());
+            }
+            else
+            {
+                if (roughTex != metalTex)
+                {
+                    SafePtr<Texture> texture = renderer.CreateTexture(texPath.string());
+                    material->SetTexture("tRoughness", texture);
+                    m_Textures.push_back(texture);
+                }
+                else
+                    material->SetTexture("tRoughness", m_Textures.back());
             }
         }
     }

@@ -24,6 +24,8 @@ layout(scalar, set = 3, binding = 0) uniform MaterialData {
 
     // texture indices
     uint tAlbedo;
+    uint tMetalness;
+    uint tRoughness;
 };
 
 layout(set = 4, binding = 0) uniform sampler2D      globalTextures[];
@@ -85,10 +87,17 @@ layout(location = 3) out vec4 oMetalnessRoughness;
 
 void main()
 {
-    oAlbedo = texture(globalTextures[tAlbedo], iUV);
+    oAlbedo = texture(globalTextures[nonuniformEXT(tAlbedo)], iUV);
     oNormal = vec4(iNormal, 1.0);
     oPosition = vec4(iWorldPos, 1.0);
-    oMetalnessRoughness = vec4(uMetalness, uRoughness, 0.0, 1.0);
+    
+    float metalness = uMetalness;
+//    if (tMetalness != 0)
+//        metalness = texture(globalTextures[nonuniformEXT(tMetalness)], iUV).z;
+    float roughness = uRoughness;
+//    if (tRoughness != 0)
+//        roughness = texture(globalTextures[nonuniformEXT(tRoughness)], iUV).y;
+    oMetalnessRoughness = vec4(metalness, roughness, 0.0, 1.0);
 }
 
 #endif
