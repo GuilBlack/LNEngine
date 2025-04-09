@@ -410,6 +410,7 @@ bool AppLayer::OnWindowResize(lne::WindowResizeEvent& event)
     if (event.GetWidth() == 0 || event.GetHeight() == 0)
         return false;
     m_CameraEntity.GetComponent<lne::CameraComponent>().SetPerspective(45.0f, event.GetWidth() / (float)event.GetHeight(), 0.001f, 10000.0f);
+    m_FrameGraph->OnResize(event);
     return false;
 }
 
