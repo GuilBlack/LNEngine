@@ -90,7 +90,7 @@ void main()
     oAlbedo = texture(globalTextures[nonuniformEXT(tAlbedo)], iUV);
     oNormal = vec4(iNormal, 1.0);
     oPosition = vec4(iWorldPos, 1.0);
-    
+
     float metalness = uMetalness;
     if (tMetalness != 0)
         metalness = texture(globalTextures[nonuniformEXT(tMetalness)], iUV).z;
