@@ -344,6 +344,7 @@ vkb::PhysicalDevice GfxContext::VkbSelectPhysicalDevice(const vkb::Instance& ins
     auto deviceFeatures = VkPhysicalDeviceFeatures{
         .imageCubeArray = vk::True,
         .geometryShader = vk::True, // for im3d
+        .logicOp = vk::True,
         .depthClamp = vk::True,
         .samplerAnisotropy = vk::True,
     };

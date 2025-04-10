@@ -1,4 +1,4 @@
-//#lne_head [Vt main][Fg main][Rp BasicForwardPass]
+//#lne_head [Vt main][Fg main][Rp TransparentForwardPass]
 #version 460
 
 #extension GL_EXT_scalar_block_layout :     enable
@@ -24,6 +24,8 @@ layout(scalar, set = 3, binding = 0) uniform MaterialData {
 
     // texture indices
     uint tAlbedo;
+    uint tMetalness;
+    uint tRoughness;
 };
 
 layout(set = 4, binding = 0) uniform sampler2D      globalTextures[];
@@ -103,7 +105,19 @@ float SchlickBeckmanGSF(float nDotL, float nDotV, float alpha) {
 }
 
 void main() {
-    vec3 albedo = texture(globalTextures[tAlbedo], iUVs).xyz;
+    vec4 albedoMapValue = texture(globalTextures[tAlbedo], iUVs);
+    vec3 albedo = albedoMapValue.xyz;
+
+    if (albedoMapValue.w == 0.0)
+        discard;
+
+    float metalness = uMetalness;
+    if (tMetalness != 0)
+        metalness = texture(globalTextures[nonuniformEXT(tMetalness)], iUVs).z;
+    float roughness = uRoughness;
+    if (tRoughness != 0)
+        roughness = texture(globalTextures[nonuniformEXT(tRoughness)], iUVs).y;
+
     vec3 normal = normalize(iNormal);
     vec3 viewDir = normalize(uEyePos - iWorldPos);
     vec3 lightDir = normalize(-uSunDir);
@@ -116,17 +130,17 @@ void main() {
 
     // Calculate FresnelSchlick
     vec3 F0 = vec3(0.04);
-    F0 = mix(F0, albedo, uMetalness);
+    F0 = mix(F0, albedo, metalness);
     vec3 F = FresnelSchlick(vDotH, F0);
 
     // Calculate Cook-Torrance dielectric ratio
-    vec3 kD = (1.0 - F) * (1.0 - uMetalness);
+    vec3 kD = (1.0 - F) * (1.0 - metalness);
 
     // lambert diffuse
     vec3 diffuse = kD * albedo / PI;
 
     // Cook-Torrance microfacet specular
-    float alpha = uRoughness * uRoughness;
+    float alpha = roughness * roughness;
     float denom = 4.0 * nDotL * nDotV + 0.0001;
     vec3 DFG = TrowbridgeReitzNDF(nDotH, alpha) * SchlickBeckmanGSF(nDotL, nDotV, alpha) * F;
 

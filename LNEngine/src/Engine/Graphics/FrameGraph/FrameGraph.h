@@ -260,6 +260,9 @@ private:
     void CreateNodeDependents(FrameGraphNodeHandle node);
     void SortGraph(std::vector<FrameGraphNodeHandle>& nodes);
     void CreateFramebuffers(lne::FrameGraphNodeHandle nodeHandle);
+
+    FrameGraphResourceInfo  GetProxyRealResourceInfo(FrameGraphResource* resource);
+    FrameGraphResource*     GetProxyRealResource(FrameGraphResource* resource);
 };
 }
 

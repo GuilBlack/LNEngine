@@ -79,6 +79,7 @@ public:
 
 private:
     lne::SafePtr<lne::GfxPipeline> m_BasePipeline{};
+    lne::SafePtr<lne::GfxPipeline> m_TransparentPipeline{};
     lne::SafePtr<lne::Material> m_BasicMaterial{};
     lne::SafePtr<lne::Material> m_BasicMaterial2{};
 

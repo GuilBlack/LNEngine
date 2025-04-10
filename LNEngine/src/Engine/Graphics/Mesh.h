@@ -46,7 +46,8 @@ struct SubMesh
 class StaticMesh : public RefCountBase
 {
 public:
-    StaticMesh(std::filesystem::path path, SafePtr<class GfxPipeline> pipeline);
+    // TODO: probably make a mesh importer class or something
+    StaticMesh(std::filesystem::path path, SafePtr<class GfxPipeline> pipeline, SafePtr<class GfxPipeline> transparentPipeline);
     StaticMesh(const Geometry& geometry,
         SafePtr<class Material> material, std::vector<SafePtr<class Texture>> textures,
         SafePtr<class GfxPipeline> pipeline);
@@ -67,6 +68,7 @@ private:
     // TODO: move to a resource manager
     std::vector<SafePtr<class Material>> m_Materials{};
     SafePtr<class GfxPipeline> m_Pipeline{};
+    SafePtr<class GfxPipeline> m_TransparentPipeline{};
     std::vector<SafePtr<class Texture>> m_Textures{};
 private:
     void InitSubmeshes(const struct aiScene* scene);

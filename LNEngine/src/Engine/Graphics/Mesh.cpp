@@ -17,8 +17,8 @@
 
 namespace lne
 {
-StaticMesh::StaticMesh(std::filesystem::path path, SafePtr<GfxPipeline> pipeline)
-    : m_Path(path), m_Pipeline(pipeline)
+StaticMesh::StaticMesh(std::filesystem::path path, SafePtr<GfxPipeline> pipeline, SafePtr<GfxPipeline> transparentPipeline)
+    : m_Path(path), m_Pipeline(pipeline), m_TransparentPipeline(transparentPipeline)
 {
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(path.string(), aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices);
@@ -150,12 +150,39 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
         aiString name;
         aiMat->Get(AI_MATKEY_NAME, name);
 
+        aiString texturePath;
+
+        bool hasColTex = aiMat->GetTexture(AI_MATKEY_BASE_COLOR_TEXTURE, &texturePath) == AI_SUCCESS;
+
+        if (!hasColTex)
+            hasColTex = aiMat->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath) == AI_SUCCESS;
+
+        bool isTransparent{ false };
+        if (hasColTex)
+        {
+            std::filesystem::path texPath = m_Path.parent_path() / texturePath.C_Str();
+            if (!std::filesystem::exists(texPath) || texturePath.C_Str() == "")
+            {
+                LNE_WARN("Texture not found: {0}", texPath.string());
+            }
+            else
+            {
+                int x, y, comp;
+                stbi_info(texPath.string().c_str(), &x, &y, &comp);
+                isTransparent = (comp == 4);
+            }
+        }
+
         LNE_INFO("Material: {0}", name.C_Str());
 
-        SafePtr<Material> material = SafePtr<Material>(lnnew Material(m_Pipeline));
+        
+        SafePtr<Material> material{};
+        if (isTransparent)
+            material = SafePtr<Material>(lnnew Material(m_TransparentPipeline));
+        else
+            material = SafePtr<Material>(lnnew Material(m_Pipeline));
+        material->SetTransparency(isTransparent);
         m_Materials.push_back(material);
-
-        aiString texturePath;
 
         aiColor3D aiColor(1.0f);
 
@@ -173,11 +200,6 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
         if (aiMat->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness) != AI_SUCCESS)
             roughness = 0.4f;
         material->SetProperty("uRoughness", roughness);
-
-        bool hasColTex = aiMat->GetTexture(AI_MATKEY_BASE_COLOR_TEXTURE, &texturePath) == AI_SUCCESS;
-
-        if (!hasColTex)
-            hasColTex = aiMat->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath) == AI_SUCCESS;
 
         if (hasColTex)
         {

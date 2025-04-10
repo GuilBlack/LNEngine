@@ -138,13 +138,21 @@ void AppLayer::OnAttach()
     desc.Name = "GBufferBasic";
     desc.FrameGraph = m_FrameGraph.GetPtr();
     desc.CullMode = ECullMode::Back; 
-    desc.EnableDepthTest(true, true);
+    desc.EnableDepthTest(true, false);
     desc.Blend.EnableBlend(false);
 
     m_BasePipeline = renderer.CreateGraphicsPipeline(desc);
     m_BasicMaterial = lnnew Material(m_BasePipeline);
     m_BasicMaterial2 = lnnew Material(m_BasePipeline);
-    
+
+    desc.EnableDepthTest(true, true);
+    desc.Blend.EnableBlend(true);
+    desc.Blend.SetAlpha(vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd);
+    desc.Blend.SetColor(vk::BlendFactor::eSrcAlpha, vk::BlendFactor::eOneMinusSrcAlpha, vk::BlendOp::eAdd);
+    desc.Name = "TransparentForward";
+    desc.PathToShaders = ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\ForwardTransparent.glsl";
+    m_TransparentPipeline = renderer.CreateGraphicsPipeline(desc);
+
     SafePtr uvChecker = renderer.CreateTexture(lne::ApplicationBase::GetAssetsPath() + "Textures\\UVChecker.png");
 
     m_BasicMaterial->SetProperty("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
@@ -180,7 +188,7 @@ void AppLayer::OnAttach()
 #pragma endregion
 
 #pragma region LoadModels
-    modelMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Sponza\\glTF\\Sponza.gltf", m_BasePipeline);
+    modelMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Sponza\\glTF\\Sponza.gltf", m_BasePipeline, m_TransparentPipeline);
     cubeMeshComponent.Mesh = lnnew StaticMesh(cubeGeo, m_BasicMaterial, { uvChecker }, m_BasePipeline);
     SafePtr sphereMesh = lnnew StaticMesh(sphereGeo, m_BasicMaterial, { uvChecker }, m_BasePipeline);
     sphereMeshComponent.Mesh = sphereMesh;
@@ -265,6 +273,13 @@ void AppLayer::InitFrameGraph()
 
     lne::FrameGraphResourceDesc skyboxResource = resourceBuilder.SetName("LightingSkyboxRef")
         .SetType(lne::FrameGraphResourceType::eProxy)
+        .SetProxyInfo("LightingTransparentRef")
+        .Build();
+
+    lne::FrameGraphResourceDescBuilder transparentResourceBuilder = lne::FrameGraphResourceDescBuilder();
+    lne::FrameGraphResourceDesc transparentResource = transparentResourceBuilder.SetName("LightingTransparentRef")
+        .SetImageDimension(width, height)
+        .SetType(lne::FrameGraphResourceType::eProxy)
         .SetProxyInfo("Lighting")
         .Build();
 
@@ -284,8 +299,16 @@ void AppLayer::InitFrameGraph()
         .Build();
 
     nodeBuilder.Clear();
-    lne::FrameGraphNodeDesc skyboxPassDesc = nodeBuilder.SetName("SkyboxPass")
+    lne::FrameGraphNodeDesc transparentPassDesc = nodeBuilder.SetName("TransparentForwardPass")
         .AddInputResource(lightingResource)
+        .AddInputResource(depthAttachmentDesc)
+        .AddOutputResource(transparentResource)
+        .Build();
+
+    transparentResource.Type = lne::FrameGraphResourceType::eAttachment;
+    nodeBuilder.Clear();
+    lne::FrameGraphNodeDesc skyboxPassDesc = nodeBuilder.SetName("SkyboxPass")
+        .AddInputResource(transparentResource)
         .AddInputResource(depthAttachmentDesc)
         .AddOutputResource(skyboxResource)
         .Build();
@@ -298,7 +321,7 @@ void AppLayer::InitFrameGraph()
         .AddOutputResource(positionAttachmentDesc)
         .AddOutputResource(metalRoughAttachmentDesc)
         .Build();
-    
+
     normalAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
     positionAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
     colorAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
@@ -316,12 +339,14 @@ void AppLayer::InitFrameGraph()
     m_FrameGraph->CreateNode(finalPassDesc);
     m_FrameGraph->CreateNode(skyboxPassDesc);
     m_FrameGraph->CreateNode(depthPrePassDesc);
+    m_FrameGraph->CreateNode(transparentPassDesc);
     m_FrameGraph->CreateNode(gBufferPassDesc);
     m_FrameGraph->CreateNode(lightingPassDesc);
     m_FrameGraph->Compile();
 
     m_FrameGraph->BindRenderPass(lnnew lne::LightingPass());
     m_FrameGraph->BindRenderPass(lnnew lne::DepthPrePass());
+    m_FrameGraph->BindRenderPass(lnnew lne::TransparentForwardPass());
     m_FrameGraph->BindRenderPass(lnnew FinalPass());
     m_FrameGraph->BindRenderPass(lnnew SkyboxPass());
     m_FrameGraph->BindRenderPass(lnnew lne::GBufferPass());

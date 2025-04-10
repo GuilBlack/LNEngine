@@ -3,15 +3,17 @@
 
 namespace lne
 {
-class BasicForwardPass : public IRenderPass, public IDrawStaticMeshes
+class TransparentForwardPass : public IRenderPass, public IDrawStaticMeshes
 {
 public:
-    BasicForwardPass()
+    TransparentForwardPass()
     {
-        m_Name = "BasicForwardPass";
+        m_Name = "TransparentForwardPass";
     }
     virtual void OnBind(FrameGraph* frameGraph, FrameGraphNode* node) override;
     virtual void BeginFrame() override;
     virtual void Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRenderer, FrameGraph* frameGraph, FrameGraphNode* node) override;
+
+    virtual void AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, uint32_t subMeshIndex) override;
 };
 }
