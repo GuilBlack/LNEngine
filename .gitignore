@@ -21,7 +21,6 @@
 
 # Mono auto generated files
 mono_crash.*
-
 # Build results
 **[Bb]in/
 **[Bb]in-[Ii]nter/
@@ -408,3 +407,6 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Exceptions to ignore rules
+!**/vendor/**/[Bb]in/ 
