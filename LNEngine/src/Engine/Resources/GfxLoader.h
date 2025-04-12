@@ -78,7 +78,7 @@ public:
 
     void Update();
 
-    SafePtr<class Texture> CreateTexture(std::string_view fullPath);
+    SafePtr<class Texture> CreateTexture(std::string_view fullPath, vk::Format imageFormat = vk::Format::eR8G8B8A8Srgb);
     SafePtr<class Texture> CreateCubemap(std::vector<std::string> faces);
 
     void Upload(UploadRequest request)

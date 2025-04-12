@@ -26,6 +26,7 @@ layout(scalar, set = 3, binding = 0) uniform MaterialData {
     uint tAlbedo;
     uint tMetalness;
     uint tRoughness;
+    uint tNormal;
 };
 
 layout(set = 4, binding = 0) uniform sampler2D      globalTextures[];
@@ -42,13 +43,16 @@ const float TWO_OVER_PI = 2.0 / PI;
 #ifdef VERT
 
 layout(location = 0) out vec2 oUVs;
-layout(location = 1) out vec3 oNormal;
-layout(location = 2) out vec3 oWorldPos;
+layout(location = 1) out vec3 oWorldPos;
+layout(location = 2) out vec3 oNormal;
+layout(location = 3) out vec3 oTangent;
+layout(location = 4) out vec3 oBitangent;
 
 struct Vertex {
     vec3 position;
-    vec3 normal;
     vec2 uv;
+    vec3 normal;
+    vec4 tangent;
 };
 
 layout(scalar, set = 2, binding = 0) readonly buffer VertexBuffer {
@@ -69,6 +73,8 @@ void main() {
 
     mat3 normalMatrix = transpose(inverse(mat3(model)));
     oNormal = normalize(normalMatrix * vertexBuffer.vertices[currentIndex].normal);
+    oTangent = normalize(normalMatrix * vertexBuffer.vertices[currentIndex].tangent.xyz);
+    oBitangent = vertexBuffer.vertices[currentIndex].tangent.w * cross(oNormal, oTangent); // tangent.w = normal space handedness
 }
 
 #endif
@@ -76,8 +82,10 @@ void main() {
 #ifdef FRAG
 
 layout(location = 0) in vec2 iUVs;
-layout(location = 1) in vec3 iNormal;
-layout(location = 2) in vec3 iWorldPos;
+layout(location = 1) in vec3 iWorldPos;
+layout(location = 2) in vec3 iNormal;
+layout(location = 3) in vec3 iTangent;
+layout(location = 4) in vec3 iBitangent;
 
 layout(location = 0) out vec4 oColor;
 
@@ -117,8 +125,16 @@ void main() {
     float roughness = uRoughness;
     if (tRoughness != 0)
         roughness = texture(globalTextures[nonuniformEXT(tRoughness)], iUVs).y;
-
+        
     vec3 normal = normalize(iNormal);
+    if (tNormal != 0)
+    {
+        vec3 tangent =   normalize(iTangent - normal * dot(normal, iTangent));
+        vec3 bitangent = normalize(iBitangent);
+
+        mat3 TBN = mat3(tangent, bitangent, normal);
+        normal = vec3(TBN * (texture(globalTextures[nonuniformEXT(tNormal)], iUVs).xyz * 2.0 - vec3(1.0)));
+    }
     vec3 viewDir = normalize(uEyePos - iWorldPos);
     vec3 lightDir = normalize(-uSunDir);
     vec3 halfDir = normalize(lightDir + viewDir);

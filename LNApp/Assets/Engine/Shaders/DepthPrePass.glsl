@@ -29,8 +29,9 @@ layout(set = 4, binding = 1, rgba8) uniform writeonly image2D   globalImageRgba8
 
 struct Vertex {
     vec3 position;
-    vec3 normal;
     vec2 uv;
+    vec3 normal;
+    vec4 tangent;
 };
 
 layout(scalar, set = 2, binding = 0) readonly buffer VertexBuffer {
@@ -46,7 +47,7 @@ vec4 epsilon = vec4(0.0,0.0,0.001,0.0);
 void main() {
     uint currentIndex = indexBuffer.indices[gl_VertexIndex];
     mat4 model = transformBuffer.transforms[gl_InstanceIndex];
-    gl_Position = (uViewProj * model * vec4(vertexBuffer.vertices[currentIndex].position, 1.0)) + epsilon;
+    gl_Position = (uViewProj * model * vec4(vertexBuffer.vertices[currentIndex].position, 1.0));
 }
 
 #endif

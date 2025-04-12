@@ -664,9 +664,9 @@ SafePtr<class StorageBuffer> Renderer::CreateGeometryBuffer(const void* data, si
     return buffer;
 }
 
-SafePtr<Texture> Renderer::CreateTexture(const std::string& fullPath)
+SafePtr<Texture> Renderer::CreateTexture(const std::string& fullPath, vk::Format format)
 {
-    return m_GfxLoader->CreateTexture(fullPath);
+    return m_GfxLoader->CreateTexture(fullPath, format);
 }
 
 SafePtr<Texture> Renderer::CreateCubemapTexture(const std::vector<std::string>& faces)

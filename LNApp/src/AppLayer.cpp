@@ -19,7 +19,7 @@ AppLayer::FinalPass::FinalPass()
     m_Program->Dispatch((1920 + 16) / 16, (1080 + 16) / 16, 1);
 }
 
-void AppLayer::FinalPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worldRenderer,
+void AppLayer::FinalPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worldRenderer, 
     lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
     m_OutputTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);

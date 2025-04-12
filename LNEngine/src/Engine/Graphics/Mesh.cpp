@@ -21,7 +21,7 @@ StaticMesh::StaticMesh(std::filesystem::path path, SafePtr<GfxPipeline> pipeline
     : m_Path(path), m_Pipeline(pipeline), m_TransparentPipeline(transparentPipeline)
 {
     Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile(path.string(), aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices);
+    const aiScene* scene = importer.ReadFile(path.string(), aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_CalcTangentSpace);
 
     if (!scene)
     {
@@ -102,7 +102,7 @@ void StaticMesh::LoadData(const aiScene* scene)
     for (uint32_t m = 0; m < scene->mNumMeshes; ++m)
     {
         const aiMesh* mesh = scene->mMeshes[m];
-        if (!mesh->HasPositions() || !mesh->HasNormals())
+        if (!mesh->HasPositions() || !mesh->HasNormals() || !mesh->HasTangentsAndBitangents())
             continue;
 
         for (uint32_t v = 0; v < mesh->mNumVertices; ++v)
@@ -110,6 +110,12 @@ void StaticMesh::LoadData(const aiScene* scene)
             Vertex vertex;
             vertex.Position = glm::vec3(m_SubMeshes[m].WorldTransform * glm::vec4(mesh->mVertices[v].x, mesh->mVertices[v].y, mesh->mVertices[v].z, 1.0f));
             vertex.Normal = { mesh->mNormals[v].x, mesh->mNormals[v].y, mesh->mNormals[v].z };
+
+            glm::vec3 tangent = { mesh->mTangents[v].x, mesh->mTangents[v].y, mesh->mTangents[v].z };
+            glm::vec3 bitangent = { mesh->mBitangents[v].x, mesh->mBitangents[v].y, mesh->mBitangents[v].z };
+            float handedness = (glm::dot(glm::cross(vertex.Normal, tangent), bitangent) < 0.0f) ? -1.0f : 1.0f;
+            vertex.Tangent = glm::vec4(tangent, handedness);
+
             if (mesh->HasTextureCoords(0))
                 vertex.TexCoord = { mesh->mTextureCoords[0][v].x, mesh->mTextureCoords[0][v].y };
 
@@ -204,9 +210,9 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
         if (hasColTex)
         {
             std::filesystem::path texPath = m_Path.parent_path() / texturePath.C_Str();
-            if (!std::filesystem::exists(texPath) || texturePath.C_Str() == "")
+            if (!std::filesystem::exists(texPath) || texturePath.length == 0)
             {
-                LNE_WARN("Texture not found: {0}", texPath.string());
+                LNE_WARN("Albedo texture not found for mat: {0}", aiMat->GetName().C_Str());
             }
             else
             {
@@ -221,13 +227,13 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
         if (hasMetTex)
         {
             std::filesystem::path texPath = m_Path.parent_path() / metalTex.C_Str();
-            if (!std::filesystem::exists(texPath) || metalTex.C_Str() == "")
+            if (!std::filesystem::exists(texPath) || metalTex.length == 0)
             {
-                LNE_WARN("Texture not found: {0}", texPath.string());
+                LNE_WARN("Metalness texture not found for mat: {0}", aiMat->GetName().C_Str());
             }
             else
             {
-                SafePtr<Texture> texture = renderer.CreateTexture(texPath.string());
+                SafePtr<Texture> texture = renderer.CreateTexture(texPath.string(), vk::Format::eR8G8B8A8Unorm);
                 material->SetTexture("tMetalness", texture);
                 m_Textures.push_back(texture);
             }
@@ -239,20 +245,45 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
         if (hasRoughTex)
         {
             std::filesystem::path texPath = m_Path.parent_path() / roughTex.C_Str();
-            if (!std::filesystem::exists(texPath) || roughTex.C_Str() == "")
+            if (!std::filesystem::exists(texPath) || roughTex.length == 0)
             {
-                LNE_WARN("Texture not found: {0}", texPath.string());
+                LNE_WARN("Roughness texture not found for mat: {0}", aiMat->GetName().C_Str());
             }
             else
             {
                 if (roughTex != metalTex)
                 {
-                    SafePtr<Texture> texture = renderer.CreateTexture(texPath.string());
+                    SafePtr<Texture> texture = renderer.CreateTexture(texPath.string(), vk::Format::eR8G8B8A8Unorm);
                     material->SetTexture("tRoughness", texture);
                     m_Textures.push_back(texture);
                 }
                 else
                     material->SetTexture("tRoughness", m_Textures.back());
+            }
+        }
+
+        aiString normalTex{};
+        bool hasNormalTex{ false };
+        for (unsigned int i = 0; i < aiMat->GetTextureCount(aiTextureType_NORMALS); i++)
+        {
+            aiMat->GetTexture(aiTextureType_NORMALS, 0, &normalTex);
+            if (normalTex.length > 0)
+            {
+                hasNormalTex = true;
+            }
+        }
+        if (hasNormalTex)
+        {
+            std::filesystem::path texPath = m_Path.parent_path() / normalTex.C_Str();
+            if (!std::filesystem::exists(texPath) || normalTex.length == 0)
+            {
+                LNE_WARN("Normal map not found for mat: {0}", aiMat->GetName().C_Str());
+            }
+            else
+            {
+                SafePtr<Texture> texture = renderer.CreateTexture(texPath.string(), vk::Format::eR8G8B8A8Unorm);
+                material->SetTexture("tNormal", texture);
+                m_Textures.push_back(texture);
             }
         }
     }
@@ -281,10 +312,10 @@ lne::Geometry lne::Geometry::GenerateCube(uint32_t tesselationLevel)
     auto addQuad = [&](glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, glm::vec3 normal)
         {
             uint32_t startIndex = (uint32_t)geometry.Vertices.size();
-            geometry.Vertices.push_back({ p0, normal, {0.0f, 1.0f} });
-            geometry.Vertices.push_back({ p1, normal, {1.0f, 1.0f} });
-            geometry.Vertices.push_back({ p2, normal, {1.0f, 0.0f} });
-            geometry.Vertices.push_back({ p3, normal, {0.0f, 0.0f} });
+            geometry.Vertices.push_back({ p0, {0.0f, 1.0f}, normal, {} });
+            geometry.Vertices.push_back({ p1, {1.0f, 1.0f}, normal, {} });
+            geometry.Vertices.push_back({ p2, {1.0f, 0.0f}, normal, {} });
+            geometry.Vertices.push_back({ p3, {0.0f, 0.0f}, normal, {} });
 
             geometry.Indices.push_back(startIndex + 0);
             geometry.Indices.push_back(startIndex + 1);
