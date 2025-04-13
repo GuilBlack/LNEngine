@@ -47,7 +47,7 @@ vec4 epsilon = vec4(0.0,0.0,0.001,0.0);
 void main() {
     uint currentIndex = indexBuffer.indices[gl_VertexIndex];
     mat4 model = transformBuffer.transforms[gl_InstanceIndex];
-    gl_Position = (uViewProj * model * vec4(vertexBuffer.vertices[currentIndex].position, 1.0));
+    gl_Position = (uViewProj * model * vec4(vertexBuffer.vertices[currentIndex].position, 1.0)) + epsilon;
 }
 
 #endif
