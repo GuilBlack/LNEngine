@@ -147,8 +147,8 @@ void AppLayer::OnAttach()
 
     desc.EnableDepthTest(true, true);
     desc.Blend.EnableBlend(true);
-    desc.Blend.SetAlpha(vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd);
-    desc.Blend.SetColor(vk::BlendFactor::eSrcAlpha, vk::BlendFactor::eOneMinusSrcAlpha, vk::BlendOp::eAdd);
+    desc.Blend.SetAlpha(vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd)
+        .SetColor(vk::BlendFactor::eSrcAlpha, vk::BlendFactor::eOneMinusSrcAlpha, vk::BlendOp::eAdd);
     desc.Name = "TransparentForward";
     desc.PathToShaders = ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\ForwardTransparent.glsl";
     m_TransparentPipeline = renderer.CreateGraphicsPipeline(desc);
