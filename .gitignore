@@ -409,4 +409,6 @@ FodyWeavers.xsd
 *.sln.iml
 
 # Exceptions to ignore rules
-!**/vendor/**/[Bb]in/ 
+!**/vendor/**/[Bb]in/
+!**/vendor/**/[Dd]ebug/
+!**/vendor/**/[Rr]elease/
