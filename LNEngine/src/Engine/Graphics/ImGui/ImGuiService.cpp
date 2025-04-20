@@ -274,7 +274,6 @@ void ImGuiService::Init(std::unique_ptr<Window>& window)
 
     //ImGui_ImplVulkan_Init(&initInfo);
     InitVulkanBackend();
-    CreateFontsTexture();
 }
 
 void ImGuiService::Nuke()

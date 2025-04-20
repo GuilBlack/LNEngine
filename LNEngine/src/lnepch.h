@@ -29,7 +29,7 @@
 
 // Platform
 #ifdef LNE_PLATFORM_WINDOWS
-#include <Windows.h>
+#   include <Windows.h>
 #endif // LNE_PLATFORM_WINDOWS
 
 // Third Party
@@ -50,8 +50,9 @@
 #include <glm/gtx/euler_angles.hpp>
 
 
-// Logging
-#include "spdlog/spdlog.h"
+// Logging & Profiling
+#include <spdlog/spdlog.h>
+#include <tracy/Tracy.hpp>
 
 // Vulkan
 #include <vulkan/vulkan.hpp>

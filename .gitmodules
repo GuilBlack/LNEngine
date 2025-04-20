@@ -17,3 +17,6 @@
 	path = LNEngine/vendor/IMGUI/imgui
 	url = https://github.com/GuilBlack/imgui.git
 	branch = docking
+[submodule "LNEngine/vendor/TRACY/tracy"]
+	path = LNEngine/vendor/TRACY/tracy
+	url = https://github.com/wolfpld/tracy.git

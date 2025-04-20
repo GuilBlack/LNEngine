@@ -77,8 +77,13 @@ private:
     bool m_Stopped{ false };
 };
 
-#define LNE_PROFILE_SCOPE(name) InstrumentationTimer timer##__LINE__(name)
-#define LNE_PROFILE_FUNCTION() LNE_PROFILE_SCOPE(__FUNCSIG__)
-
-#define LNE_PROFILE_SCOPE_END() timer##__LINE__.Stop()
-#define LNE_PROFILE_FUNCTION_END() LNE_PROFILE_SCOPE_END()
+#if defined(TRACY_ENABLE) && defined(LNE_DEBUG)
+#   define LNE_PROFILE_SCOPE(name) ZoneScopedN(name);
+#   define LNE_PROFILE_SCOPE_COLOR(name, color) ZoneScopedNC(name, color);
+#   define LNE_PROFILE_FUNCTION() LNE_PROFILE_SCOPE(__FUNCSIG__);
+#   define LNE_PROFILE_FRAME FrameMark;
+#else
+#   define LNE_PROFILE_SCOPE(name)
+#   define LNE_PROFILE_FUNCTION()
+#   define LNE_PROFILE_FRAME
+#endif

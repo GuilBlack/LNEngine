@@ -10,6 +10,7 @@
 #include "ECS/EntityRegistry.h"
 #include "Scene/Components.h"
 #include "Mesh.h"
+#include "Core/Utils/Profiling.h"
 
 
 namespace lne
@@ -40,6 +41,7 @@ WorldRenderer::~WorldRenderer()
 
 void WorldRenderer::BeginFrame()
 {
+    LNE_PROFILE_FUNCTION()
     auto& nodes = m_FrameGraph->GetNodes();
     for (auto& nodeHandle : nodes)
     {
@@ -51,56 +53,59 @@ void WorldRenderer::BeginFrame()
 
 void WorldRenderer::Render(EntityRegistry& registry)
 {
+    LNE_PROFILE_FUNCTION()
     auto& renderer = ApplicationBase::GetRenderer();
-    
-    auto staticMeshView = registry.GetView<TransformComponent, StaticMeshComponent>();
-
-    std::vector<SafePtr<IRenderPass>> staticMeshRenderPasses = m_FrameGraph->GetRenderPassesWithSignature(ComponentType<StaticMeshComponent>());
-    std::vector<IDrawStaticMeshes*> drawStaticMeshesAdders;
-
-    for (auto& renderPass : staticMeshRenderPasses)
-    {
-        IDrawStaticMeshes* drawStaticMeshesAdder = dynamic_cast<IDrawStaticMeshes*>(renderPass.GetPtr());
-        if (drawStaticMeshesAdder)
-            drawStaticMeshesAdders.push_back(drawStaticMeshesAdder);
-    }
-
-    for (auto& index : staticMeshView)
-    {
-        auto [transform, staticMesh] = staticMeshView.Get(index);
-
-        // TODO: will probably insert frustum culling here
-        auto& subMeshes = staticMesh.Mesh->GetSubMeshes();
-        for (uint32_t i = 0; i < subMeshes.size(); ++i)
-        {
-            const SubMesh& subMesh = subMeshes[i];
-
-            glm::mat4 model = transform.GetModelMatrix() * subMesh.WorldTransform;
-            StaticMeshHash hash{ (uint64_t)staticMesh.Mesh.GetPtr(), i };
-            m_Transfroms[hash].Transforms.emplace_back(model);
-
-            for (auto& drawStaticMeshesAdder : drawStaticMeshesAdders)
-                drawStaticMeshesAdder->AddStaticMeshDrawCommand(hash, staticMesh.Mesh, i);
-        }
-    }
-
-    uint32_t offset = 0;
-    for (auto& [hash, subMeshArray] : m_Transfroms)
-    {
-        uint32_t size = (uint32_t)subMeshArray.Transforms.size();
-        if (size == 0)
-            continue;
-        subMeshArray.Offset = offset;
-        // copy submesh transforms to the transform buffer
-        void* dst = m_TransformBuffers[renderer.GetCurrentFrameIndex()].Data + offset;
-        std::memcpy(dst, subMeshArray.Transforms.data(), size * sizeof(glm::mat4));
-        offset += size;
-    }
-    uint32_t totalSizeBytes = offset * sizeof(glm::mat4);
     vk::CommandBuffer cmdBuffer = renderer.GetGraphicsCommandBufferManager()->GetCurrentCommandBuffer();
-    m_TransformBuffers[renderer.GetCurrentFrameIndex()].Buffer->CopyData(
-        cmdBuffer,
-        m_TransformBuffers[renderer.GetCurrentFrameIndex()].Data, totalSizeBytes, 0);
+
+    auto staticMeshView = registry.GetView<TransformComponent, StaticMeshComponent>();
+    {
+        LNE_PROFILE_SCOPE("Update Transform Buffer")
+        std::vector<SafePtr<IRenderPass>> staticMeshRenderPasses = m_FrameGraph->GetRenderPassesWithSignature(ComponentType<StaticMeshComponent>());
+        std::vector<IDrawStaticMeshes*> drawStaticMeshesAdders;
+
+        for (auto& renderPass : staticMeshRenderPasses)
+        {
+            IDrawStaticMeshes* drawStaticMeshesAdder = dynamic_cast<IDrawStaticMeshes*>(renderPass.GetPtr());
+            if (drawStaticMeshesAdder)
+                drawStaticMeshesAdders.push_back(drawStaticMeshesAdder);
+        }
+
+        for (auto& index : staticMeshView)
+        {
+            auto [transform, staticMesh] = staticMeshView.Get(index);
+
+            // TODO: will probably insert frustum culling here
+            auto& subMeshes = staticMesh.Mesh->GetSubMeshes();
+            for (uint32_t i = 0; i < subMeshes.size(); ++i)
+            {
+                const SubMesh& subMesh = subMeshes[i];
+
+                glm::mat4 model = transform.GetModelMatrix() * subMesh.WorldTransform;
+                StaticMeshHash hash{ (uint64_t)staticMesh.Mesh.GetPtr(), i };
+                m_Transfroms[hash].Transforms.emplace_back(model);
+
+                for (auto& drawStaticMeshesAdder : drawStaticMeshesAdders)
+                    drawStaticMeshesAdder->AddStaticMeshDrawCommand(hash, staticMesh.Mesh, i);
+            }
+        }
+
+        uint32_t offset = 0;
+        for (auto& [hash, subMeshArray] : m_Transfroms)
+        {
+            uint32_t size = (uint32_t)subMeshArray.Transforms.size();
+            if (size == 0)
+                continue;
+            subMeshArray.Offset = offset;
+            // copy submesh transforms to the transform buffer
+            void* dst = m_TransformBuffers[renderer.GetCurrentFrameIndex()].Data + offset;
+            std::memcpy(dst, subMeshArray.Transforms.data(), size * sizeof(glm::mat4));
+            offset += size;
+        }
+        uint32_t totalSizeBytes = offset * sizeof(glm::mat4);
+        m_TransformBuffers[renderer.GetCurrentFrameIndex()].Buffer->CopyData(
+            cmdBuffer,
+            m_TransformBuffers[renderer.GetCurrentFrameIndex()].Data, totalSizeBytes, 0);
+    }
     renderer.PushLabel(cmdBuffer, "Frame");
 
     m_FrameGraph->Execute(cmdBuffer, this);
@@ -110,6 +115,7 @@ void WorldRenderer::Render(EntityRegistry& registry)
 
 void WorldRenderer::EndFrame()
 {
+    LNE_PROFILE_FUNCTION()
     auto& nodes = m_FrameGraph->GetNodes();
     for (auto& nodeHandle : nodes)
     {

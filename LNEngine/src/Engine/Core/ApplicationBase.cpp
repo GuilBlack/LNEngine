@@ -94,9 +94,9 @@ const std::string& ApplicationBase::GetAssetsPath()
 void ApplicationBase::Run()
 {
     Profiler::Get().BeginSession("Run");
-    LNE_PROFILE_FUNCTION();
     m_Renderer->GetGraphicsCommandBufferManager()->BeginSingleTimeCommands();
     m_Window->GetGfxContext()->UploadDefaultResources();
+    m_ImGuiService->CreateFontsTexture();
 
     for (auto layer : m_LayerStack)
         layer->OnAttach();
@@ -106,7 +106,7 @@ void ApplicationBase::Run()
 
     while (!m_Window->ShouldClose())
     {
-        LNE_PROFILE_SCOPE("Run Loop");
+        LNE_PROFILE_SCOPE("Frame")
         m_Clock.Tick();
 
         m_Window->BeginFrame();
@@ -115,10 +115,13 @@ void ApplicationBase::Run()
         for (auto layer : m_LayerStack)
             layer->OnUpdate(m_Clock.GetDeltaTime());
 
-        m_ImGuiService->BeginFrame();
-            for (auto layer : m_LayerStack)
-                layer->OnImGuiRender();
-        m_ImGuiService->EndFrame();
+        {
+            LNE_PROFILE_SCOPE("ImGui")
+            m_ImGuiService->BeginFrame();
+                for (auto layer : m_LayerStack)
+                    layer->OnImGuiRender();
+            m_ImGuiService->EndFrame();
+        }
 
         m_Renderer->EndFrame();
         m_Window->Present();
@@ -127,9 +130,9 @@ void ApplicationBase::Run()
         auto appUpdatedEvent = AppUpdatedEvent();
         m_EventHub->FireEvent(appUpdatedEvent);
         m_Window->PollEvents();
+        LNE_PROFILE_FRAME
     }
 
-    LNE_PROFILE_FUNCTION_END();
     Profiler::Get().EndSession();
 }
 

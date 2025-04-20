@@ -20,6 +20,7 @@ IncludeDir["ImGui"] = "%{wks.location}/LNEngine/vendor/IMGUI"
 IncludeDir["STB"] = "%{wks.location}/LNEngine/vendor/STB"
 IncludeDir["enkiTS"] = "%{wks.location}/LNEngine/vendor/ENKITS"
 IncludeDir["Assimp"] = "%{wks.location}/LNEngine/vendor/ASSIMP/include"
+IncludeDir["Tracy"] = "%{wks.location}/LNEngine/vendor/TRACY/tracy/public"
 
 LibDir = {}
 LibDir["Assimp"] = "%{wks.location}/LNEngine/vendor/ASSIMP/bin/%{cfg.buildcfg}"

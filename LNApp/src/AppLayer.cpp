@@ -360,6 +360,7 @@ void AppLayer::OnDetach()
 
 void AppLayer::OnUpdate(float deltaTime)
 {
+    LNE_PROFILE_FUNCTION()
     m_Scene->BeginScene();
     double currentTime = lne::ApplicationBase::GetClock().GetElapsedTime();
     HandleInput(deltaTime);

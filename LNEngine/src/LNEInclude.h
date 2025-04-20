@@ -44,6 +44,7 @@
 
 #include "Engine/Core/Utils/Defines.h"
 #include "Engine/Core/Utils/Log.h"
+#include "Engine/Core/Utils/Profiling.h"
 #include "Engine/Core/SafePtr.h"
 #include "Engine/Core/ApplicationBase.h"
 #include "Engine/Core/Layer.h"

@@ -34,6 +34,7 @@ project "LNEngine"
         "%{IncludeDir.STB}",
         "%{IncludeDir.enkiTS}",
         "%{IncludeDir.Assimp}",
+        "%{IncludeDir.Tracy}",
     }
 
     links
@@ -99,7 +100,7 @@ project "LNEngine"
         }
         defines
         { 
-            "_DEBUG", "DEBUG", "LNE_DEBUG",
+            "_DEBUG", "DEBUG", "LNE_DEBUG", "TRACY_ENABLE"
         }
         links 
         {
@@ -121,7 +122,7 @@ project "LNEngine"
         }
         defines
         { 
-            "LNE_DEBUG",
+            "LNE_DEBUG", "TRACY_ENABLE"
         }
         links 
         {

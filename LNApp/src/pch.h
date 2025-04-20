@@ -27,7 +27,9 @@
 
 // Platform
 #ifdef LNE_PLATFORM_WINDOWS
-#include <Windows.h>
+#   include <winsock2.h>
+#   include <ws2tcpip.h>
+#   include <Windows.h>
 #endif // LNE_PLATFORM_WINDOWS
 
 #define GLM_FORCE_RADIANS
@@ -35,6 +37,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+
+#include <tracy/Tracy.hpp>
 
 // Vulkan
 #include <vulkan/vulkan.hpp>

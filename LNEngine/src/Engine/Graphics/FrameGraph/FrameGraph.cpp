@@ -8,6 +8,7 @@
 #include "../DynamicDescriptorAllocator.h"
 #include "Scene/Components.h"
 #include "RenderPass/IRenderPass.h"
+#include "Core/Utils/Profiling.h"
 
 namespace lne
 {
@@ -126,6 +127,7 @@ void FrameGraph::Compile()
 
 void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRenderer)
 {
+    LNE_PROFILE_FUNCTION()
      // traverse nodes in topological order
     for (FrameGraphNodeHandle nodeHandle : m_Nodes)
     {
@@ -133,7 +135,8 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRe
 
         if (!node->Enabled)
             continue;
-
+        const std::string name = "Execute" + node->Name;
+        ZoneName(name.c_str(), name.size());
         auto& renderer = ApplicationBase::GetRenderer();
         renderer.PushLabel(commandBuffer, node->Name);
 
