@@ -50,6 +50,7 @@ Material::Material(SafePtr<GfxPipeline> pipeline, MaterialType::Enum materialTyp
     
     for (const auto& [binding, ub] : materialDescSet.UniformBuffers)
         m_UniformBuffers.emplace(std::make_pair(ub.BindingIndex, UniformBuffer(m_Pipeline->m_Context, ub.Size)));
+    m_DescSets.resize(m_Pipeline->GetContext()->GetMaxFramesInFlight());
 }
 
 Material::~Material()

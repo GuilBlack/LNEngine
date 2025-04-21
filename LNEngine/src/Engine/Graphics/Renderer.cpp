@@ -369,33 +369,49 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>&
         device.updateDescriptorSets(writeGeoDescriptorSets, nullptr);
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 2,
         { geometryDescSet }, {});
+        m_LastUsedStaticMesh = mesh;
     }
-    
-    std::vector<vk::WriteDescriptorSet> matWriteDescriptorSets;
-    std::vector<vk::DescriptorBufferInfo> matUbInfo;
-    matUbInfo.reserve(material->m_UniformBuffers.size());
-    vk::DescriptorSet matDescSet = descAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[3]);
-    for (const auto& [binding, ub] : material->m_UniformBuffers)
+
     {
-        matUbInfo.emplace_back(ub.GetDescriptorInfo());
-        matWriteDescriptorSets.emplace_back(vk::WriteDescriptorSet{
-            matDescSet,
-            binding,
-            0,
-            1,
-            vk::DescriptorType::eUniformBuffer,
-            nullptr,
-            &matUbInfo.back(),
-            nullptr
-            });
+        LNE_PROFILE_SCOPE_C("Set Material DescSet", PROFILING_COL)
+            vk::DescriptorSet matDescSet{};
+        uint32_t currFrameInd = GetCurrentFrameIndex();
+        if (material->m_CurrentFrameInFlight != currFrameInd)
+        {
+            std::vector<vk::WriteDescriptorSet> matWriteDescriptorSets;
+            std::vector<vk::DescriptorBufferInfo> matUbInfo;
+            matUbInfo.reserve(material->m_UniformBuffers.size());
+            matDescSet = descAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[3]);
+            for (const auto& [binding, ub] : material->m_UniformBuffers)
+            {
+                matUbInfo.emplace_back(ub.GetDescriptorInfo());
+                matWriteDescriptorSets.emplace_back(vk::WriteDescriptorSet{
+                    matDescSet,
+                    binding,
+                    0,
+                    1,
+                    vk::DescriptorType::eUniformBuffer,
+                    nullptr,
+                    &matUbInfo.back(),
+                    nullptr
+                    });
+            }
+
+            m_Context->GetDevice().updateDescriptorSets(matWriteDescriptorSets, nullptr);
+            material->m_CurrentFrameInFlight = currFrameInd;
+            material->m_DescSets[currFrameInd] = matDescSet;
+        }
+        else
+        {
+            matDescSet = material->m_DescSets[currFrameInd];
+        }
+        cmdBuffer.bindDescriptorSets(
+            vk::PipelineBindPoint::eGraphics,
+            pipeline->GetLayout(), 3,
+            { matDescSet },
+            {}
+        );
     }
-    m_Context->GetDevice().updateDescriptorSets(matWriteDescriptorSets, nullptr);
-    cmdBuffer.bindDescriptorSets(
-        vk::PipelineBindPoint::eGraphics,
-        pipeline->GetLayout(), 3,
-        { matDescSet },
-        {}
-    );
     cmdBuffer.draw(submesh.IndexCount, instanceCount, submesh.BaseIndex, offset);
 }
 
@@ -461,33 +477,49 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>&
         device.updateDescriptorSets(writeGeoDescriptorSets, nullptr);
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 2,
             { geometryDescSet }, {});
+        m_LastUsedStaticMesh = mesh;
     }
 
-    std::vector<vk::WriteDescriptorSet> matWriteDescriptorSets;
-    std::vector<vk::DescriptorBufferInfo> matUbInfo;
-    matUbInfo.reserve(material->m_UniformBuffers.size());
-    vk::DescriptorSet matDescSet = descAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[3]);
-    for (const auto& [binding, ub] : material->m_UniformBuffers)
     {
-        matUbInfo.emplace_back(ub.GetDescriptorInfo());
-        matWriteDescriptorSets.emplace_back(vk::WriteDescriptorSet{
-            matDescSet,
-            binding,
-            0,
-            1,
-            vk::DescriptorType::eUniformBuffer,
-            nullptr,
-            &matUbInfo.back(),
-            nullptr
-            });
+        LNE_PROFILE_SCOPE_C("Set Material DescSet", PROFILING_COL)
+        vk::DescriptorSet matDescSet{};
+        uint32_t currFrameInd = GetCurrentFrameIndex();
+        if (material->m_CurrentFrameInFlight != currFrameInd)
+        {
+            std::vector<vk::WriteDescriptorSet> matWriteDescriptorSets;
+            std::vector<vk::DescriptorBufferInfo> matUbInfo;
+            matUbInfo.reserve(material->m_UniformBuffers.size());
+            matDescSet = descAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[3]);
+            for (const auto& [binding, ub] : material->m_UniformBuffers)
+            {
+                matUbInfo.emplace_back(ub.GetDescriptorInfo());
+                matWriteDescriptorSets.emplace_back(vk::WriteDescriptorSet{
+                    matDescSet,
+                    binding,
+                    0,
+                    1,
+                    vk::DescriptorType::eUniformBuffer,
+                    nullptr,
+                    &matUbInfo.back(),
+                    nullptr
+                    });
+            }
+
+            m_Context->GetDevice().updateDescriptorSets(matWriteDescriptorSets, nullptr);
+            material->m_CurrentFrameInFlight = currFrameInd;
+            material->m_DescSets[currFrameInd] = matDescSet;
+        }
+        else
+        {
+            matDescSet = material->m_DescSets[currFrameInd];
+        }
+        cmdBuffer.bindDescriptorSets(
+            vk::PipelineBindPoint::eGraphics,
+            pipeline->GetLayout(), 3,
+            { matDescSet },
+            {}
+        );
     }
-    m_Context->GetDevice().updateDescriptorSets(matWriteDescriptorSets, nullptr);
-    cmdBuffer.bindDescriptorSets(
-        vk::PipelineBindPoint::eGraphics,
-        pipeline->GetLayout(), 3,
-        { matDescSet },
-        {}
-    );
     cmdBuffer.draw(submesh.IndexCount, instanceCount, submesh.BaseIndex, offset);
 }
 

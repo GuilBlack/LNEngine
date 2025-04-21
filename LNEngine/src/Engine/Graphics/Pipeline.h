@@ -15,6 +15,7 @@ public:
     // Pure virtual binding method
     void Bind(const vk::CommandBuffer& cmdBuffer) const;
 
+    SafePtr<GfxContext> GetContext() const { return m_Context; }
     vk::PipelineLayout GetLayout() const { return m_Layout; }
     vk::Pipeline GetPipeline() const { return m_Pipeline; }
     [[nodiscard]] std::vector<vk::DescriptorSetLayout> GetDescriptorSetLayouts() const { return m_Shader->GetDescriptorSetLayouts(); }

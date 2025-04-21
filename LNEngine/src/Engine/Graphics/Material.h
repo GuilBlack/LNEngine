@@ -35,6 +35,8 @@ private:
     std::map<uint32_t, UniformBuffer> m_UniformBuffers;
     MaterialType::Enum m_MaterialType;
     bool m_IsTransparent{ false };
+    uint32_t m_CurrentFrameInFlight;
+    std::vector<vk::DescriptorSet> m_DescSets;
 
     friend class Renderer;
 
