@@ -3,6 +3,7 @@
 #include <Core/ApplicationBase.h>
 #include <Graphics/Renderer.h>
 #include <Graphics/FrameGraph/FrameGraph.h>
+#include "Core/Utils/Profiling.h"
 
 namespace lne
 {
@@ -35,6 +36,7 @@ void LightingPass::OnBind(FrameGraph* frameGraph, FrameGraphNode* node)
 
 void LightingPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
+    LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     for (FrameGraphResourceHandle handle : node->InputResources)
     {
         FrameGraphResource* resource = frameGraph->GetResource(handle);
@@ -65,6 +67,7 @@ void LightingPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worl
 
 void LightingPass::PostExecute(vk::CommandBuffer cmdBuffer, FrameGraph* frameGraph, FrameGraphNode* node)
 {
+    LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     if (m_IsDebugOpen == false)
         return;
     
@@ -85,6 +88,7 @@ void LightingPass::PostExecute(vk::CommandBuffer cmdBuffer, FrameGraph* frameGra
 
 void LightingPass::OnImGuiRender()
 {
+    LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     float textureRatio = (float)m_DebugTexture->GetDimensions().width / (float)m_DebugTexture->GetDimensions().height;
     float windowWidth = ImGui::GetWindowWidth();
     m_IsDebugOpen = ImGui::TreeNode("Lighting Pass Output");

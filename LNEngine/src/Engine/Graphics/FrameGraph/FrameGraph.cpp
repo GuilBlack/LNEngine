@@ -15,7 +15,7 @@ namespace lne
 ////////////////////////////////////////////////////////////////////
 ////// FrameGraph //////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////
-
+#define PROFILING_COL 0xFFF43E
 FrameGraph::FrameGraph()
     : m_ResourceCache{ MAX_RESOURCE_COUNT }
     , m_NodeCache{ MAX_RENDERPASS_NODE_COUNT }
@@ -127,7 +127,7 @@ void FrameGraph::Compile()
 
 void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRenderer)
 {
-    LNE_PROFILE_FUNCTION()
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL)
      // traverse nodes in topological order
     for (FrameGraphNodeHandle nodeHandle : m_Nodes)
     {
@@ -135,8 +135,8 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRe
 
         if (!node->Enabled)
             continue;
-        const std::string name = "Execute" + node->Name;
-        ZoneName(name.c_str(), name.size());
+        const std::string scopeName = "Execute Render Pass: " + node->Name;
+        LNE_PROFILE_SCOPE_STR_C(scopeName, PROFILING_COL)
         auto& renderer = ApplicationBase::GetRenderer();
         renderer.PushLabel(commandBuffer, node->Name);
 
@@ -660,7 +660,7 @@ FrameGraphResourceDescBuilder& FrameGraphResourceDescBuilder::SetDefaultDepthAtt
 FrameGraphResourceDesc FrameGraphResourceDescBuilder::Build()
 {
     if (m_Desc.Name.empty())
-        LNE_ERROR("Resource name is empty");
+        LNE_ERROR("Resource scopeName is empty");
     
     switch (m_Desc.Type)
     {
@@ -683,7 +683,7 @@ FrameGraphResourceDesc FrameGraphResourceDescBuilder::Build()
     case FrameGraphResourceType::eProxy:
     {
         if (m_ProxyInfo.OriginalName.empty())
-            LNE_ERROR("Proxy resource has no original resource name");
+            LNE_ERROR("Proxy resource has no original resource scopeName");
         m_Desc.Info.Variant = m_ProxyInfo;
         break;
     }
@@ -702,7 +702,7 @@ FrameGraphResourceDesc FrameGraphResourceDescBuilder::Build()
 FrameGraphNodeDesc FrameGraphNodeDescBuilder::Build()
 {
     if (m_Desc.Name.empty())
-        LNE_ERROR("Node name is empty");
+        LNE_ERROR("Node scopeName is empty");
 
     if (m_Desc.InputResources.empty() && m_Desc.OutputResources.empty())
         LNE_ERROR("Node has no input or output resources");

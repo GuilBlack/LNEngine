@@ -53,6 +53,7 @@ public:
     [[nodiscard]] uint32_t GetCurrentFrameIndex() const { return m_Context->GetCurrentFrameIndex(); }
     [[nodiscard]] SafePtr<class GfxContext> GetGfxContext() const { return m_Context; }
     [[nodiscard]] SafePtr<class GfxLoader> GetGfxLoader() const { return m_GfxLoader; }
+    [[nodiscard]] vk::DescriptorSet AllocateFrameDescSet(vk::DescriptorSetLayout layout);
 
     void PushLabel(vk::CommandBuffer cmdBuffer, std::string_view label) const;
 

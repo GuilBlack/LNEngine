@@ -6,6 +6,7 @@
 #include "Graphics/Pipeline.h"
 #include "Graphics/Material.h"
 #include "Graphics/GfxContext.h"
+#include "Core/Utils/Profiling.h"
 
 namespace lne
 {
@@ -56,11 +57,13 @@ void GBufferPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 
 void GBufferPass::BeginFrame()
 {
+    LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     ClearDrawCommands();
 }
 
 void GBufferPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
+    LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     auto& renderer = ApplicationBase::GetRenderer();
     for (auto& [hash, drawCommand] : m_DrawCommands)
     {
@@ -75,6 +78,7 @@ void GBufferPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* world
 
 void GBufferPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
+    LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     Renderer& renderer = ApplicationBase::GetRenderer();
 
     for (FrameGraphResourceHandle resourceHandle : node->OutputResources)

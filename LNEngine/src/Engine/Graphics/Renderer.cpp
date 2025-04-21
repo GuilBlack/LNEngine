@@ -8,6 +8,7 @@
 #include "Framebuffer.h"
 #include "Graphics/Pipeline.h"
 #include "Core/Utils/Defines.h"
+#include "Core/Utils/Profiling.h"
 #include "DynamicDescriptorAllocator.h"
 #include "Mesh.h"
 #include "StorageBuffer.h"
@@ -21,6 +22,7 @@
 
 namespace lne
 {
+#define PROFILING_COL 0xFF5B53
 void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskScheduler> taskScheduler)
 {
     m_Context = window->GetGfxContext();
@@ -70,6 +72,7 @@ void Renderer::PopLabel(vk::CommandBuffer cmdBuffer) const
 
 void Renderer::BeginFrame()
 {
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL)
     uint32_t imageIndex = m_Swapchain->GetCurrentFrameIndex();
     m_GraphicsCommandBufferManager->StartCommandBuffer(imageIndex);
     auto currentImage = m_Swapchain->GetCurrentImage();
@@ -90,6 +93,7 @@ void Renderer::BeginFrame()
 
 void Renderer::EndFrame()
 {
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL)
     m_LastUsedStaticMesh.Reset();
     m_LastUsedPipeline.Reset();
     auto currentImage = m_Swapchain->GetCurrentImage();
@@ -103,11 +107,13 @@ void Renderer::EndFrame()
 
 void Renderer::PostFrame()
 {
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL)
     m_Context->DeferredNukeResources();
 }
 
 void Renderer::BeginScene(const TransformComponent& cameraTransform, const CameraComponent& camera, const glm::vec3& sunDirection, float ambientLight)
 {
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL)
     uint32_t imageIndex = m_Swapchain->GetCurrentFrameIndex();
     auto& cmdBuffer = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
     GlobalUniforms uniforms = {
@@ -124,16 +130,19 @@ void Renderer::BeginScene(const TransformComponent& cameraTransform, const Camer
 
 void Renderer::BeginRenderPass(const Framebuffer& framebuffer) const
 {
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL)
     framebuffer.Bind(m_GraphicsCommandBufferManager->GetCurrentCommandBuffer());
 }
 
 void Renderer::EndRenderPass(const Framebuffer& framebuffer) const
 {
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL)
     framebuffer.Unbind(m_GraphicsCommandBufferManager->GetCurrentCommandBuffer());
 }
 
 void Renderer::Draw(SafePtr<Material> material, struct Geometry& geometry, TransformComponent& objTransform)
 {
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL)
     auto pipeline = material->GetPipeline();
     auto& cmdBuffer = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
     pipeline->Bind(cmdBuffer);
@@ -212,6 +221,7 @@ void Renderer::Draw(SafePtr<Material> material, struct Geometry& geometry, Trans
 
 void Renderer::Draw(SafePtr<StaticMesh> mesh, TransformComponent& objTransform)
 {
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL)
     auto& cmdBuffer = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
     auto pipeline = mesh->GetPipeline();
     auto& geometry = mesh->GetGeometry();
@@ -299,6 +309,7 @@ void Renderer::Draw(SafePtr<StaticMesh> mesh, TransformComponent& objTransform)
 void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>& mesh, const SafePtr<lne::StorageBuffer>& transformBuffer,
     uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount)
 {
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL)
     auto& submesh = mesh->GetSubMeshes()[subMeshIndex];
     auto material = mesh->GetMaterial(submesh.MaterialIndex);
     auto pipeline = material->GetPipeline();
@@ -338,6 +349,7 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>&
     }
     if (hasPipelineChanged || mesh != m_LastUsedStaticMesh)
     {
+        LNE_PROFILE_SCOPE_C("Set Geometry DescSet", PROFILING_COL)
         const Geometry& geometry = mesh->GetGeometry();
         vk::DescriptorSet geometryDescSet = descAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[2]);
         
@@ -389,6 +401,7 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>&
 
 void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>& mesh, const SafePtr<lne::StorageBuffer>& transformBuffer, SafePtr<Material> overrideMaterial, uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount)
 {
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL)
     auto& submesh = mesh->GetSubMeshes()[subMeshIndex];
     const auto& material = overrideMaterial;
     auto pipeline = material->GetPipeline();
@@ -428,6 +441,7 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>&
     }
     if (hasPipelineChanged || mesh != m_LastUsedStaticMesh)
     {
+        LNE_PROFILE_SCOPE_C("Set Geo DescSet", PROFILING_COL)
         const Geometry& geometry = mesh->GetGeometry();
         vk::DescriptorSet geometryDescSet = descAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[2]);
 
@@ -479,6 +493,7 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>&
 
 void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, const SafePtr<class Material>& material)
 {
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL)
     if (material->GetMaterialType() != MaterialType::ePostProcess)
     {
         LNE_ERROR("Material type not supported for fullscreen quad");
@@ -563,6 +578,7 @@ void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, const SafePtr<cla
 
 void Renderer::Dispatch(SafePtr<ComputeProgram> program, uint32_t x, uint32_t y, uint32_t z, bool async)
 {
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL)
     vk::CommandBuffer cmdBuffer{};
     if (async == false)
     {
@@ -610,6 +626,7 @@ void Renderer::Dispatch(SafePtr<ComputeProgram> program, uint32_t x, uint32_t y,
 
 void Renderer::Blit(vk::CommandBuffer cmdBuffer, SafePtr<Texture> src, SafePtr<Texture> dst)
 {
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL)
     vk::ImageLayout srcLayout = src->GetLayout();
     vk::ImageLayout dstLayout = dst->GetLayout();
     src->TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferSrcOptimal);
@@ -693,8 +710,8 @@ void Renderer::InitFrameData(uint32_t index)
             UniformBuffer(m_Context, sizeof(GlobalUniforms)),
             SafePtr(lnnew DynamicDescriptorAllocator(m_Context, 
                 { 
-                    { vk::DescriptorType::eUniformBuffer, 512 },
-                    { vk::DescriptorType::eStorageBuffer, 512 }
+                    { vk::DescriptorType::eUniformBuffer, 1024 },
+                    { vk::DescriptorType::eStorageBuffer, 1024 }
                 }, 
                 "GlobalDescAlloc" + std::to_string(index), 1)),
             m_Context->CreateDescriptorSetLayout({
@@ -750,6 +767,7 @@ void Renderer::InitFrameData(uint32_t index)
 
 void Renderer::UpdateTextures()
 {
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL)
     std::lock_guard<std::mutex> lock(m_TexturesToUpdateMutex);
     if (m_TexturesToUpdate.empty())
         return;

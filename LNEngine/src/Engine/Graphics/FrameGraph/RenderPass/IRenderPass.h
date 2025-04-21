@@ -6,6 +6,7 @@
 
 namespace lne
 {
+#define LNE_PROFILING_RP_COL 0xE2892F
 class FrameGraph;
 struct FrameGraphNode;
 

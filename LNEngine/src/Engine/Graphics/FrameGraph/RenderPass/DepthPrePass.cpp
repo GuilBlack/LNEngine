@@ -3,6 +3,7 @@
 #include "Core/ApplicationBase.h"
 #include "Graphics/WorldRenderer.h"
 #include "Graphics/Renderer.h"
+#include "Core/Utils/Profiling.h"
 
 namespace lne
 {
@@ -13,11 +14,13 @@ DepthPrePass::DepthPrePass()
 
 void DepthPrePass::BeginFrame()
 {
+    LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     ClearDrawCommands();
 }
 
 void DepthPrePass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
+    LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     using namespace lne;
     auto& renderer = ApplicationBase::GetRenderer();
     for (auto& [hash, drawCommand] : m_DrawCommands)
