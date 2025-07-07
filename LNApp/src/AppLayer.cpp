@@ -138,7 +138,7 @@ void AppLayer::OnAttach()
     desc.Name = "GBufferBasic";
     desc.FrameGraph = m_FrameGraph.GetPtr();
     desc.CullMode = ECullMode::Back; 
-    desc.EnableDepthTest(true, false);
+    desc.EnableDepthTest(true, true, lne::ECompareOperation::LessOrEqual);
     desc.Blend.EnableBlend(false);
 
     m_BasePipeline = renderer.CreateGraphicsPipeline(desc);
@@ -195,7 +195,7 @@ void AppLayer::OnAttach()
 #pragma endregion
 
 #pragma region TransformInit
-    cubeTransform.Position =  { -0.5f, 0.0f, 0.0f };
+    cubeTransform.Position =  { -0.5f, 0.0f, -30.0f };
     cubeTransform.Scale =     { 0.25f, 0.25f, 0.25f };
 
     sphereTransform.Position = { 0.5f, 0.0f, 0.0f };
@@ -228,7 +228,7 @@ void AppLayer::OnAttach()
     cameraTransform.LookAt({ 0.0f, 0.0f, 0.0f });
 
     auto& windowSettings = ApplicationBase::GetWindow().GetSettings();
-    cameraComponent.SetPerspective(45.0f, windowSettings.Width / (float)windowSettings.Height, 0.001f, 10000.0f);
+    cameraComponent.SetPerspective(45.0f, windowSettings.Width / (float)windowSettings.Height, 0.001f, 1000.0f);
 
     m_CameraTarget.Position = cameraTransform.Position;
     m_CameraTarget.Rotation = cameraTransform.EulerAngles;
@@ -298,6 +298,8 @@ void AppLayer::InitFrameGraph()
         .SetType(lne::RenderPassType::eTransfer)
         .Build();
 
+    auto otherDepth = depthAttachmentDesc;
+    otherDepth.Name = "DepthTest";
     nodeBuilder.Clear();
     lne::FrameGraphNodeDesc transparentPassDesc = nodeBuilder.SetName("TransparentForwardPass")
         .AddInputResource(lightingResource)
@@ -435,7 +437,7 @@ bool AppLayer::OnWindowResize(lne::WindowResizeEvent& event)
     APP_INFO("WindowResizeEvent received: {0}x{1}", event.GetWidth(), event.GetHeight());
     if (event.GetWidth() == 0 || event.GetHeight() == 0)
         return false;
-    m_CameraEntity.GetComponent<lne::CameraComponent>().SetPerspective(45.0f, event.GetWidth() / (float)event.GetHeight(), 0.001f, 10000.0f);
+    m_CameraEntity.GetComponent<lne::CameraComponent>().SetPerspective(45.0f, event.GetWidth() / (float)event.GetHeight(), 0.01f, 1000.0f);
     m_FrameGraph->OnResize(event);
     return false;
 }

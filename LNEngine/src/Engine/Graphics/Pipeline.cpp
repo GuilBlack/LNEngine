@@ -135,7 +135,7 @@ GfxPipeline::GfxPipeline(SafePtr<GfxContext> ctx, const GraphicsPipelineDesc& de
         desc.Depth.DepthTestEnable, desc.Depth.DepthWriteEnable, (vk::CompareOp)desc.Depth.DepthCompareOp,
         vk::False, vk::False,
         {}, {},
-        0.0f, 1.0f
+        0.0f, 0.0f
     );
 
     vk::PipelineColorBlendAttachmentState blendState = vk::PipelineColorBlendAttachmentState()
