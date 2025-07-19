@@ -19,6 +19,7 @@
 
 // TODO: move this to a resource manager
 #include <stb/stb_image.h>
+#include "Environment.h"
 
 namespace lne
 {
@@ -613,13 +614,18 @@ void Renderer::Dispatch(SafePtr<ComputeProgram> program, uint32_t x, uint32_t y,
     LNE_PROFILE_FUNCTION_C(PROFILING_COL)
     vk::CommandBuffer cmdBuffer{};
     if (async == false)
-    {
         cmdBuffer = m_GraphicsCommandBufferManager->GetCurrentCommandBuffer();
-    }
     else
-    {
         cmdBuffer = m_ComputeCommandBufferManager->BeginSingleTimeCommands();
-    }
+
+    Dispatch(cmdBuffer, program, x, y, z);
+
+    if (async)
+        m_ComputeCommandBufferManager->EndSingleTimeCommands();
+}
+
+void Renderer::Dispatch(vk::CommandBuffer cmdBuffer, SafePtr<class ComputeProgram> program, uint32_t x, uint32_t y, uint32_t z)
+{
     PushLabel(cmdBuffer, std::format("Compute Dispatch"));
     auto pipeline = program->GetPipeline();
     pipeline->Bind(cmdBuffer);
@@ -652,8 +658,6 @@ void Renderer::Dispatch(SafePtr<ComputeProgram> program, uint32_t x, uint32_t y,
     cmdBuffer.dispatch(x, y, z);
 
     PopLabel(cmdBuffer);
-    if (async)
-        m_ComputeCommandBufferManager->EndSingleTimeCommands();
 }
 
 void Renderer::Blit(vk::CommandBuffer cmdBuffer, SafePtr<Texture> src, SafePtr<Texture> dst)
@@ -721,6 +725,11 @@ SafePtr<Texture> Renderer::CreateTexture(const std::string& fullPath, vk::Format
 SafePtr<Texture> Renderer::CreateCubemapTexture(const std::vector<std::string>& faces)
 {
     return m_GfxLoader->CreateCubemap(faces);
+}
+
+SafePtr<Environment> Renderer::CreateEnvironmentMap(std::string_view pathToEnvMap, uint32_t dimensions)
+{
+    return m_GfxLoader->CreateEnvironmentMap(pathToEnvMap);
 }
 
 SafePtr<UniformBufferManager> Renderer::RegisterObject()
@@ -822,4 +831,5 @@ void Renderer::UpdateTextures()
     }
     m_TexturesToUpdate.clear();
 }
+
 }

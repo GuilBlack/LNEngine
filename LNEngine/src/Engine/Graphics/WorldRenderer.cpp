@@ -11,6 +11,7 @@
 #include "Scene/Components.h"
 #include "Mesh.h"
 #include "Core/Utils/Profiling.h"
+#include "Graphics/Environment.h"
 
 
 namespace lne
@@ -37,6 +38,11 @@ WorldRenderer::~WorldRenderer()
         m_TransformBuffers[i].Buffer.Reset();
         delete[] m_TransformBuffers[i].Data;
     }
+}
+
+void WorldRenderer::SetEnvironmentMap(std::string_view pathToEnvMap)
+{
+    m_Environment = ApplicationBase::GetRenderer().CreateEnvironmentMap(pathToEnvMap);
 }
 
 void WorldRenderer::BeginFrame()

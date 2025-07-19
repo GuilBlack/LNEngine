@@ -343,7 +343,7 @@ void ImGuiService::CreateFontsTexture()
 
     UploadRequest gpuRequest = {};
     gpuRequest.Type = ResourceTypes::eTexture;
-    gpuRequest.Texture = texture;
+    gpuRequest.Resource = texture;
     gpuRequest.Data = pixels;
     gpuRequest.Size = width * height * 4;
     gpuRequest.ShouldFreeData = false;

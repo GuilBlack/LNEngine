@@ -27,6 +27,8 @@ public:
     WorldRenderer(const SafePtr<FrameGraph>& frameGraph);
     ~WorldRenderer();
 
+    void SetEnvironmentMap(std::string_view pathToEnvMap);
+
     TransformBuffer& GetTransformBuffer(uint32_t frameIndex) { return m_TransformBuffers[frameIndex]; }
     SubMeshTransformArray& GetTransforms(StaticMeshHash hash) { return m_Transfroms[hash]; }
 
@@ -36,6 +38,7 @@ public:
 
 private:
     SafePtr<FrameGraph> m_FrameGraph{};
+    SafePtr<class Environment> m_Environment{};
 
     std::unordered_map<StaticMeshHash, SubMeshTransformArray> m_Transfroms{};
     std::vector<TransformBuffer> m_TransformBuffers{};

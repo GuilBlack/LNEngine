@@ -26,7 +26,7 @@ enum Mask
     mUnknown = 1 << 6
 };
 
-    extern const char** s_Enum;
+extern const char** s_Enum;
 
 inline std::string_view ToString(Enum type)
 {
@@ -44,10 +44,10 @@ namespace UniformElementType
 enum Enum : byte
 {
     eUnknown,
-    eFloat,eFloat2,eFloat3,eFloat4,
-    eInt,eInt2,eInt3,eInt4,
-    eUInt,eUInt2,eUInt3,eUInt4,
-    eMatrix2x2,eMatrix3x3,eMatrix4x4
+    eFloat, eFloat2, eFloat3, eFloat4,
+    eInt, eInt2, eInt3, eInt4,
+    eUInt, eUInt2, eUInt3, eUInt4,
+    eMatrix2x2, eMatrix3x3, eMatrix4x4
 };
 
 extern const char** s_Enum;
@@ -186,4 +186,16 @@ enum class EQueueFamilyType : uint8_t
     Transfer,
     Present
 };
+
+inline std::string_view QueueFamilyTypeToString(EQueueFamilyType type)
+{
+    switch (type)
+    {
+    case EQueueFamilyType::Graphics: return "Graphics";
+    case EQueueFamilyType::Compute: return "Compute";
+    case EQueueFamilyType::Transfer: return "Transfer";
+    case EQueueFamilyType::Present: return "Present";
+    default: return "Unknown";
+    }
+}
 }

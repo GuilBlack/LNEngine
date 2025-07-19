@@ -96,7 +96,7 @@ SafePtr<Texture> Texture::CreateColorTexture2D(
 
 SafePtr<Texture> Texture::CreateCubemapTexture(
     SafePtr<class GfxContext> ctx,
-    uint32_t width, uint32_t height,
+    uint32_t width, uint32_t height, vk::Format format,
     TextureUsageType::Enum usage,
     bool generateMips,
     const std::string& name)
@@ -107,7 +107,7 @@ SafePtr<Texture> Texture::CreateCubemapTexture(
     vk::ImageCreateInfo imageInfo = vk::ImageCreateInfo{
         vk::ImageCreateFlagBits::eCubeCompatible,
         vk::ImageType::e2D,
-        vk::Format::eR8G8B8A8Srgb,
+        format,
         vk::Extent3D(width, height, 1),
         generateMips ? GetMaxMipLevels(width, height) : 1,
         6,
@@ -376,7 +376,8 @@ void Texture::UploadData(const void* data)
 
     memcpy(stagingBuffer.AllocationInfo.pMappedData, data, imageSize);
 
-    vk::CommandBuffer cmdBuffer = m_Context->GetTransferCommandBufferManager().BeginSingleTimeCommands();
+    auto& cpManager = m_Context->GetCommandPoolManager();
+    vk::CommandBuffer cmdBuffer = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Transfer);
 
     TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferDstOptimal);
 
@@ -401,7 +402,7 @@ void Texture::UploadData(const void* data)
 
     cmdBuffer.copyBufferToImage(stagingBuffer.Buffer, m_Allocation.Image, vk::ImageLayout::eTransferDstOptimal, regions);
 
-    m_Context->GetTransferCommandBufferManager().EndSingleTimeCommands();
+    cpManager.EndSingleUseCommandBuffer(EQueueFamilyType::Transfer);
 
     m_Context->FreeBufferAllocation(stagingBuffer);
 

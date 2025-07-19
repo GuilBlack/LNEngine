@@ -76,6 +76,7 @@ public:
     void DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, const SafePtr<class Material>& material);
 
     void Dispatch(SafePtr<class ComputeProgram> program, uint32_t x, uint32_t y, uint32_t z, bool async);
+    void Dispatch(vk::CommandBuffer cmdBuffer, SafePtr<class ComputeProgram> program, uint32_t x, uint32_t y, uint32_t z);
 
     void Blit(vk::CommandBuffer cmdBuffer, SafePtr<class Texture> src, SafePtr<class Texture> dst);
 
@@ -84,6 +85,7 @@ public:
     [[nodiscard]] SafePtr<class StorageBuffer> CreateGeometryBuffer(const void* data, size_t size);
     [[nodiscard]] SafePtr<class Texture> CreateTexture(const std::string& fullPath, vk::Format format = vk::Format::eR8G8B8A8Srgb);
     [[nodiscard]] SafePtr<class Texture> CreateCubemapTexture(const std::vector<std::string>& faces);
+    [[nodiscard]] SafePtr<class Environment> CreateEnvironmentMap(std::string_view pathToEnvMap, uint32_t dimensions = 1024);
 
     [[nodiscard]] SafePtr<class UniformBufferManager> RegisterObject();
     void AddTextureToUpdate(SafePtr<class Texture> texture);

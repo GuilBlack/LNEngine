@@ -18,12 +18,14 @@ enum Enum : uint8_t
 {
     eTexture,
     eCubemap,
+    eEnvironment
 };
 
 enum Mask
 {
     mTexture = 1 << 0,
     mCubemap = 1 << 1,
+    mEnvironment = 1 << 2,
 };
 
 extern const char** s_Enum;
@@ -32,19 +34,17 @@ std::string_view ToString(Enum type);
 
 struct UploadRequest
 {
-    ResourceTypes::Enum Type;
-    SafePtr<class Texture> Texture;
-    SafePtr<class StorageBuffer> Buffer;
-    uint32_t Size;
-    void* Data;
+    ResourceTypes::Enum Type{};
+    SafePtr<class RefCountBase> Resource{};
+    uint32_t Size{};
+    void* Data{};
     bool ShouldFreeData{true};
 };
 
 struct LoadRequest
 {
     ResourceTypes::Enum Type{};
-    SafePtr<class Texture> Texture{};
-    SafePtr<class StorageBuffer> Buffer;
+    SafePtr<class RefCountBase> Resource{};
     std::vector<std::string> Path{};
     void* Data{};
     bool IsFile{ true };
@@ -78,8 +78,11 @@ public:
 
     void Update();
 
-    SafePtr<class Texture> CreateTexture(std::string_view fullPath, vk::Format imageFormat = vk::Format::eR8G8B8A8Srgb);
-    SafePtr<class Texture> CreateCubemap(std::vector<std::string> faces);
+    [[nodiscard]] SafePtr<class Texture> CreateTexture(
+        std::string_view fullPath, 
+        vk::Format imageFormat = vk::Format::eR8G8B8A8Srgb);
+    [[nodiscard]] SafePtr<class Texture> CreateCubemap(std::vector<std::string> faces);
+    [[nodiscard]] SafePtr<class Environment> CreateEnvironmentMap(std::string_view pathToEnvMap, uint32_t dimensions = 1024);
 
     void Upload(UploadRequest request)
     {
@@ -109,6 +112,8 @@ private:
 
     void LoadTexture(LoadRequest& request);
     void LoadCubemap(LoadRequest& request);
-    void UploadTexture(UploadRequest& request);
+    void LoadEnvironment(LoadRequest& request);
+    void UploadTexture(UploadRequest& request, vk::CommandBuffer cb);
+    void UploadEnvironment(UploadRequest& request);
 };
 }

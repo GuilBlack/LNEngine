@@ -53,7 +53,7 @@ public:
     [[nodiscard]] constexpr uint32_t GetCurrentFrameIndex() const { return m_CurrentFrameInFlight; }
     [[nodiscard]] constexpr uint32_t GetMaxFramesInFlight() const { return m_MaxFramesInFlight; }
     [[nodiscard]] VmaAllocator GetMemoryAllocator() const { return m_MemoryAllocator; }
-    [[nodiscard]] class CommandBufferManager& GetTransferCommandBufferManager() const { return *m_TransferCommandBufferManager; }
+    [[nodiscard]] class CommandPoolManager& GetCommandPoolManager() const { return *m_CommandPoolManager; }
     [[nodiscard]] const struct Geometry& GetDefaultFullscreenQuad() const { return *m_DefaultFullscreenQuad; }
     [[nodiscard]] const class Texture* GetDefaultTexture() const { return m_DefaultTexture; }
     [[nodiscard]] vk::Sampler GetDefaultSampler() const { return m_DefaultSampler; }
@@ -74,6 +74,8 @@ public:
     [[nodiscard]] std::string GetQueueFamilyName(EQueueFamilyType type) const;
     [[nodiscard]] uint32_t GetQueueFamilyIndex(EQueueFamilyType type) const;
     [[nodiscard]] vk::Queue GetQueue(EQueueFamilyType type) const;
+
+    void SubmitToQueue(EQueueFamilyType type, const vk::SubmitInfo& submitInfo, vk::Fence fence);
 #pragma endregion
 
 #pragma region CommandBuffers
@@ -125,7 +127,7 @@ public:
     template<typename T>
     void SetVkObjectName(T handle, std::string_view name) const
     {
-    #if defined(VK_EXT_debug_utils)
+    #if defined(VK_EXT_debug_utils) && defined(LNE_DEBUG)
         const vk::DebugUtilsObjectNameInfoEXT objectNameInfo(
             T::objectType,
             reinterpret_cast<uint64_t>(static_cast<T::CType>(handle)),
@@ -159,10 +161,15 @@ private:
     vk::Queue           m_TransferQueue;
     vk::Queue           m_PresentQueue;
 
+    std::mutex          m_GraphicsQueueMutex;
+    std::mutex          m_ComputeQueueMutex;
+    std::mutex          m_TransferQueueMutex;
+    std::mutex          m_PresentQueueMutex;
+
     uint32_t m_CurrentFrameInFlight{ 0 };
     uint32_t m_MaxFramesInFlight{ 2 };
 
-    std::unique_ptr<class CommandBufferManager> m_TransferCommandBufferManager;
+    std::unique_ptr<class CommandPoolManager>   m_CommandPoolManager;
 
     vk::Sampler          m_DefaultSampler;
     class Texture*       m_DefaultTexture;

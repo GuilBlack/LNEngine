@@ -9,16 +9,19 @@
 #include "Graphics/CommandBufferManager.h"
 #include "Graphics/Renderer.h"
 #include "Graphics/DynamicDescriptorAllocator.h"
+#include "Graphics/Environment.h"
 
 #include "GfxLoader.h"
+#include "Core/ApplicationBase.h"
 
 namespace lne
 {
 namespace ResourceTypes
 {
-const char* enumValues[2] = {
+const char* enumValues[3] = {
     "Texture",
     "Cubemap",
+    "Environment",
 };
 
 const char** s_Enum = enumValues;
@@ -77,20 +80,14 @@ void GfxLoader::Nuke()
 
 void GfxLoader::Update()
 {
-    auto& cbManager = m_GraphicsContext->GetTransferCommandBufferManager();
 
-    // this condition is here instead of in the ProcessUploadRequests because it can clash with the deletion
-    // of textures
-    if (cbManager.GetFenceStatus(0) == true)
+    if (m_ReadyTexture)
     {
-        if (m_ReadyTexture)
-        {
-            m_Renderer->AddTextureToUpdate(m_ReadyTexture);
-            m_ReadyTexture.Reset();
-        }
-
-        ProcessUploadRequests();
+        m_Renderer->AddTextureToUpdate(m_ReadyTexture);
+        m_ReadyTexture.Reset();
     }
+
+    ProcessUploadRequests();
     ProcessLoadRequests();
 }
 
@@ -112,7 +109,7 @@ SafePtr<Texture> GfxLoader::CreateTexture(std::string_view fullPath, vk::Format 
     request.Type = ResourceTypes::eTexture;
     request.IsFile = true;
     request.Path.push_back(fullPath.data());
-    request.Texture = texture;
+    request.Resource = texture;
 
     {
         std::lock_guard<std::mutex> lock(m_LoadRequestsMutex);
@@ -165,14 +162,17 @@ SafePtr<Texture> GfxLoader::CreateCubemap(std::vector<std::string> faces)
     texChannels = 4;
 
     std::filesystem::path fsFullPath = faces[0];
-    SafePtr<Texture> texture = Texture::CreateCubemapTexture(m_GraphicsContext, texWidth, texHeight, TextureUsageType::eSampled, true,
-        std::format("Texture: {}", fsFullPath.parent_path().filename().string()));
+    SafePtr<Texture> texture = Texture::CreateCubemapTexture(
+        m_GraphicsContext, texWidth, texHeight, vk::Format::eR8G8B8A8Srgb, 
+        TextureUsageType::eSampled, true,
+        std::format("Texture: {}", fsFullPath.parent_path().filename().string())
+    );
 
     LoadRequest request;
     request.Type = ResourceTypes::eCubemap;
     request.IsFile = true;
     request.Path = std::move(faces);
-    request.Texture = texture;
+    request.Resource = texture;
 
     {
         std::lock_guard<std::mutex> lock(m_LoadRequestsMutex);
@@ -182,15 +182,55 @@ SafePtr<Texture> GfxLoader::CreateCubemap(std::vector<std::string> faces)
     return texture;
 }
 
+lne::SafePtr<Environment> GfxLoader::CreateEnvironmentMap(std::string_view pathToEnvMap, uint32_t dimensions)
+{
+    if (std::filesystem::exists(pathToEnvMap) == false || stbi_is_hdr(pathToEnvMap.data()))
+    {
+        LNE_ERROR("Environment map is invalid: {0}", pathToEnvMap);
+        return nullptr;
+    }
+
+    int texWidth, texHeight, texChannels;
+    if (stbi_info(pathToEnvMap.data(), &texWidth, &texHeight, &texChannels) == 0)
+    {
+        LNE_ERROR("Failed to load environment map: {0}", pathToEnvMap);
+        return nullptr;
+    }
+
+    SafePtr<Environment> env = SafePtr<Environment>(lnnew Environment());
+    env->RadianceTexture = Texture::CreateCubemapTexture(
+        m_GraphicsContext, dimensions, dimensions, vk::Format::eR16G16B16A16Sfloat,
+        TextureUsageType::eSampled, false,
+        std::format("Environment: {}", std::filesystem::path(pathToEnvMap).filename().string())
+    );
+    env->IrradianceTexture = Texture::CreateCubemapTexture(
+        m_GraphicsContext, dimensions, dimensions, vk::Format::eR16G16B16A16Sfloat,
+        TextureUsageType::eSampled, false,
+        std::format("Environment: {}", std::filesystem::path(pathToEnvMap).filename().string())
+    );
+
+    LoadRequest request;
+    request.Type = ResourceTypes::eEnvironment;
+    request.IsFile = true;
+    request.Path.push_back(pathToEnvMap.data());
+    request.Resource = env;
+    {
+        std::lock_guard<std::mutex> lock(m_LoadRequestsMutex);
+        m_LoadRequests.push_back(request);
+    }
+
+    return env;
+}
+
 void GfxLoader::ProcessUploadRequests()
 {
-    auto& cbManager = m_GraphicsContext->GetTransferCommandBufferManager();
     auto device = m_GraphicsContext->GetDevice();
 
     if (m_GPUUploadRequests.empty())
         return;
 
-    cbManager.StartCommandBuffer(0);
+    auto& cpManager = m_GraphicsContext->GetCommandPoolManager();
+    vk::CommandBuffer cb = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Transfer);
 
     UploadRequest request = {};
     {
@@ -203,14 +243,19 @@ void GfxLoader::ProcessUploadRequests()
     {
     case ResourceTypes::eTexture:
     {
-        UploadTexture(request);
-        m_ReadyTexture = request.Texture;
+        UploadTexture(request, cb);
+        m_ReadyTexture = request.Resource;
         break;
     }
     case ResourceTypes::eCubemap:
     {
-        UploadTexture(request);
-        m_ReadyTexture = request.Texture;
+        UploadTexture(request, cb);
+        m_ReadyTexture = request.Resource;
+        break;
+    }
+    case ResourceTypes::eEnvironment:
+    {
+        UploadEnvironment(request);
         break;
     }
     default:
@@ -219,9 +264,7 @@ void GfxLoader::ProcessUploadRequests()
     }
     vk::PipelineStageFlags waitDst = vk::PipelineStageFlagBits::eTransfer;
     vk::SubmitInfo submitInfo{};
-    submitInfo.pWaitDstStageMask = &waitDst;
-    submitInfo.pWaitSemaphores = &m_TransferSemaphore;
-    cbManager.Submit(submitInfo);
+    cpManager.EndSingleUseCommandBuffer(EQueueFamilyType::Transfer, &waitDst, &m_TransferSemaphore);
 }
 
 void GfxLoader::ProcessLoadRequests()
@@ -248,6 +291,11 @@ void GfxLoader::ProcessLoadRequests()
         LoadCubemap(request);
         break;
     }
+    case ResourceTypes::eEnvironment:
+    {
+        LoadEnvironment(request);
+        break;
+    }
     default:
         LNE_ERROR("Doesn't support type {0} yet.", ResourceTypes::ToString(request.Type));
         break;
@@ -258,7 +306,6 @@ void GfxLoader::LoadTexture(LoadRequest& request)
 {
     auto& path = request.Path[0];
     int texWidth, texHeight, texChannels;
-    Assimp::Importer importer;
     uint8_t* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 
     if (!pixels)
@@ -266,7 +313,7 @@ void GfxLoader::LoadTexture(LoadRequest& request)
 
     UploadRequest gpuRequest {};
     gpuRequest.Type = request.Type;
-    gpuRequest.Texture = request.Texture;
+    gpuRequest.Resource = request.Resource;
     gpuRequest.Data = pixels;
     gpuRequest.Size = texWidth * texHeight * 4;
 
@@ -296,7 +343,7 @@ void GfxLoader::LoadCubemap(LoadRequest& request)
 
     UploadRequest gpuRequest = {};
     gpuRequest.Type = request.Type;
-    gpuRequest.Texture = request.Texture;
+    gpuRequest.Resource = request.Resource;
     gpuRequest.Data = allPixels;
     gpuRequest.Size = texWidth * texHeight * 4 * 6;
 
@@ -306,19 +353,47 @@ void GfxLoader::LoadCubemap(LoadRequest& request)
     }
 }
 
-void GfxLoader::UploadTexture(UploadRequest& request)
+void GfxLoader::LoadEnvironment(LoadRequest& request)
 {
-    auto& cbManager = m_GraphicsContext->GetTransferCommandBufferManager();
-    auto& cmdBuffer = cbManager.GetCurrentCommandBuffer();
+    auto& path = request.Path[0];
+    int texWidth, texHeight, texChannels;
 
-    request.Texture->UploadData(cmdBuffer, m_StagingBuffer, request.Data);
+    float* pixels = stbi_loadf(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+
+    if (!pixels)
+    {
+        LNE_ERROR("Failed to load environment map image: {0}", path);
+        return;
+    }
+
+    UploadRequest gpuRequest{};
+    gpuRequest.Type = request.Type;
+    gpuRequest.Resource = request.Resource;
+    gpuRequest.Data = pixels;
+    gpuRequest.Size = texWidth * texHeight * 4;
+
+    Upload(gpuRequest);
+}
+
+void GfxLoader::UploadTexture(UploadRequest& request, vk::CommandBuffer cb)
+{
+    request.Resource.GetAs<Texture>()->UploadData(cb, m_StagingBuffer, request.Data);
 
     if (request.ShouldFreeData == false)
         return;
-    
-    if (request.Type == ResourceTypes::eTexture)
+
+    if (request.Type == ResourceTypes::eTexture || request.Type == ResourceTypes::eEnvironment)
         stbi_image_free(request.Data);
     else
         delete[] request.Data;
 }
+
+void GfxLoader::UploadEnvironment(UploadRequest& request)
+{
+    auto& renderer = ApplicationBase::GetRenderer();
+
+    // 1) equirectangular to cubemap conversion
+
+}
+
 }

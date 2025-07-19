@@ -12,6 +12,7 @@
 #include "Core/ApplicationBase.h"
 #include "Engine/Graphics/Texture.h"
 #include "CommandBufferManager.h"
+#include "Enums.h"
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
@@ -82,7 +83,7 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
     SetVkObjectName(m_Device, "Device");
     CreateMemoryAllocator();
 
-    m_TransferCommandBufferManager.reset(lnnew CommandBufferManager(this, 2, EQueueFamilyType::Transfer));
+    m_CommandPoolManager.reset(lnnew CommandPoolManager(this, ApplicationBase::GetTaskScheduler()->GetNumTaskThreads()));
 
 #pragma region Bindless
     static constexpr uint32_t bindlessPoolSize = 2048;
@@ -159,7 +160,7 @@ GfxContext::~GfxContext()
         NukeResource(resource);
     m_ResourceDeletionQueue.clear();
     
-    m_TransferCommandBufferManager.reset();
+    m_CommandPoolManager.reset();
     m_Device.resetDescriptorPool(m_BindlessDescriptorPool);
     m_Device.destroyDescriptorPool(m_BindlessDescriptorPool);
     m_Device.destroyDescriptorSetLayout(m_BindlessDescriptorSetLayout);
@@ -441,6 +442,40 @@ vk::Queue GfxContext::GetQueue(EQueueFamilyType type) const
     }
     LNE_ERROR("Invalid queue family type");
     throw std::runtime_error("Invalid queue family type");
+}
+
+void GfxContext::SubmitToQueue(EQueueFamilyType type, const vk::SubmitInfo& submitInfo, vk::Fence fence)
+{
+    switch (type)
+    {
+    case EQueueFamilyType::Graphics:
+    {
+        std::lock_guard lock(m_GraphicsQueueMutex);
+        m_GraphicsQueue.submit(submitInfo, fence);
+        break;
+    }
+    case EQueueFamilyType::Compute:
+    {
+        std::lock_guard lock(m_ComputeQueueMutex);
+        m_ComputeQueue.submit(submitInfo, fence);
+        break;
+    }
+    case EQueueFamilyType::Transfer:
+    {
+        std::lock_guard lock(m_TransferQueueMutex);
+        m_TransferQueue.submit(submitInfo, fence);
+        break;
+    }
+    case EQueueFamilyType::Present:
+    {
+        std::lock_guard lock(m_PresentQueueMutex);
+        m_PresentQueue.submit(submitInfo, fence);
+        break;
+    }
+    default:
+        LNE_ERROR("Failed to submit to queue. unknown queue type.");
+        break;
+    }
 }
 
 vk::CommandPool GfxContext::CreateCommandPool(uint32_t queueFamilyIndex, vk::CommandPoolCreateFlags flags) const

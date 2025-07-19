@@ -35,7 +35,7 @@ void DepthPrePass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worl
 void DepthPrePass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
     using namespace lne;
-    Renderer& renderer = ApplicationBase::GetRenderer();z
+    Renderer& renderer = ApplicationBase::GetRenderer();
     GraphicsPipelineDesc desc{};
     desc.PathToShaders = ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\DepthPrePass.glsl";
     desc.Name = "DepthPrePassShader";

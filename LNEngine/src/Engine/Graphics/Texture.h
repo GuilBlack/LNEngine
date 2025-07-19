@@ -31,7 +31,7 @@ public:
     );
     static SafePtr<Texture> CreateCubemapTexture(
         SafePtr<class GfxContext> ctx,
-        uint32_t width, uint32_t height,
+        uint32_t width, uint32_t height, vk::Format format = vk::Format::eR8G8B8A8Srgb,
         TextureUsageType::Enum usage = TextureUsageType::eSampled,
         bool generateMips = true,
         const std::string& name = ""
