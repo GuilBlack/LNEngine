@@ -4,50 +4,27 @@
 
 namespace lne
 {
-class CommandBufferManager
+class GfxContext;
+struct FrameCommands
 {
-public:
-    CommandBufferManager(class GfxContext* ctx, uint32_t count, EQueueFamilyType queueType);
-    ~CommandBufferManager();
-
-    [[nodiscard]] vk::CommandBuffer& GetCurrentCommandBuffer() 
-    {
-        return m_CommandBuffers[m_CurrentBufferIndex]; 
-    }
-    [[nodiscard]] bool GetFenceStatus(uint32_t index);
-    [[nodiscard]] vk::Queue GetQueue() const { return m_Queue; }
-    void StartCommandBuffer(uint32_t index);
-
-    void Submit(vk::SubmitInfo& submitInfo, uint32_t index = UINT32_MAX);
-
-    vk::CommandBuffer BeginSingleTimeCommands();
-    void EndSingleTimeCommands();
-
-private:
-    GfxContext* m_Context;
-    vk::Queue m_Queue;
-    vk::CommandPool m_CommandPool;
-    std::vector<vk::CommandBuffer> m_CommandBuffers;
-
-    std::mutex m_SingleTimeMutex;
-    std::vector<vk::Fence> m_WaitFences;
-
-    uint32_t m_CurrentBufferIndex{ 0 };
-
-private:
-    [[nodiscard]] std::vector<vk::CommandBuffer> AllocateCommandBuffers(uint32_t count, std::string_view cbName);
-    [[nodiscard]] vk::CommandBuffer AllocateCommandBuffer(std::string_view cbName);
+    std::vector<vk::CommandBuffer>  CommandBuffers;
+    vk::Fence                       Fence;
 };
-
 class CommandPoolManager
 {
 public:
     CommandPoolManager(GfxContext* ctx, uint32_t numThreads);
     ~CommandPoolManager();
 
-    [[nodiscard]] vk::CommandBuffer BeginOrGetSingleUseCommandBuffer(EQueueFamilyType queueFamily);
+    vk::CommandBuffer           BeginOrGetPrimaryFrameCommandBuffer(uint32_t frameIndex);
+    vk::CommandBuffer           GetRenderPassCommandBuffer(uint32_t frameIndex);
+    void                        ResetFrameCommands(uint32_t frameIndex);
 
-    void EndSingleUseCommandBuffer(
+    [[nodiscard]] FrameCommands EndFrame(uint32_t frameIndex);
+
+    [[nodiscard]] vk::CommandBuffer                 BeginOrGetSingleUseCommandBuffer(EQueueFamilyType queueFamily);
+
+    void                                            EndSingleUseCommandBuffer(
         EQueueFamilyType queueFamily, 
         vk::PipelineStageFlags* pipelineStage = nullptr, 
         vk::Semaphore* semaphore = nullptr);
@@ -62,11 +39,23 @@ private:
         std::vector<uint64_t>           RenderPasses{}; // should clear it after each frame. 0 = no render pass
     };
 
+    struct ThreadIdIndex
+    {
+        std::thread::id ThreadId{};
+        int32_t Index{ -1 }; // index in the command buffer array
+
+        bool operator ==(const std::thread::id& threadId) const
+        {
+            return ThreadId == threadId;
+        }
+
+    };
     struct FrameCommandContext
     {
         std::vector<ThreadCommandContext>           ThreadContexts{};
-        std::vector<vk::Fence>                      WaitFences{};
-        std::vector<std::thread::id>                AreUsed{}; // which command buffers are currently in use
+        vk::Fence                                   WaitFence{};
+        std::vector<int32_t>                        AreUnused{};
+        std::vector<ThreadIdIndex>                  AreUsed{}; // which command buffers are currently in use
         std::mutex                                  Mutex; // to protect access to the command buffers
 
         // default ctor
@@ -78,7 +67,8 @@ private:
         
         FrameCommandContext(FrameCommandContext&& other) noexcept
             : ThreadContexts(std::move(other.ThreadContexts))
-            , WaitFences(std::move(other.WaitFences))
+            , WaitFence(other.WaitFence)
+            , AreUnused(std::move(other.AreUnused))
             , AreUsed(std::move(other.AreUsed))
             , Mutex()    // fresh, unlocked mutex
         {}
@@ -88,7 +78,8 @@ private:
             if (this != &other)
             {
                 ThreadContexts = std::move(other.ThreadContexts);
-                WaitFences = std::move(other.WaitFences);
+                WaitFence = std::move(other.WaitFence);
+                AreUnused = std::move(other.AreUnused);
                 AreUsed = std::move(other.AreUsed);
                 // Mutex stays as a new one
             }
@@ -96,24 +87,13 @@ private:
         }
 
     };
-    struct ThreadIdIndex
-    {
-        std::thread::id ThreadId{};
-        uint32_t Index{ 0 }; // index in the command buffer array
-
-        bool operator ==(const std::thread::id& threadId) const
-        {
-            return ThreadId == threadId;
-        }
-
-    };
     struct SingleUseCommandContext
     {
-        std::vector<ThreadCommandContext>   ThreadContexts{};
-        std::vector<vk::Fence>              WaitFences{};
-        std::vector<uint32_t>               AreUnused{}; // which command buffers are currently unused
-        std::vector<ThreadIdIndex>               AreUsed{}; // which command buffers are currently in use
-        std::mutex                          Mutex; // to protect access to the command buffers
+        std::vector<ThreadCommandContext>       ThreadContexts{};
+        std::vector<vk::Fence>                  WaitFences{};
+        std::vector<uint32_t>                   AreUnused{}; // which command buffers are currently unused
+        std::vector<ThreadIdIndex>              AreUsed{}; // which command buffers are currently in use
+        std::mutex                              Mutex; // to protect access to the command buffers
     };
 
     GfxContext* m_Context;

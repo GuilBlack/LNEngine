@@ -7,7 +7,7 @@
 #include "Shader.h"
 #include "Renderer.h"
 #include "Core/ApplicationBase.h"
-#include "CommandBufferManager.h"
+#include "CommandPoolManager.h"
 #include "DynamicDescriptorAllocator.h"
 #include "Texture.h"
 
@@ -99,11 +99,12 @@ void Material::SetTexture(std::string_view name, SafePtr<Texture> texture)
     SetProperty<uint32_t>(std::string(name), texture->GetBindlessTextureHandle());
 }
 
+// TODO: make sure we use it just once instead of updating it for every single changes in the material
 void Material::SetUniformBuffer(uint32_t binding, const void* data, uint32_t size, uint32_t offset)
 {
     auto& ub = m_UniformBuffers.at(binding);
     auto& renderer = ApplicationBase::GetRenderer();
-    ub.CopyData(ApplicationBase::GetRenderer().GetGraphicsCommandBufferManager()->GetCurrentCommandBuffer(), data, size, offset);
+    ub.CopyData(ApplicationBase::GetRenderer().GetGfxContext()->GetPrimaryCommandBuffer(), data, size, offset);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -179,10 +180,12 @@ void ComputeProgram::Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32
     ApplicationBase::GetRenderer().Dispatch(this, groupCountX, groupCountY, groupCountZ, immediate);
 }
 
+
+// TODO: make sure we use it just once instead of updating it for every single changes in the compute program
 void ComputeProgram::SetUniformBuffer(uint32_t binding, const void* data, uint32_t size, uint32_t offset)
 {
     auto& ub = m_UniformBuffers.at(binding);
     auto& renderer = ApplicationBase::GetRenderer();
-    ub.CopyData(ApplicationBase::GetRenderer().GetGraphicsCommandBufferManager()->GetCurrentCommandBuffer(), data, size, offset);
+    ub.CopyData(ApplicationBase::GetRenderer().GetGfxContext()->GetPrimaryCommandBuffer(), data, size, offset);
 }
 }

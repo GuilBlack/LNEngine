@@ -6,7 +6,7 @@
 #include "GfxContext.h"
 #include "Core/ApplicationBase.h"
 #include "Renderer.h"
-#include "CommandBufferManager.h"
+#include "CommandPoolManager.h"
 #include "DynamicDescriptorAllocator.h"
 #include "Texture.h"
 #include "Renderer.h"
@@ -139,7 +139,7 @@ void StorageBuffer::InitStatic(const void* data)
 
     memcpy(m_StagingAllocation.AllocationInfo.pMappedData, data, m_Size);
 
-    auto cmdBuffer = ApplicationBase::GetRenderer().GetGraphicsCommandBufferManager()->GetCurrentCommandBuffer();
+    auto cmdBuffer = ApplicationBase::GetRenderer().GetGfxContext()->GetPrimaryCommandBuffer();
 
     vk::BufferCopy copyRegion = vk::BufferCopy{
         0,

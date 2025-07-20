@@ -2,7 +2,7 @@
 #include "GfxContext.h"
 #include "Engine/Core/Utils/_Defines.h"
 #include "Engine/Core/Utils/Log.h"
-#include "CommandBufferManager.h"
+#include "CommandPoolManager.h"
 #include "Core/ApplicationBase.h"
 #include "Renderer.h"
 #include "DynamicDescriptorAllocator.h"
@@ -406,7 +406,7 @@ void Texture::UploadData(const void* data)
 
     m_Context->FreeBufferAllocation(stagingBuffer);
 
-    cmdBuffer = ApplicationBase::GetRenderer().GetGraphicsCommandBufferManager()->GetCurrentCommandBuffer();
+    cmdBuffer = ApplicationBase::GetRenderer().GetGfxContext()->GetPrimaryCommandBuffer();
     
     if (m_GenerateMips)
         GenerateMipmaps(cmdBuffer);

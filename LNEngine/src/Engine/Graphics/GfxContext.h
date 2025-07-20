@@ -53,7 +53,8 @@ public:
     [[nodiscard]] constexpr uint32_t GetCurrentFrameIndex() const { return m_CurrentFrameInFlight; }
     [[nodiscard]] constexpr uint32_t GetMaxFramesInFlight() const { return m_MaxFramesInFlight; }
     [[nodiscard]] VmaAllocator GetMemoryAllocator() const { return m_MemoryAllocator; }
-    [[nodiscard]] class CommandPoolManager& GetCommandPoolManager() const { return *m_CommandPoolManager; }
+    [[nodiscard]] class CommandPoolManager& GetCommandPoolManager() const
+    { return *m_CommandPoolManager; };
     [[nodiscard]] const struct Geometry& GetDefaultFullscreenQuad() const { return *m_DefaultFullscreenQuad; }
     [[nodiscard]] const class Texture* GetDefaultTexture() const { return m_DefaultTexture; }
     [[nodiscard]] vk::Sampler GetDefaultSampler() const { return m_DefaultSampler; }
@@ -82,6 +83,7 @@ public:
 
     [[nodiscard]] vk::CommandPool CreateCommandPool(uint32_t queueFamilyIndex, vk::CommandPoolCreateFlags flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer) const;
 
+    [[nodiscard]] vk::CommandBuffer GetPrimaryCommandBuffer() const;
 #pragma endregion
 
 #pragma region Images

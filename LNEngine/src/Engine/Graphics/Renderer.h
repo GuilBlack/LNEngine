@@ -49,7 +49,6 @@ public:
     void Init(std::unique_ptr<class Window>& window, std::shared_ptr<enki::TaskScheduler> taskScheduler);
     void Nuke();
 
-    [[nodiscard]] std::unique_ptr<class CommandBufferManager>& GetGraphicsCommandBufferManager() { return m_GraphicsCommandBufferManager; }
     [[nodiscard]] uint32_t GetCurrentFrameIndex() const { return m_Context->GetCurrentFrameIndex(); }
     [[nodiscard]] SafePtr<class GfxContext> GetGfxContext() const { return m_Context; }
     [[nodiscard]] SafePtr<class GfxLoader> GetGfxLoader() const { return m_GfxLoader; }
@@ -99,8 +98,6 @@ private:
     std::mutex m_TexturesToUpdateMutex{};
 
     // TODO: move to a command buffer manager to the context (maybe)
-    std::unique_ptr<class CommandBufferManager> m_GraphicsCommandBufferManager;
-    std::unique_ptr<class CommandBufferManager> m_ComputeCommandBufferManager;
     std::vector<FrameData> m_FrameData;
 
     SafePtr<class GfxPipeline> m_LastUsedPipeline;
@@ -108,6 +105,6 @@ private:
 
 private:
     void InitFrameData(uint32_t index);
-    void UpdateTextures();
+    void UpdateTextures(vk::CommandBuffer cmdBuffer);
 };
 }

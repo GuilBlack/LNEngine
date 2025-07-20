@@ -1,101 +1,13 @@
-#include "CommandBufferManager.h"
+#include "CommandPoolManager.h"
 #include "GfxContext.h"
 #include "Core/SafePtr.h"
 #include "Core/Utils/Log.h"
 #include "Core/Utils/_Defines.h"
+#include "Core/ApplicationBase.h"
+#include "Texture.h"
 
 namespace lne
 {
-CommandBufferManager::CommandBufferManager(GfxContext* ctx, uint32_t count, EQueueFamilyType queueType)
-    : m_Context(ctx), m_Queue(ctx->GetQueue(queueType))
-{
-    auto device = m_Context->GetDevice();
-    m_CommandPool = m_Context->CreateCommandPool(ctx->GetQueueFamilyIndex(queueType));
-    m_CommandBuffers = AllocateCommandBuffers(count, ctx->GetQueueFamilyName(queueType));
-
-    m_WaitFences.resize(count);
-    vk::FenceCreateInfo fenceCI{ vk::FenceCreateFlagBits::eSignaled };
-    for (auto& fence : m_WaitFences)
-    {
-        fence = device.createFence(fenceCI);
-        m_Context->SetVkObjectName(fence, "Swapchain Fence");
-    }
-}
-
-CommandBufferManager::~CommandBufferManager()
-{
-    auto device = m_Context->GetDevice();
-
-    for (auto& fence : m_WaitFences)
-        device.destroyFence(fence);
-
-    device.freeCommandBuffers(m_CommandPool, m_CommandBuffers);
-    device.destroyCommandPool(m_CommandPool);
-}
-
-bool CommandBufferManager::GetFenceStatus(uint32_t index)
-{
-    return m_Context->GetDevice().getFenceStatus(m_WaitFences[index]) == vk::Result::eSuccess;
-}
-
-void CommandBufferManager::StartCommandBuffer(uint32_t index)
-{
-    m_CurrentBufferIndex = index;
-    auto device = m_Context->GetDevice();
-    VK_CHECK(device.waitForFences(m_WaitFences[m_CurrentBufferIndex], VK_TRUE, UINT64_MAX));
-
-    m_CommandBuffers[m_CurrentBufferIndex].reset(vk::CommandBufferResetFlagBits::eReleaseResources);
-    m_CommandBuffers[m_CurrentBufferIndex].begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
-}
-
-void CommandBufferManager::Submit(vk::SubmitInfo& submitInfo, uint32_t index)
-{
-    if (index == UINT32_MAX)
-        index = m_CurrentBufferIndex;
-    m_Context->GetDevice().resetFences(m_WaitFences[index]);
-    m_CommandBuffers[index].end();
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &m_CommandBuffers[index];
-    m_Queue.submit(submitInfo, m_WaitFences[index]);
-}
-
-vk::CommandBuffer CommandBufferManager::BeginSingleTimeCommands()
-{
-    m_SingleTimeMutex.lock();
-    uint32_t index = (uint32_t)m_CommandBuffers.size() - 1;
-    StartCommandBuffer(index);
-    return m_CommandBuffers[index];
-}
-
-void CommandBufferManager::EndSingleTimeCommands()
-{
-    vk::SubmitInfo submitInfo = vk::SubmitInfo{};
-    Submit(submitInfo, (uint32_t)m_CommandBuffers.size() - 1);
-    m_Queue.waitIdle();
-    m_SingleTimeMutex.unlock();
-}
-
-std::vector<vk::CommandBuffer> CommandBufferManager::AllocateCommandBuffers(uint32_t count, std::string_view cbName)
-{
-    auto device = m_Context->GetDevice();
-    vk::CommandBufferAllocateInfo allocInfo(
-        m_CommandPool,
-        vk::CommandBufferLevel::ePrimary,
-        count
-    );
-    auto cbs = device.allocateCommandBuffers(allocInfo);
-
-    for (uint32_t i = 0; i < count; ++i)
-        m_Context->SetVkObjectName(cbs[i], std::format("CommandBuffer: {}, {}", cbName, i));
-
-    return cbs;
-}
-
-vk::CommandBuffer CommandBufferManager::AllocateCommandBuffer(std::string_view cbName)
-{
-    return AllocateCommandBuffers(1, cbName)[0];
-}
-
 CommandPoolManager::CommandPoolManager(GfxContext* ctx, uint32_t numThreads)
     : m_Context(ctx), m_GraphicsFrameContexts{}, m_GraphicsSingleUseContext{},
     m_TransferSingleUseContext{}, m_ComputeSingleUseContext{}
@@ -114,29 +26,99 @@ CommandPoolManager::~CommandPoolManager()
     DestroyFrameContext();
 }
 
+vk::CommandBuffer CommandPoolManager::BeginOrGetPrimaryFrameCommandBuffer(uint32_t frameIndex)
+{
+    FrameCommandContext& frameContext = m_GraphicsFrameContexts[frameIndex];
+    int32_t index;
+    {
+        std::lock_guard lock(m_GraphicsFrameContexts[frameIndex].Mutex);
+        auto it = std::find_if(
+            frameContext.AreUsed.begin(), frameContext.AreUsed.end(),
+            [](const CommandPoolManager::ThreadIdIndex& item)
+            {
+                return item.ThreadId == std::this_thread::get_id();
+            }
+        );
+        if (it != frameContext.AreUsed.end())
+            return frameContext.ThreadContexts[it->Index].PrimaryCommandBuffer;
+
+        index = frameContext.AreUnused.back();
+        frameContext.AreUnused.pop_back();
+        frameContext.AreUsed.push_back({ std::this_thread::get_id(), index });
+    }
+
+    vk::CommandBuffer cb = frameContext.ThreadContexts[index].PrimaryCommandBuffer;
+    frameContext.ThreadContexts[index].IsPrimaryCommandBufferUsed = true;
+    cb.begin(
+        vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+    return cb;
+}
+
+vk::CommandBuffer CommandPoolManager::GetRenderPassCommandBuffer(uint32_t frameIndex)
+{
+    return vk::CommandBuffer();
+}
+
+void CommandPoolManager::ResetFrameCommands(uint32_t frameIndex)
+{
+    FrameCommandContext& frameContext = m_GraphicsFrameContexts[frameIndex];
+    vk::Device device = m_Context->GetDevice();
+
+    VK_CHECK(device.waitForFences(frameContext.WaitFence, VK_TRUE, UINT64_MAX));
+    for (auto& threadContext : frameContext.ThreadContexts)
+    {
+        device.resetCommandPool(threadContext.CommandPool);
+        threadContext.IsPrimaryCommandBufferUsed = false;
+    }
+    device.resetFences(frameContext.WaitFence);
+
+    std::lock_guard lock(frameContext.Mutex);
+    while (frameContext.AreUsed.size() > 0)
+    {
+        ThreadIdIndex threadIdIndex = frameContext.AreUsed.back();
+        frameContext.AreUnused.emplace_back(threadIdIndex.Index);
+        frameContext.AreUsed.pop_back();
+    }
+}
+
+// TODO: the management of used primary command buffers shouldn't be done here?
+FrameCommands CommandPoolManager::EndFrame(uint32_t frameIndex)
+{
+    FrameCommandContext& frameContext = m_GraphicsFrameContexts[frameIndex];
+    FrameCommands fc{};
+    for (ThreadIdIndex threadIdIndex : frameContext.AreUsed)
+    {
+        ThreadCommandContext& threadContext = frameContext.ThreadContexts[threadIdIndex.Index];
+        threadContext.PrimaryCommandBuffer.end();
+        fc.CommandBuffers.emplace_back(threadContext.PrimaryCommandBuffer);
+    }
+    fc.Fence = frameContext.WaitFence;
+    return fc;
+}
+
 vk::CommandBuffer CommandPoolManager::BeginOrGetSingleUseCommandBuffer(EQueueFamilyType queueFamily)
 {
-    SingleUseCommandContext* context = ChooseSingleUseContext(queueFamily);
-
-    uint32_t index{};
+    SingleUseCommandContext* singleUseContext = ChooseSingleUseContext(queueFamily);
+    int32_t index{};
     {
-        const std::lock_guard<std::mutex> lock(context->Mutex);
+        const std::lock_guard<std::mutex> lock(singleUseContext->Mutex);
 
         auto it = std::find_if(
-            context->AreUsed.begin(), context->AreUsed.end(), 
+            singleUseContext->AreUsed.begin(), singleUseContext->AreUsed.end(), 
             [](const CommandPoolManager::ThreadIdIndex& item) {
                 return item.ThreadId == std::this_thread::get_id();
             }
         );
-        if (it != context->AreUsed.end())
-            return context->ThreadContexts[it->Index].PrimaryCommandBuffer;
+        if (it != singleUseContext->AreUsed.end())
+            return singleUseContext->ThreadContexts[it->Index].PrimaryCommandBuffer;
 
-        index = context->AreUnused.back();
-        context->AreUnused.pop_back();
-        context->AreUsed.push_back({ std::this_thread::get_id(), index });
+        index = singleUseContext->AreUnused.back();
+        singleUseContext->AreUnused.pop_back();
+        singleUseContext->AreUsed.push_back({ std::this_thread::get_id(), index });
     }
 
-    vk::CommandBuffer cb = context->ThreadContexts[index].PrimaryCommandBuffer;
+    vk::CommandBuffer cb = singleUseContext->ThreadContexts[index].PrimaryCommandBuffer;
+    cb.reset(vk::CommandBufferResetFlagBits::eReleaseResources);
     cb.begin(
         vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
     return cb;
@@ -148,7 +130,7 @@ void CommandPoolManager::EndSingleUseCommandBuffer(EQueueFamilyType queueFamily,
 )
 {
     SingleUseCommandContext* context = ChooseSingleUseContext(queueFamily);
-    uint32_t index{};
+    int32_t index{};
     std::vector<CommandPoolManager::ThreadIdIndex>::iterator it;
     {
         const std::lock_guard<std::mutex> lock(context->Mutex);
@@ -232,7 +214,7 @@ void CommandPoolManager::InitFrameContext(uint32_t numThreads)
     for (auto& frameContext : m_GraphicsFrameContexts)
     {
         frameContext.ThreadContexts.resize(numThreads);
-        frameContext.WaitFences.resize(numThreads);
+        frameContext.AreUnused.reserve(numThreads);
         frameContext.AreUsed.reserve(numThreads);
         for (uint32_t j = 0; j < numThreads; ++j)
         {
@@ -243,12 +225,13 @@ void CommandPoolManager::InitFrameContext(uint32_t numThreads)
 
             threadContext.PrimaryCommandBuffer = AllocateCommandBuffer(
                 threadContext.CommandPool, vk::CommandBufferLevel::ePrimary,
-                std::format("GraphicsFrameContext{}Primary", index++));
+                std::format("GraphicsFrameContext{}Thread{}Primary", index, j));
 
-            frameContext.WaitFences[j] = m_Context->GetDevice().createFence(vk::FenceCreateInfo(vk::FenceCreateFlagBits::eSignaled));
-            m_Context->SetVkObjectName(frameContext.WaitFences[j], 
-                std::format("GraphicsFrameContext{}Fence{}", index, j));
+            frameContext.AreUnused.emplace_back(j);
         }
+        frameContext.WaitFence = m_Context->GetDevice().createFence(vk::FenceCreateInfo(vk::FenceCreateFlagBits::eSignaled));
+        m_Context->SetVkObjectName(frameContext.WaitFence,
+            std::format("GraphicsFrameContext{}Fence", index++));
     }
 }
 
@@ -263,8 +246,8 @@ void CommandPoolManager::DestroyFrameContext()
             m_Context->GetDevice().destroyCommandPool(threadContext.CommandPool);
             threadContext.SecondaryCommandBuffers.clear();
             threadContext.RenderPasses.clear();
-            m_Context->GetDevice().destroyFence(frameContext.WaitFences[i]);
         }
+        m_Context->GetDevice().destroyFence(frameContext.WaitFence);
     }
 }
 

@@ -4,7 +4,7 @@
 #include "Core/ApplicationBase.h"
 #include "Renderer.h"
 #include "Material.h"
-#include "CommandBufferManager.h"
+#include "CommandPoolManager.h"
 #include "WorldRenderer.h"
 #include <Graphics/FrameGraph/RenderPass/IRenderPass.h>
 #include "ECS/EntityRegistry.h"
@@ -61,7 +61,7 @@ void WorldRenderer::Render(EntityRegistry& registry)
 {
     LNE_PROFILE_FUNCTION()
     auto& renderer = ApplicationBase::GetRenderer();
-    vk::CommandBuffer cmdBuffer = renderer.GetGraphicsCommandBufferManager()->GetCurrentCommandBuffer();
+    vk::CommandBuffer cmdBuffer = renderer.GetGfxContext()->GetPrimaryCommandBuffer();
 
     auto staticMeshView = registry.GetView<TransformComponent, StaticMeshComponent>();
     {

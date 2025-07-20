@@ -6,7 +6,7 @@
 #include "Graphics/Texture.h"
 #include "Graphics/StorageBuffer.h"
 #include "Graphics/GfxContext.h"
-#include "Graphics/CommandBufferManager.h"
+#include "Graphics/CommandPoolManager.h"
 #include "Graphics/Renderer.h"
 #include "Graphics/DynamicDescriptorAllocator.h"
 #include "Graphics/Environment.h"

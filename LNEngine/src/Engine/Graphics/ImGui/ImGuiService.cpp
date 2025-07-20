@@ -4,7 +4,7 @@
 #include "../GfxContext.h"
 #include "../Texture.h"
 #include "../Renderer.h"
-#include "../CommandBufferManager.h"
+#include "../CommandPoolManager.h"
 #include "../DynamicDescriptorAllocator.h"
 #include "../Framebuffer.h"
 #include "Core/Utils/Log.h"
@@ -310,7 +310,7 @@ void ImGuiService::EndFrame()
     uint32_t imageIndex = m_Swapchain->GetCurrentFrameIndex();
 
     auto& renderer = ApplicationBase::GetRenderer();
-    auto cmdBuffer = renderer.GetGraphicsCommandBufferManager()->GetCurrentCommandBuffer();
+    auto cmdBuffer = m_GraphicsContext->GetPrimaryCommandBuffer();
 
     renderer.PushLabel(cmdBuffer, "ImGui");
     m_Framebuffers[imageIndex].Bind(cmdBuffer);

@@ -11,7 +11,7 @@
 #include "Shader.h"
 #include "Core/ApplicationBase.h"
 #include "Engine/Graphics/Texture.h"
-#include "CommandBufferManager.h"
+#include "CommandPoolManager.h"
 #include "Enums.h"
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
@@ -484,6 +484,11 @@ vk::CommandPool GfxContext::CreateCommandPool(uint32_t queueFamilyIndex, vk::Com
     auto cp = m_Device.createCommandPool(poolInfo);
     SetVkObjectName(cp, std::format("CommandPool {}", queueFamilyIndex));
     return cp;
+}
+
+vk::CommandBuffer GfxContext::GetPrimaryCommandBuffer() const
+{
+    return m_CommandPoolManager->BeginOrGetPrimaryFrameCommandBuffer(m_CurrentFrameInFlight);
 }
 
 vk::ImageView GfxContext::CreateImageView(vk::Image image, vk::ImageViewType viewType, vk::Format format, uint32_t numMipLevels, uint32_t layers, vk::ImageAspectFlags aspectMask, const std::string& name)

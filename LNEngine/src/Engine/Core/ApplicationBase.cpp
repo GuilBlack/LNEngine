@@ -10,7 +10,7 @@
 #include "Core/Events/ApplicationEvents.h"
 #include "Graphics/GfxContext.h"
 #include "Graphics/Renderer.h"
-#include "Graphics/CommandBufferManager.h"
+#include "Graphics/CommandPoolManager.h"
 #include "Graphics/Texture.h"
 #include "Graphics/DynamicDescriptorAllocator.h"
 #include "Graphics/ImGui/ImGuiService.h"
@@ -94,14 +94,21 @@ const std::string& ApplicationBase::GetAssetsPath()
 void ApplicationBase::Run()
 {
     Profiler::Get().BeginSession("Run");
-    m_Renderer->GetGraphicsCommandBufferManager()->BeginSingleTimeCommands();
-    m_Window->GetGfxContext()->UploadDefaultResources();
+    auto graphicsContext = m_Renderer->GetGfxContext();
+    CommandPoolManager& cpManager = graphicsContext->GetCommandPoolManager();
+    cpManager.ResetFrameCommands(0);
+    vk::CommandBuffer cb = cpManager.BeginOrGetPrimaryFrameCommandBuffer(0);
+    graphicsContext->UploadDefaultResources();
     m_ImGuiService->CreateFontsTexture();
 
     for (auto layer : m_LayerStack)
         layer->OnAttach();
 
-    m_Renderer->GetGraphicsCommandBufferManager()->EndSingleTimeCommands();
+    FrameCommands fc = cpManager.EndFrame(0);
+    vk::SubmitInfo submitInfo;
+    submitInfo.setCommandBuffers(fc.CommandBuffers);
+    graphicsContext->SubmitToQueue(EQueueFamilyType::Graphics, submitInfo, fc.Fence);
+
     m_Clock.Start();
 
     while (!m_Window->ShouldClose())
@@ -163,15 +170,14 @@ bool ApplicationBase::OnWindowClose(WindowCloseEvent& e)
     LNE_INFO("WindowCloseEvent received");
     m_PinnedTaskRunner->IsFinished = true;
     m_TaskScheduler->WaitforAllAndShutdown();
-    m_Window->GetGfxContext()->WaitIdle();
+    auto gfxContext = m_Window->GetGfxContext();
+    gfxContext->WaitIdle();
 
-    m_Renderer->GetGraphicsCommandBufferManager()->BeginSingleTimeCommands();
     m_Window->GetGfxContext()->NukeDefaultResources();
 
     for (auto layer : m_LayerStack)
         layer->OnDetach();
 
-    m_Renderer->GetGraphicsCommandBufferManager()->EndSingleTimeCommands();
     m_ImGuiService->Nuke();
     m_Renderer->Nuke();
     return false;
