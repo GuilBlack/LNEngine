@@ -39,7 +39,6 @@ ApplicationBase::ApplicationBase(ApplicationSettings&& settings)
     s_Instance = this;
     s_AssetsPath = std::filesystem::current_path().string() + "\\Assets\\";
 
-    Profiler::Get().BeginSession("Init");
     LNE_PROFILE_FUNCTION();
 
     Log::Init();
@@ -73,7 +72,6 @@ ApplicationBase::ApplicationBase(ApplicationSettings&& settings)
     m_ImGuiService->Init(m_Window);
 
     LNE_INFO("Application {0} initialized", m_Settings.Name);
-    Profiler::Get().EndSession();
 }
 
 ApplicationBase::~ApplicationBase()
@@ -93,7 +91,6 @@ const std::string& ApplicationBase::GetAssetsPath()
 
 void ApplicationBase::Run()
 {
-    Profiler::Get().BeginSession("Run");
     auto graphicsContext = m_Renderer->GetGfxContext();
     CommandPoolManager& cpManager = graphicsContext->GetCommandPoolManager();
     cpManager.ResetFrameCommands(0);
@@ -140,7 +137,6 @@ void ApplicationBase::Run()
         LNE_PROFILE_FRAME
     }
 
-    Profiler::Get().EndSession();
 }
 
 void ApplicationBase::PushLayer(Layer* layer)
