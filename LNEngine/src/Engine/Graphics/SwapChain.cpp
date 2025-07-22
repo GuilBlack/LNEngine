@@ -87,10 +87,10 @@ bool Swapchain::Present()
 
     try
     {
+        m_Context->m_CurrentFrameInFlight = (m_Context->m_CurrentFrameInFlight + 1) % m_Context->m_MaxFramesInFlight;
         result = presentQueue.presentKHR(presentInfo);
         m_FrameIndex = (m_FrameIndex + 1) % m_ColorAttachments.size();
         // TODO: this is a temporary solution, m_CurrentFrameIndex should be current frame in flight not just the current frame index
-        m_Context->m_CurrentFrameInFlight = (m_Context->m_CurrentFrameInFlight + 1) % m_Context->m_MaxFramesInFlight;
         return true;
     }
     catch (vk::SystemError& error)
