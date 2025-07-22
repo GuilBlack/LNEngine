@@ -18,10 +18,13 @@ Swapchain::Swapchain(SafePtr<class GfxContext> ctx, vk::SurfaceKHR surface)
 Swapchain::~Swapchain()
 {
     auto device = m_Context->GetDevice();
-
-    device.destroySemaphore(m_Semaphores.ImageAvailable);
-    device.destroySemaphore(m_Semaphores.RenderFinished);
-    device.destroyFence(m_AcquireFence);
+    uint32_t framesInFlight = m_Context->GetMaxFramesInFlight();
+    for (uint32_t i = 0; i < framesInFlight; i++)
+    {
+        device.destroySemaphore(m_Semaphores[i].ImageAvailable);
+        device.destroySemaphore(m_Semaphores[i].RenderFinished);
+        device.destroyFence(m_AcquireFences[i]);
+    }
 
     m_ColorAttachments.clear();
 
@@ -29,16 +32,16 @@ Swapchain::~Swapchain()
     m_Context->VulkanInstance().destroySurfaceKHR(m_Surface);
 }
 
-vk::SubmitInfo Swapchain::GetSubmitInfo(vk::PipelineStageFlags* waitStages, bool waitForImageAvailable, bool signalRenderFinished) const
+vk::SubmitInfo Swapchain::GetSubmitInfo(vk::PipelineStageFlags* waitStages, uint32_t frameInFlight) const
 {
     vk::SubmitInfo submitInfo(
-        waitForImageAvailable ? 1 : 0,
-        waitForImageAvailable ? &m_Semaphores.ImageAvailable : nullptr,
-        waitForImageAvailable ? waitStages : nullptr,
+        1,
+        &m_Semaphores[frameInFlight].ImageAvailable,
+        waitStages,
         1,
         {},
-        signalRenderFinished ? 1 : 0,
-        signalRenderFinished ? &m_Semaphores.RenderFinished : nullptr
+        1,
+        &m_Semaphores[frameInFlight].RenderFinished
     );
 
     return submitInfo;
@@ -57,10 +60,10 @@ Framebuffer& Swapchain::GetCurrentFramebuffer()
 void Swapchain::BeginFrame()
 {
     auto device = m_Context->GetDevice();
-
-    VK_CHECK(device.waitForFences(m_AcquireFence, VK_TRUE, UINT64_MAX));
-    device.resetFences(m_AcquireFence);
-    auto result = device.acquireNextImageKHR(m_Swapchain, UINT64_MAX, m_Semaphores.ImageAvailable, m_AcquireFence);
+    uint32_t currentFrameInFlight = m_Context->GetCurrentFrameIndex();
+    VK_CHECK(device.waitForFences(m_AcquireFences[currentFrameInFlight], VK_TRUE, UINT64_MAX));
+    device.resetFences(m_AcquireFences[currentFrameInFlight]);
+    auto result = device.acquireNextImageKHR(m_Swapchain, UINT64_MAX, m_Semaphores[currentFrameInFlight].ImageAvailable, m_AcquireFences[currentFrameInFlight]);
     m_CurrentImageIndex = result.value;
 
     if (result.result == vk::Result::eErrorOutOfDateKHR)
@@ -75,7 +78,7 @@ bool Swapchain::Present()
 
     const auto presentInfo = vk::PresentInfoKHR(
         1,
-        &m_Semaphores.RenderFinished,
+        &m_Semaphores[m_Context->GetCurrentFrameIndex()].RenderFinished,
         1,
         &m_Swapchain,
         &m_CurrentImageIndex
@@ -199,19 +202,28 @@ void Swapchain::CreateSwapchain()
 void Swapchain::CreateSyncObjects()
 {
     auto device = m_Context->GetDevice();
+    uint32_t count = m_Context->GetMaxFramesInFlight();
 
     vk::FenceCreateInfo fenceCI{ vk::FenceCreateFlagBits::eSignaled };
-    m_AcquireFence = device.createFence(fenceCI);
+    m_AcquireFences.clear();
+    m_AcquireFences.reserve(count);
 
     vk::SemaphoreCreateInfo semaphoreCI{};
+    m_Semaphores.clear();
+    m_Semaphores.reserve(count);
 
-    m_Semaphores = SwapchainSemaphores{
-        .ImageAvailable = device.createSemaphore(semaphoreCI),
-        .RenderFinished = device.createSemaphore(semaphoreCI)
-    };
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        m_AcquireFences.push_back(device.createFence(fenceCI));
+        m_Context->SetVkObjectName(m_AcquireFences[i], std::format("Swapchain Acquire Fence {}", i));
 
-    m_Context->SetVkObjectName(m_Semaphores.ImageAvailable, "Swapchain Semaphore ImageAvailable");
-    m_Context->SetVkObjectName(m_Semaphores.RenderFinished, "Swapchain Semaphore RenderFinished");
+        m_Semaphores.push_back(SwapchainSemaphores{
+            .ImageAvailable = device.createSemaphore(semaphoreCI),
+            .RenderFinished = device.createSemaphore(semaphoreCI)
+            });
+        m_Context->SetVkObjectName(m_Semaphores[i].ImageAvailable, std::format("Swapchain Semaphore ImageAvailable {}", i));
+        m_Context->SetVkObjectName(m_Semaphores[i].RenderFinished, std::format("Swapchain Semaphore RenderFinished {}", i));
+    }
 }
 
 vk::SurfaceFormatKHR Swapchain::PickSwapchainSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats)

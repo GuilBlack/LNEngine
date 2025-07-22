@@ -99,7 +99,7 @@ void Renderer::EndFrame()
     currentImage->TransitionLayout(cb, vk::ImageLayout::ePresentSrcKHR);
 
     vk::PipelineStageFlags waitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
-    vk::SubmitInfo submitInfo = m_Swapchain->GetSubmitInfo(waitStages);
+    vk::SubmitInfo submitInfo = m_Swapchain->GetSubmitInfo(waitStages, m_Context->GetCurrentFrameIndex());
     FrameCommands commands = m_Context->GetCommandPoolManager().EndFrame(m_Context->GetCurrentFrameIndex());
     submitInfo.setCommandBuffers(commands.CommandBuffers);
     m_Context->SubmitToQueue(EQueueFamilyType::Graphics, submitInfo, commands.Fence);

@@ -41,45 +41,49 @@ public:
 
     void CreateSwapchain();
 
-    [[nodiscard]] uint32_t GetImageCount() const { return static_cast<uint32_t>(m_ColorAttachments.size()); }
-    [[nodiscard]] uint32_t GetCurrentFrameIndex() const { return m_CurrentImageIndex; }
-    [[nodiscard]] vk::SubmitInfo GetSubmitInfo(vk::PipelineStageFlags* submitStageFlag, 
-        bool waitForImageAvailable = true, bool signalRenderFinished = true) const;
-    [[nodiscard]] SafePtr<class Texture> GetCurrentImage() const;
-    [[nodiscard]] const Viewport& GetViewport() const { return m_Viewport; }
-    [[nodiscard]] const vk::SurfaceFormatKHR& GetSurfaceFormat() const { return m_SurfaceFormat; }
+    [[nodiscard]] uint32_t                          GetImageCount() const
+    { 
+        return static_cast<uint32_t>(m_ColorAttachments.size());
+    }
+    [[nodiscard]] uint32_t                          GetCurrentFrameIndex() const { return m_CurrentImageIndex; }
+    [[nodiscard]] vk::SubmitInfo                    GetSubmitInfo(
+        vk::PipelineStageFlags* submitStageFlag, uint32_t frameInFlight
+    ) const;
+    [[nodiscard]] SafePtr<class Texture>            GetCurrentImage() const;
+    [[nodiscard]] const Viewport&                   GetViewport() const { return m_Viewport; }
+    [[nodiscard]] const vk::SurfaceFormatKHR&       GetSurfaceFormat() const { return m_SurfaceFormat; }
 
-    [[nodiscard]] class Framebuffer& GetCurrentFramebuffer();
-    [[nodiscard]] std::vector<class Framebuffer>& GetFramebuffers() { return m_Framebuffers; }
+    [[nodiscard]] class Framebuffer&                GetCurrentFramebuffer();
+    [[nodiscard]] std::vector<class Framebuffer>&   GetFramebuffers() { return m_Framebuffers; }
 
     void BeginFrame();
     [[nodiscard]] bool Present();
 
 private:
-    SafePtr<class GfxContext> m_Context;
-    vk::SwapchainKHR m_Swapchain{};
-    vk::SurfaceKHR m_Surface{};
-    Viewport m_Viewport;
-    vk::SurfaceFormatKHR m_SurfaceFormat{};
+    SafePtr<class GfxContext>               m_Context;
+    vk::SwapchainKHR                        m_Swapchain{};
+    vk::SurfaceKHR                          m_Surface{};
+    Viewport                                m_Viewport;
+    vk::SurfaceFormatKHR                    m_SurfaceFormat{};
 
-    std::vector<SafePtr<class Texture>> m_ColorAttachments;
-    SafePtr<class Texture> m_DepthAttachment;
-    std::vector<class Framebuffer> m_Framebuffers;
+    std::vector<SafePtr<class Texture>>     m_ColorAttachments;
+    SafePtr<class Texture>                  m_DepthAttachment;
+    std::vector<class Framebuffer>          m_Framebuffers;
 
     struct SwapchainSemaphores
     {
-        vk::Semaphore ImageAvailable;
-        vk::Semaphore RenderFinished;
+        vk::Semaphore                       ImageAvailable;
+        vk::Semaphore                       RenderFinished;
     };
-    SwapchainSemaphores m_Semaphores;
-    vk::Fence m_AcquireFence;
+    std::vector<SwapchainSemaphores>        m_Semaphores;
+    std::vector<vk::Fence>                  m_AcquireFences;
 
-    uint32_t m_CurrentImageIndex{ 0 };
-    uint32_t m_FrameIndex{ 0 };
+    uint32_t                                m_CurrentImageIndex{ 0 };
+    uint32_t                                m_FrameIndex{ 0 };
 private:
-    void CreateSyncObjects();
+    void                            CreateSyncObjects();
 
-    vk::SurfaceFormatKHR PickSwapchainSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
-    vk::PresentModeKHR PickSwapchainPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes);
+    vk::SurfaceFormatKHR            PickSwapchainSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
+    vk::PresentModeKHR              PickSwapchainPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes);
 };
 }
