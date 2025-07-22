@@ -42,27 +42,30 @@ StaticMesh::StaticMesh(std::filesystem::path path, SafePtr<GfxPipeline> pipeline
     LoadData(scene);
 }
 
-StaticMesh::StaticMesh(const Geometry& geometry,
+StaticMesh::StaticMesh(Geometry&& geometry,
     SafePtr<Material> material, std::vector<SafePtr<class Texture>> textures,
     SafePtr<class GfxPipeline> pipeline)
-    : m_Geometry(geometry), m_Pipeline(pipeline)
+    : m_Geometry(std::move(geometry)), m_Pipeline(pipeline)
 {
-    m_TotalIndexCount = geometry.IndexCount;
-    m_TotalVertexCount = geometry.VertexCount;
+    m_TotalIndexCount = m_Geometry.IndexCount;
+    m_TotalVertexCount = m_Geometry.VertexCount;
     m_Materials.push_back(material);
     m_Textures = textures;
 
     SubMesh submesh{
         .BaseVertex = 0,
         .BaseIndex = 0,
-        .VertexCount = geometry.VertexCount,
-        .IndexCount = geometry.IndexCount,
+        .VertexCount = m_Geometry.VertexCount,
+        .IndexCount = m_Geometry.IndexCount,
         .MaterialIndex = 0,
         .BoundingBox = AABB{},
         .Name = "Default"
     };
 
     m_SubMeshes.push_back(submesh);
+    Renderer& renderer = ApplicationBase::GetRenderer();
+    m_Geometry.VertexGPUBuffer = renderer.CreateGeometryBuffer(m_Geometry.Vertices, m_TotalVertexCount * sizeof(Vertex));
+    m_Geometry.IndexGPUBuffer = renderer.CreateGeometryBuffer(m_Geometry.Indices, m_TotalIndexCount * sizeof(uint32_t));
 }
 
 void StaticMesh::InitSubmeshes(const aiScene* scene)
@@ -93,12 +96,16 @@ void StaticMesh::InitSubmeshes(const aiScene* scene)
 
     TraverseNodes(scene->mRootNode, glm::mat4(1.0f));
 
-    m_Geometry.Vertices.reserve(m_TotalVertexCount);
-    m_Geometry.Indices.reserve(m_TotalIndexCount);
+    m_Geometry.Vertices = lnnew Vertex[m_TotalVertexCount];
+    m_Geometry.Indices = lnnew uint32_t[m_TotalIndexCount];
 }
 
 void StaticMesh::LoadData(const aiScene* scene)
 {
+    LoadMaterials(scene);
+
+    uint32_t indexIndex = 0;
+    uint32_t vertexIndex = 0;
     for (uint32_t m = 0; m < scene->mNumMeshes; ++m)
     {
         const aiMesh* mesh = scene->mMeshes[m];
@@ -118,8 +125,8 @@ void StaticMesh::LoadData(const aiScene* scene)
 
             if (mesh->HasTextureCoords(0))
                 vertex.TexCoord = { mesh->mTextureCoords[0][v].x, mesh->mTextureCoords[0][v].y };
-
-            m_Geometry.Vertices.push_back(vertex);
+            LNE_ASSERT(vertexIndex < m_TotalVertexCount, "Vertex index out of bounds");
+            ((Vertex*)m_Geometry.Vertices)[vertexIndex++] = vertex;
         }
 
         for (uint32_t f = 0; f < mesh->mNumFaces; ++f)
@@ -128,22 +135,22 @@ void StaticMesh::LoadData(const aiScene* scene)
 
             const aiFace& face = mesh->mFaces[f];
             for (uint32_t i = 0; i < face.mNumIndices; ++i)
-                m_Geometry.Indices.push_back(face.mIndices[i] + m_SubMeshes[m].BaseVertex);
+            {
+                LNE_ASSERT(indexIndex < m_TotalIndexCount, "Index index out of bounds");
+                ((uint32_t*)m_Geometry.Indices)[indexIndex++] = face.mIndices[i] + m_SubMeshes[m].BaseVertex;
+            }
         }
     }
-
-    LNE_ASSERT(m_Geometry.Vertices.size() == m_TotalVertexCount, "Vertex count mismatch");
-    LNE_ASSERT(m_Geometry.Indices.size() == m_TotalIndexCount, "Index count mismatch");
+    LNE_ASSERT(indexIndex == m_TotalIndexCount, "Index count mismatch");
+    LNE_ASSERT(vertexIndex == m_TotalVertexCount, "Vertex count mismatch");
 
     m_Geometry.VertexCount = m_TotalVertexCount;
     m_Geometry.IndexCount = m_TotalIndexCount;
 
     auto& renderer = ApplicationBase::GetRenderer();
 
-    m_Geometry.VertexGPUBuffer = renderer.CreateGeometryBuffer(m_Geometry.Vertices.data(), m_Geometry.Vertices.size() * sizeof(Vertex));
-    m_Geometry.IndexGPUBuffer = renderer.CreateGeometryBuffer(m_Geometry.Indices.data(), m_Geometry.Indices.size() * sizeof(uint32_t));
-
-    LoadMaterials(scene);
+    m_Geometry.VertexGPUBuffer = renderer.CreateGeometryBuffer(m_Geometry.Vertices, m_TotalVertexCount * sizeof(Vertex));
+    m_Geometry.IndexGPUBuffer = renderer.CreateGeometryBuffer(m_Geometry.Indices, m_TotalIndexCount * sizeof(uint32_t));
 }
 
 void StaticMesh::LoadMaterials(const aiScene* scene)
@@ -304,25 +311,27 @@ void StaticMesh::TraverseNodes(const aiNode* node, const glm::mat4& parentTransf
         TraverseNodes(node->mChildren[i], worldTransform);
 }
 
-lne::Geometry lne::Geometry::GenerateCube(uint32_t tesselationLevel)
+Geometry Geometry::GenerateCube(uint32_t tesselationLevel)
 {
     float step = 2.0f / tesselationLevel;
     Geometry geometry{};
+    std::vector<Vertex> vertices;
+    std::vector<uint32_t> indices;
 
     auto addQuad = [&](glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, glm::vec3 normal)
         {
-            uint32_t startIndex = (uint32_t)geometry.Vertices.size();
-            geometry.Vertices.push_back({ p0, {0.0f, 1.0f}, normal, {} });
-            geometry.Vertices.push_back({ p1, {1.0f, 1.0f}, normal, {} });
-            geometry.Vertices.push_back({ p2, {1.0f, 0.0f}, normal, {} });
-            geometry.Vertices.push_back({ p3, {0.0f, 0.0f}, normal, {} });
+            uint32_t startIndex = (uint32_t)vertices.size();
+            vertices.push_back({ p0, {0.0f, 1.0f}, normal, {} });
+            vertices.push_back({ p1, {1.0f, 1.0f}, normal, {} });
+            vertices.push_back({ p2, {1.0f, 0.0f}, normal, {} });
+            vertices.push_back({ p3, {0.0f, 0.0f}, normal, {} });
 
-            geometry.Indices.push_back(startIndex + 0);
-            geometry.Indices.push_back(startIndex + 1);
-            geometry.Indices.push_back(startIndex + 2);
-            geometry.Indices.push_back(startIndex + 2);
-            geometry.Indices.push_back(startIndex + 3);
-            geometry.Indices.push_back(startIndex + 0);
+            indices.push_back(startIndex + 0);
+            indices.push_back(startIndex + 1);
+            indices.push_back(startIndex + 2);
+            indices.push_back(startIndex + 2);
+            indices.push_back(startIndex + 3);
+            indices.push_back(startIndex + 0);
         };
 
     for (uint32_t i = 0; i < tesselationLevel; ++i)
@@ -350,12 +359,19 @@ lne::Geometry lne::Geometry::GenerateCube(uint32_t tesselationLevel)
     }
 
     Renderer& renderer = ApplicationBase::GetRenderer();
-    geometry.VertexGPUBuffer = renderer.CreateGeometryBuffer(geometry.Vertices.data(), geometry.Vertices.size() * sizeof(Vertex));
-    geometry.IndexGPUBuffer = renderer.CreateGeometryBuffer(geometry.Indices.data(), geometry.Indices.size() * sizeof(uint32_t));
+    Vertex* verticesPtr = lnnew Vertex[vertices.size()];
+    uint32_t* indicesPtr = lnnew uint32_t[indices.size()];
+    std::memcpy(verticesPtr, vertices.data(), vertices.size() * sizeof(Vertex));
+    std::memcpy(indicesPtr, indices.data(), indices.size() * sizeof(uint32_t));
+    geometry.VertexGPUBuffer = renderer.CreateGeometryBuffer(verticesPtr, vertices.size() * sizeof(Vertex));
+    geometry.IndexGPUBuffer = renderer.CreateGeometryBuffer(indicesPtr, indices.size() * sizeof(uint32_t));
 
-    geometry.VertexCount = (uint32_t)geometry.Vertices.size();
-    geometry.IndexCount = (uint32_t)geometry.Indices.size();
-    return geometry;
+    geometry.Vertices = verticesPtr;
+    geometry.Indices = indicesPtr;
+
+    geometry.VertexCount = (uint32_t)vertices.size();
+    geometry.IndexCount = (uint32_t)indices.size();
+    return std::move(geometry);
 }
 
 Geometry Geometry::GenerateUVSphere(float radius, uint32_t nLatitude, uint32_t nLongitude)
@@ -371,8 +387,8 @@ Geometry Geometry::GenerateUVSphere(float radius, uint32_t nLatitude, uint32_t n
     //-1 to nLat because it wouldn't make sense otherwise.
     uint32_t nIndices = 2 * 3 * nLongitude + 2 * 3 * (nLatitude - 1) * nLongitude;
 
-    geometry.Vertices.resize(nVertices);
-    geometry.Indices.resize(nIndices);
+    Vertex* vertices = lnnew Vertex[nVertices];
+    uint32_t* indices = lnnew uint32_t[nIndices];
 
     // here, latitude points should be mapped between -90 and 90 degrees (or -PI/2 to PI/2).
     // +1 to nLat because it wouldn't make sense otherwise.
@@ -384,9 +400,9 @@ Geometry Geometry::GenerateUVSphere(float radius, uint32_t nLatitude, uint32_t n
     // add north pole
     for (uint32_t i = 1; i <= nLongitude; ++i)
     {
-        geometry.Vertices[count].Position = { 0.0f, radius, 0.0f };
-        geometry.Vertices[count].TexCoord = { (float)i / ((float)nLongitude + 1.0f), 0.0f };
-        geometry.Vertices[count].Normal = { 0.0f, 1.0f, 0.0f };
+        vertices[count].Position = { 0.0f, radius, 0.0f };
+        vertices[count].TexCoord = { (float)i / ((float)nLongitude + 1.0f), 0.0f };
+        vertices[count].Normal = { 0.0f, 1.0f, 0.0f };
         ++count;
     }
 
@@ -399,9 +415,9 @@ Geometry Geometry::GenerateUVSphere(float radius, uint32_t nLatitude, uint32_t n
             float pLon = longitudeSlope * (float)j;
             glm::vec3 point = { sinf(pLat) * cosf(pLon), cosf(pLat), sinf(pLat) * sinf(pLon) };
 
-            geometry.Vertices[count].Position = { radius * point.x, radius * point.y, radius * point.z };
-            geometry.Vertices[count].TexCoord = { 1 - (float)j / (float)nLongitude, (float)i / (float)(nLatitude + 1) };
-            geometry.Vertices[count].Normal = glm::vec3(point);
+            vertices[count].Position = { radius * point.x, radius * point.y, radius * point.z };
+            vertices[count].TexCoord = { 1 - (float)j / (float)nLongitude, (float)i / (float)(nLatitude + 1) };
+            vertices[count].Normal = glm::vec3(point);
 
             ++count;
         }
@@ -410,9 +426,9 @@ Geometry Geometry::GenerateUVSphere(float radius, uint32_t nLatitude, uint32_t n
     //add south pole
     for (uint32_t i = 1; i <= nLongitude; ++i)
     {
-        geometry.Vertices[count].Position = { 0.0f, -radius, 0.0f };
-        geometry.Vertices[count].TexCoord = { (float)i / ((float)nLongitude + 1.0f), 1.0f };
-        geometry.Vertices[count].Normal = { 0.0f, -1.0f, 0.0f };
+        vertices[count].Position = { 0.0f, -radius, 0.0f };
+        vertices[count].TexCoord = { (float)i / ((float)nLongitude + 1.0f), 1.0f };
+        vertices[count].Normal = { 0.0f, -1.0f, 0.0f };
         ++count;
     }
 
@@ -420,9 +436,9 @@ Geometry Geometry::GenerateUVSphere(float radius, uint32_t nLatitude, uint32_t n
     //north pole indices
     for (uint32_t i = 0; i < nLongitude; ++i)
     {
-        geometry.Indices[count++] = i;
-        geometry.Indices[count++] = (nLongitude - 1) + i + 2;
-        geometry.Indices[count++] = (nLongitude - 1) + i + 1;
+        indices[count++] = i;
+        indices[count++] = (nLongitude - 1) + i + 2;
+        indices[count++] = (nLongitude - 1) + i + 1;
     }
 
     //middle quads
@@ -437,13 +453,13 @@ Geometry Geometry::GenerateUVSphere(float radius, uint32_t nLatitude, uint32_t n
                 nLongitude + (i + 1) * (nLongitude + 1) + j
             };
 
-            geometry.Indices[count++] = index[0];
-            geometry.Indices[count++] = index[1];
-            geometry.Indices[count++] = index[2];
+            indices[count++] = index[0];
+            indices[count++] = index[1];
+            indices[count++] = index[2];
 
-            geometry.Indices[count++] = index[0];
-            geometry.Indices[count++] = index[2];
-            geometry.Indices[count++] = index[3];
+            indices[count++] = index[0];
+            indices[count++] = index[2];
+            indices[count++] = index[3];
         }
     }
 
@@ -451,18 +467,21 @@ Geometry Geometry::GenerateUVSphere(float radius, uint32_t nLatitude, uint32_t n
     const uint32_t southPoleIndex = nVertices - nLongitude;
     for (uint32_t i = 0; i < nLongitude; ++i)
     {
-        geometry.Indices[count++] = southPoleIndex + i;
-        geometry.Indices[count++] = southPoleIndex - (nLongitude + 1) + i;
-        geometry.Indices[count++] = southPoleIndex - (nLongitude + 1) + i + 1;
+        indices[count++] = southPoleIndex + i;
+        indices[count++] = southPoleIndex - (nLongitude + 1) + i;
+        indices[count++] = southPoleIndex - (nLongitude + 1) + i + 1;
     }
 
     Renderer& renderer = ApplicationBase::GetRenderer();
-    geometry.VertexGPUBuffer = renderer.CreateGeometryBuffer(geometry.Vertices.data(), geometry.Vertices.size() * sizeof(Vertex));
-    geometry.IndexGPUBuffer = renderer.CreateGeometryBuffer(geometry.Indices.data(), geometry.Indices.size() * sizeof(uint32_t));
+    geometry.VertexGPUBuffer = renderer.CreateGeometryBuffer(vertices, nVertices * sizeof(Vertex));
+    geometry.IndexGPUBuffer = renderer.CreateGeometryBuffer(indices, nIndices * sizeof(uint32_t));
 
-    geometry.VertexCount = (uint32_t)geometry.Vertices.size();
-    geometry.IndexCount = (uint32_t)geometry.Indices.size();
+    geometry.VertexCount = nVertices;
+    geometry.IndexCount = nIndices;
 
-    return geometry;
+    geometry.Vertices = vertices;
+    geometry.Indices = indices;
+
+    return std::move(geometry);
 }
 }

@@ -6,7 +6,7 @@
 
 namespace lne
 {
-class Environment : public RefCountBase
+class WorldEnvironment : public RefCountBase
 {
 public:
     SafePtr<Texture> RadianceTexture{};

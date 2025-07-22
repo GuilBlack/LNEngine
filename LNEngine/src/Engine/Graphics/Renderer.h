@@ -84,7 +84,7 @@ public:
     [[nodiscard]] SafePtr<class StorageBuffer> CreateGeometryBuffer(const void* data, size_t size);
     [[nodiscard]] SafePtr<class Texture> CreateTexture(const std::string& fullPath, vk::Format format = vk::Format::eR8G8B8A8Srgb);
     [[nodiscard]] SafePtr<class Texture> CreateCubemapTexture(const std::vector<std::string>& faces);
-    [[nodiscard]] SafePtr<class Environment> CreateEnvironmentMap(std::string_view pathToEnvMap, uint32_t dimensions = 1024);
+    [[nodiscard]] SafePtr<class WorldEnvironment> CreateEnvironmentMap(std::string_view pathToEnvMap, uint32_t dimensions = 1024);
 
     [[nodiscard]] SafePtr<class UniformBufferManager> RegisterObject();
     void AddTextureToUpdate(SafePtr<class Texture> texture);

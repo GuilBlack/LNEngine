@@ -23,6 +23,8 @@ public:
     void CopyData(vk::CommandBuffer cb, const void* data, uint64_t size, uint64_t offset = 0);
 
 private:
+    friend class GfxLoader;
+
     SafePtr<class GfxContext> m_Context;
     BufferAllocation m_Allocation;
     BufferAllocation m_StagingAllocation;

@@ -9,7 +9,7 @@
 #include "Graphics/CommandPoolManager.h"
 #include "Graphics/Renderer.h"
 #include "Graphics/DynamicDescriptorAllocator.h"
-#include "Graphics/Environment.h"
+#include "Graphics/WorldEnvironment.h"
 
 #include "GfxLoader.h"
 #include "Core/ApplicationBase.h"
@@ -18,10 +18,11 @@ namespace lne
 {
 namespace ResourceTypes
 {
-const char* enumValues[3] = {
+const char* enumValues[4] = {
     "Texture",
     "Cubemap",
     "Environment",
+    "Buffer"
 };
 
 const char** s_Enum = enumValues;
@@ -33,6 +34,7 @@ std::string_view ToString(Enum type)
 
 void GfxLoaderTask::Execute()
 {
+    tracy::SetThreadName("Graphics Loader");
     while (TaskScheduler.lock()->GetIsShutdownRequested() == false)
         Loader->Update();
 }
@@ -44,7 +46,7 @@ void GfxLoader::Init(Renderer* renderer, SafePtr<class GfxContext> context, std:
     m_TaskScheduler = scheduler;
 
     m_LoadRequests.reserve(32);
-    m_GPUUploadRequests.reserve(32);
+    m_UploadRequests.reserve(32);
 
     // allocate common staging buffer of 64MB
     vk::BufferCreateInfo bufferCI{
@@ -75,12 +77,11 @@ void GfxLoader::Nuke()
     m_GraphicsContext->FreeBufferAllocation(m_StagingBuffer);
     m_GraphicsContext->GetDevice().destroySemaphore(m_TransferSemaphore);
     m_LoadRequests.clear();
-    m_GPUUploadRequests.clear();
+    m_UploadRequests.clear();
 }
 
 void GfxLoader::Update()
 {
-
     if (m_ReadyTexture)
     {
         m_Renderer->AddTextureToUpdate(m_ReadyTexture);
@@ -182,7 +183,7 @@ SafePtr<Texture> GfxLoader::CreateCubemap(std::vector<std::string> faces)
     return texture;
 }
 
-lne::SafePtr<Environment> GfxLoader::CreateEnvironmentMap(std::string_view pathToEnvMap, uint32_t dimensions)
+lne::SafePtr<WorldEnvironment> GfxLoader::CreateEnvironmentMap(std::string_view pathToEnvMap, uint32_t dimensions)
 {
     if (std::filesystem::exists(pathToEnvMap) == false || stbi_is_hdr(pathToEnvMap.data()))
     {
@@ -197,7 +198,7 @@ lne::SafePtr<Environment> GfxLoader::CreateEnvironmentMap(std::string_view pathT
         return nullptr;
     }
 
-    SafePtr<Environment> env = SafePtr<Environment>(lnnew Environment());
+    SafePtr<WorldEnvironment> env = SafePtr<WorldEnvironment>(lnnew WorldEnvironment());
     env->RadianceTexture = Texture::CreateCubemapTexture(
         m_GraphicsContext, dimensions, dimensions, vk::Format::eR16G16B16A16Sfloat,
         TextureUsageType::eSampled, false,
@@ -222,11 +223,27 @@ lne::SafePtr<Environment> GfxLoader::CreateEnvironmentMap(std::string_view pathT
     return env;
 }
 
+void GfxLoader::InitStaticStorageBuffer(SafePtr<class StorageBuffer> buffer, const void* data)
+{
+    UploadRequest request{
+        .Type = ResourceTypes::eBuffer,
+        .Resource = buffer,
+        .Size = (uint32_t)buffer->m_Size,
+        .Data = const_cast<void*>(data),
+        .ShouldFreeData = false,
+    };
+
+    {
+        std::lock_guard<std::mutex> lock(m_LoadRequestsMutex);
+        m_UploadRequests.push_back(request);
+    }
+}
+
 void GfxLoader::ProcessUploadRequests()
 {
     auto device = m_GraphicsContext->GetDevice();
 
-    if (m_GPUUploadRequests.empty())
+    if (m_UploadRequests.empty())
         return;
 
     auto& cpManager = m_GraphicsContext->GetCommandPoolManager();
@@ -235,29 +252,26 @@ void GfxLoader::ProcessUploadRequests()
     UploadRequest request = {};
     {
         std::lock_guard<std::mutex> lock(m_UploadRequestsMutex);
-        request = m_GPUUploadRequests.back();
-        m_GPUUploadRequests.pop_back();
+        request = m_UploadRequests.back();
+        m_UploadRequests.pop_back();
     }
 
     switch (request.Type)
     {
     case ResourceTypes::eTexture:
-    {
         UploadTexture(request, cb);
         m_ReadyTexture = request.Resource;
         break;
-    }
     case ResourceTypes::eCubemap:
-    {
         UploadTexture(request, cb);
         m_ReadyTexture = request.Resource;
         break;
-    }
     case ResourceTypes::eEnvironment:
-    {
-        UploadEnvironment(request);
+        UploadEnvironment(request, cb);
         break;
-    }
+    case ResourceTypes::eBuffer:
+        UploadBuffer(request, cb);
+        break;
     default:
         LNE_ERROR("Doesn't support type {0} yet.", ResourceTypes::ToString(request.Type));
         break;
@@ -282,20 +296,14 @@ void GfxLoader::ProcessLoadRequests()
     switch (request.Type)
     {
     case ResourceTypes::eTexture:
-    {
         LoadTexture(request);
         break;
-    }
     case ResourceTypes::eCubemap:
-    {
         LoadCubemap(request);
         break;
-    }
     case ResourceTypes::eEnvironment:
-    {
         LoadEnvironment(request);
         break;
-    }
     default:
         LNE_ERROR("Doesn't support type {0} yet.", ResourceTypes::ToString(request.Type));
         break;
@@ -349,7 +357,7 @@ void GfxLoader::LoadCubemap(LoadRequest& request)
 
     {
         std::lock_guard<std::mutex> lock(m_UploadRequestsMutex);
-        m_GPUUploadRequests.push_back(gpuRequest);
+        m_UploadRequests.push_back(gpuRequest);
     }
 }
 
@@ -388,12 +396,27 @@ void GfxLoader::UploadTexture(UploadRequest& request, vk::CommandBuffer cb)
         delete[] request.Data;
 }
 
-void GfxLoader::UploadEnvironment(UploadRequest& request)
+void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cb)
 {
     auto& renderer = ApplicationBase::GetRenderer();
 
     // 1) equirectangular to cubemap conversion
 
+}
+
+void GfxLoader::UploadBuffer(UploadRequest& request, vk::CommandBuffer cb)
+{
+    SafePtr buffer = request.Resource.GetAs<StorageBuffer>();
+    buffer->m_StagingAllocation = m_GraphicsContext->AllocateStagingBuffer(buffer->m_Size);
+    memcpy(buffer->m_StagingAllocation.AllocationInfo.pMappedData, request.Data, buffer->m_Size);
+
+    vk::BufferCopy copyRegion = vk::BufferCopy{
+        0,
+        0,
+        buffer->m_Size
+    };
+
+    cb.copyBuffer(buffer->m_StagingAllocation.Buffer, buffer->m_Allocation.Buffer, copyRegion);
 }
 
 }

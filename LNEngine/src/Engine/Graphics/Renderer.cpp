@@ -19,7 +19,7 @@
 
 // TODO: move this to a resource manager
 #include <stb/stb_image.h>
-#include "Environment.h"
+#include "WorldEnvironment.h"
 
 namespace lne
 {
@@ -731,7 +731,7 @@ SafePtr<Texture> Renderer::CreateCubemapTexture(const std::vector<std::string>& 
     return m_GfxLoader->CreateCubemap(faces);
 }
 
-SafePtr<Environment> Renderer::CreateEnvironmentMap(std::string_view pathToEnvMap, uint32_t dimensions)
+SafePtr<WorldEnvironment> Renderer::CreateEnvironmentMap(std::string_view pathToEnvMap, uint32_t dimensions)
 {
     return m_GfxLoader->CreateEnvironmentMap(pathToEnvMap);
 }

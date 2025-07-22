@@ -18,14 +18,8 @@ enum Enum : uint8_t
 {
     eTexture,
     eCubemap,
-    eEnvironment
-};
-
-enum Mask
-{
-    mTexture = 1 << 0,
-    mCubemap = 1 << 1,
-    mEnvironment = 1 << 2,
+    eEnvironment,
+    eBuffer
 };
 
 extern const char** s_Enum;
@@ -78,16 +72,17 @@ public:
 
     void Update();
 
-    [[nodiscard]] SafePtr<class Texture> CreateTexture(
+    [[nodiscard]] SafePtr<class Texture>        CreateTexture(
         std::string_view fullPath, 
         vk::Format imageFormat = vk::Format::eR8G8B8A8Srgb);
-    [[nodiscard]] SafePtr<class Texture> CreateCubemap(std::vector<std::string> faces);
-    [[nodiscard]] SafePtr<class Environment> CreateEnvironmentMap(std::string_view pathToEnvMap, uint32_t dimensions = 1024);
+    [[nodiscard]] SafePtr<class Texture>        CreateCubemap(std::vector<std::string> faces);
+    [[nodiscard]] SafePtr<class WorldEnvironment>    CreateEnvironmentMap(std::string_view pathToEnvMap, uint32_t dimensions = 1024);
+    void                                        InitStaticStorageBuffer(SafePtr<class StorageBuffer> buffer, const void* data);
 
     void Upload(UploadRequest request)
     {
         std::lock_guard<std::mutex> lock(m_UploadRequestsMutex);
-        m_GPUUploadRequests.push_back(request);
+        m_UploadRequests.push_back(request);
     }
 
 private:
@@ -96,7 +91,7 @@ private:
     std::weak_ptr<enki::TaskScheduler> m_TaskScheduler;
     std::unique_ptr<GfxLoaderTask> m_GfxLoaderTask;
 
-    std::vector<UploadRequest> m_GPUUploadRequests;
+    std::vector<UploadRequest> m_UploadRequests;
     std::mutex m_UploadRequestsMutex;
     std::vector<LoadRequest> m_LoadRequests;
     std::mutex m_LoadRequestsMutex;
@@ -113,7 +108,9 @@ private:
     void LoadTexture(LoadRequest& request);
     void LoadCubemap(LoadRequest& request);
     void LoadEnvironment(LoadRequest& request);
+
     void UploadTexture(UploadRequest& request, vk::CommandBuffer cb);
-    void UploadEnvironment(UploadRequest& request);
+    void UploadEnvironment(UploadRequest& request, vk::CommandBuffer cb);
+    void UploadBuffer(UploadRequest& request, vk::CommandBuffer cb);
 };
 }

@@ -178,19 +178,15 @@ void AppLayer::OnAttach()
 #pragma endregion
 
 #pragma region Geometry Gen
-    std::vector<Vertex> tesselatedVertices{};
-    std::vector<uint32_t> tesselatedIndices{};
-    Geometry cubeGeo = Geometry::GenerateCube(1);
+    Geometry cubeGeo = std::move(Geometry::GenerateCube(1));
 
-    std::vector<Vertex> sphereVertices{};
-    std::vector<uint32_t> sphereIndices{};
-    Geometry sphereGeo = Geometry::GenerateUVSphere(1.0f, 32, 32);
+    Geometry sphereGeo = std::move(Geometry::GenerateUVSphere(1.0f, 32, 32));
 #pragma endregion
 
 #pragma region LoadModels
     modelMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Sponza\\glTF\\Sponza.gltf", m_BasePipeline, m_TransparentPipeline);
-    cubeMeshComponent.Mesh = lnnew StaticMesh(cubeGeo, m_BasicMaterial, { uvChecker }, m_BasePipeline);
-    SafePtr sphereMesh = lnnew StaticMesh(sphereGeo, m_BasicMaterial, { uvChecker }, m_BasePipeline);
+    cubeMeshComponent.Mesh = lnnew StaticMesh(std::move(cubeGeo), m_BasicMaterial, { uvChecker }, m_BasePipeline);
+    SafePtr sphereMesh = lnnew StaticMesh(std::move(sphereGeo), m_BasicMaterial, { uvChecker }, m_BasePipeline);
     sphereMeshComponent.Mesh = sphereMesh;
 #pragma endregion
 

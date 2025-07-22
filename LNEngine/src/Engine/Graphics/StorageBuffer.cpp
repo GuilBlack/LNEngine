@@ -9,7 +9,6 @@
 #include "CommandPoolManager.h"
 #include "DynamicDescriptorAllocator.h"
 #include "Texture.h"
-#include "Renderer.h"
 
 namespace lne
 {
@@ -134,20 +133,7 @@ void StorageBuffer::InitStatic(const void* data)
 
     m_Context->AllocateBuffer(m_Allocation, bufferCI, allocCI);
 
-    // TODO: make it work with the async loader
-    m_StagingAllocation = m_Context->AllocateStagingBuffer(m_Size);
-
-    memcpy(m_StagingAllocation.AllocationInfo.pMappedData, data, m_Size);
-
-    auto cmdBuffer = ApplicationBase::GetRenderer().GetGfxContext()->GetPrimaryCommandBuffer();
-
-    vk::BufferCopy copyRegion = vk::BufferCopy{
-        0,
-        0,
-        m_Size
-    };
-
-    cmdBuffer.copyBuffer(m_StagingAllocation.Buffer, m_Allocation.Buffer, copyRegion);
+    ApplicationBase::GetRenderer().GetGfxLoader()->InitStaticStorageBuffer(SafePtr(this), data);
 }
 
 void StorageBuffer::InitDynamic()

@@ -11,7 +11,7 @@
 #include "Scene/Components.h"
 #include "Mesh.h"
 #include "Core/Utils/Profiling.h"
-#include "Graphics/Environment.h"
+#include "Graphics/WorldEnvironment.h"
 
 
 namespace lne

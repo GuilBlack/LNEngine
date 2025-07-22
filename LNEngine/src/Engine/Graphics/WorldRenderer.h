@@ -38,7 +38,7 @@ public:
 
 private:
     SafePtr<FrameGraph> m_FrameGraph{};
-    SafePtr<class Environment> m_Environment{};
+    SafePtr<class WorldEnvironment> m_Environment{};
 
     std::unordered_map<StaticMeshHash, SubMeshTransformArray> m_Transfroms{};
     std::vector<TransformBuffer> m_TransformBuffers{};

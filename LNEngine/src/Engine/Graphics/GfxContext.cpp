@@ -287,27 +287,28 @@ void GfxContext::UploadDefaultResources()
         glm::vec2 TexCoord;
     };
 
-    std::array<FSVertex, 4> vertices = {
+    FSVertex* vertices = new FSVertex[] {
         FSVertex{ { -1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
         FSVertex{ { 1.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
         FSVertex{ { -1.0f, -1.0f, 0.0f }, { 0.0f, 1.0f } },
         FSVertex{ { 1.0f, -1.0f, 0.0f }, { 1.0f, 1.0f } }
     };
 
-    std::array<uint32_t, 6> indices = {
+    uint32_t* indices = lnnew uint32_t[] {
         0, 1, 2,
         1, 3, 2
     };
 
-    SafePtr vertexBuffer = lnnew StorageBuffer(this, sizeof(FSVertex) * vertices.size(), vertices.data());
-    SafePtr indexBuffer = lnnew StorageBuffer(this, sizeof(uint32_t) * indices.size(), indices.data());
+    SafePtr vertexBuffer = lnnew StorageBuffer(this, sizeof(FSVertex) * 4, vertices);
+    SafePtr indexBuffer = lnnew StorageBuffer(this, sizeof(uint32_t) * 6, indices);
 
-    m_DefaultFullscreenQuad = lnnew Geometry{
-        .VertexGPUBuffer = vertexBuffer,
-        .IndexGPUBuffer = indexBuffer,
-        .VertexCount = (uint32_t)vertices.size(),
-        .IndexCount = (uint32_t)indices.size(),
-    };
+    m_DefaultFullscreenQuad = lnnew Geometry();
+    m_DefaultFullscreenQuad->VertexGPUBuffer = vertexBuffer;
+    m_DefaultFullscreenQuad->IndexGPUBuffer = indexBuffer;
+    m_DefaultFullscreenQuad->Indices = indices;
+    m_DefaultFullscreenQuad->Vertices = vertices;
+    m_DefaultFullscreenQuad->VertexCount = 4U;
+    m_DefaultFullscreenQuad->IndexCount = 6U;
 }
 
 void GfxContext::NukeDefaultResources()
