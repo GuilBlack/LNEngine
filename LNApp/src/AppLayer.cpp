@@ -50,18 +50,6 @@ void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNo
     m_Pipeline = renderer.CreateGraphicsPipeline(desc);
     m_Material = lne::SafePtr(lnnew lne::Material(m_Pipeline, lne::MaterialType::ePostProcess));
 
-    std::string cubemapPath = lne::ApplicationBase::GetAssetsPath() + "Textures\\Skybox\\";
-    m_Texture = renderer.CreateCubemapTexture({
-        cubemapPath + "px.png",
-        cubemapPath + "nx.png",
-        cubemapPath + "py.png",
-        cubemapPath + "ny.png",
-        cubemapPath + "pz.png",
-        cubemapPath + "nz.png"
-    });
-
-    m_Material->SetTexture("tCubeAlbedo", m_Texture);
-
     for (FrameGraphResourceHandle resourceHandle : node->InputResources)
     {
         FrameGraphResource& resource = *frameGraph->GetResource(resourceHandle);
@@ -81,6 +69,11 @@ void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNo
 void AppLayer::SkyboxPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worldRenderer,
     lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
+    if (m_Texture != worldRenderer->GetEnvironment()->SkyboxTexture)
+    {
+        m_Texture = worldRenderer->GetEnvironment()->SkyboxTexture;
+        m_Material->SetTexture("tCubeAlbedo", m_Texture);
+    }
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
     renderer.DrawFullscreenQuad(cmdBuffer, m_Material);
 }
@@ -229,6 +222,8 @@ void AppLayer::OnAttach()
     m_CameraTarget.Position = cameraTransform.Position;
     m_CameraTarget.Rotation = cameraTransform.EulerAngles;
     cameraComponent.UpdateView(cameraTransform);
+
+    m_WorldRenderer->SetEnvironmentMap(ApplicationBase::GetAssetsPath() + "Textures\\HDRIs\\Sky.hdr");
 }
 
 void AppLayer::InitFrameGraph()

@@ -29,8 +29,9 @@ void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskS
     m_Context = window->GetGfxContext();
     m_Swapchain = window->GetSwapchain();
     m_TaskScheduler = taskScheduler;
+    m_LoadAsync = false;
     m_GfxLoader = lnnew GfxLoader();
-    m_GfxLoader->Init(this, m_Context, m_TaskScheduler);
+    m_GfxLoader->Init(this, m_Context, m_TaskScheduler, m_LoadAsync);
     m_TexturesToUpdate.reserve(128);
     for (uint32_t i = 0; i < m_Context->GetMaxFramesInFlight(); i++)
     {
@@ -76,6 +77,8 @@ void Renderer::BeginFrame()
     auto currentImage = m_Swapchain->GetCurrentImage();
     currentImage->TransitionLayout(cmdBuffer, vk::ImageLayout::eGeneral);
 
+    if (m_LoadAsync == false)
+        m_GfxLoader->Update();
     UpdateTextures(cmdBuffer);
 
     // Do we need this???

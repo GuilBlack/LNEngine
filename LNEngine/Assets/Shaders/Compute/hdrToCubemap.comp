@@ -1,0 +1,66 @@
+//#lne_head [Cp main]
+#version 460
+
+#extension GL_EXT_scalar_block_layout :     enable
+#extension GL_EXT_nonuniform_qualifier :    require
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+layout(scalar, set=0, binding=0) uniform GlobalUBO {
+    mat4 uViewProj;
+    mat4 uView;
+    mat4 uProj;
+    vec3 uEyePos;
+    vec3 uSunDir;
+};
+
+layout(set = 2, binding = 0) uniform sampler2D      globalTextures[];
+
+layout(set = 2, binding = 1, rgba16f) uniform writeonly image2DArray globalCubemaps[];
+
+layout(scalar, set = 1, binding = 0) uniform ComputeParams
+{
+    uint tHDRTexture;
+    uint tCubemapTexture;
+};
+
+vec3 uvToDirection(vec2 uv, uint faceIndex)
+{
+    vec3 dir;
+    uv = 2.0 * vec2(uv.x, 1.0 - uv.y) - 1.0;
+
+    switch (faceIndex)
+    {
+    case 0: // +X
+        dir = vec3( 1.0,  uv.y, -uv.x); break;
+    case 1: // -X
+        dir = vec3(-1.0,  uv.y,  uv.x); break;
+    case 2: // +Y
+        dir = vec3( uv.x,  1.0, -uv.y); break;
+    case 3: // -Y
+        dir = vec3( uv.x, -1.0,  uv.y); break;
+    case 4: // +Z
+        dir = vec3( uv.x,  uv.y,  1.0); break;
+    case 5: // -Z
+        dir = vec3(-uv.x,  uv.y, -1.0); break;
+    default:
+        dir = vec3(0.0, 0.0, 0.0);
+    }
+    return normalize(dir);
+}
+
+#define PI 3.14159265358979323846
+
+void main()
+{
+    vec2 st = vec2(gl_GlobalInvocationID.xy) / vec2(imageSize(globalCubemaps[tCubemapTexture]).xy);
+    uint faceIndex = gl_GlobalInvocationID.z;
+    vec3 direction = uvToDirection(st, faceIndex);
+    // https://en.wikipedia.org/wiki/Spherical_coordinate_system#Cartesian_coordinates
+    float phi = atan(direction.z, direction.x);
+    float theta = acos(direction.y);
+    // Normalize phi to [0, 1] and theta to [0, 1]
+    vec2 uv = vec2(phi / (2.0 * PI) + 0.5, theta / PI);
+    vec3 color = texture(globalTextures[tHDRTexture], uv).rgb;
+    imageStore(globalCubemaps[tCubemapTexture], ivec3(gl_GlobalInvocationID), vec4(color, 1.0));
+}

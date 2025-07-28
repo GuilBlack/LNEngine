@@ -414,11 +414,20 @@ void Texture::UploadData(const void* data)
     TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
 }
 
-void Texture::UploadData(vk::CommandBuffer cmdBuffer, BufferAllocation stagingBuffer, const void* data)
+void Texture::UploadData(vk::CommandBuffer cmdBuffer, BufferAllocation stagingBuffer, const void* data, int32_t size, bool autoTransitionLayout)
 {
-    uint32_t bytesPerPixel = FormatToBytesPerPixel(m_Format);
-
-    uint64_t imageSize = m_Extents.width * m_Extents.height * bytesPerPixel;
+    uint64_t imageSize{};
+    uint32_t bytesPerPixel{};
+    if (size == -1)
+    {
+        bytesPerPixel = FormatToBytesPerPixel(m_Format);
+        imageSize = m_Extents.width * m_Extents.height * bytesPerPixel;
+    }
+    else
+    {
+        imageSize = size;
+        bytesPerPixel = imageSize / (m_Extents.width * m_Extents.height * m_NumLayers);
+    }
 
     if (m_NumLayers > 1)
         imageSize *= m_NumLayers;
@@ -426,7 +435,8 @@ void Texture::UploadData(vk::CommandBuffer cmdBuffer, BufferAllocation stagingBu
     
     memcpy(stagingBuffer.AllocationInfo.pMappedData, data, imageSize);
 
-    TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferDstOptimal);
+    if (autoTransitionLayout)
+        TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferDstOptimal);
 
     std::vector<vk::BufferImageCopy> regions;
     for (uint32_t layer = 0; layer < m_NumLayers; layer++)
@@ -449,22 +459,68 @@ void Texture::UploadData(vk::CommandBuffer cmdBuffer, BufferAllocation stagingBu
 
     cmdBuffer.copyBufferToImage(stagingBuffer.Buffer, m_Allocation.Image, vk::ImageLayout::eTransferDstOptimal, regions);
 
+    if (autoTransitionLayout)
+    {
     TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferDstOptimal,
         m_Context->GetQueueFamilyIndex(EQueueFamilyType::Transfer), m_Context->GetQueueFamilyIndex(EQueueFamilyType::Graphics));
+    }
 }
 
 constexpr uint32_t Texture::FormatToBytesPerPixel(vk::Format format)
 {
     switch (format)
     {
+    // 8-bit per channel formats (RGBA and RGB)
     case vk::Format::eR8G8B8A8Unorm:
-        return 4;
     case vk::Format::eR8G8B8A8Srgb:
         return 4;
     case vk::Format::eR8G8B8Unorm:
-        return 3;
     case vk::Format::eR8G8B8Srgb:
         return 3;
+
+    // 16-bit per channel formats (half-float)
+    case vk::Format::eR16G16B16A16Unorm:
+    case vk::Format::eR16G16B16A16Snorm:
+    case vk::Format::eR16G16B16A16Sfloat:
+        return 8;
+    case vk::Format::eR16G16Unorm:
+    case vk::Format::eR16G16Snorm:
+    case vk::Format::eR16G16Sfloat:
+        return 4;
+    case vk::Format::eR16Unorm:
+    case vk::Format::eR16Snorm:
+    case vk::Format::eR16Sfloat:
+        return 2;
+
+    // 32-bit float formats
+    case vk::Format::eR32G32B32A32Sfloat:
+        return 16;
+    case vk::Format::eR32G32B32Sfloat:
+        return 12;
+    case vk::Format::eR32G32Sfloat:
+        return 8;
+    case vk::Format::eR32Sfloat:
+        return 4;
+
+    // Depth/stencil formats
+    case vk::Format::eD16Unorm:
+        return 2;
+    case vk::Format::eD32Sfloat:
+        return 4;
+    case vk::Format::eD24UnormS8Uint:
+        return 4;
+    case vk::Format::eD32SfloatS8Uint:
+        return 5;
+
+    // Packed formats (careful, not byte aligned)
+    case vk::Format::eB10G11R11UfloatPack32:
+        return 4;
+    case vk::Format::eE5B9G9R9UfloatPack32:
+        return 4;
+    case vk::Format::eA2B10G10R10UnormPack32:
+    case vk::Format::eA2R10G10B10UnormPack32:
+        return 4;
+
     default:
         LNE_ASSERT(false, "Unsupported format, must implement it");
         return 0;

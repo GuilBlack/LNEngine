@@ -103,6 +103,8 @@ private:
     SafePtr<class GfxPipeline> m_LastUsedPipeline;
     SafePtr<class StaticMesh> m_LastUsedStaticMesh;
 
+    bool m_LoadAsync{ true };
+
 private:
     void InitFrameData(uint32_t index);
     void UpdateTextures(vk::CommandBuffer cmdBuffer);

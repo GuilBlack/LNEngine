@@ -100,7 +100,9 @@ public:
     void GenerateMipmaps(vk::CommandBuffer cmdBuffer);
 
     void UploadData(const void* data);
-    void UploadData(vk::CommandBuffer cmdBuffer, BufferAllocation stagingBuffer, const void* data);
+
+    // TODO: remove the autoTransitionLayout parameter. It shouldn't be the responsibility of this method.
+    void UploadData(vk::CommandBuffer cmdBuffer, BufferAllocation stagingBuffer, const void* data, int32_t size = -1, bool autoTransitionLayout = true);
 
 protected:
     virtual std::string_view GetDebugName() const { return m_Name; }

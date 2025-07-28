@@ -39,8 +39,9 @@ void GfxLoaderTask::Execute()
         Loader->Update();
 }
 
-void GfxLoader::Init(Renderer* renderer, SafePtr<class GfxContext> context, std::shared_ptr<enki::TaskScheduler> scheduler)
+void GfxLoader::Init(Renderer* renderer, SafePtr<class GfxContext> context, std::shared_ptr<enki::TaskScheduler> scheduler, bool loadAsync)
 {
+    m_LoadAsync = loadAsync;
     m_Renderer = renderer;
     m_GraphicsContext = context;
     m_TaskScheduler = scheduler;
@@ -67,9 +68,17 @@ void GfxLoader::Init(Renderer* renderer, SafePtr<class GfxContext> context, std:
     vk::SemaphoreCreateInfo semaphoreCI{};
     m_TransferSemaphore = m_GraphicsContext->GetDevice().createSemaphore(semaphoreCI);
 
+    ComputePipelineDesc hdrToCubemapDesc;
+    hdrToCubemapDesc.Name = "HDRToCubemap";
+    hdrToCubemapDesc.PathToShader = ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\Compute\\hdrToCubemap.comp";
+
+    SafePtr hdrToCubemapPipeline = lnnew ComputePipeline(m_GraphicsContext, hdrToCubemapDesc);
+    m_HDRToCubemapProgram = lnnew ComputeProgram(hdrToCubemapPipeline);
     // create async task
     m_GfxLoaderTask.reset(lnnew GfxLoaderTask(scheduler, this));
-    m_TaskScheduler.lock()->AddPinnedTask(m_GfxLoaderTask.get());
+
+    if (m_LoadAsync)
+        m_TaskScheduler.lock()->AddPinnedTask(m_GfxLoaderTask.get());
 }
 
 void GfxLoader::Nuke()
@@ -183,9 +192,9 @@ SafePtr<Texture> GfxLoader::CreateCubemap(std::vector<std::string> faces)
     return texture;
 }
 
-lne::SafePtr<WorldEnvironment> GfxLoader::CreateEnvironmentMap(std::string_view pathToEnvMap, uint32_t dimensions)
+lne::SafePtr<class WorldEnvironment> GfxLoader::CreateEnvironmentMap(std::string_view pathToEnvMap)
 {
-    if (std::filesystem::exists(pathToEnvMap) == false || stbi_is_hdr(pathToEnvMap.data()))
+    if (std::filesystem::exists(pathToEnvMap) == false || stbi_is_hdr(pathToEnvMap.data()) == false)
     {
         LNE_ERROR("Environment map is invalid: {0}", pathToEnvMap);
         return nullptr;
@@ -197,17 +206,23 @@ lne::SafePtr<WorldEnvironment> GfxLoader::CreateEnvironmentMap(std::string_view 
         LNE_ERROR("Failed to load environment map: {0}", pathToEnvMap);
         return nullptr;
     }
-
+    uint32_t dimensions = texWidth / 4;
+    // TODO: should I check if dimensions are power of two?
+    if (dimensions != texHeight / 2 || texChannels != 3)
+    {
+        LNE_ERROR("Environment map must be a 4:2 equirectangular image with 3 channels (RGB)");
+        return nullptr;
+    }
     SafePtr<WorldEnvironment> env = SafePtr<WorldEnvironment>(lnnew WorldEnvironment());
-    env->RadianceTexture = Texture::CreateCubemapTexture(
+    env->SkyboxTexture = Texture::CreateCubemapTexture(
         m_GraphicsContext, dimensions, dimensions, vk::Format::eR16G16B16A16Sfloat,
-        TextureUsageType::eSampled, false,
-        std::format("Environment: {}", std::filesystem::path(pathToEnvMap).filename().string())
+        TextureUsageType::eSampledAndStorage, false,
+        std::format("Environment Radiance: {}", std::filesystem::path(pathToEnvMap).filename().string())
     );
     env->IrradianceTexture = Texture::CreateCubemapTexture(
         m_GraphicsContext, dimensions, dimensions, vk::Format::eR16G16B16A16Sfloat,
-        TextureUsageType::eSampled, false,
-        std::format("Environment: {}", std::filesystem::path(pathToEnvMap).filename().string())
+        TextureUsageType::eSampledAndStorage, false,
+        std::format("Environment Irradiance: {}", std::filesystem::path(pathToEnvMap).filename().string())
     );
 
     LoadRequest request;
@@ -378,8 +393,9 @@ void GfxLoader::LoadEnvironment(LoadRequest& request)
     gpuRequest.Type = request.Type;
     gpuRequest.Resource = request.Resource;
     gpuRequest.Data = pixels;
-    gpuRequest.Size = texWidth * texHeight * 4;
-
+    gpuRequest.Size = texWidth * texHeight * 4 * 4;
+    gpuRequest.ShouldFreeData = true;
+    gpuRequest.Dimensions = glm::uvec3(texWidth, texHeight, 1);
     Upload(gpuRequest);
 }
 
@@ -399,9 +415,31 @@ void GfxLoader::UploadTexture(UploadRequest& request, vk::CommandBuffer cb)
 void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cb)
 {
     auto& renderer = ApplicationBase::GetRenderer();
+    SafePtr<WorldEnvironment> env = request.Resource.GetAs<WorldEnvironment>();
 
     // 1) equirectangular to cubemap conversion
+    SafePtr<Texture> hdrSource = Texture::CreateColorTexture2D(
+        m_GraphicsContext, request.Dimensions.x, request.Dimensions.y,
+        vk::Format::eR32G32B32A32Sfloat, TextureUsageType::eSampledAndStorage, false,
+        std::format("Environment Source")
+    );
+    vk::CommandBuffer cbComp = m_GraphicsContext->GetCommandPoolManager().BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Compute);
 
+    hdrSource->TransitionLayout(cbComp, vk::ImageLayout::eTransferDstOptimal);
+    hdrSource->UploadData(cbComp, m_StagingBuffer, request.Data, request.Size, false);
+    hdrSource->TransitionLayout(cbComp, vk::ImageLayout::eGeneral);
+    
+    env->SkyboxTexture->TransitionLayout(cbComp, vk::ImageLayout::eGeneral);
+
+    m_HDRToCubemapProgram->SetTexture("tHDRTexture", hdrSource, false);
+    m_HDRToCubemapProgram->SetTexture("tCubemapTexture", env->SkyboxTexture, true);
+
+    renderer.Dispatch(cbComp, m_HDRToCubemapProgram, env->SkyboxTexture->GetDimensions().width / 16, env->SkyboxTexture->GetDimensions().height / 16, 6);
+
+    m_GraphicsContext->GetCommandPoolManager().EndSingleUseCommandBuffer(EQueueFamilyType::Compute);
+
+    if (request.ShouldFreeData)
+        stbi_image_free(request.Data);
 }
 
 void GfxLoader::UploadBuffer(UploadRequest& request, vk::CommandBuffer cb)

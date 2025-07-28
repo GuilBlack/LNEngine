@@ -3,9 +3,9 @@
 #include "Engine/Graphics/Structs.h"
 #include "Engine/Graphics/StorageBuffer.h"
 #include "Engine/Core/DataStructures/CircularBuffer.h"
+#include "Engine/Graphics/WorldEnvironment.h"
 
 class FrameGraph;
-
 
 namespace lne
 {
@@ -28,6 +28,7 @@ public:
     ~WorldRenderer();
 
     void SetEnvironmentMap(std::string_view pathToEnvMap);
+    SafePtr<WorldEnvironment> GetEnvironment() const { return m_Environment; }
 
     TransformBuffer& GetTransformBuffer(uint32_t frameIndex) { return m_TransformBuffers[frameIndex]; }
     SubMeshTransformArray& GetTransforms(StaticMeshHash hash) { return m_Transfroms[hash]; }
@@ -38,7 +39,7 @@ public:
 
 private:
     SafePtr<FrameGraph> m_FrameGraph{};
-    SafePtr<class WorldEnvironment> m_Environment{};
+    SafePtr<WorldEnvironment> m_Environment{};
 
     std::unordered_map<StaticMeshHash, SubMeshTransformArray> m_Transfroms{};
     std::vector<TransformBuffer> m_TransformBuffers{};

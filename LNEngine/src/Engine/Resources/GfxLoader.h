@@ -32,6 +32,7 @@ struct UploadRequest
     SafePtr<class RefCountBase> Resource{};
     uint32_t Size{};
     void* Data{};
+    glm::uvec3 Dimensions{ 0, 0, 0 };
     bool ShouldFreeData{true};
 };
 
@@ -67,7 +68,7 @@ public:
     GfxLoader() = default;
     ~GfxLoader() = default;
 
-    void Init(class Renderer* renderer, SafePtr<class GfxContext> context, std::shared_ptr<class enki::TaskScheduler> scheduler);
+    void Init(class Renderer* renderer, SafePtr<class GfxContext> context, std::shared_ptr<class enki::TaskScheduler> scheduler, bool loadAsync = true);
     void Nuke();
 
     void Update();
@@ -76,7 +77,7 @@ public:
         std::string_view fullPath, 
         vk::Format imageFormat = vk::Format::eR8G8B8A8Srgb);
     [[nodiscard]] SafePtr<class Texture>        CreateCubemap(std::vector<std::string> faces);
-    [[nodiscard]] SafePtr<class WorldEnvironment>    CreateEnvironmentMap(std::string_view pathToEnvMap, uint32_t dimensions = 1024);
+    [[nodiscard]] SafePtr<class WorldEnvironment> CreateEnvironmentMap(std::string_view pathToEnvMap);
     void                                        InitStaticStorageBuffer(SafePtr<class StorageBuffer> buffer, const void* data);
 
     void Upload(UploadRequest request)
@@ -101,6 +102,9 @@ private:
 
     SafePtr<class Texture> m_ReadyTexture;
 
+    SafePtr<class ComputeProgram> m_HDRToCubemapProgram;
+
+    bool m_LoadAsync;
 private:
     void ProcessUploadRequests();
     void ProcessLoadRequests();
