@@ -40,8 +40,10 @@ public:
     void UploadDefaultResources();
     void NukeDefaultResources();
     void DeferredNukeResources();
+
     void EnqueueResourceDeletion(const ResourceDeletion& deletion)
     {
+        std::lock_guard<std::mutex> lock(m_ResourceDeletionMutex);
         m_ResourceDeletionQueue.push_back(deletion);
     }
 
@@ -102,8 +104,6 @@ public:
 
     [[nodiscard]] vk::DescriptorSetLayout GetBindlessDescriptorSetLayout() const { return m_BindlessDescriptorSetLayout; }
     [[nodiscard]] vk::DescriptorSet GetBindlessDescriptorSet() const { return m_BindlessDescriptorSet; }
-
-    void AddToDeletionQueue(ResourceDeletion deletion) { m_ResourceDeletionQueue.push_back(deletion); }
 
 #pragma endregion
 
@@ -184,7 +184,9 @@ private:
     std::queue<BindlessImageHandle> m_FreeBindlessImageIndices{};
     std::mutex                      m_BindlessMutex{};
 
-    std::vector<ResourceDeletion> m_ResourceDeletionQueue{};
+
+    std::mutex                      m_ResourceDeletionMutex{};
+    std::vector<ResourceDeletion>   m_ResourceDeletionQueue{};
 
     friend class Swapchain;
     friend class Renderer;

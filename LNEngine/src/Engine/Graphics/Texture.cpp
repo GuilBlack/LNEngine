@@ -203,6 +203,7 @@ Texture::~Texture()
         .Allocation = m_Allocation,
         .UsageType = m_UsageType,
         .BindlessTextureHandle = m_BindlessTextureHandle,
+        .BindlessStorageHandle = m_BindlessStorageHandle,
         .OwnsAllocation = m_OwnsImage,
     };
     ResourceDeletion deletion{

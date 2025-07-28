@@ -86,10 +86,13 @@ struct ShaderResourceDeletion
 
 struct ResourceDeletion
 {
-    ResourceType::Enum      Type;
-    std::variant<TextureResourceDeletion, BufferResourceDeletion, 
-        PipelineResourceDeletion, ShaderResourceDeletion> Resource;
-    uint32_t                ElapsedFrames;
+    ResourceType::Enum              Type;
+    std::variant<
+        TextureResourceDeletion, 
+        BufferResourceDeletion, 
+        PipelineResourceDeletion, 
+        ShaderResourceDeletion>     Resource;
+    uint32_t                        ElapsedFrames;
 };
 
 struct StaticMeshHash
