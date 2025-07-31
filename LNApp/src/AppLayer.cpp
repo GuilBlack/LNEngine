@@ -223,7 +223,7 @@ void AppLayer::OnAttach()
     m_CameraTarget.Rotation = cameraTransform.EulerAngles;
     cameraComponent.UpdateView(cameraTransform);
 
-    m_WorldRenderer->SetEnvironmentMap(ApplicationBase::GetAssetsPath() + "Textures\\HDRIs\\Sky.hdr");
+    m_WorldRenderer->SetEnvironmentMap(ApplicationBase::GetAssetsPath() + "Textures\\HDRIs\\OvercastIndustrialCourtyard.hdr");
 }
 
 void AppLayer::InitFrameGraph()

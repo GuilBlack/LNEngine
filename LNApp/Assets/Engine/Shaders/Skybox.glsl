@@ -66,7 +66,7 @@ void main() {
     viewDir = vec4(viewDir.xy, -1.0, 0.0); 
     vec3 worldDir = normalize((inverse(uView) * viewDir).xyz);
     
-    oColor = texture(globalCubemaps[nonuniformEXT(tCubeAlbedo)], worldDir);
+    oColor = textureLod(globalCubemaps[nonuniformEXT(tCubeAlbedo)], worldDir, 0);
 }
 
 #endif

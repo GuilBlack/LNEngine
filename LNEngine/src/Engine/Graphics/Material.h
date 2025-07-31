@@ -66,6 +66,8 @@ public:
 
     // Set property overloads.
     void SetProperty(std::string_view name, float value);
+    void SetProperty(std::string_view name, uint32_t value);
+    void SetProperty(std::string_view name, int32_t value);
     void SetProperty(std::string_view name, const glm::vec2& value);
     void SetProperty(std::string_view name, const glm::vec3& value);
     void SetProperty(std::string_view name, const glm::vec4& value);

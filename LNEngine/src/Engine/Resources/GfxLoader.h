@@ -12,6 +12,9 @@ class TaskScheduler;
 
 namespace lne
 {
+class Renderer;
+class GfxContext;
+class enki::TaskScheduler;
 namespace ResourceTypes
 {
 enum Enum : uint8_t
@@ -61,6 +64,15 @@ public:
     class GfxLoader* Loader;
 };
 
+struct GfxLoaderSettings
+{
+    Renderer* RendererParam{ nullptr };
+    SafePtr<GfxContext> Context{};
+    std::shared_ptr<enki::TaskScheduler> Scheduler{};
+    bool LoadAsync{ true };
+    uint32_t RadianceTextureMaxSize{ 512 };
+};
+
 class GfxLoader : public RefCountBase
 {
 public:
@@ -68,7 +80,7 @@ public:
     GfxLoader() = default;
     ~GfxLoader() = default;
 
-    void Init(class Renderer* renderer, SafePtr<class GfxContext> context, std::shared_ptr<class enki::TaskScheduler> scheduler, bool loadAsync = true);
+    void Init(const GfxLoaderSettings& settings);
     void Nuke();
 
     void Update();
@@ -103,7 +115,10 @@ private:
     SafePtr<class Texture> m_ReadyTexture;
 
     SafePtr<class ComputeProgram> m_HDRToCubemapProgram;
+    SafePtr<class ComputeProgram> m_PrefilterProgram;
+    SafePtr<class ComputeProgram> m_IrradianceProgram;
 
+    uint32_t m_RadianceTextureMaxSize;
     bool m_LoadAsync;
 private:
     void ProcessUploadRequests();

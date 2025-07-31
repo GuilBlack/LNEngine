@@ -175,7 +175,10 @@ Texture::Texture(SafePtr<class GfxContext> ctx, vk::ImageCreateInfo imageCI, Tex
     if (m_ImageType == vk::ImageType::e3D)
         viewType = vk::ImageViewType::e3D;
     else if (bool(imageCI.flags & vk::ImageCreateFlagBits::eCubeCompatible) == true)
+    {
         viewType = vk::ImageViewType::eCube;
+        m_IsCube = true;
+    }
     m_ImageView = m_Context->CreateImageView(m_Allocation.Image, viewType, m_Format,
         imageCI.mipLevels, m_NumLayers, aspectMask, std::format("ImageView: {}", name));
 
@@ -561,6 +564,29 @@ void Texture::GenerateMipmaps(vk::CommandBuffer cmdBuffer)
 
         TransitionLayoutMips(cmdBuffer, vk::ImageLayout::eTransferDstOptimal, m_Layout, i, 1);
     }
+}
+
+vk::ImageView Texture::CreateImageViewForMip(uint32_t mipLevel) const
+{
+    vk::ImageViewType viewType = vk::ImageViewType::e2D;
+    if (m_ImageType == vk::ImageType::e3D)
+        viewType = vk::ImageViewType::e3D;
+    else if (m_IsCube)
+        viewType = vk::ImageViewType::eCube;
+
+    vk::ImageViewCreateInfo viewInfo(
+        vk::ImageViewCreateFlags(),
+        m_Allocation.Image,
+        viewType,
+        m_Format,
+        vk::ComponentMapping(),
+        vk::ImageSubresourceRange(
+            vk::ImageAspectFlagBits::eColor,
+            mipLevel, 1,
+            0, m_NumLayers
+        )
+    );
+    return m_Context->GetDevice().createImageView(viewInfo);
 }
 
 }

@@ -42,12 +42,13 @@ const char** s_Enum = enumValues;
 
 namespace ResourceType
 {
-const char* enumValues[5] = {
+const char* enumValues[6] = {
     "Unknown",
     "Texture",
     "Buffer",
     "Pipeline",
     "Shader",
+    "ImageView"
 };
 const char** s_Enum = enumValues;
 }

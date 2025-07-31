@@ -206,6 +206,7 @@ private:
     void NukeImage(const TextureResourceDeletion& image);
     void NukePipeline(const PipelineResourceDeletion& pipeline);
     void NukeShader(const ShaderResourceDeletion& shader);
+    void NukeImageView(const ImageViewDeletion& imageView);
 
     void CreateMemoryAllocator();
     void DumpMemoryStats(std::string_view fileName) const;

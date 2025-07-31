@@ -98,6 +98,7 @@ public:
         bool changeTextureLayout);
 
     void GenerateMipmaps(vk::CommandBuffer cmdBuffer);
+    vk::ImageView CreateImageViewForMip(uint32_t mipLevel) const;
 
     void UploadData(const void* data);
 
@@ -125,8 +126,10 @@ private:
     TextureUsageType::Enum      m_UsageType{};
     bool                        m_GenerateMips{ false };
     bool                        m_OwnsImage{ true };
+    bool                        m_IsCube{ false };
 
     friend class Renderer;
+    friend class GfxLoader;
 
 private:
     constexpr uint32_t FormatToBytesPerPixel(vk::Format format);

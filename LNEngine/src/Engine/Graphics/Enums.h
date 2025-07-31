@@ -96,6 +96,7 @@ enum Enum : byte
     eBuffer,
     ePipeline,
     eShader,
+    eImageView
 };
 
 extern const char** s_Enum;

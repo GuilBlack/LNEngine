@@ -31,7 +31,14 @@ void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskS
     m_TaskScheduler = taskScheduler;
     m_LoadAsync = false;
     m_GfxLoader = lnnew GfxLoader();
-    m_GfxLoader->Init(this, m_Context, m_TaskScheduler, m_LoadAsync);
+    GfxLoaderSettings gfxLoaderSettings{
+        .RendererParam = this,
+        .Context = m_Context,
+        .Scheduler = m_TaskScheduler,
+        .LoadAsync = m_LoadAsync,
+        .RadianceTextureMaxSize = 512
+    };
+    m_GfxLoader->Init(gfxLoaderSettings);
     m_TexturesToUpdate.reserve(128);
     for (uint32_t i = 0; i < m_Context->GetMaxFramesInFlight(); i++)
     {
@@ -613,7 +620,6 @@ void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, const SafePtr<cla
     cmdBuffer.draw(geometry.IndexCount, 1, 0, 0);
 }
 
-// TODO: change to one DispatchAsync function and one Dispatch not async function
 void Renderer::Dispatch(SafePtr<ComputeProgram> program, uint32_t x, uint32_t y, uint32_t z, bool async)
 {
     LNE_PROFILE_FUNCTION_C(PROFILING_COL)

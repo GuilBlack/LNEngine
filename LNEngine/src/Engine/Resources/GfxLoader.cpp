@@ -39,12 +39,16 @@ void GfxLoaderTask::Execute()
         Loader->Update();
 }
 
-void GfxLoader::Init(Renderer* renderer, SafePtr<class GfxContext> context, std::shared_ptr<enki::TaskScheduler> scheduler, bool loadAsync)
+void GfxLoader::Init(const GfxLoaderSettings& settings)
 {
-    m_LoadAsync = loadAsync;
-    m_Renderer = renderer;
-    m_GraphicsContext = context;
-    m_TaskScheduler = scheduler;
+    LNE_ASSERT(settings.RendererParam, "Renderer is not set in GfxLoaderSettings");
+    LNE_ASSERT(settings.Context, "GfxContext is not set in GfxLoaderSettings");
+    LNE_ASSERT(settings.Scheduler, "TaskScheduler is not set in GfxLoaderSettings");
+    m_LoadAsync = settings.LoadAsync;
+    m_Renderer = settings.RendererParam;
+    m_GraphicsContext = settings.Context;
+    m_TaskScheduler = settings.Scheduler;
+    m_RadianceTextureMaxSize = settings.RadianceTextureMaxSize;
 
     m_LoadRequests.reserve(32);
     m_UploadRequests.reserve(32);
@@ -70,12 +74,18 @@ void GfxLoader::Init(Renderer* renderer, SafePtr<class GfxContext> context, std:
 
     ComputePipelineDesc hdrToCubemapDesc;
     hdrToCubemapDesc.Name = "HDRToCubemap";
-    hdrToCubemapDesc.PathToShader = ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\Compute\\hdrToCubemap.comp";
-
+    hdrToCubemapDesc.PathToShader = ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\Compute\\HDRToCubemap.comp";
     SafePtr hdrToCubemapPipeline = lnnew ComputePipeline(m_GraphicsContext, hdrToCubemapDesc);
     m_HDRToCubemapProgram = lnnew ComputeProgram(hdrToCubemapPipeline);
+
+    ComputePipelineDesc prefilterProgramDesc;
+    prefilterProgramDesc.Name = "PrefilterCube";
+    prefilterProgramDesc.PathToShader = ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\Compute\\PrefilterCube.comp";
+    SafePtr prefilterPipeline = lnnew ComputePipeline(m_GraphicsContext, prefilterProgramDesc);
+    m_PrefilterProgram = lnnew ComputeProgram(prefilterPipeline);
+
     // create async task
-    m_GfxLoaderTask.reset(lnnew GfxLoaderTask(scheduler, this));
+    m_GfxLoaderTask.reset(lnnew GfxLoaderTask(settings.Scheduler, this));
 
     if (m_LoadAsync)
         m_TaskScheduler.lock()->AddPinnedTask(m_GfxLoaderTask.get());
@@ -216,13 +226,20 @@ lne::SafePtr<class WorldEnvironment> GfxLoader::CreateEnvironmentMap(std::string
     SafePtr<WorldEnvironment> env = SafePtr<WorldEnvironment>(lnnew WorldEnvironment());
     env->SkyboxTexture = Texture::CreateCubemapTexture(
         m_GraphicsContext, dimensions, dimensions, vk::Format::eR16G16B16A16Sfloat,
-        TextureUsageType::eSampledAndStorage, false,
-        std::format("Environment Radiance: {}", std::filesystem::path(pathToEnvMap).filename().string())
+        TextureUsageType::eSampledAndStorage, true,
+        std::format("Environment Skybox: {}", std::filesystem::path(pathToEnvMap).filename().string())
     );
+
     env->IrradianceTexture = Texture::CreateCubemapTexture(
-        m_GraphicsContext, dimensions, dimensions, vk::Format::eR16G16B16A16Sfloat,
-        TextureUsageType::eSampledAndStorage, false,
+        m_GraphicsContext, 64, 64, vk::Format::eR16G16B16A16Sfloat,
+        TextureUsageType::eSampledAndStorage, true,
         std::format("Environment Irradiance: {}", std::filesystem::path(pathToEnvMap).filename().string())
+    );
+    uint32_t radianceDim = std::min(m_RadianceTextureMaxSize, dimensions);
+    env->RadianceTexture = Texture::CreateCubemapTexture(
+        m_GraphicsContext, radianceDim, radianceDim, vk::Format::eR16G16B16A16Sfloat,
+        TextureUsageType::eSampledAndStorage, true,
+        std::format("Environment Radiance: {}", std::filesystem::path(pathToEnvMap).filename().string())
     );
 
     LoadRequest request;
@@ -412,7 +429,7 @@ void GfxLoader::UploadTexture(UploadRequest& request, vk::CommandBuffer cb)
         delete[] request.Data;
 }
 
-void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cb)
+void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cmdBuffer)
 {
     auto& renderer = ApplicationBase::GetRenderer();
     SafePtr<WorldEnvironment> env = request.Resource.GetAs<WorldEnvironment>();
@@ -423,20 +440,87 @@ void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cb)
         vk::Format::eR32G32B32A32Sfloat, TextureUsageType::eSampledAndStorage, false,
         std::format("Environment Source")
     );
-    vk::CommandBuffer cbComp = m_GraphicsContext->GetCommandPoolManager().BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Compute);
+    auto& cpManager = m_GraphicsContext->GetCommandPoolManager();
 
-    hdrSource->TransitionLayout(cbComp, vk::ImageLayout::eTransferDstOptimal);
-    hdrSource->UploadData(cbComp, m_StagingBuffer, request.Data, request.Size, false);
-    hdrSource->TransitionLayout(cbComp, vk::ImageLayout::eGeneral);
+    // convert the HDR source to cubemap in the skybox texture & radiance texture
+    vk::CommandBuffer singleUseBuffer = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Compute);
+
+    hdrSource->TransitionLayout(singleUseBuffer, vk::ImageLayout::eTransferDstOptimal);
+    hdrSource->UploadData(singleUseBuffer, m_StagingBuffer, request.Data, request.Size, false);
+    hdrSource->TransitionLayout(singleUseBuffer, vk::ImageLayout::eGeneral);
     
-    env->SkyboxTexture->TransitionLayout(cbComp, vk::ImageLayout::eGeneral);
+    env->SkyboxTexture->TransitionLayout(singleUseBuffer, vk::ImageLayout::eGeneral);
 
     m_HDRToCubemapProgram->SetTexture("tHDRTexture", hdrSource, false);
     m_HDRToCubemapProgram->SetTexture("tCubemapTexture", env->SkyboxTexture, true);
+    renderer.Dispatch(singleUseBuffer, m_HDRToCubemapProgram, env->SkyboxTexture->GetDimensions().width / 16, env->SkyboxTexture->GetDimensions().height / 16, 6);
 
-    renderer.Dispatch(cbComp, m_HDRToCubemapProgram, env->SkyboxTexture->GetDimensions().width / 16, env->SkyboxTexture->GetDimensions().height / 16, 6);
+    cpManager.EndSingleUseCommandBuffer(EQueueFamilyType::Compute);
+    singleUseBuffer = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Compute);
 
-    m_GraphicsContext->GetCommandPoolManager().EndSingleUseCommandBuffer(EQueueFamilyType::Compute);
+    env->RadianceTexture->TransitionLayout(singleUseBuffer, vk::ImageLayout::eGeneral);
+    m_HDRToCubemapProgram->SetTexture("tCubemapTexture", env->RadianceTexture, true);
+    renderer.Dispatch(singleUseBuffer, m_HDRToCubemapProgram, env->RadianceTexture->GetDimensions().width / 16, env->RadianceTexture->GetDimensions().height / 16, 6);
+
+    cpManager.EndSingleUseCommandBuffer(EQueueFamilyType::Compute);
+
+    // generate skybox mipmaps
+    singleUseBuffer = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Graphics);
+    env->SkyboxTexture->GenerateMipmaps(singleUseBuffer);
+    cpManager.EndSingleUseCommandBuffer(EQueueFamilyType::Graphics);
+
+    // generate radiance prefiltered mipmaps
+    uint32_t numMips = env->RadianceTexture->GetMipLevels();
+    struct TempImageView
+    {
+        vk::ImageView ImageView;
+        BindlessImageHandle BindlessTextureHandle;
+    };
+    std::vector<TempImageView> tempImageViews;
+    tempImageViews.reserve(numMips);
+    for (uint32_t i = 1; i < numMips; ++i)
+    {
+        vk::ImageView view = env->RadianceTexture->CreateImageViewForMip(i);
+        BindlessImageHandle imageHandle = m_GraphicsContext->RegisterBindlessImage(view);
+        tempImageViews.emplace_back(TempImageView{
+            .ImageView = view,
+            .BindlessTextureHandle = imageHandle
+        });
+    }
+
+    singleUseBuffer = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Compute);
+    
+    std::vector<SafePtr<ComputeProgram>> programs;
+    programs.reserve(numMips - 2);
+    for (uint32_t i = 1; i < numMips; ++i)
+    {
+        float roughness = (float)i / (float)(numMips - 1);
+        SafePtr program = lnnew ComputeProgram(m_PrefilterProgram->GetPipeline());
+        program->SetTexture("tInputCubemap", env->SkyboxTexture, false);
+        program->SetProperty("tPrefilteredCubemap", tempImageViews[i - 1].BindlessTextureHandle);
+        program->SetProperty("uRoughness", roughness);
+        program->SetProperty("uNumSamples", 1024u);
+        uint32_t dim = env->RadianceTexture->GetDimensions().width >> i;
+        uint32_t numGroups = (dim + 31) / 32;
+        renderer.Dispatch(singleUseBuffer, program, numGroups, numGroups, 6);
+    }
+
+    cpManager.EndSingleUseCommandBuffer(EQueueFamilyType::Compute);
+
+    for (auto& tempView : tempImageViews)
+    {
+        m_GraphicsContext->EnqueueResourceDeletion(
+            ResourceDeletion{
+                .Type = ResourceType::Enum::eImageView,
+                .Resource = ImageViewDeletion{
+                    .ImageView = tempView.ImageView,
+                    .UsageType = TextureUsageType::eStorage,
+                    .BindlessTextureHandle = tempView.BindlessTextureHandle
+                },
+                .ElapsedFrames = 1
+            }
+        );
+    }
 
     if (request.ShouldFreeData)
         stbi_image_free(request.Data);

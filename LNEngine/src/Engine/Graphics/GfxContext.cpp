@@ -706,6 +706,12 @@ void GfxContext::NukeResource(const ResourceDeletion& resource)
         NukeShader(shader);
         break;
     }
+    case ResourceType::eImageView:
+    {
+        const ImageViewDeletion& imageView = std::get<ImageViewDeletion>(resource.Resource);
+        NukeImageView(imageView);
+        break;
+    }
     default:
         LNE_ERROR("Invalid resource type");
         break;
@@ -757,6 +763,25 @@ void GfxContext::NukeShader(const ShaderResourceDeletion& shader)
         m_Device.destroyDescriptorSetLayout(descSetLayout);
     for (auto module : shader.ShaderModules)
         m_Device.destroyShaderModule(module);
+}
+
+void GfxContext::NukeImageView(const ImageViewDeletion& imageView)
+{
+    m_Device.destroyImageView(imageView.ImageView);
+    std::lock_guard<std::mutex> lock(m_BindlessMutex);
+
+    switch (imageView.UsageType)
+    {
+    case TextureUsageType::eSampled:
+        m_FreeBindlessTextureIndices.push(imageView.BindlessTextureHandle);
+        break;
+    case TextureUsageType::eStorage:
+        m_FreeBindlessImageIndices.push(imageView.BindlessTextureHandle);
+        break;
+    default:
+        LNE_ERROR("Invalid texture usage type");
+        break;
+    }
 }
 
 void GfxContext::CreateMemoryAllocator()

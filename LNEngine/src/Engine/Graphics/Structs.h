@@ -65,6 +65,13 @@ struct TextureResourceDeletion
     bool                    OwnsAllocation;
 };
 
+struct ImageViewDeletion
+{
+    vk::ImageView           ImageView;
+    TextureUsageType::Enum  UsageType;
+    BindlessImageHandle     BindlessTextureHandle;
+};
+
 struct BufferResourceDeletion
 {
     BufferAllocation MainAllocation;
@@ -88,9 +95,10 @@ struct ResourceDeletion
 {
     ResourceType::Enum              Type;
     std::variant<
-        TextureResourceDeletion, 
-        BufferResourceDeletion, 
-        PipelineResourceDeletion, 
+        TextureResourceDeletion,
+        BufferResourceDeletion,
+        ImageViewDeletion,
+        PipelineResourceDeletion,
         ShaderResourceDeletion>     Resource;
     uint32_t                        ElapsedFrames;
 };
