@@ -9,8 +9,8 @@ namespace lne
 class WorldEnvironment : public RefCountBase
 {
 public:
-    SafePtr<Texture> SkyboxTexture{}; // the actual environment map texture
-    SafePtr<Texture> RadianceTexture{}; // pre-filtered radiance texture used for specular reflections
+    SafePtr<Texture> SkyboxTexture{}; // the actual environment map texture which is the radiance texture
+    SafePtr<Texture> PrefilteredTexture{}; // pre-filtered radiance texture used for specular reflections
     SafePtr<Texture> IrradianceTexture{}; // pre-filtered irradiance texture used for diffuse reflections
 };
 }

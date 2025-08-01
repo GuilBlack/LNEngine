@@ -84,6 +84,12 @@ void GfxLoader::Init(const GfxLoaderSettings& settings)
     SafePtr prefilterPipeline = lnnew ComputePipeline(m_GraphicsContext, prefilterProgramDesc);
     m_PrefilterProgram = lnnew ComputeProgram(prefilterPipeline);
 
+    ComputePipelineDesc irradianceProgramDesc;
+    irradianceProgramDesc.Name = "IrradianceCube";
+    irradianceProgramDesc.PathToShader = ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\Compute\\IrradianceCube.comp";
+    SafePtr irradiancePipeline = lnnew ComputePipeline(m_GraphicsContext, irradianceProgramDesc);
+    m_IrradianceProgram = lnnew ComputeProgram(irradiancePipeline);
+
     // create async task
     m_GfxLoaderTask.reset(lnnew GfxLoaderTask(settings.Scheduler, this));
 
@@ -236,7 +242,7 @@ lne::SafePtr<class WorldEnvironment> GfxLoader::CreateEnvironmentMap(std::string
         std::format("Environment Irradiance: {}", std::filesystem::path(pathToEnvMap).filename().string())
     );
     uint32_t radianceDim = std::min(m_RadianceTextureMaxSize, dimensions);
-    env->RadianceTexture = Texture::CreateCubemapTexture(
+    env->PrefilteredTexture = Texture::CreateCubemapTexture(
         m_GraphicsContext, radianceDim, radianceDim, vk::Format::eR16G16B16A16Sfloat,
         TextureUsageType::eSampledAndStorage, true,
         std::format("Environment Radiance: {}", std::filesystem::path(pathToEnvMap).filename().string())
@@ -458,9 +464,9 @@ void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cmdB
     cpManager.EndSingleUseCommandBuffer(EQueueFamilyType::Compute);
     singleUseBuffer = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Compute);
 
-    env->RadianceTexture->TransitionLayout(singleUseBuffer, vk::ImageLayout::eGeneral);
-    m_HDRToCubemapProgram->SetTexture("tCubemapTexture", env->RadianceTexture, true);
-    renderer.Dispatch(singleUseBuffer, m_HDRToCubemapProgram, env->RadianceTexture->GetDimensions().width / 16, env->RadianceTexture->GetDimensions().height / 16, 6);
+    env->PrefilteredTexture->TransitionLayout(singleUseBuffer, vk::ImageLayout::eGeneral);
+    m_HDRToCubemapProgram->SetTexture("tCubemapTexture", env->PrefilteredTexture, true);
+    renderer.Dispatch(singleUseBuffer, m_HDRToCubemapProgram, env->PrefilteredTexture->GetDimensions().width / 16, env->PrefilteredTexture->GetDimensions().height / 16, 6);
 
     cpManager.EndSingleUseCommandBuffer(EQueueFamilyType::Compute);
 
@@ -470,7 +476,7 @@ void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cmdB
     cpManager.EndSingleUseCommandBuffer(EQueueFamilyType::Graphics);
 
     // generate radiance prefiltered mipmaps
-    uint32_t numMips = env->RadianceTexture->GetMipLevels();
+    uint32_t numMips = env->PrefilteredTexture->GetMipLevels();
     struct TempImageView
     {
         vk::ImageView ImageView;
@@ -480,7 +486,7 @@ void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cmdB
     tempImageViews.reserve(numMips);
     for (uint32_t i = 1; i < numMips; ++i)
     {
-        vk::ImageView view = env->RadianceTexture->CreateImageViewForMip(i);
+        vk::ImageView view = env->PrefilteredTexture->CreateImageViewForMip(i);
         BindlessImageHandle imageHandle = m_GraphicsContext->RegisterBindlessImage(view);
         tempImageViews.emplace_back(TempImageView{
             .ImageView = view,
@@ -496,18 +502,60 @@ void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cmdB
     {
         float roughness = (float)i / (float)(numMips - 1);
         SafePtr program = lnnew ComputeProgram(m_PrefilterProgram->GetPipeline());
-        program->SetTexture("tInputCubemap", env->SkyboxTexture, false);
+        program->SetTexture("tRadianceCubemap", env->SkyboxTexture, false);
         program->SetProperty("tPrefilteredCubemap", tempImageViews[i - 1].BindlessTextureHandle);
         program->SetProperty("uRoughness", roughness);
         program->SetProperty("uNumSamples", 1024u);
-        uint32_t dim = env->RadianceTexture->GetDimensions().width >> i;
+        uint32_t dim = env->PrefilteredTexture->GetDimensions().width >> i;
         uint32_t numGroups = (dim + 31) / 32;
         renderer.Dispatch(singleUseBuffer, program, numGroups, numGroups, 6);
+        programs.push_back(program);
+    }
+
+    std::vector<TempImageView> tempImageViews2;
+    numMips = env->IrradianceTexture->GetMipLevels();
+    for (uint32_t i = 0; i < numMips; ++i)
+    {
+        vk::ImageView view = env->IrradianceTexture->CreateImageViewForMip(i);
+        BindlessImageHandle imageHandle = m_GraphicsContext->RegisterBindlessImage(view);
+        tempImageViews2.emplace_back(TempImageView{
+            .ImageView = view,
+            .BindlessTextureHandle = imageHandle
+        });
+    }
+    env->IrradianceTexture->TransitionLayout(singleUseBuffer, vk::ImageLayout::eGeneral);
+    std::vector<SafePtr<ComputeProgram>> irradiancePrograms;
+    for (uint32_t i = 0; i < numMips; ++i)
+    {
+        SafePtr program = lnnew ComputeProgram(m_IrradianceProgram->GetPipeline());
+        program->SetTexture("tRadianceCubemap", env->SkyboxTexture, false);
+        program->SetProperty("tIrradianceCubemap", tempImageViews2[i].BindlessTextureHandle);
+        program->SetProperty("uPhiDelta", 0.025f);
+        program->SetProperty("uThetaDelta", 0.025f);
+        uint32_t dim = env->IrradianceTexture->GetDimensions().width >> i;
+        uint32_t numGroups = (dim + 31) / 32;
+        renderer.Dispatch(singleUseBuffer, program, numGroups, numGroups, 6);
+        irradiancePrograms.push_back(program);
     }
 
     cpManager.EndSingleUseCommandBuffer(EQueueFamilyType::Compute);
 
     for (auto& tempView : tempImageViews)
+    {
+        m_GraphicsContext->EnqueueResourceDeletion(
+            ResourceDeletion{
+                .Type = ResourceType::Enum::eImageView,
+                .Resource = ImageViewDeletion{
+                    .ImageView = tempView.ImageView,
+                    .UsageType = TextureUsageType::eStorage,
+                    .BindlessTextureHandle = tempView.BindlessTextureHandle
+                },
+                .ElapsedFrames = 1
+            }
+        );
+    }
+
+    for (auto& tempView : tempImageViews2)
     {
         m_GraphicsContext->EnqueueResourceDeletion(
             ResourceDeletion{
