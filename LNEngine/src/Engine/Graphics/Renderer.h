@@ -48,6 +48,7 @@ public:
 
     void Init(std::unique_ptr<class Window>& window, std::shared_ptr<enki::TaskScheduler> taskScheduler);
     void Nuke();
+    void InitResources();
 
     [[nodiscard]] uint32_t GetCurrentFrameIndex() const { return m_Context->GetCurrentFrameIndex(); }
     [[nodiscard]] SafePtr<class GfxContext> GetGfxContext() const { return m_Context; }
@@ -102,6 +103,8 @@ private:
 
     SafePtr<class GfxPipeline> m_LastUsedPipeline;
     SafePtr<class StaticMesh> m_LastUsedStaticMesh;
+
+    SafePtr<class Texture> m_BRDFLut;
 
     bool m_LoadAsync{ true };
 

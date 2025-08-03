@@ -20,6 +20,7 @@
 // TODO: move this to a resource manager
 #include <stb/stb_image.h>
 #include "WorldEnvironment.h"
+#include "Core/ApplicationBase.h"
 
 namespace lne
 {
@@ -63,6 +64,24 @@ void Renderer::Nuke()
     m_Context.Reset();
     m_Swapchain.Reset();
     m_GfxLoader.Reset();
+}
+
+void Renderer::InitResources()
+{
+    m_BRDFLut = Texture::CreateColorTexture2D(m_Context, 512, 512, vk::Format::eR16G16Sfloat, TextureUsageType::eSampledAndStorage, false, "BRDFLut");
+    vk::CommandBuffer cmdBuffer = m_Context->GetCommandPoolManager().BeginOrGetPrimaryFrameCommandBuffer(m_Context->GetCurrentFrameIndex());
+    m_BRDFLut->TransitionLayout(cmdBuffer, vk::ImageLayout::eGeneral);
+
+    ComputePipelineDesc desc{};
+    desc.Name = "GenerateBRDFLut";
+    desc.PathToShader = ApplicationBase::GetAssetsPath() + "Engine/Shaders/Compute/GenerateBRDFLut.comp";
+    SafePtr brdfPipeline = lnnew ComputePipeline(m_Context, desc);
+    SafePtr brdfProgram = lnnew ComputeProgram(brdfPipeline);
+    brdfProgram->SetProperty("uNumSamples", 1024);
+    brdfProgram->SetTexture("tBRDFLut", m_BRDFLut, true);
+    Dispatch(cmdBuffer, brdfProgram, 512 / 32, 512 / 32, 1);
+
+    m_BRDFLut->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
 }
 
 void Renderer::PushLabel(vk::CommandBuffer cmdBuffer, std::string_view label) const

@@ -96,6 +96,7 @@ void ApplicationBase::Run()
     cpManager.ResetFrameCommands(0);
     vk::CommandBuffer cb = cpManager.BeginOrGetPrimaryFrameCommandBuffer(0);
     graphicsContext->UploadDefaultResources();
+    m_Renderer->InitResources();
     m_ImGuiService->CreateFontsTexture();
 
     for (auto layer : m_LayerStack)
