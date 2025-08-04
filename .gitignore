@@ -412,3 +412,6 @@ FodyWeavers.xsd
 !**/vendor/**/[Bb]in/
 !**/vendor/**/[Dd]ebug/
 !**/vendor/**/[Rr]elease/
+
+# ignore engine assets
+LNApp/Assets/Engine/**
