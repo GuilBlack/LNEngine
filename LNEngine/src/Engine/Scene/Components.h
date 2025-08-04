@@ -68,8 +68,6 @@ struct TransformComponent
         EulerAngles = eulerAngles;
         Rotation = glm::quat(glm::radians(EulerAngles));
     }
-
-    SafePtr<UniformBufferManager> UniformBuffers{};
 };
 
 struct CameraComponent

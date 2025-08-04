@@ -49,14 +49,12 @@ Material::Material(SafePtr<GfxPipeline> pipeline, MaterialType::Enum materialTyp
     }
     
     for (const auto& [binding, ub] : materialDescSet.UniformBuffers)
-        m_UniformBuffers.emplace(std::make_pair(ub.BindingIndex, UniformBuffer(m_Pipeline->m_Context, ub.Size)));
+        m_UniformBuffers.emplace(std::make_pair(ub.BindingIndex, SafePtr(lnnew UniformBuffer(m_Pipeline->m_Context, ub.Size))));
     m_DescSets.resize(m_Pipeline->GetContext()->GetMaxFramesInFlight());
 }
 
 Material::~Material()
 {
-    for (auto& [binding, ub] : m_UniformBuffers)
-        ub.Nuke();
 }
 
 void Material::SetProperty(std::string_view name, float value)
@@ -102,9 +100,9 @@ void Material::SetTexture(std::string_view name, SafePtr<Texture> texture)
 // TODO: make sure we use it just once instead of updating it for every single changes in the material
 void Material::SetUniformBuffer(uint32_t binding, const void* data, uint32_t size, uint32_t offset)
 {
-    auto& ub = m_UniformBuffers.at(binding);
+    auto ub = m_UniformBuffers.at(binding);
     auto& renderer = ApplicationBase::GetRenderer();
-    ub.CopyData(ApplicationBase::GetRenderer().GetGfxContext()->GetPrimaryCommandBuffer(), data, size, offset);
+    ub->CopyData(ApplicationBase::GetRenderer().GetGfxContext()->GetPrimaryCommandBuffer(), data, size, offset);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -114,22 +112,20 @@ void Material::SetUniformBuffer(uint32_t binding, const void* data, uint32_t siz
 ComputeProgram::ComputeProgram(SafePtr<ComputePipeline> pipeline)
     : m_Pipeline(pipeline)
 {
-    DescriptorSet materialDescSet = m_Pipeline->m_Shader->GetReflectedData().DescriptorSets.at(1);
+    DescriptorSet materialDescSet = m_Pipeline->m_Shader->GetReflectedData().DescriptorSets.at(0);
 
     for (const auto& [binding, ub] : materialDescSet.UniformBuffers)
-        m_UniformBuffers.emplace(std::make_pair(ub.BindingIndex, UniformBuffer(m_Pipeline->m_Context, ub.Size)));
+        m_UniformBuffers.emplace(std::make_pair(ub.BindingIndex, SafePtr(lnnew UniformBuffer(m_Pipeline->m_Context, ub.Size))));
 
     for (const auto& [name, element] : m_Pipeline->m_Shader->GetReflectedData().UniformElements)
     {
-        if (element.SetIndex == 1)
+        if (element.SetIndex == 0)
             m_ProgramConstants.emplace(name, element);
     }
 }
 
 ComputeProgram::~ComputeProgram()
 {
-    for (auto& [binding, ub] : m_UniformBuffers)
-        ub.Nuke();
 }
 
 void ComputeProgram::SetProperty(std::string_view name, float value)
@@ -194,8 +190,8 @@ void ComputeProgram::Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32
 // TODO: make sure we use it just once instead of updating it for every single changes in the compute program
 void ComputeProgram::SetUniformBuffer(uint32_t binding, const void* data, uint32_t size, uint32_t offset)
 {
-    auto& ub = m_UniformBuffers.at(binding);
+    auto ub = m_UniformBuffers.at(binding);
     auto& renderer = ApplicationBase::GetRenderer();
-    ub.CopyData(ApplicationBase::GetRenderer().GetGfxContext()->GetPrimaryCommandBuffer(), data, size, offset);
+    ub->CopyData(ApplicationBase::GetRenderer().GetGfxContext()->GetPrimaryCommandBuffer(), data, size, offset);
 }
 }

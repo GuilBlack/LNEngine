@@ -5,14 +5,16 @@
 #extension GL_EXT_nonuniform_qualifier :    require
 
 layout(scalar, set=0, binding=0) uniform GlobalUBO {
-    mat4 uViewProj;
-    mat4 uView;
-    mat4 uProj;
-    vec3 uEyePos;
-    vec3 uSunDir;
-    float uAmbientLight;
+    mat4    uViewProj;
+    mat4    uView;
+    mat4    uProj;
+    vec3    uEyePos;
+    vec3    uSunDir;
+    float   uAmbientLight;
+    uint    tBRDFLut;
+    uint    tIrradianceMap;
+    uint    tPrefilteredMap;
 };
-
 layout(scalar, set = 2, binding = 0) uniform MaterialData {
     uint tCubeAlbedo;
 };

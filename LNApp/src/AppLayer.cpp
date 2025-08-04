@@ -224,6 +224,8 @@ void AppLayer::OnAttach()
     cameraComponent.UpdateView(cameraTransform);
 
     m_WorldRenderer->SetEnvironmentMap(ApplicationBase::GetAssetsPath() + "Textures\\HDRIs\\OvercastIndustrialCourtyard.hdr");
+    m_WorldRenderer->SetSunLightDirection(m_LightDirection);
+    m_WorldRenderer->SetAmbientLight(m_AmbientLight);
 }
 
 void AppLayer::InitFrameGraph()
@@ -367,11 +369,9 @@ void AppLayer::OnUpdate(float deltaTime)
 
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
 
-    renderer.BeginScene(m_CameraEntity.GetComponent<lne::TransformComponent>(), m_CameraEntity.GetComponent<lne::CameraComponent>(), m_LightDirection, m_AmbientLight);
-
     auto& fb = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
 
-    m_WorldRenderer->BeginFrame();
+    m_WorldRenderer->BeginScene(m_CameraEntity);
     m_WorldRenderer->Render(*m_Scene.GetPtr());
     m_WorldRenderer->EndFrame();
 

@@ -5,6 +5,7 @@
 #include "DynamicDescriptorAllocator.h"
 #include "Mesh.h"
 #include "GfxContext.h"
+#include "Engine/Graphics/GlobalGfxData.h"
 
 namespace enki
 {
@@ -13,32 +14,6 @@ class TaskScheduler;
 
 namespace lne
 {
-struct GlobalUniforms
-{
-    glm::mat4 ViewProj;
-    glm::mat4 View;
-    glm::mat4 Proj;
-    glm::vec3 CameraPosition;
-    glm::vec3 SunDirection;
-    float     AmbientLight;
-};
-
-// TODO: move this in the World renderer
-struct FrameData {
-    UniformBuffer GlobalUniforms;
-    SafePtr<class DynamicDescriptorAllocator> DescriptorAllocator;
-    vk::DescriptorPool GlobalDescriptorPool;
-    vk::DescriptorSet DescriptorSet;
-    vk::DescriptorSetLayout DescriptorSetLayout;
-
-    FrameData(UniformBuffer&& globalUniforms, SafePtr<class DynamicDescriptorAllocator> descriptorAllocator, 
-        vk::DescriptorSetLayout descriptorSetLayout)
-        : GlobalUniforms(std::move(globalUniforms)),
-        DescriptorAllocator(descriptorAllocator), 
-        DescriptorSetLayout(descriptorSetLayout)
-    {
-    }
-};
 
 class Renderer
 {
@@ -63,13 +38,11 @@ public:
     void EndFrame();
     void PostFrame();
 
-    void BeginScene(const struct TransformComponent& cameraTransform, const struct CameraComponent& camera, const glm::vec3& sunDirection, float ambientLight);
+    void BeginScene(WorldData globalData, SafePtr<UniformBuffer> worldGlobalUniforms);
 
     void BeginRenderPass(const class Framebuffer& framebuffer) const;
     void EndRenderPass(const class Framebuffer& framebuffer) const;
 
-    void Draw(SafePtr<class Material> pipeline, struct Geometry& geometry, struct TransformComponent& objTransform);
-    void Draw(SafePtr<class StaticMesh> mesh, struct TransformComponent& objTransform);
     void Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>& mesh, const SafePtr<lne::StorageBuffer>& transformBuffer, uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount);
     void Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>& mesh, const SafePtr<lne::StorageBuffer>& transformBuffer, SafePtr<Material> overrideMaterial, uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount);
 

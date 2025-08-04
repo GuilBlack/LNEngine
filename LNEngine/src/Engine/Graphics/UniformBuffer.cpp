@@ -49,8 +49,15 @@ UniformBuffer& UniformBuffer::operator=(UniformBuffer&& other) noexcept
     return *this;
 }
 
+UniformBuffer::~UniformBuffer()
+{
+    Nuke();
+}
+
 void UniformBuffer::Nuke()
 {
+    if (m_IsNuked)
+        return;
     BufferResourceDeletion bufferDeletion{
         .MainAllocation = m_MainAllocation,
         .StagingAllocation = m_StagingAllocation,
@@ -61,6 +68,7 @@ void UniformBuffer::Nuke()
         .Resource = bufferDeletion,
     };
     m_Context->EnqueueResourceDeletion(deletion);
+    m_IsNuked = true;
 }
 
 void UniformBuffer::CopyData(vk::CommandBuffer cb, const void* data, uint32_t size, uint32_t offset)

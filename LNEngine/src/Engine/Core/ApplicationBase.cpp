@@ -78,6 +78,7 @@ ApplicationBase::~ApplicationBase()
 {
     m_EventHub->UnregisterListener<WindowCloseEvent>(this);
     m_LayerStack.Clear();
+    m_Renderer.reset();
     m_Window.reset();
     glfwTerminate();
     LNE_INFO("Application {0} nuked", m_Settings.Name);

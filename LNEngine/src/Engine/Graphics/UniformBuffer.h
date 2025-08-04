@@ -7,7 +7,7 @@
 
 namespace lne
 {
-class UniformBuffer
+class UniformBuffer : public RefCountBase
 {
 public:
     MOVABLE_ONLY(UniformBuffer);
@@ -17,7 +17,7 @@ public:
     UniformBuffer(UniformBuffer&& other) noexcept;
     UniformBuffer& operator=(UniformBuffer&& other) noexcept;
 
-    ~UniformBuffer() = default;
+    ~UniformBuffer();
     void Nuke();
     vk::DescriptorBufferInfo GetDescriptorInfo() const 
     { 
@@ -40,6 +40,7 @@ private:
     BufferAllocation m_MainAllocation;
     BufferAllocation m_StagingAllocation;
     uint32_t m_Size{ 0 };
+    bool m_IsNuked{ false };
 };
 
 class UniformBufferManager : public RefCountBase

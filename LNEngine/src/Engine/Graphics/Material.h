@@ -32,7 +32,7 @@ public:
 private:
     SafePtr<class GfxPipeline> m_Pipeline;
     std::unordered_map<std::string, UniformElement> m_MaterialConstants;
-    std::map<uint32_t, UniformBuffer> m_UniformBuffers;
+    std::map<uint32_t, SafePtr<UniformBuffer>> m_UniformBuffers;
     MaterialType::Enum m_MaterialType;
     bool m_IsTransparent{ false };
     uint32_t m_CurrentFrameInFlight;
@@ -89,7 +89,7 @@ private:
 
     // A map of uniform metadata. This should be populated during shader reflection.
     std::unordered_map<std::string, UniformElement> m_ProgramConstants;
-    std::map<uint32_t, UniformBuffer> m_UniformBuffers;
+    std::map<uint32_t, SafePtr<UniformBuffer>> m_UniformBuffers;
 
     friend class Renderer;
 

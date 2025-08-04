@@ -11,6 +11,7 @@
 #include "Scene/Components.h"
 #include "Mesh.h"
 #include "Core/Utils/Profiling.h"
+#include <Scene/Entity.h>
 
 
 namespace lne
@@ -18,8 +19,14 @@ namespace lne
 WorldRenderer::WorldRenderer(const SafePtr<FrameGraph>& frameGraph)
     : m_FrameGraph(frameGraph)
 {
-    SafePtr<GfxContext> gfxContext = ApplicationBase::GetWindow().GetGfxContext();
+    SafePtr<GfxContext> gfxContext = ApplicationBase::GetRenderer().GetGfxContext();
     uint32_t maxFramesInFlight = gfxContext->GetMaxFramesInFlight();
+    m_WorldGlobalUniforms.reserve(maxFramesInFlight);
+    
+    for (uint32_t i = 0; i < maxFramesInFlight; ++i)
+    {
+        m_WorldGlobalUniforms.push_back(lnnew UniformBuffer(gfxContext, sizeof(WorldData)));
+    }
 
     m_TransformBuffers.resize(maxFramesInFlight);
     // 2 MB of transform data per frame since a mat4 is 64 bytes. 1024 * 32 = 32k transforms
@@ -44,7 +51,7 @@ void WorldRenderer::SetEnvironmentMap(std::string_view pathToEnvMap)
     m_Environment = ApplicationBase::GetRenderer().CreateEnvironmentMap(pathToEnvMap);
 }
 
-void WorldRenderer::BeginFrame()
+void WorldRenderer::BeginScene(Entity& cameraEntity)
 {
     LNE_PROFILE_FUNCTION()
     auto& nodes = m_FrameGraph->GetNodes();
@@ -54,6 +61,18 @@ void WorldRenderer::BeginFrame()
         node->RenderPass->BeginFrame();
     }
     m_Transfroms.clear();
+    CameraComponent& cameraComponent = cameraEntity.GetComponent<CameraComponent>();
+    m_GlobalData = WorldData{
+        .ViewProj = cameraComponent.GetViewProj(),
+        .View = cameraComponent.View,
+        .Proj = cameraComponent.Proj,
+        .CameraPosition = cameraEntity.GetComponent<TransformComponent>().Position,
+        .SunDirection = m_Environment->SunDirection,
+        .AmbientLight = m_Environment->AmbientLight,
+        .IrradianceMap = m_Environment->IrradianceTexture->GetBindlessTextureHandle(),
+        .PrefilteredMap = m_Environment->PrefilteredTexture->GetBindlessTextureHandle()
+    };
+    ApplicationBase::GetRenderer().BeginScene(m_GlobalData, m_WorldGlobalUniforms[ApplicationBase::GetRenderer().GetCurrentFrameIndex()]);
 }
 
 void WorldRenderer::Render(EntityRegistry& registry)
