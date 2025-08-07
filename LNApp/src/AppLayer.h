@@ -59,6 +59,24 @@ class AppLayer final : public lne::Layer
         bool m_IsDebugOpen{ false };
     };
 
+    class ToneMappingPass : public lne::IRenderPass
+    {
+    public:
+        ToneMappingPass()
+        {
+            m_Name = "ToneMappingPass";
+        }
+        void OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
+        void Execute(vk::CommandBuffer cmdBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
+        void PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
+        void OnImGuiRender() override;
+    private:
+        lne::SafePtr<lne::GfxPipeline> m_Pipeline{};
+        lne::SafePtr<lne::Material> m_Material{};
+        lne::SafePtr<lne::Texture> m_DebugTexture{};
+        bool m_IsDebugOpen{ false };
+    };
+
 public:
     AppLayer()
         : Layer("AppLayer")

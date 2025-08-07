@@ -26,7 +26,7 @@ void AppLayer::FinalPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRendere
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
     lne::Framebuffer& swapchainFramebuffer = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
     auto renderTexture = swapchainFramebuffer.GetColorAttachments()[0].Texture;
-    lne::FrameGraphResource* colorResource = frameGraph->GetResource("Lighting");
+    lne::FrameGraphResource* colorResource = frameGraph->GetResource("ToneMappedScene");
     if (colorResource == nullptr)
     {
         APP_WARN("FinalPass::Render: Color resource not found");
@@ -69,6 +69,7 @@ void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNo
 void AppLayer::SkyboxPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worldRenderer,
     lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
+    LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     if (m_Texture != worldRenderer->GetEnvironment()->SkyboxTexture)
     {
         m_Texture = worldRenderer->GetEnvironment()->SkyboxTexture;
@@ -106,6 +107,82 @@ void AppLayer::SkyboxPass::OnImGuiRender()
     float textureRatio = (float)m_DebugTexture->GetDimensions().width / (float)m_DebugTexture->GetDimensions().height;
     float windowWidth = ImGui::GetWindowWidth();
     m_IsDebugOpen = ImGui::TreeNode("Skybox Pass Output");
+    if (m_IsDebugOpen)
+    {
+        ImGui::Image((ImTextureID)(uint64_t)m_DebugTexture->GetBindlessTextureHandle(), ImVec2(windowWidth, windowWidth / textureRatio));
+        ImGui::TreePop();
+    }
+}
+
+void AppLayer::ToneMappingPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
+{
+    using namespace lne;
+    lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
+    lne::GraphicsPipelineDesc desc{};
+    desc.PathToShaders = lne::ApplicationBase::GetAssetsPath() + "Shaders\\ToneMapper.glsl";
+    desc.Name = "ToneMapper";
+    desc.FrameGraph = frameGraph;
+    desc.EnableDepthTest(false, false);
+    desc.Blend.EnableBlend(false);
+    desc.CullMode = lne::ECullMode::None;
+    m_Pipeline = renderer.CreateGraphicsPipeline(desc); 
+    m_Material = lne::SafePtr(lnnew lne::Material(m_Pipeline, lne::MaterialType::ePostProcess));
+
+    for (FrameGraphResourceHandle resourceHandle : node->OutputResources)
+    {
+        FrameGraphResource& resource = *frameGraph->GetResource(resourceHandle);
+
+        if (resource.Type == FrameGraphResourceType::eAttachment)
+        {
+            SafePtr<Texture> texture = resource.Resource.GetAs<Texture>();
+            SafePtr<Texture> debugTexture = Texture::CreateColorTexture2D(ApplicationBase::GetWindow().GetGfxContext(),
+                texture->GetDimensions().width / 2, texture->GetDimensions().height / 2, texture->GetFormat(), TextureUsageType::eSampled, false, texture->GetName() + "ImGUI Debug");
+            m_DebugTexture = debugTexture;
+        }
+    }
+}
+
+void AppLayer::ToneMappingPass::Execute(vk::CommandBuffer cmdBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
+{
+    LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
+    lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
+    for (lne::FrameGraphResourceHandle handle : node->InputResources)
+    {
+        lne::FrameGraphResource* resource = frameGraph->GetResource(handle);
+        lne::SafePtr<lne::Texture> sceneTexture = resource->Resource.GetAs<lne::Texture>();
+        m_Material->SetTexture("tSceneTexture", sceneTexture);
+    }
+    renderer.DrawFullscreenQuad(cmdBuffer, m_Material);
+}
+
+void AppLayer::ToneMappingPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
+{
+    using namespace lne;
+    if (m_IsDebugOpen == false)
+        return;
+
+    Renderer& renderer = ApplicationBase::GetRenderer();
+    for (FrameGraphResourceHandle resourceHandle : node->OutputResources)
+    {
+        FrameGraphResource& resource = *frameGraph->GetResource(resourceHandle);
+        if (resource.Type == FrameGraphResourceType::eAttachment)
+        {
+            SafePtr<Texture> texture = resource.Resource.GetAs<Texture>();
+            if (texture->IsDepth())
+                continue;
+            SafePtr<Texture> debugTexture = m_DebugTexture;
+            debugTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
+            renderer.Blit(cmdBuffer, texture, debugTexture);
+            debugTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
+        }
+    }
+}
+
+void AppLayer::ToneMappingPass::OnImGuiRender()
+{
+    float textureRatio = (float)m_DebugTexture->GetDimensions().width / (float)m_DebugTexture->GetDimensions().height;
+    float windowWidth = ImGui::GetWindowWidth();
+    m_IsDebugOpen = ImGui::TreeNode("Tone Mapping Pass Output");
     if (m_IsDebugOpen)
     {
         ImGui::Image((ImTextureID)(uint64_t)m_DebugTexture->GetBindlessTextureHandle(), ImVec2(windowWidth, windowWidth / textureRatio));
@@ -262,6 +339,7 @@ void AppLayer::InitFrameGraph()
     lne::FrameGraphResourceDesc lightingResource = resourceBuilder.SetName("Lighting")
         .SetType(lne::FrameGraphResourceType::eAttachment)
         .SetDefaultColorAttachmentInfos()
+        .SetImageFormat(vk::Format::eR16G16B16A16Sfloat)
         .Build();
 
     lne::FrameGraphResourceDesc skyboxResource = resourceBuilder.SetName("LightingSkyboxRef")
@@ -281,13 +359,18 @@ void AppLayer::InitFrameGraph()
         .SetDefaultDepthAttachmentInfos()
         .SetName("Depth").Build();
 
+    lne::FrameGraphResourceDesc toneMappedSceneDesc = resourceBuilder
+        .SetDefaultColorAttachmentInfos()
+        .SetName("ToneMappedScene")
+        .Build();
+
     lne::FrameGraphNodeDesc depthPrePassDesc = nodeBuilder.SetName("DepthPrePass")
         .AddOutputResource(depthAttachmentDesc)
         .Build();
 
     nodeBuilder.Clear();
     lne::FrameGraphNodeDesc finalPassDesc = nodeBuilder.SetName("FinalPass")
-        .AddInputResource(skyboxResource)
+        .AddInputResource(toneMappedSceneDesc)
         .SetType(lne::RenderPassType::eTransfer)
         .Build();
 
@@ -306,6 +389,14 @@ void AppLayer::InitFrameGraph()
         .AddInputResource(transparentResource)
         .AddInputResource(depthAttachmentDesc)
         .AddOutputResource(skyboxResource)
+        .Build();
+
+    nodeBuilder.Clear();
+    skyboxResource.Type = lne::FrameGraphResourceType::eTexture;
+    lne::FrameGraphNodeDesc toneMappingPassDesc = nodeBuilder.SetName("ToneMappingPass")
+        .AddInputResource(skyboxResource)
+        .AddOutputResource(toneMappedSceneDesc)
+        .SetType(lne::RenderPassType::eGraphics)
         .Build();
     
     nodeBuilder.Clear();
@@ -337,6 +428,7 @@ void AppLayer::InitFrameGraph()
     m_FrameGraph->CreateNode(transparentPassDesc);
     m_FrameGraph->CreateNode(gBufferPassDesc);
     m_FrameGraph->CreateNode(lightingPassDesc);
+    m_FrameGraph->CreateNode(toneMappingPassDesc);
     m_FrameGraph->Compile();
 
     m_FrameGraph->BindRenderPass(lnnew lne::LightingPass());
@@ -345,6 +437,7 @@ void AppLayer::InitFrameGraph()
     m_FrameGraph->BindRenderPass(lnnew FinalPass());
     m_FrameGraph->BindRenderPass(lnnew SkyboxPass());
     m_FrameGraph->BindRenderPass(lnnew lne::GBufferPass());
+    m_FrameGraph->BindRenderPass(lnnew ToneMappingPass());
 }
 
 void AppLayer::OnDetach()
