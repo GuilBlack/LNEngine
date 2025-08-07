@@ -115,6 +115,16 @@ float SchlickBeckmanGSF(float nDotL, float nDotV, float alpha) {
     return gL * gV;
 }
 
+vec3 samplePrefilteredReflection(vec3 reflectDir, float roughness) {
+    float maxReflLod = log2(float(textureSize(globalTextures[nonuniformEXT(tPrefilteredMap)], 0).x));
+    float lod = maxReflLod * roughness;
+    float lodMin = floor(lod);
+    float lodMax = ceil(lod);
+    vec3 sample1 = textureLod(globalCubemaps[nonuniformEXT(tPrefilteredMap)], reflectDir, lodMin).xyz;
+    vec3 sample2 = textureLod(globalCubemaps[nonuniformEXT(tPrefilteredMap)], reflectDir, lodMax).xyz;
+    return mix(sample1, sample2, lod - lodMin);
+}
+
 void main() {
     vec4 albedoMapValue = texture(globalTextures[tAlbedo], iUVs);
     vec3 albedo = albedoMapValue.xyz;
@@ -141,11 +151,17 @@ void main() {
     vec3 viewDir = normalize(uEyePos - iWorldPos);
     vec3 lightDir = normalize(-uSunDir);
     vec3 halfDir = normalize(lightDir + viewDir);
+    vec3 reflectDir = reflect(-viewDir, normal);
 
     float nDotL = max(0.0, dot(normal, lightDir));
     float nDotV = max(0.0, dot(normal, viewDir));
     float nDotH = max(0.0, dot(normal, halfDir));
     float vDotH = max(0.0, dot(viewDir, halfDir));
+
+    // Sample the prefiltered environment map
+    vec2 brdf = texture(globalTextures[nonuniformEXT(tBRDFLut)], vec2(nDotV, roughness)).xy;
+    vec3 prefilteredColor = samplePrefilteredReflection(reflectDir, roughness);
+    vec3 irradiance = texture(globalCubemaps[nonuniformEXT(tIrradianceMap)], normal).xyz;
 
     // Calculate FresnelSchlick
     vec3 F0 = vec3(0.04);
@@ -156,17 +172,12 @@ void main() {
     vec3 kD = (1.0 - F) * (1.0 - metalness);
 
     // lambert diffuse
-    vec3 diffuse = kD * albedo / PI;
+    vec3 diffuse = kD * (irradiance * albedo) / PI;
 
     // Cook-Torrance microfacet specular
-    float alpha = roughness * roughness;
-    float denom = 4.0 * nDotL * nDotV + 0.0001;
-    vec3 DFG = TrowbridgeReitzNDF(nDotH, alpha) * SchlickBeckmanGSF(nDotL, nDotV, alpha) * F;
+    vec3 specular = prefilteredColor * (F * brdf.x + brdf.y);
 
-    vec3 specular = DFG / denom;
-
-    vec3 ambientCol = uAmbientLight * albedo;
-    vec3 color = ambientCol + nDotL * (diffuse + specular);
+    vec3 color = uAmbientLight + diffuse + specular;
 
     oColor = vec4(color, 1.0);
 }
