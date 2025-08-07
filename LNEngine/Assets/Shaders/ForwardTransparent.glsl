@@ -150,6 +150,7 @@ void main() {
     }
     vec3 viewDir = normalize(uEyePos - iWorldPos);
     vec3 lightDir = normalize(-uSunDir);
+    vec3 lightColor = length(uSunDir) * vec3(1.0);
     vec3 halfDir = normalize(lightDir + viewDir);
     vec3 reflectDir = reflect(-viewDir, normal);
 
@@ -159,9 +160,6 @@ void main() {
     float vDotH = max(0.0, dot(viewDir, halfDir));
 
     // Sample the prefiltered environment map
-    vec2 brdf = texture(globalTextures[nonuniformEXT(tBRDFLut)], vec2(nDotV, roughness)).xy;
-    vec3 prefilteredColor = samplePrefilteredReflection(reflectDir, roughness);
-    vec3 irradiance = texture(globalCubemaps[nonuniformEXT(tIrradianceMap)], normal).xyz;
 
     // Calculate FresnelSchlick
     vec3 F0 = vec3(0.04);
@@ -171,13 +169,21 @@ void main() {
     // Calculate Cook-Torrance dielectric ratio
     vec3 kD = (1.0 - F) * (1.0 - metalness);
 
-    // lambert diffuse
-    vec3 diffuse = kD * (irradiance * albedo) / PI;
+    // --- direct lighting ---
+    float alpha = roughness * roughness;
+    float denom = 4.0 * nDotL * nDotV + 1e-5; // prevent division by zero
+    vec3 specSun = (TrowbridgeReitzNDF(nDotH, alpha) * SchlickBeckmanGSF(nDotL, nDotV, alpha) * F) / denom;
+    vec3  diffuseSun  = (kD * albedo) / PI;
+    vec3 directLight = (diffuseSun + specSun) * nDotL * lightColor;
+    
+    // --- IBL ---
+    vec2 brdf = texture(globalTextures[nonuniformEXT(tBRDFLut)], vec2(nDotV, roughness)).xy;
+    vec3 prefilteredColor = samplePrefilteredReflection(reflectDir, roughness);
+    vec3 irradiance = texture(globalCubemaps[nonuniformEXT(tIrradianceMap)], normal).xyz;
+    vec3 diffuseIBL = kD * (irradiance * albedo) / PI;
+    vec3 specularIBL = prefilteredColor * (F * brdf.x + brdf.y);
 
-    // Cook-Torrance microfacet specular
-    vec3 specular = prefilteredColor * (F * brdf.x + brdf.y);
-
-    vec3 color = uAmbientLight + diffuse + specular;
+    vec3 color = uAmbientLight * albedo + diffuseIBL + specularIBL + directLight;
 
     oColor = vec4(color, 1.0);
 }

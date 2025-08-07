@@ -125,7 +125,7 @@ void AppLayer::ToneMappingPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGr
     desc.EnableDepthTest(false, false);
     desc.Blend.EnableBlend(false);
     desc.CullMode = lne::ECullMode::None;
-    m_Pipeline = renderer.CreateGraphicsPipeline(desc); 
+    m_Pipeline = renderer.CreateGraphicsPipeline(desc);
     m_Material = lne::SafePtr(lnnew lne::Material(m_Pipeline, lne::MaterialType::ePostProcess));
 
     for (FrameGraphResourceHandle resourceHandle : node->OutputResources)
@@ -495,12 +495,14 @@ void AppLayer::OnImGuiRender()
     float inputWidth = (availableWidth - itemSpacing * 3 - labelWidth * 3) / 3.0f;
 
     ImGui::PushItemWidth(inputWidth);
-    ImGui::DragFloat("X", &m_LightDirection.x, 0.1f, -FLT_MAX, FLT_MAX, "%.1f");
+    bool changeX = ImGui::DragFloat("X", &m_LightDirection.x, 0.1f, -FLT_MAX, FLT_MAX, "%.1f");
     ImGui::SameLine();  // This will keep the next input on the same line
-    ImGui::DragFloat("Y", &m_LightDirection.y, 0.1f, -FLT_MAX, FLT_MAX, "%.1f");
+    bool changeY = ImGui::DragFloat("Y", &m_LightDirection.y, 0.1f, -FLT_MAX, FLT_MAX, "%.1f");
     ImGui::SameLine();  // This will keep the next input on the same line
-    ImGui::DragFloat("Z", &m_LightDirection.z, 0.1f, -FLT_MAX, FLT_MAX, "%.1f");
+    bool changeZ = ImGui::DragFloat("Z", &m_LightDirection.z, 0.1f, -FLT_MAX, FLT_MAX, "%.1f");
     ImGui::PopItemWidth(); // Restore the previous item width
+    if (changeX || changeY || changeZ)
+        m_WorldRenderer->SetSunLightDirection(m_LightDirection);
 
     ImGui::DragFloat("Ambient Light", &m_AmbientLight, 0.001f, 0.f, 1.0f, "%.3f");
 
