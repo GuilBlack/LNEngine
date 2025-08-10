@@ -28,7 +28,6 @@ public:
     [[nodiscard]] uint32_t GetCurrentFrameIndex() const { return m_Context->GetCurrentFrameIndex(); }
     [[nodiscard]] SafePtr<class GfxContext> GetGfxContext() const { return m_Context; }
     [[nodiscard]] SafePtr<class GfxLoader> GetGfxLoader() const { return m_GfxLoader; }
-    [[nodiscard]] vk::DescriptorSet AllocateFrameDescSet(vk::DescriptorSetLayout layout);
 
     void PushLabel(vk::CommandBuffer cmdBuffer, std::string_view label) const;
 
@@ -63,21 +62,36 @@ public:
     [[nodiscard]] SafePtr<class UniformBufferManager> RegisterObject();
     void AddTextureToUpdate(SafePtr<class Texture> texture);
 
+    void AddShaderIncludeDir(const std::filesystem::path& dir)
+    {
+        std::lock_guard<std::mutex> lock(m_ShaderIncludeDirsMutex);
+        m_ShaderInudeDirs.push_back(dir);
+    }
+    [[nodiscard]] std::vector<std::filesystem::path> GetShaderIncludeDirs()
+    {
+        std::lock_guard<std::mutex> lock(m_ShaderIncludeDirsMutex);
+        return m_ShaderInudeDirs;
+    }
+    [[nodiscard]] SafePtr<class Texture> GetBRDFLut() const { return m_BRDFLut; }
+
 private:
-    SafePtr<class GfxContext> m_Context;
-    SafePtr<class Swapchain> m_Swapchain;
-    SafePtr<class GfxLoader> m_GfxLoader;
-    std::shared_ptr<class enki::TaskScheduler> m_TaskScheduler;
-    std::vector<SafePtr<class Texture>> m_TexturesToUpdate{};
-    std::mutex m_TexturesToUpdateMutex{};
+    SafePtr<class GfxContext>                   m_Context;
+    SafePtr<class Swapchain>                    m_Swapchain;
+    SafePtr<class GfxLoader>                    m_GfxLoader;
+    std::shared_ptr<class enki::TaskScheduler>  m_TaskScheduler;
+    std::vector<SafePtr<class Texture>>         m_TexturesToUpdate{};
+    std::mutex                                  m_TexturesToUpdateMutex{};
 
     // TODO: move to a command buffer manager to the context (maybe)
-    std::vector<FrameData> m_FrameData;
+    std::vector<FrameData>                      m_FrameData;
 
-    SafePtr<class GfxPipeline> m_LastUsedPipeline;
-    SafePtr<class StaticMesh> m_LastUsedStaticMesh;
+    SafePtr<class GfxPipeline>                  m_LastUsedPipeline;
+    SafePtr<class StaticMesh>                   m_LastUsedStaticMesh;
 
-    SafePtr<class Texture> m_BRDFLut;
+    SafePtr<class Texture>                      m_BRDFLut;
+
+    std::mutex                                  m_ShaderIncludeDirsMutex;
+    std::vector<std::filesystem::path>          m_ShaderInudeDirs;
 
     bool m_LoadAsync{ true };
 

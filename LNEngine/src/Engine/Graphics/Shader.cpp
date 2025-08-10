@@ -9,6 +9,8 @@
 #include "Core/Utils/_Defines.h"
 #include "Core/ApplicationBase.h"
 #include "Graphics/Texture.h"
+#include "Resources/ShaderFileIncluder.h"
+#include "Graphics/Renderer.h"
 
 namespace lne
 {
@@ -291,6 +293,7 @@ std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> Shader::CompileToSp
     constexpr bool optimize = false;
     options.SetOptimizationLevel(optimize ? shaderc_optimization_level_performance : shaderc_optimization_level_zero);
     options.SetWarningsAsErrors();
+    options.SetIncluder(std::make_unique<ShaderFileIncluder>(ApplicationBase::GetRenderer().GetShaderIncludeDirs()));
     std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> spirvCode;
     std::vector<shaderc::CompileOptions> optionsForShaders(header.StageHeaders.size(), options);
     uint32_t optionsIndex = 0;

@@ -38,6 +38,7 @@ void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskS
         .LoadAsync = m_LoadAsync,
         .RadianceTextureMaxSize = 512
     };
+    AddShaderIncludeDir(ApplicationBase::GetAssetsPath() + "Engine/Shaders/Includes");
     m_GfxLoader->Init(gfxLoaderSettings);
     m_TexturesToUpdate.reserve(128);
     for (uint32_t i = 0; i < m_Context->GetMaxFramesInFlight(); i++)
