@@ -1,18 +1,19 @@
 //#lne_head [Cp main]
 #version 460
 
-#extension GL_EXT_scalar_block_layout : enable
-#extension GL_EXT_nonuniform_qualifier : require
+#include "Common.glslh"
+#include "CommonCompute.glslh"
+#include "HDRCompute.glslh"
 
 layout(local_size_x = 32, local_size_y = 32) in;
 
 
-layout(set = 1, binding = 0) uniform samplerCube      globalCubemaps[];
+layout(set = TEX_SET, binding = 0) uniform samplerCube      globalCubemaps[];
 
-layout(set = 1, binding = 1, rgba16f) uniform writeonly image2DArray globalCubemapImages[];
+layout(set = TEX_SET, binding = 1, rgba16f) uniform writeonly image2DArray globalCubemapImages[];
 
 
-layout(scalar, set = 0, binding = 0) uniform ComputeParams
+layout(scalar, set = PARAMS_SET, binding = 0) uniform ComputeParams
 {
     float   uPhiDelta;
     float   uThetaDelta;
@@ -20,33 +21,6 @@ layout(scalar, set = 0, binding = 0) uniform ComputeParams
     uint    tRadianceCubemap;
     uint    tIrradianceCubemap;
 };
-
-vec3 uvToDirection(vec2 uv, uint faceIndex)
-{
-    vec3 dir;
-    uv = 2.0 * vec2(uv.x, 1.0 - uv.y) - 1.0;
-
-    switch (faceIndex)
-    {
-    case 0: // +X
-        dir = vec3(1.0, uv.y, -uv.x); break;
-    case 1: // -X
-        dir = vec3(-1.0, uv.y, uv.x); break;
-    case 2: // +Y
-        dir = vec3(uv.x, 1.0, -uv.y); break;
-    case 3: // -Y
-        dir = vec3(uv.x, -1.0, uv.y); break;
-    case 4: // +Z
-        dir = vec3(uv.x, uv.y, 1.0); break;
-    case 5: // -Z
-        dir = vec3(-uv.x, uv.y, -1.0); break;
-    default:
-        dir = vec3(0.0, 0.0, 0.0);
-    }
-    return normalize(dir);
-}
-
-#define PI 3.14159265358979323846
 
 void main()
 {
