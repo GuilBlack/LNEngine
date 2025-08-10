@@ -1,26 +1,14 @@
 //#lne_head [Vt main][Fg main][Rp TransparentForwardPass]
 #version 460
 
-#extension GL_EXT_scalar_block_layout :     enable
-#extension GL_EXT_nonuniform_qualifier :    require
+#include "Common.glslh"
+#include "CommonMesh.glslh"
 
-layout(scalar, set=0, binding=0) uniform GlobalUBO {
-    mat4    uViewProj;
-    mat4    uView;
-    mat4    uProj;
-    vec3    uEyePos;
-    vec3    uSunDir;
-    float   uAmbientLight;
-    uint    tBRDFLut;
-    uint    tIrradianceMap;
-    uint    tPrefilteredMap;
-};
-
-layout(scalar, set = 1, binding = 0) readonly buffer TransformBuffer {
+layout(scalar, set = TRANSFORM_SET, binding = 0) readonly buffer TransformBuffer {
     mat4 transforms[];
 } transformBuffer;
 
-layout(scalar, set = 3, binding = 0) uniform MaterialData {
+layout(scalar, set = MAT_SET, binding = 0) uniform MaterialData {
     vec4 uColor;
     float uMetalness;
     float uRoughness;
@@ -32,16 +20,11 @@ layout(scalar, set = 3, binding = 0) uniform MaterialData {
     uint tNormal;
 };
 
-layout(set = 4, binding = 0) uniform sampler2D      globalTextures[];
-layout(set = 4, binding = 0) uniform samplerCube    globalCubemaps[];
-
-layout(set = 4, binding = 1, rgba8) uniform writeonly image2D   globalImageRgba8[];
-layout(set = 4, binding = 1, rgba16f) uniform writeonly image2D globalImageRgba16f[];
-layout(set = 4, binding = 1, rgba32f) uniform writeonly image2D globalImageRgba32f[];
-
-
-const float PI = 3.14159265359;
-const float TWO_OVER_PI = 2.0 / PI;
+layout(set = TEX_SET, binding = 0) uniform sampler2D      globalTextures[];
+layout(set = TEX_SET, binding = 0) uniform samplerCube    globalCubemaps[];
+layout(set = TEX_SET, binding = 1, rgba8) uniform writeonly image2D   globalImageRgba8[];
+layout(set = TEX_SET, binding = 1, rgba16f) uniform writeonly image2D globalImageRgba16f[];
+layout(set = TEX_SET, binding = 1, rgba32f) uniform writeonly image2D globalImageRgba32f[];
 
 #ifdef VERT
 
@@ -92,28 +75,7 @@ layout(location = 4) in vec3 iBitangent;
 
 layout(location = 0) out vec4 oColor;
 
-// Schlick's approximation for the Fresnel Function
-vec3 FresnelSchlick(float vDotH, vec3 F0) {
-    return mix(F0,vec3(1),pow(1-vDotH,5));
-}
-
-// GGX Normal Distribution Function
-float TrowbridgeReitzNDF(float nDotH, float alpha) {
-    float a2 = alpha * alpha;
-    float d = (nDotH * nDotH) * (a2 - 1) + 1;
-    return a2 / (PI * d * d);
-}
-
-// Schlick-GGX by Schlick & Beckman Geometry Shadowing Function
-float SchlickBeckmanGSF(float nDotL, float nDotV, float alpha) {
-    float r = (alpha + 1.0);
-    float k = (r * r) / 8.0;
-
-    float gL = nDotL / (nDotL * (1.0 - k) + k);
-    float gV = nDotV / (nDotV * (1.0 - k) + k);
-
-    return gL * gV;
-}
+#include "PBR.glslh"
 
 vec3 samplePrefilteredReflection(vec3 reflectDir, float roughness) {
     float maxReflLod = log2(float(textureSize(globalTextures[nonuniformEXT(tPrefilteredMap)], 0).x));

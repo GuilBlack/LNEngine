@@ -2,6 +2,7 @@
 #extension GL_EXT_nonuniform_qualifier : require
 
 #define PI 3.14159265358979323846
+#define TWO_OVER_PI 2.0 / PI
 
 float rand(vec2 co)
 {

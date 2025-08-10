@@ -1,0 +1,22 @@
+// Schlick's approximation for the Fresnel Function
+vec3 FresnelSchlick(float vDotH, vec3 F0) {
+    return mix(F0,vec3(1),pow(1-vDotH,5));
+}
+
+// GGX Normal Distribution Function
+float TrowbridgeReitzNDF(float nDotH, float alpha) {
+    float a2 = alpha * alpha;
+    float d = (nDotH * nDotH) * (a2 - 1) + 1;
+    return a2 / (PI * d * d);
+}
+
+// Schlick-GGX by Schlick & Beckman Geometry Shadowing Function
+float SchlickBeckmanGSF(float nDotL, float nDotV, float alpha) {
+    float r = (alpha + 1.0);
+    float k = (r * r) / 8.0;
+
+    float gL = nDotL / (nDotL * (1.0 - k) + k);
+    float gV = nDotV / (nDotV * (1.0 - k) + k);
+
+    return gL * gV;
+}
