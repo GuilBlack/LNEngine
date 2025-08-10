@@ -76,7 +76,7 @@ shaderc_include_result* ShaderFileIncluder::GetInclude(const char* requested_sou
         std::string error_msg = std::string("Include file not found: ") + requested_source;
         return MakeErrorResult(source_name_str.c_str(), error_msg.c_str());
     }
-
+    m_ShaderInfoCallback(std::move(GlslhInfo{ resolved, std::filesystem::last_write_time(resolved) }));
     return MakeResult(source_name_str.c_str(), content.c_str(), content.size());
 }
 

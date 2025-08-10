@@ -3,11 +3,17 @@
 
 namespace lne
 {
+struct GlslhInfo
+{
+    std::filesystem::path FullPath;
+    std::filesystem::file_time_type LastModified;
+};
+
 class ShaderFileIncluder : public shaderc::CompileOptions::IncluderInterface
 {
 public:
-    explicit ShaderFileIncluder(std::vector<std::filesystem::path> include_dirs)
-        : m_IncludeDirs(std::move(include_dirs))
+    explicit ShaderFileIncluder(std::vector<std::filesystem::path> include_dirs, std::function<void(GlslhInfo&&)>& shaderInfoCallback)
+        : m_IncludeDirs(std::move(include_dirs)), m_ShaderInfoCallback(shaderInfoCallback)
     {}
 
     virtual ~ShaderFileIncluder() = default;
@@ -21,6 +27,7 @@ public:
 
 private:
     std::vector<std::filesystem::path> m_IncludeDirs;
+    std::function<void(GlslhInfo&&)> m_ShaderInfoCallback;
 
 private:
     static shaderc_include_result* MakeResult(const char* source_name,

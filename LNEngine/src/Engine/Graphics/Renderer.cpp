@@ -30,6 +30,11 @@ void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskS
     m_Swapchain = window->GetSwapchain();
     m_TaskScheduler = taskScheduler;
     m_LoadAsync = false;
+    AddShaderIncludeDir(ApplicationBase::GetAssetsPath() + "Engine/Shaders/Includes");
+    std::filesystem::path shaderCachePath = GetShaderCachePath();
+    if (!std::filesystem::exists(shaderCachePath))
+        std::filesystem::create_directories(shaderCachePath);
+
     m_GfxLoader = lnnew GfxLoader();
     GfxLoaderSettings gfxLoaderSettings{
         .RendererParam = this,
@@ -38,7 +43,7 @@ void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskS
         .LoadAsync = m_LoadAsync,
         .RadianceTextureMaxSize = 512
     };
-    AddShaderIncludeDir(ApplicationBase::GetAssetsPath() + "Engine/Shaders/Includes");
+
     m_GfxLoader->Init(gfxLoaderSettings);
     m_TexturesToUpdate.reserve(128);
     for (uint32_t i = 0; i < m_Context->GetMaxFramesInFlight(); i++)
@@ -618,6 +623,11 @@ void Renderer::AddTextureToUpdate(SafePtr<class Texture> texture)
 {
     std::lock_guard<std::mutex> lock(m_TexturesToUpdateMutex);
     m_TexturesToUpdate.push_back(texture);
+}
+
+std::filesystem::path Renderer::GetShaderCachePath() const
+{
+    return std::filesystem::path(ApplicationBase::GetAssetsPath()) / "Engine" / "Shaders" / "Cache";
 }
 
 void Renderer::InitFrameData(uint32_t index)

@@ -73,6 +73,7 @@ public:
         return m_ShaderInudeDirs;
     }
     [[nodiscard]] SafePtr<class Texture> GetBRDFLut() const { return m_BRDFLut; }
+    [[nodiscard]] std::filesystem::path GetShaderCachePath() const;
 
 private:
     SafePtr<class GfxContext>                   m_Context;
