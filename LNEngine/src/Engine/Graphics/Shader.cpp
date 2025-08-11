@@ -155,30 +155,25 @@ ShaderStage::Enum MapShaderToken(const std::string& token)
 #pragma endregion
 
 #pragma region Saving Utilities
-struct DepInfo 
-{
-    std::string Path;
-    uint64_t TimeNs;
-};
-struct Manifest
-{
-    std::vector<DepInfo> Headers;
-};
 struct PackedSpvHeader
 {
-    constexpr static uint32_t MagicValue = 0x50535056; // 'PSPV'
-    uint32_t Magic;
-    uint32_t StageCount;
+    // magiv value = LSPV
+    constexpr static uint32_t   MagicValue = ('L' << 24) | ('S' << 16) | ('P' << 8) | 'V';
+    uint32_t                    Magic;
+    uint32_t                    StageCount;
+    uint32_t                    HeadersCount; // Number of glslh.
 
     void Serialize(std::ostream& os) const
     {
         os.write(reinterpret_cast<const char*>(&Magic), sizeof(Magic));
         os.write(reinterpret_cast<const char*>(&StageCount), sizeof(StageCount));
+        os.write(reinterpret_cast<const char*>(&HeadersCount), sizeof(HeadersCount));
     }
     void Deserialize(std::istream& is)
     {
         is.read(reinterpret_cast<char*>(&Magic), sizeof(Magic));
         is.read(reinterpret_cast<char*>(&StageCount), sizeof(StageCount));
+        is.read(reinterpret_cast<char*>(&HeadersCount), sizeof(HeadersCount));
     }
 };
 struct PackedSpvEntry
@@ -198,7 +193,7 @@ struct PackedSpvEntry
     }
 };
 
-uint64_t ToNs(std::filesystem::file_time_type t)
+uint64_t FileTimeToNs(std::filesystem::file_time_type t)
 {
     using namespace std::chrono;
     return duration_cast<nanoseconds>(t.time_since_epoch()).count();
@@ -206,12 +201,15 @@ uint64_t ToNs(std::filesystem::file_time_type t)
 
 void SaveCombinedSpv(
     const std::filesystem::path& outPath,
-    const std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>>& stages)
+    const std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>>& stages,
+    const std::vector<GlslhInfo> glslHeadersInfo)
 {
+    namespace fs = std::filesystem;
     // Prepare header and entries
     PackedSpvHeader hdr{};
     hdr.Magic = PackedSpvHeader::MagicValue;
     hdr.StageCount = static_cast<uint32_t>(stages.size());
+    hdr.HeadersCount = static_cast<uint32_t>(glslHeadersInfo.size());
 
     std::vector<PackedSpvEntry> entries;
     entries.reserve(stages.size());
@@ -240,6 +238,28 @@ void SaveCombinedSpv(
     for (const auto& entry : entries)
         entry.Serialize(os);
 
+    // write number of shader headers
+    for (const auto& glslHeader : glslHeadersInfo)
+    {
+        LNE_INFO("Shader header: {}, Last modified: {}", glslHeader.FullPath.string(), glslHeader.LastModified.time_since_epoch().count());
+        fs::path relativeAssetPath = fs::relative(
+            fs::weakly_canonical(glslHeader.FullPath),
+            fs::weakly_canonical(ApplicationBase::GetAssetsPath())
+        );
+        uint64_t lastModifiedNs = FileTimeToNs(glslHeader.LastModified);
+        uint32_t pathLength = static_cast<uint32_t>(relativeAssetPath.string().length());
+        os.write(reinterpret_cast<const char*>(&pathLength), sizeof(pathLength));
+        os.write(relativeAssetPath.string().c_str(), pathLength);
+        os.write(reinterpret_cast<const char*>(&lastModifiedNs), sizeof(lastModifiedNs));
+
+        if (!os)
+        {
+            LNE_ERROR("Failed to write shader header info to file: {}", outPath.string());
+            return;
+        }
+
+    }
+
     // Write SPV words
     for (const auto& [stage, words] : stages)
     {
@@ -262,14 +282,14 @@ void SaveCombinedSpv(
     }
 }
 
-std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> LoadCombinedSpv(const std::filesystem::path& inPath)
+bool LoadCombinedSpv(const std::filesystem::path& iPath, std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>>& oResult)
 {
-    std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> stages;
-    std::ifstream is(inPath, std::ios::binary | std::ios::ate);
+    namespace fs = std::filesystem;
+    std::ifstream is(iPath, std::ios::binary | std::ios::ate);
     if (!is)
     {
-        LNE_ERROR("Failed to open SPIR-V file: {}", inPath.string());
-        return {};
+        LNE_ERROR("Failed to open SPIR-V file: {}", iPath.string());
+        return false;
     }
 
     const std::streamsize fileSize = is.tellg();
@@ -277,23 +297,24 @@ std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> LoadCombinedSpv(con
 
     if (fileSize < sizeof(PackedSpvHeader))
     {
-        LNE_ERROR("SPIR-V file is too small: {}", inPath.string());
-        return {};
+        LNE_ERROR("SPIR-V file is too small: {}", iPath.string());
+        return false;
     }
 
     PackedSpvHeader hdr{};
     hdr.Deserialize(is);
     if (hdr.Magic != PackedSpvHeader::MagicValue)
     {
-        LNE_ERROR("Invalid SPIR-V file magic value: {}", inPath.string());
-        return {};
+        LNE_ERROR("Invalid SPIR-V file magic value: {}", iPath.string());
+        return false;
     }
     if (hdr.StageCount == 0)
     {
-        LNE_ERROR("No shader stages found in SPIR-V file: {}", inPath.string());
-        return {};
+        LNE_ERROR("No shader stages found in SPIR-V file: {}", iPath.string());
+        return false;
     }
-    stages.reserve(hdr.StageCount);
+    oResult.clear();
+    oResult.reserve(hdr.StageCount);
     std::vector<PackedSpvEntry> entries(hdr.StageCount);
     for (uint32_t i = 0; i < hdr.StageCount; ++i)
     {
@@ -302,6 +323,46 @@ std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> LoadCombinedSpv(con
         {
             LNE_WARN("Skipping empty shader stage: {}", ShaderStage::ToString(entries[i].Stage));
             continue;
+        }
+    }
+    if (hdr.HeadersCount > 0)
+    {
+        std::vector<GlslhInfo> glslHeadersInfo(hdr.HeadersCount);
+        for (uint32_t i = 0; i < hdr.HeadersCount; ++i)
+        {
+            uint32_t pathLength = 0;
+            is.read(reinterpret_cast<char*>(&pathLength), sizeof(pathLength));
+            if (!is || pathLength == 0)
+            {
+                LNE_ERROR("Failed to read shader header path length: {}", iPath.string());
+                return false;
+            }
+            std::string path(pathLength, '\0');
+            is.read(path.data(), pathLength);
+            if (!is)
+            {
+                LNE_ERROR("Failed to read shader header path: {}", iPath.string());
+                return false;
+            }
+            uint64_t lastModifiedNs = 0;
+            is.read(reinterpret_cast<char*>(&lastModifiedNs), sizeof(lastModifiedNs));
+            if (!is)
+            {
+                LNE_ERROR("Failed to read shader header last modified time: {}", iPath.string());
+                return false;
+            }
+            fs::path fullPath = fs::path(ApplicationBase::GetAssetsPath()) / fs::weakly_canonical(path);
+            if (!fs::exists(fullPath))
+            {
+                LNE_WARN("Shader header path does not exist: {}", fullPath.string());
+                return false;
+            }
+            auto lastModified = fs::last_write_time(fullPath);
+            if (FileTimeToNs(lastModified) != lastModifiedNs)
+            {
+                LNE_INFO("Header was modified, reloading: {}", fullPath.string());
+                return false;
+            }
         }
     }
     for (const auto& entry : entries)
@@ -313,17 +374,17 @@ std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> LoadCombinedSpv(con
         if (!is)
         {
             LNE_ERROR("Failed to read SPIR-V data for stage: {}", ShaderStage::ToString(entry.Stage));
-            return {};
+            return false;
         }
-        stages[entry.Stage] = std::move(words);
+        oResult[entry.Stage] = std::move(words);
     }
     if (is.tellg() != fileSize)
     {
-        LNE_ERROR("File size mismatch after reading SPIR-V data: {}", inPath.string());
-        return {};
+        LNE_ERROR("File size mismatch after reading SPIR-V data: {}", iPath.string());
+        return false;
     }
-    LNE_INFO("Successfully loaded SPIR-V file: {}", inPath.string());
-    return stages;
+    LNE_INFO("Successfully loaded SPIR-V file: {}", iPath.string());
+    return true;
 }
 
 #pragma endregion
@@ -331,8 +392,7 @@ std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> LoadCombinedSpv(con
 Shader::Shader(SafePtr<class GfxContext> ctx, std::string_view filePath)
     : m_Context(ctx), m_FilePath(filePath)
 {
-    auto[shaderCode, shaderHeader] = ReadFile(m_FilePath); 
-
+    auto[shaderCode, shaderHeader] = ReadFile(m_FilePath);
 
     uint32_t offset = (uint32_t)m_FilePath.find_last_of("\\/") + 1;
     uint32_t count = (uint32_t)m_FilePath.find_last_of(".") - offset;
@@ -463,6 +523,7 @@ std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> Shader::CompileToSp
 {
     // Check if the shader has been compiled before && if the source code hasn't changed
     std::filesystem::path cachePath = ApplicationBase::GetRenderer().GetShaderCachePath() / (m_Name + ".pspv"); // Packed SPIR-V file
+
     if (std::filesystem::exists(cachePath))
     {
         // check m_FilePath and cachePath for modification time
@@ -471,8 +532,9 @@ std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> Shader::CompileToSp
         if (fileTime <= cacheTime)
         {
             LNE_INFO("Using cached SPIR-V for shader: {}", m_Name);
-            std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> cachedSpirv = LoadCombinedSpv(cachePath);
-            if (!cachedSpirv.empty())
+            std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> cachedSpirv;
+            bool success = LoadCombinedSpv(cachePath, cachedSpirv);
+            if (success && !cachedSpirv.empty())
                 return cachedSpirv;
         }
         else
@@ -523,7 +585,7 @@ std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> Shader::CompileToSp
         optionsForShaders.pop_back();
     }
     // Save the compiled SPIR-V code to a file
-    SaveCombinedSpv(cachePath, spirvCode);
+    SaveCombinedSpv(cachePath, spirvCode, shaderHeaders);
 
     return spirvCode;
 }
