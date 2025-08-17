@@ -152,6 +152,10 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
         m_FreeBindlessImageIndices.push(i);
     }
 #pragma endregion
+
+#pragma region Descriptor Resources
+
+#pragma endregion
 }
 
 GfxContext::~GfxContext()
@@ -357,6 +361,7 @@ vkb::PhysicalDevice GfxContext::VkbSelectPhysicalDevice(const vkb::Instance& ins
         .descriptorBindingSampledImageUpdateAfterBind = vk::True,
         .descriptorBindingStorageImageUpdateAfterBind = vk::True,
         .descriptorBindingPartiallyBound = vk::True,
+        .descriptorBindingVariableDescriptorCount = vk::True,
         .runtimeDescriptorArray = vk::True,
         .scalarBlockLayout = vk::True,
     };

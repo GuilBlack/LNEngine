@@ -633,12 +633,12 @@ std::filesystem::path Renderer::GetShaderCachePath() const
 void Renderer::InitFrameData(uint32_t index)
 {
     m_FrameData.emplace_back(
-        SafePtr(lnnew DynamicDescriptorAllocator(m_Context,
+        SafePtr(lnnew DynamicDescriptorAllocator(m_Context.GetPtr(),
             {
-                { vk::DescriptorType::eUniformBuffer, 1024 },
-                { vk::DescriptorType::eStorageBuffer, 1024 }
+                { vk::DescriptorType::eUniformBuffer, 1 },
+                { vk::DescriptorType::eStorageBuffer, 4 }
             },
-            "GlobalDescAlloc" + std::to_string(index), 1)),
+            "GlobalDescAlloc" + std::to_string(index), 32)),
         m_Context->CreateDescriptorSetLayout({
             vk::DescriptorSetLayoutBinding{
                 0,

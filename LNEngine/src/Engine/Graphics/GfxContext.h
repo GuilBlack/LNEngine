@@ -173,6 +173,7 @@ private:
 
     std::unique_ptr<class CommandPoolManager>   m_CommandPoolManager;
 
+
     vk::Sampler          m_DefaultSampler;
     class Texture*       m_DefaultTexture;
     struct Geometry*      m_DefaultFullscreenQuad;
