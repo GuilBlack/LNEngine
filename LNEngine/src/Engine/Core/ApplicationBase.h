@@ -2,7 +2,6 @@
 #include "../vendor/ENKITS/enkiTS/src/TaskScheduler.h"
 
 #include "LayerStack.h"
-#include "Window.h"
 #include "Events/EventHub.h"
 #include "Events/WindowEvents.h"
 #include "Inputs/Inputs.h"
@@ -43,10 +42,10 @@ public:
 
     [[nodiscard]] static ApplicationBase& Get() { return *s_Instance; }
     [[nodiscard]] static EventHub& GetEventHub() { return *s_Instance->m_EventHub; }
-    [[nodiscard]] static class InputManager& GetInputManager() { return *s_Instance->m_Window->m_InputManager; }
+    [[nodiscard]] static class InputManager& GetInputManager();
     [[nodiscard]] static class Clock& GetClock() { return s_Instance->m_Clock; }
-    [[nodiscard]] static class Window& GetWindow() { return *s_Instance->m_Window; }
-    [[nodiscard]] static class Renderer& GetRenderer() { return *s_Instance->m_Renderer; }
+    [[nodiscard]] static class Window& GetWindow();
+    [[nodiscard]] static class Renderer& GetRenderer();
     [[nodiscard]] static std::shared_ptr<enki::TaskScheduler> GetTaskScheduler() { return s_Instance->m_TaskScheduler; }
     [[nodiscard]] static const std::string& GetAssetsPath();
 

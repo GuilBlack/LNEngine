@@ -2,6 +2,7 @@
 #include "../GfxContext.h"
 #include "FrameGraph.h"
 #include "Core/ApplicationBase.h"
+#include "Core/Window.h"
 #include "../Renderer.h"
 #include "../Mesh.h"
 #include "../Material.h"

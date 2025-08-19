@@ -1,6 +1,7 @@
 #include "LightingPass.h"
 
 #include <Core/ApplicationBase.h>
+#include <Core/Window.h>
 #include <Graphics/Renderer.h>
 #include <Graphics/FrameGraph/FrameGraph.h>
 #include "Core/Utils/Profiling.h"

@@ -1,5 +1,6 @@
 #include "GBufferPass.h"
 #include "Core/ApplicationBase.h"
+#include "Core/Window.h"
 #include "Graphics/WorldRenderer.h"
 #include "Graphics/Renderer.h"
 #include "Graphics/FrameGraph/FrameGraph.h"

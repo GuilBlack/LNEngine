@@ -85,6 +85,21 @@ ApplicationBase::~ApplicationBase()
     Log::Nuke();
 }
 
+class InputManager& ApplicationBase::GetInputManager()
+{
+    return *s_Instance->m_Window->m_InputManager;
+}
+
+class Window& ApplicationBase::GetWindow()
+{
+    return *s_Instance->m_Window;
+}
+
+class Renderer& ApplicationBase::GetRenderer()
+{
+    return *s_Instance->m_Renderer;
+}
+
 const std::string& ApplicationBase::GetAssetsPath()
 {
     return s_AssetsPath;
