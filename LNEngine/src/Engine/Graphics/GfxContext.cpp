@@ -154,7 +154,44 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
 #pragma endregion
 
 #pragma region Descriptor Resources
+    // init global descriptor pool for uniform buffers
+    std::vector<vk::DescriptorPoolSize> uniformPoolSizes{
+        vk::DescriptorPoolSize{ vk::DescriptorType::eUniformBuffer, 4 }, // 4 seems to be a good number for most cases
+    };
+    m_UniformOnlyDescriptorAllocator = std::make_unique<DynamicDescriptorAllocator>(this, uniformPoolSizes, "UniformOnlyPool", 1024, 1.0f, vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet);
+    // init global descriptor pool for storage buffers
+    std::vector<vk::DescriptorPoolSize> storagePoolSizes{
+        vk::DescriptorPoolSize{ vk::DescriptorType::eStorageBuffer, 4 }, // 4 seems to be a good number for most cases
+    };
+    m_StorageOnlyDescriptorAllocator = std::make_unique<DynamicDescriptorAllocator>(this, storagePoolSizes, "StorageOnlyPool", 1024, 1.0f, vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet);
+    // init global descriptor pool for uniform buffers & storage buffer with variable descriptor count
+    std::vector<vk::DescriptorPoolSize> uniformStoragePoolSizes{
+        vk::DescriptorPoolSize{ vk::DescriptorType::eUniformBuffer, 2 }, // 2 seems to be a good number for most cases
+        vk::DescriptorPoolSize{ vk::DescriptorType::eStorageBuffer, 4 }, // 4 seems to be a good number for most cases
+    };
+    m_UniformStorageDescriptorAllocator = std::make_unique<DynamicDescriptorAllocator>(this, uniformStoragePoolSizes, "UniformStoragePool", 1024, 1.0f, vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet);
 
+    std::array<vk::DescriptorSetLayoutBinding, 2> geometryLayoutBindings{
+        vk::DescriptorSetLayoutBinding{
+            0,
+            vk::DescriptorType::eStorageBuffer,
+            1,
+            vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eGeometry
+        },
+        vk::DescriptorSetLayoutBinding{
+            1,
+            vk::DescriptorType::eStorageBuffer,
+            1,
+            vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eGeometry
+        }
+    };
+
+    m_GeometryDescriptorSetLayout = m_Device.createDescriptorSetLayout(
+        vk::DescriptorSetLayoutCreateInfo{
+            {},
+            geometryLayoutBindings
+        }
+    );
 #pragma endregion
 }
 
@@ -165,6 +202,9 @@ GfxContext::~GfxContext()
     m_ResourceDeletionQueue.clear();
     
     m_CommandPoolManager.reset();
+    m_StorageOnlyDescriptorAllocator.reset();
+    m_UniformOnlyDescriptorAllocator.reset();
+    m_UniformStorageDescriptorAllocator.reset();
     m_Device.resetDescriptorPool(m_BindlessDescriptorPool);
     m_Device.destroyDescriptorPool(m_BindlessDescriptorPool);
     m_Device.destroyDescriptorSetLayout(m_BindlessDescriptorSetLayout);
@@ -278,12 +318,16 @@ void GfxContext::InitDefaultResources()
     );
 
     m_DefaultTexture = lnnew Texture(this, imageInfo, TextureUsageType::eSampledAndStorage, "DefaultTexture");
+    m_WhitePixel = lnnew Texture(this, imageInfo, TextureUsageType::eSampledAndStorage, "WhitePixel");
 }
 
 void GfxContext::UploadDefaultResources()
 {
     uint8_t defaultPixel[4] = { 255, 0, 255, 255 };
     m_DefaultTexture->UploadData(defaultPixel);
+
+    uint8_t whitePixel[4] = { 255, 255, 255, 255 };
+    m_WhitePixel->UploadData(whitePixel);
 
     struct FSVertex
     {
@@ -306,20 +350,16 @@ void GfxContext::UploadDefaultResources()
     SafePtr vertexBuffer = lnnew StorageBuffer(this, sizeof(FSVertex) * 4, vertices);
     SafePtr indexBuffer = lnnew StorageBuffer(this, sizeof(uint32_t) * 6, indices);
 
-    m_DefaultFullscreenQuad = lnnew Geometry();
-    m_DefaultFullscreenQuad->VertexGPUBuffer = vertexBuffer;
-    m_DefaultFullscreenQuad->IndexGPUBuffer = indexBuffer;
-    m_DefaultFullscreenQuad->Indices = indices;
-    m_DefaultFullscreenQuad->Vertices = vertices;
-    m_DefaultFullscreenQuad->VertexCount = 4U;
-    m_DefaultFullscreenQuad->IndexCount = 6U;
+    m_DefaultFullscreenQuad = lnnew Geometry(this, vertexBuffer, indexBuffer, vertices, indices, 4U, 6U);
 }
 
 void GfxContext::NukeDefaultResources()
 {
     delete m_DefaultTexture;
     m_Device.destroySampler(m_DefaultSampler);
+    m_Device.destroyDescriptorSetLayout(m_GeometryDescriptorSetLayout);
     delete m_DefaultFullscreenQuad;
+    delete m_WhitePixel;
 }
 
 void GfxContext::DeferredNukeResources()
@@ -654,6 +694,40 @@ void GfxContext::FreeImageAllocation(const ImageAllocation & allocation)
     vmaDestroyImage(m_MemoryAllocator, allocation.Image, allocation.Allocation);
 }
 
+vk::DescriptorSet GfxContext::AllocateDescriptorSet(vk::DescriptorSetLayout layout, DescriptorType::Enum descriptorType)
+{
+    switch (descriptorType)
+    {
+    case DescriptorType::eUniformOnly:
+        return m_UniformOnlyDescriptorAllocator->Allocate(layout);
+    case DescriptorType::eStorageOnly:
+        return m_StorageOnlyDescriptorAllocator->Allocate(layout);
+    case DescriptorType::eUniformAndStorage:
+        return m_UniformStorageDescriptorAllocator->Allocate(layout);
+    };
+    LNE_ASSERT(false, "Invalid descriptor type");
+    return vk::DescriptorSet{};
+}
+
+void GfxContext::FreeDescriptorSet(vk::DescriptorSet descriptorSet, DescriptorType::Enum descriptorType)
+{
+    switch (descriptorType)
+    {
+    case DescriptorType::eUniformOnly:
+        m_UniformOnlyDescriptorAllocator->Free(descriptorSet);
+        break;
+    case DescriptorType::eStorageOnly:
+        m_StorageOnlyDescriptorAllocator->Free(descriptorSet);
+        break;
+    case DescriptorType::eUniformAndStorage:
+        m_UniformStorageDescriptorAllocator->Free(descriptorSet);
+        break;
+    default:
+        LNE_ASSERT(false, "Invalid descriptor type");
+        break;
+    }
+}
+
 SafePtr<Shader> GfxContext::CreateShader(std::string_view filePath)
 {
     SafePtr<Shader> shader;
@@ -715,6 +789,12 @@ void GfxContext::NukeResource(const ResourceDeletion& resource)
     {
         const ImageViewDeletion& imageView = std::get<ImageViewDeletion>(resource.Resource);
         NukeImageView(imageView);
+        break;
+    }
+    case ResourceType::eDescriptorSet:
+    {
+        const DescriptorSetDeletion& descriptorSet = std::get<DescriptorSetDeletion>(resource.Resource);
+        FreeDescriptorSet(descriptorSet.DescriptorSet, descriptorSet.Type);
         break;
     }
     default:

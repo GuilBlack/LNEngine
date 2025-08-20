@@ -28,6 +28,15 @@ const char* enumValues[17] = {
 const char** s_Enum = enumValues;
 }
 
+namespace DescriptorType
+{
+const char* enumValues[3] = {
+    "UniformOnly",
+    "StorageOnly",
+    "UniformAndStorage"
+};
+}
+
 namespace FrameGraphResourceType
 {
 const char* enumValues[5] = {
@@ -42,13 +51,14 @@ const char** s_Enum = enumValues;
 
 namespace ResourceType
 {
-const char* enumValues[6] = {
+const char* enumValues[7] = {
     "Unknown",
     "Texture",
     "Buffer",
     "Pipeline",
     "Shader",
-    "ImageView"
+    "ImageView",
+    "DescriptorSet"
 };
 const char** s_Enum = enumValues;
 }

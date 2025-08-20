@@ -17,27 +17,17 @@ struct Vertex
     glm::vec4 Tangent;
 };
 
-struct Geometry
+class Geometry
 {
-    SafePtr<StorageBuffer>  VertexGPUBuffer{};
-    SafePtr<StorageBuffer>  IndexGPUBuffer{};
-    void*                   Vertices{};
-    void*                   Indices{};
+public:
+    Geometry(
+        GfxContext* ctx,
+        SafePtr<StorageBuffer> vertexGPUBuffer, SafePtr<StorageBuffer> indexGPUBuffer,
+        void* vertices, void* indices,
+        uint32_t vertexCount, uint32_t indexCount);
 
-    uint32_t VertexCount{};
-    uint32_t IndexCount{};
+    ~Geometry();
 
-    ~Geometry()
-    {
-        delete[] Vertices;
-        delete[] Indices;
-    }
-
-    static Geometry GenerateCube(uint32_t tesselationLevel);
-
-    static Geometry GenerateUVSphere(float radius = 1.f, uint32_t nLatitude = 32, uint32_t nLongitude = 32);
-
-    Geometry() = default;
     Geometry(Geometry&& other) noexcept
         : VertexGPUBuffer(std::move(other.VertexGPUBuffer)),
         IndexGPUBuffer(std::move(other.IndexGPUBuffer)),
@@ -51,8 +41,47 @@ struct Geometry
         other.IndexCount = 0;
         other.VertexCount = 0;
     }
+    Geometry& operator=(Geometry&& other) noexcept
+    {
+        if (this == &other)
+            return *this;
+        VertexGPUBuffer = std::move(other.VertexGPUBuffer);
+        IndexGPUBuffer = std::move(other.IndexGPUBuffer);
+        Vertices = other.Vertices;
+        Indices = other.Indices;
+        VertexCount = other.VertexCount;
+        IndexCount = other.IndexCount;
+        other.Vertices = nullptr;
+        other.Indices = nullptr;
+        other.IndexCount = 0;
+        other.VertexCount = 0;
+        return *this;
+    }
+
+    [[nodiscard]] uint32_t GetVertexCount() const { return VertexCount; }
+    [[nodiscard]] uint32_t GetIndexCount() const { return IndexCount; }
+    [[nodiscard]] SafePtr<StorageBuffer> GetVertexBuffer() const { return VertexGPUBuffer; }
+    [[nodiscard]] SafePtr<StorageBuffer> GetIndexBuffer() const { return IndexGPUBuffer; }
+    [[nodiscard]] void* GetVertices() const { return Vertices; }
+    [[nodiscard]] void* GetIndices() const { return Indices; }
+    [[nodiscard]] vk::DescriptorSet GetDescSet() const { return DescSet; }
 
 private:
+    SafePtr<StorageBuffer>  VertexGPUBuffer{};
+    SafePtr<StorageBuffer>  IndexGPUBuffer{};
+    void*                   Vertices{};
+    void*                   Indices{};
+
+    uint32_t                VertexCount{};
+    uint32_t                IndexCount{};
+
+    vk::DescriptorSet       DescSet{};
+private:
+    friend class StaticMesh;
+
+    void InitDescSet(GfxContext* ctx, vk::DescriptorSetLayout layout);
+
+    Geometry() = default;
     Geometry(const Geometry&) = delete;
     Geometry& operator=(const Geometry&) = delete;
     Geometry& operator=(Geometry&) = delete;
@@ -81,18 +110,27 @@ public:
         SafePtr<class Material> material, std::vector<SafePtr<class Texture>> textures,
         SafePtr<class GfxPipeline> pipeline);
 
-    std::vector<SubMesh>& GetSubMeshes() { return m_SubMeshes; }
-    const Geometry& GetGeometry() const { return m_Geometry; }
-    SafePtr<class GfxPipeline> GetPipeline() { return m_Pipeline; }
-    SafePtr<class Material> GetMaterial(uint32_t index) { return m_Materials[index]; }
+    std::vector<SubMesh>&       GetSubMeshes() { return m_SubMeshes; }
+    const Geometry&             GetGeometry() const { return *m_Geometry.get(); }
+    SafePtr<class Material>     GetMaterial(uint32_t index) { return m_Materials[index]; }
+
+    void                        SetMaterial(SafePtr<Material> mat, uint32_t index)
+    {
+        if (index > m_Materials.size()) return; 
+        m_Materials[index] = mat;
+    }
+
+    static SafePtr<StaticMesh> GenerateCube(uint32_t tesselationLevel);
+
+    static SafePtr<StaticMesh> GenerateUVSphere(float radius = 1.f, uint32_t nLatitude = 32, uint32_t nLongitude = 32);
 
 private:
-    std::filesystem::path m_Path{};
-    std::vector<SubMesh> m_SubMeshes{};
+    std::filesystem::path       m_Path{};
+    std::vector<SubMesh>        m_SubMeshes{};
 
-    Geometry m_Geometry{};
-    uint32_t m_TotalVertexCount{};
-    uint32_t m_TotalIndexCount{};
+    std::unique_ptr<Geometry>   m_Geometry{};
+    uint32_t                    m_TotalVertexCount{};
+    uint32_t                    m_TotalIndexCount{};
 
     // TODO: move to a resource manager
     std::vector<SafePtr<class Material>> m_Materials{};
@@ -100,6 +138,11 @@ private:
     SafePtr<class GfxPipeline> m_TransparentPipeline{};
     std::vector<SafePtr<class Texture>> m_Textures{};
 private:
+    StaticMesh()
+    {
+        m_Materials.resize(1);
+    }
+
     void InitSubmeshes(const struct aiScene* scene);
     void LoadData(const struct aiScene* scene);
     void LoadMaterials(const struct aiScene* scene);

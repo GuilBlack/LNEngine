@@ -10,7 +10,7 @@ class Material : public RefCountBase
 {
 public:
     MOVABLE_ONLY(Material);
-    Material(SafePtr<class GfxPipeline> pipeline, MaterialType::Enum materialType = MaterialType::eStandard);
+    Material(SafePtr<class GfxPipeline> pipeline, MaterialType::Enum materialType = MaterialType::eMesh);
     ~Material();
 
     SafePtr<class GfxPipeline> GetPipeline() const { return m_Pipeline; }

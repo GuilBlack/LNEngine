@@ -47,6 +47,7 @@
 #include "Engine/Core/Utils/Profiling.h"
 #include "Engine/Core/SafePtr.h"
 #include "Engine/Core/ApplicationBase.h"
+#include "Engine/Core/Window.h"
 #include "Engine/Core/Layer.h"
 #include "Engine/Core/Events/ApplicationEvents.h"
 #include "Engine/Core/Events/KeyboardEvents.h"

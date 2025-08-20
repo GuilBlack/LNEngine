@@ -22,6 +22,7 @@ class Shader : public RefCountBase
     struct Header
     {
         std::unordered_map<ShaderStage::Enum, ShaderHeaderInfo> StageHeaders;
+        MaterialType::Enum MaterialType = MaterialType::eUnknown;
         std::string RenderPass;
         uint64_t RenderPassHash;
     };
@@ -35,6 +36,16 @@ public:
     [[nodiscard]] Shader::Header GetHeader() const { return m_Header; }
     [[nodiscard]] std::string GetName() const { return m_Name; }
     virtual ~Shader();
+
+public:
+    struct MatTypeInfo
+    {
+        std::array<int8_t, MaterialSetIndexType::NUM_MATERIAL_SET_INDICES> SetIndices{-1,-1,-1,-1,-1};
+    };
+    constexpr static std::array<MatTypeInfo, MaterialType::NUM_MATERIAL_TYPES> MatTypeInfos = {
+        MatTypeInfo{ {  0,  3,  4,  2,  1 } }, // eMesh
+        MatTypeInfo{ {  0,  2,  3,  1, -1 } }, // ePostProcess
+    };
 
 private:
     SafePtr<class GfxContext> m_Context;

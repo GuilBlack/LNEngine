@@ -62,6 +62,7 @@ DynamicDescriptorAllocator& DynamicDescriptorAllocator::operator=(DynamicDescrip
 
 void DynamicDescriptorAllocator::Clear()
 {
+    std::lock_guard<std::mutex> lock(m_Mutex);
     vk::Device device = m_Context->GetDevice();
     for (auto& poolInfo : m_PoolInfos)
     {

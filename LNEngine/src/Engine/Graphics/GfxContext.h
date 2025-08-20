@@ -8,6 +8,7 @@
 #include "Structs.h"
 #include "Shader.h"
 #include "Engine/Core/SafePtr.h"
+#include "DynamicDescriptorAllocator.h"
 
 namespace lne
 {
@@ -57,9 +58,10 @@ public:
     [[nodiscard]] VmaAllocator GetMemoryAllocator() const { return m_MemoryAllocator; }
     [[nodiscard]] class CommandPoolManager& GetCommandPoolManager() const
     { return *m_CommandPoolManager; };
-    [[nodiscard]] const struct Geometry& GetDefaultFullscreenQuad() const { return *m_DefaultFullscreenQuad; }
+    [[nodiscard]] const class Geometry& GetDefaultFullscreenQuad() const { return *m_DefaultFullscreenQuad; }
     [[nodiscard]] const class Texture* GetDefaultTexture() const { return m_DefaultTexture; }
     [[nodiscard]] vk::Sampler GetDefaultSampler() const { return m_DefaultSampler; }
+    [[nodiscard]] vk::DescriptorSetLayout GetGeometryDescriptorSetLayout() const { return m_GeometryDescriptorSetLayout; }
 
 #pragma region PhysicalDevice
     [[nodiscard]] const vk::PhysicalDeviceProperties& GetProperties() const { return m_Properties; }
@@ -115,6 +117,9 @@ public:
 
     void AllocateImage(ImageAllocation& allocation, VkImageCreateInfo imageCI, VmaAllocationCreateInfo allocCI);
     void FreeImageAllocation(const ImageAllocation& allocation);
+
+    [[nodiscard]] vk::DescriptorSet AllocateDescriptorSet(vk::DescriptorSetLayout layout, DescriptorType::Enum descriptorType);
+    void FreeDescriptorSet(vk::DescriptorSet descriptorSet, DescriptorType:: Enum descriptorType);
 
 #pragma endregion
 
@@ -174,9 +179,10 @@ private:
     std::unique_ptr<class CommandPoolManager>   m_CommandPoolManager;
 
 
-    vk::Sampler          m_DefaultSampler;
-    class Texture*       m_DefaultTexture;
-    struct Geometry*      m_DefaultFullscreenQuad;
+    vk::Sampler         m_DefaultSampler;
+    class Texture*      m_DefaultTexture;
+    class Texture*      m_WhitePixel;
+    class Geometry*    m_DefaultFullscreenQuad;
 
     vk::DescriptorPool              m_BindlessDescriptorPool;
     vk::DescriptorSetLayout         m_BindlessDescriptorSetLayout;
@@ -185,6 +191,10 @@ private:
     std::queue<BindlessImageHandle> m_FreeBindlessImageIndices{};
     std::mutex                      m_BindlessMutex{};
 
+    std::unique_ptr<DynamicDescriptorAllocator> m_UniformOnlyDescriptorAllocator{};
+    std::unique_ptr<DynamicDescriptorAllocator> m_StorageOnlyDescriptorAllocator{};
+    std::unique_ptr<DynamicDescriptorAllocator> m_UniformStorageDescriptorAllocator{};
+    vk::DescriptorSetLayout                     m_GeometryDescriptorSetLayout;
 
     std::mutex                      m_ResourceDeletionMutex{};
     std::vector<ResourceDeletion>   m_ResourceDeletionQueue{};

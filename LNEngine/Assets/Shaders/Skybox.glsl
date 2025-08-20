@@ -1,31 +1,20 @@
-//#lne_head [Vt main][Fg main][Rp SkyboxPass]
+//#lne_head [Vt main][Fg main][Rp SkyboxPass][Tp PostProcess]
 #version 460
 
 #extension GL_EXT_scalar_block_layout :     enable
 #extension GL_EXT_nonuniform_qualifier :    require
 
-layout(scalar, set=0, binding=0) uniform GlobalUBO {
-    mat4    uViewProj;
-    mat4    uView;
-    mat4    uProj;
-    vec3    uEyePos;
-    vec3    uSunDir;
-    float   uAmbientLight;
-    uint    tBRDFLut;
-    uint    tIrradianceMap;
-    uint    tPrefilteredMap;
-};
-layout(scalar, set = 2, binding = 0) uniform MaterialData {
+#include "Common.glslh"
+#include "CommonPostProcess.glslh"
+
+layout(scalar, set = MAT_SET, binding = 0) uniform MaterialData {
     uint tCubeAlbedo;
 };
 
-layout(set = 3, binding = 0) uniform sampler2D                  globalTextures[];
-layout(set = 3, binding = 0) uniform samplerCube                globalCubemaps[];
+layout(set = TEX_SET, binding = 0) uniform sampler2D                  globalTextures[];
+layout(set = TEX_SET, binding = 0) uniform samplerCube                globalCubemaps[];
 
-layout(set = 3, binding = 1, rgba8) uniform writeonly image2D   globalImageRgba8[];
-
-const float PI = 3.14159265359;
-const float TWO_OVER_PI = 2.0 / PI;
+layout(set = TEX_SET, binding = 1, rgba8) uniform writeonly image2D   globalImageRgba8[];
 
 #ifdef VERT
 
@@ -34,11 +23,11 @@ struct Vertex {
     vec2 uv;
 };
 
-layout(scalar, set = 1, binding = 0) readonly buffer VertexBuffer {
+layout(scalar, set = VERTEX_SET, binding = 0) readonly buffer VertexBuffer {
     Vertex vertices[];
 } vertexBuffer;
 
-layout(set = 1, binding = 1) readonly buffer IndexBuffer {
+layout(set = VERTEX_SET, binding = 1) readonly buffer IndexBuffer {
     uint indices[];
 } indexBuffer;
 

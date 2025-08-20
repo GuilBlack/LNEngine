@@ -1,4 +1,4 @@
-//#lne_head [Vt main][Fg main][Rp ToneMappingPass]
+//#lne_head [Vt main][Fg main][Rp ToneMappingPass][Tp PostProcess]
 #version 460
 
 #include "Common.glslh"

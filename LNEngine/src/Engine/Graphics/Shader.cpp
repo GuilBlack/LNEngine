@@ -134,7 +134,7 @@ UniformElementType::Enum SpirvTypeToUniformElementType(spirv_cross::SPIRType typ
     }
 }
 
-ShaderStage::Enum MapShaderToken(const std::string& token)
+ShaderStage::Enum MapShaderToken(std::string_view token)
 {
     if (token == "Vt")
         return ShaderStage::eVertex;
@@ -150,6 +150,16 @@ ShaderStage::Enum MapShaderToken(const std::string& token)
         return ShaderStage::eCompute;
     else
         return ShaderStage::eUnknown;
+}
+
+MaterialType::Enum MapMaterialTypeToken(std::string_view token)
+{
+    if (token == "Mesh")
+        return MaterialType::eMesh;
+    else if (token == "PostProcess")
+        return MaterialType::ePostProcess;
+    else
+        return MaterialType::eUnknown;
 }
 
 #pragma endregion
@@ -496,7 +506,12 @@ Shader::Header Shader::ParseHeader(std::string& headerSource)
             if (token == "Rp")
             {
                 header.RenderPass = value;
-                header.RenderPassHash = std::hash<std::string>{}(value);
+                header.RenderPassHash = GlobalUtils::hash_u64(std::hash<std::string>{}(value));
+                continue;
+            }
+            if (token == "Tp")
+            {
+                header.MaterialType = MapMaterialTypeToken(value);
                 continue;
             }
             LNE_WARN("Unknown token in shader header: {}", token);
@@ -700,6 +715,26 @@ void Shader::CreateDescriptorSetLayouts()
 {
     m_DescriptorSetLayouts.resize(m_ReflectedData.DescriptorSets.size());
     uint32_t layoutIndex = 0;
+    using StageFlags = vk::ShaderStageFlagBits;
+    MatTypeInfo matTypeInfo{};
+    if (m_Header.MaterialType != MaterialType::eUnknown)
+        matTypeInfo = MatTypeInfos[m_Header.MaterialType];
+
+    auto setStageIfNeeded = [&matTypeInfo, this](int32_t setIndex, vk::ShaderStageFlags& stages)
+    {
+        if (m_Header.MaterialType == MaterialType::eUnknown)
+            return;
+        if (setIndex == matTypeInfo.SetIndices[MaterialSetIndexType::eGlobal])
+        {
+            stages = StageFlags::eAll;
+            return;
+        }
+        if (setIndex == matTypeInfo.SetIndices[MaterialSetIndexType::eVertex])
+        {
+            stages = StageFlags::eVertex | StageFlags::eGeometry;
+            return;
+        }
+    };
     for (auto&[setIndex, set] : m_ReflectedData.DescriptorSets)
     {
         vk::DescriptorSetLayoutCreateInfo descSetLayoutCI{};
@@ -709,17 +744,15 @@ void Shader::CreateDescriptorSetLayouts()
         for (auto& [name, buffer] : set.UniformBuffers)
         {
             auto stages = buffer.Stages;
-            switch (setIndex)
-            {
-            case 0:
-                stages = vk::ShaderStageFlagBits::eAll;
-                break;
-            }
+            setStageIfNeeded(buffer.SetIndex, stages);
+
             bindings.emplace_back(vk::DescriptorSetLayoutBinding(buffer.BindingIndex, vk::DescriptorType::eUniformBuffer, 1, stages));
         }
         for (auto& [name, buffer] : set.StorageBuffers)
         {
             auto stages = buffer.Stages;
+            setStageIfNeeded(buffer.SetIndex, stages);
+
             bindings.emplace_back(vk::DescriptorSetLayoutBinding(buffer.BindingIndex, vk::DescriptorType::eStorageBuffer, 1, stages));
         }
         descSetLayoutCI.setBindings(bindings);

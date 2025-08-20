@@ -1,4 +1,4 @@
-//#lne_head [Vt main][Fg main][Rp LightingPass]
+//#lne_head [Vt main][Fg main][Rp LightingPass][Tp PostProcess]
 #version 460
 
 #include "Common.glslh"

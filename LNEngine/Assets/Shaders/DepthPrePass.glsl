@@ -1,4 +1,4 @@
-//#lne_head [Vt main][Rp DepthPrePass]
+//#lne_head [Vt main][Rp DepthPrePass][Tp Mesh]
 #version 460
 
 #include "Common.glslh"

@@ -18,7 +18,7 @@
 namespace lne
 {
 StaticMesh::StaticMesh(std::filesystem::path path, SafePtr<GfxPipeline> pipeline, SafePtr<GfxPipeline> transparentPipeline)
-    : m_Path(path), m_Pipeline(pipeline), m_TransparentPipeline(transparentPipeline)
+    : m_Path(path), m_Pipeline(pipeline), m_TransparentPipeline(transparentPipeline), m_Geometry(lnnew Geometry())
 {
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(path.string(), aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_CalcTangentSpace);
@@ -40,32 +40,6 @@ StaticMesh::StaticMesh(std::filesystem::path path, SafePtr<GfxPipeline> pipeline
 
     InitSubmeshes(scene);
     LoadData(scene);
-}
-
-StaticMesh::StaticMesh(Geometry&& geometry,
-    SafePtr<Material> material, std::vector<SafePtr<class Texture>> textures,
-    SafePtr<class GfxPipeline> pipeline)
-    : m_Geometry(std::move(geometry)), m_Pipeline(pipeline)
-{
-    m_TotalIndexCount = m_Geometry.IndexCount;
-    m_TotalVertexCount = m_Geometry.VertexCount;
-    m_Materials.push_back(material);
-    m_Textures = textures;
-
-    SubMesh submesh{
-        .BaseVertex = 0,
-        .BaseIndex = 0,
-        .VertexCount = m_Geometry.VertexCount,
-        .IndexCount = m_Geometry.IndexCount,
-        .MaterialIndex = 0,
-        .BoundingBox = AABB{},
-        .Name = "Default"
-    };
-
-    m_SubMeshes.push_back(submesh);
-    Renderer& renderer = ApplicationBase::GetRenderer();
-    m_Geometry.VertexGPUBuffer = renderer.CreateGeometryBuffer(m_Geometry.Vertices, m_TotalVertexCount * sizeof(Vertex));
-    m_Geometry.IndexGPUBuffer = renderer.CreateGeometryBuffer(m_Geometry.Indices, m_TotalIndexCount * sizeof(uint32_t));
 }
 
 void StaticMesh::InitSubmeshes(const aiScene* scene)
@@ -96,8 +70,8 @@ void StaticMesh::InitSubmeshes(const aiScene* scene)
 
     TraverseNodes(scene->mRootNode, glm::mat4(1.0f));
 
-    m_Geometry.Vertices = lnnew Vertex[m_TotalVertexCount];
-    m_Geometry.Indices = lnnew uint32_t[m_TotalIndexCount];
+    m_Geometry->Vertices = lnnew Vertex[m_TotalVertexCount];
+    m_Geometry->Indices = lnnew uint32_t[m_TotalIndexCount];
 }
 
 void StaticMesh::LoadData(const aiScene* scene)
@@ -126,7 +100,7 @@ void StaticMesh::LoadData(const aiScene* scene)
             if (mesh->HasTextureCoords(0))
                 vertex.TexCoord = { mesh->mTextureCoords[0][v].x, mesh->mTextureCoords[0][v].y };
             LNE_ASSERT(vertexIndex < m_TotalVertexCount, "Vertex index out of bounds");
-            ((Vertex*)m_Geometry.Vertices)[vertexIndex++] = vertex;
+            ((Vertex*)m_Geometry->Vertices)[vertexIndex++] = vertex;
         }
 
         for (uint32_t f = 0; f < mesh->mNumFaces; ++f)
@@ -137,20 +111,23 @@ void StaticMesh::LoadData(const aiScene* scene)
             for (uint32_t i = 0; i < face.mNumIndices; ++i)
             {
                 LNE_ASSERT(indexIndex < m_TotalIndexCount, "Index index out of bounds");
-                ((uint32_t*)m_Geometry.Indices)[indexIndex++] = face.mIndices[i] + m_SubMeshes[m].BaseVertex;
+                ((uint32_t*)m_Geometry->Indices)[indexIndex++] = face.mIndices[i] + m_SubMeshes[m].BaseVertex;
             }
         }
     }
     LNE_ASSERT(indexIndex == m_TotalIndexCount, "Index count mismatch");
     LNE_ASSERT(vertexIndex == m_TotalVertexCount, "Vertex count mismatch");
 
-    m_Geometry.VertexCount = m_TotalVertexCount;
-    m_Geometry.IndexCount = m_TotalIndexCount;
+    m_Geometry->VertexCount = m_TotalVertexCount;
+    m_Geometry->IndexCount = m_TotalIndexCount;
 
     auto& renderer = ApplicationBase::GetRenderer();
 
-    m_Geometry.VertexGPUBuffer = renderer.CreateGeometryBuffer(m_Geometry.Vertices, m_TotalVertexCount * sizeof(Vertex));
-    m_Geometry.IndexGPUBuffer = renderer.CreateGeometryBuffer(m_Geometry.Indices, m_TotalIndexCount * sizeof(uint32_t));
+    m_Geometry->VertexGPUBuffer = renderer.CreateGeometryBuffer(m_Geometry->Vertices, m_TotalVertexCount * sizeof(Vertex));
+    m_Geometry->IndexGPUBuffer = renderer.CreateGeometryBuffer(m_Geometry->Indices, m_TotalIndexCount * sizeof(uint32_t));
+
+    SafePtr ctx = renderer.GetGfxContext();
+    m_Geometry->InitDescSet(ctx.GetPtr(), ctx->GetGeometryDescriptorSetLayout());
 }
 
 void StaticMesh::LoadMaterials(const aiScene* scene)
@@ -311,10 +288,10 @@ void StaticMesh::TraverseNodes(const aiNode* node, const glm::mat4& parentTransf
         TraverseNodes(node->mChildren[i], worldTransform);
 }
 
-Geometry Geometry::GenerateCube(uint32_t tesselationLevel)
+SafePtr<StaticMesh> StaticMesh::GenerateCube(uint32_t tesselationLevel)
 {
     float step = 2.0f / tesselationLevel;
-    Geometry geometry{};
+    Geometry* geometry = lnnew Geometry();
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
 
@@ -363,25 +340,31 @@ Geometry Geometry::GenerateCube(uint32_t tesselationLevel)
     uint32_t* indicesPtr = lnnew uint32_t[indices.size()];
     std::memcpy(verticesPtr, vertices.data(), vertices.size() * sizeof(Vertex));
     std::memcpy(indicesPtr, indices.data(), indices.size() * sizeof(uint32_t));
-    geometry.VertexGPUBuffer = renderer.CreateGeometryBuffer(verticesPtr, vertices.size() * sizeof(Vertex));
-    geometry.IndexGPUBuffer = renderer.CreateGeometryBuffer(indicesPtr, indices.size() * sizeof(uint32_t));
 
-    geometry.Vertices = verticesPtr;
-    geometry.Indices = indicesPtr;
+    geometry->VertexGPUBuffer = renderer.CreateGeometryBuffer(verticesPtr, vertices.size() * sizeof(Vertex));
+    geometry->IndexGPUBuffer = renderer.CreateGeometryBuffer(indicesPtr, indices.size() * sizeof(uint32_t));
+    geometry->Vertices = verticesPtr;
+    geometry->Indices = indicesPtr;
+    geometry->VertexCount = (uint32_t)vertices.size();
+    geometry->IndexCount = (uint32_t)indices.size();
 
-    geometry.VertexCount = (uint32_t)vertices.size();
-    geometry.IndexCount = (uint32_t)indices.size();
-    return std::move(geometry);
+    SafePtr ctx = renderer.GetGfxContext();
+    geometry->InitDescSet(ctx.GetPtr(), ctx->GetGeometryDescriptorSetLayout());
+
+    SafePtr<StaticMesh> mesh = lnnew StaticMesh();
+    mesh->m_Geometry.reset(geometry);
+
+    return mesh;
 }
 
-Geometry Geometry::GenerateUVSphere(float radius, uint32_t nLatitude, uint32_t nLongitude)
+SafePtr<StaticMesh> StaticMesh::GenerateUVSphere(float radius, uint32_t nLatitude, uint32_t nLongitude)
 {
     if (nLatitude < 1)
         nLatitude = 1;
     if (nLongitude < 3)
         nLongitude = 3;
 
-    Geometry geometry{};
+    Geometry* geometry = lnnew Geometry();
 
     uint32_t nVertices = nLatitude * (nLongitude + 1) + (nLongitude * 2);
     //-1 to nLat because it wouldn't make sense otherwise.
@@ -473,15 +456,78 @@ Geometry Geometry::GenerateUVSphere(float radius, uint32_t nLatitude, uint32_t n
     }
 
     Renderer& renderer = ApplicationBase::GetRenderer();
-    geometry.VertexGPUBuffer = renderer.CreateGeometryBuffer(vertices, nVertices * sizeof(Vertex));
-    geometry.IndexGPUBuffer = renderer.CreateGeometryBuffer(indices, nIndices * sizeof(uint32_t));
+    geometry->VertexGPUBuffer = renderer.CreateGeometryBuffer(vertices, nVertices * sizeof(Vertex));
+    geometry->IndexGPUBuffer = renderer.CreateGeometryBuffer(indices, nIndices * sizeof(uint32_t));
 
-    geometry.VertexCount = nVertices;
-    geometry.IndexCount = nIndices;
+    geometry->VertexCount = nVertices;
+    geometry->IndexCount = nIndices;
 
-    geometry.Vertices = vertices;
-    geometry.Indices = indices;
+    geometry->Vertices = vertices;
+    geometry->Indices = indices;
 
-    return std::move(geometry);
+    SafePtr ctx = renderer.GetGfxContext();
+    geometry->InitDescSet(ctx.GetPtr(), ctx->GetGeometryDescriptorSetLayout());
+    
+    SafePtr<StaticMesh> mesh = lnnew StaticMesh();
+    mesh->m_Geometry.reset(geometry);
+    return mesh;
 }
+
+Geometry::Geometry(GfxContext* ctx, SafePtr<StorageBuffer> vertexGPUBuffer, SafePtr<StorageBuffer> indexGPUBuffer, void* vertices, void* indices, uint32_t vertexCount, uint32_t indexCount)
+    : VertexGPUBuffer(vertexGPUBuffer), IndexGPUBuffer(indexGPUBuffer), 
+      Vertices(vertices), Indices(indices), 
+      VertexCount(vertexCount), IndexCount(indexCount)
+{
+    InitDescSet(ctx, ctx->GetGeometryDescriptorSetLayout());
+}
+
+Geometry::~Geometry()
+{
+    delete[] Vertices;
+    delete[] Indices;
+    VertexGPUBuffer.Reset();
+    IndexGPUBuffer.Reset();
+    if (DescSet)
+    {
+        DescriptorSetDeletion resourceDeletion{
+            .Type = DescriptorType::eStorageOnly,
+            .DescriptorSet = DescSet,
+        };
+        ApplicationBase::GetRenderer().GetGfxContext()->EnqueueResourceDeletion(ResourceDeletion{
+            .Type = ResourceType::eDescriptorSet,
+            .Resource = resourceDeletion
+        });
+    }
+}
+
+void Geometry::InitDescSet(GfxContext* ctx, vk::DescriptorSetLayout layout)
+{
+    DescSet = ctx->AllocateDescriptorSet(layout, DescriptorType::eStorageOnly);
+    vk::DescriptorBufferInfo vertexInfo = VertexGPUBuffer->GetDescriptorInfo();
+    vk::DescriptorBufferInfo indexInfo = IndexGPUBuffer->GetDescriptorInfo();
+    std::vector<vk::WriteDescriptorSet> writeDescSets = {
+        vk::WriteDescriptorSet{
+            DescSet,
+            0,
+            0,
+            1,
+            vk::DescriptorType::eStorageBuffer,
+            nullptr,
+            &vertexInfo,
+            nullptr
+        },
+        vk::WriteDescriptorSet{
+            DescSet,
+            1,
+            0,
+            1,
+            vk::DescriptorType::eStorageBuffer,
+            nullptr,
+            &indexInfo,
+            nullptr
+        }
+    };
+    ctx->GetDevice().updateDescriptorSets(writeDescSets, {});
+}
+
 }

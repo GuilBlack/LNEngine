@@ -1,4 +1,4 @@
-//#lne_head [Vt main][Fg main][Rp GBufferPass]
+//#lne_head [Vt main][Fg main][Rp GBufferPass][Tp Mesh]
 #version 460
 
 #include "Common.glslh"

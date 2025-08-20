@@ -247,16 +247,14 @@ void AppLayer::OnAttach()
     auto[sphereTransform, sphereMeshComponent] = m_SphereEntity.GetComponents<TransformComponent, StaticMeshComponent>();
 #pragma endregion
 
-#pragma region Geometry Gen
-    Geometry cubeGeo = std::move(Geometry::GenerateCube(1));
-
-    Geometry sphereGeo = std::move(Geometry::GenerateUVSphere(1.0f, 32, 32));
-#pragma endregion
-
 #pragma region LoadModels
+    SafePtr cubeMesh = StaticMesh::GenerateCube(1);
+    cubeMesh->SetMaterial(m_BasicMaterial, 0);
+    SafePtr sphereMesh = StaticMesh::GenerateUVSphere(1.0f, 32, 32);
+    sphereMesh->SetMaterial(m_BasicMaterial2, 0);
     modelMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Sponza\\glTF\\Sponza.gltf", m_BasePipeline, m_TransparentPipeline);
-    cubeMeshComponent.Mesh = lnnew StaticMesh(std::move(cubeGeo), m_BasicMaterial, { uvChecker }, m_BasePipeline);
-    SafePtr sphereMesh = lnnew StaticMesh(std::move(sphereGeo), m_BasicMaterial, { uvChecker }, m_BasePipeline);
+
+    cubeMeshComponent.Mesh = cubeMesh;
     sphereMeshComponent.Mesh = sphereMesh;
 #pragma endregion
 
@@ -443,6 +441,13 @@ void AppLayer::InitFrameGraph()
 void AppLayer::OnDetach()
 {
     APP_INFO("AppLayer::OnDetach");
+    m_WorldRenderer.Reset();
+    m_FrameGraph.Reset();
+    m_BasePipeline.Reset();
+    m_TransparentPipeline.Reset();
+    m_BasicMaterial.Reset();
+    m_BasicMaterial2.Reset();
+    m_Scene.Reset();
     m_BasePipeline.Reset();
 }
 

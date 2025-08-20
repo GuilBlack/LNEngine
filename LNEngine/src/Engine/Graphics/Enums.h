@@ -58,14 +58,48 @@ inline std::string_view ToString(Enum type)
 }
 }
 
-namespace MaterialType
+namespace DescriptorType
 {
 enum Enum : byte
 {
-    eUnknown = 0,
-    eStandard = 1,
-    ePostProcess = 2,
+    eUniformOnly =          0,
+    eStorageOnly =          1,
+    eUniformAndStorage =    2,
 };
+
+extern const char** s_Enum;
+
+inline std::string_view ToString(Enum type)
+{
+    return s_Enum[type];
+}
+}
+
+namespace MaterialType
+{
+enum Enum : char
+{
+    eUnknown =      -1,
+    eMesh =         0,
+    ePostProcess =  1,
+};
+
+constexpr uint32_t NUM_MATERIAL_TYPES = 2;
+}
+
+namespace MaterialSetIndexType
+{
+enum Enum : char
+{
+    eUnknown =      -1,
+    eGlobal =       0,
+    eMaterial =     1,
+    eTexture =      2,
+    eVertex =       3,
+    eTransform =    4,
+};
+
+constexpr uint32_t NUM_MATERIAL_SET_INDICES = 5;
 }
 
 namespace FrameGraphResourceType
@@ -96,7 +130,8 @@ enum Enum : byte
     eBuffer,
     ePipeline,
     eShader,
-    eImageView
+    eImageView,
+    eDescriptorSet
 };
 
 extern const char** s_Enum;

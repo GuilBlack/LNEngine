@@ -20,7 +20,7 @@ Material::Material(SafePtr<GfxPipeline> pipeline, MaterialType::Enum materialTyp
 
     switch (materialType)
     {
-    case MaterialType::eStandard:
+    case MaterialType::eMesh:
     {
         materialDescSet = m_Pipeline->m_Shader->GetReflectedData().DescriptorSets.at(3);
         for (const auto& [name, element] :

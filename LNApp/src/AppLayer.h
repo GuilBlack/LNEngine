@@ -118,7 +118,6 @@ private:
     float m_Metalness{ 0.0f };
     float m_Roughness{ 0.0f };
 
-    lne::FrameGraph m_FrameGraphTest{ "ComplexFrameGraph" };
     lne::SafePtr<lne::FrameGraph> m_FrameGraph{};
     lne::SafePtr<lne::WorldRenderer> m_WorldRenderer{};
 

@@ -232,24 +232,8 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>&
     {
         LNE_PROFILE_SCOPE_C("Set Geometry DescSet", PROFILING_COL)
         const Geometry& geometry = mesh->GetGeometry();
-        vk::DescriptorSet geometryDescSet = descAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[2]);
-        
-        vk::DescriptorBufferInfo vertexInfo = geometry.VertexGPUBuffer->GetDescriptorInfo();
-        vk::DescriptorBufferInfo indexInfo = geometry.IndexGPUBuffer->GetDescriptorInfo();
-        
-        std::vector<vk::WriteDescriptorSet> writeGeoDescriptorSets;
-        writeGeoDescriptorSets.emplace_back(
-            geometryDescSet, 0, 0, 1,
-            vk::DescriptorType::eStorageBuffer, nullptr, &vertexInfo, nullptr
-        );
-        writeGeoDescriptorSets.emplace_back(
-            geometryDescSet, 1, 0, 1,
-            vk::DescriptorType::eStorageBuffer, nullptr, &indexInfo, nullptr
-        );
-        
-        device.updateDescriptorSets(writeGeoDescriptorSets, nullptr);
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 2,
-        { geometryDescSet }, {});
+        { geometry.GetDescSet() }, {});
         m_LastUsedStaticMesh = mesh;
     }
 
@@ -339,25 +323,8 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>&
     if (hasPipelineChanged || mesh != m_LastUsedStaticMesh)
     {
         LNE_PROFILE_SCOPE_C("Set Geo DescSet", PROFILING_COL)
-        const Geometry& geometry = mesh->GetGeometry();
-        vk::DescriptorSet geometryDescSet = descAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[2]);
-
-        vk::DescriptorBufferInfo vertexInfo = geometry.VertexGPUBuffer->GetDescriptorInfo();
-        vk::DescriptorBufferInfo indexInfo = geometry.IndexGPUBuffer->GetDescriptorInfo();
-
-        std::vector<vk::WriteDescriptorSet> writeGeoDescriptorSets;
-        writeGeoDescriptorSets.emplace_back(
-            geometryDescSet, 0, 0, 1,
-            vk::DescriptorType::eStorageBuffer, nullptr, &vertexInfo, nullptr
-        );
-        writeGeoDescriptorSets.emplace_back(
-            geometryDescSet, 1, 0, 1,
-            vk::DescriptorType::eStorageBuffer, nullptr, &indexInfo, nullptr
-        );
-
-        device.updateDescriptorSets(writeGeoDescriptorSets, nullptr);
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 2,
-            { geometryDescSet }, {});
+            { mesh->GetGeometry().GetDescSet() }, {});
         m_LastUsedStaticMesh = mesh;
     }
 
@@ -437,27 +404,8 @@ void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, const SafePtr<cla
     }
     if (hasPipelineChanged)
     {
-        
-        //// BIND DESCRIPTOR SETS 1 ////////////////////
-        auto geometryDescSet = descAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[1]);
-        
-        vk::DescriptorBufferInfo vertexInfo = geometry.VertexGPUBuffer->GetDescriptorInfo();
-        vk::DescriptorBufferInfo indexInfo = geometry.IndexGPUBuffer->GetDescriptorInfo();
-
-        std::vector<vk::WriteDescriptorSet> writeGeoDescriptorSets = {};
-        writeGeoDescriptorSets.reserve(2);
-        writeGeoDescriptorSets.emplace_back(
-            geometryDescSet, 0, 0, 1,
-            vk::DescriptorType::eStorageBuffer, nullptr, &vertexInfo, nullptr
-        );
-        writeGeoDescriptorSets.emplace_back(
-            geometryDescSet, 1, 0, 1,
-            vk::DescriptorType::eStorageBuffer, nullptr, &indexInfo, nullptr
-        );
-
-        device.updateDescriptorSets(writeGeoDescriptorSets, nullptr);
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 1,
-            { geometryDescSet }, {});
+            { geometry.GetDescSet() }, {});
     }
 
     std::vector<vk::WriteDescriptorSet> matWriteDescriptorSets;
@@ -486,7 +434,7 @@ void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, const SafePtr<cla
         { matDescSet },
         {}
     );
-    cmdBuffer.draw(geometry.IndexCount, 1, 0, 0);
+    cmdBuffer.draw(geometry.GetIndexCount(), 1, 0, 0);
 }
 
 void Renderer::Dispatch(SafePtr<ComputeProgram> program, uint32_t x, uint32_t y, uint32_t z, bool async)
