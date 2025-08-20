@@ -13,6 +13,8 @@
 
 #include "GfxLoader.h"
 #include "Core/ApplicationBase.h"
+#include <Graphics/Pipeline.h>
+#include "Graphics/Material.h"
 
 namespace lne
 {

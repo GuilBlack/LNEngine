@@ -8,12 +8,10 @@
 #include "LayerStack.h"
 #include "Layer.h"
 #include "Core/Events/ApplicationEvents.h"
-#include "Graphics/GfxContext.h"
 #include "Graphics/Renderer.h"
 #include "Graphics/CommandPoolManager.h"
-#include "Graphics/Texture.h"
-#include "Graphics/DynamicDescriptorAllocator.h"
 #include "Graphics/ImGui/ImGuiService.h"
+#include "Graphics/GfxContext.h"
 
 namespace lne
 {

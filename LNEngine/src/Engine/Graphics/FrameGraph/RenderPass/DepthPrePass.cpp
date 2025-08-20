@@ -4,6 +4,9 @@
 #include "Graphics/WorldRenderer.h"
 #include "Graphics/Renderer.h"
 #include "Core/Utils/Profiling.h"
+#include "Graphics/Mesh.h"
+#include <Graphics/Pipeline.h>
+#include "../../Material.h"
 
 namespace lne
 {

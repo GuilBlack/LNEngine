@@ -3,6 +3,8 @@
 #include <Core/ApplicationBase.h>
 #include <Graphics/Renderer.h>
 #include <Graphics/WorldRenderer.h>
+#include <Graphics/Material.h>
+#include <Graphics/Mesh.h>
 
 namespace lne
 {

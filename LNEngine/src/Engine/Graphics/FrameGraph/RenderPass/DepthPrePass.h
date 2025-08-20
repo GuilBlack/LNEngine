@@ -3,20 +3,20 @@
 
 namespace lne
 {
-class DepthPrePass : public lne::IRenderPass, public lne::IDrawStaticMeshes
+class DepthPrePass : public IRenderPass, public IDrawStaticMeshes
 {
 public:
     DepthPrePass();
 
     virtual void BeginFrame() override;
 
-    virtual void Execute(vk::CommandBuffer cmdBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
+    virtual void Execute(vk::CommandBuffer cmdBuffer, class WorldRenderer* worldRenderer, FrameGraph* frameGraph, FrameGraphNode* node) override;
 
-    virtual void OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
+    virtual void OnBind(FrameGraph* frameGraph, FrameGraphNode* node) override;
 
 private:
-    lne::SafePtr<lne::GfxPipeline> m_Pipeline{};
-    lne::SafePtr<lne::Material> m_Material{};
+    SafePtr<class GfxPipeline> m_Pipeline{};
+    SafePtr<class Material> m_Material{};
 };
 }
 

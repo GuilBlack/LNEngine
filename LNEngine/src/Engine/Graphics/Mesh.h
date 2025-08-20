@@ -1,14 +1,16 @@
 #pragma once
-#include "StorageBuffer.h"
 #include "Structs.h"
 #include <unordered_map>
-#include "Engine/Graphics/Texture.h"
-#include "Engine/Graphics/Material.h"
 #include "Engine/Core/Utils/_Defines.h"
+#include "Engine/Graphics/StorageBuffer.h"
+#include "Engine/Graphics/Material.h"
 
 
 namespace lne
 {
+class GfxContext;
+class StorageBuffer;
+
 struct Vertex
 {
     glm::vec3 Position;
@@ -28,35 +30,8 @@ public:
 
     ~Geometry();
 
-    Geometry(Geometry&& other) noexcept
-        : VertexGPUBuffer(std::move(other.VertexGPUBuffer)),
-        IndexGPUBuffer(std::move(other.IndexGPUBuffer)),
-        Vertices(other.Vertices),
-        Indices(other.Indices),
-        VertexCount(other.VertexCount),
-        IndexCount(other.IndexCount)
-    {
-        other.Vertices = nullptr;
-        other.Indices = nullptr;
-        other.IndexCount = 0;
-        other.VertexCount = 0;
-    }
-    Geometry& operator=(Geometry&& other) noexcept
-    {
-        if (this == &other)
-            return *this;
-        VertexGPUBuffer = std::move(other.VertexGPUBuffer);
-        IndexGPUBuffer = std::move(other.IndexGPUBuffer);
-        Vertices = other.Vertices;
-        Indices = other.Indices;
-        VertexCount = other.VertexCount;
-        IndexCount = other.IndexCount;
-        other.Vertices = nullptr;
-        other.Indices = nullptr;
-        other.IndexCount = 0;
-        other.VertexCount = 0;
-        return *this;
-    }
+    Geometry(Geometry&& other) noexcept;
+    Geometry& operator=(Geometry&& other) noexcept;
 
     [[nodiscard]] uint32_t GetVertexCount() const { return VertexCount; }
     [[nodiscard]] uint32_t GetIndexCount() const { return IndexCount; }
@@ -112,11 +87,15 @@ public:
 
     std::vector<SubMesh>&       GetSubMeshes() { return m_SubMeshes; }
     const Geometry&             GetGeometry() const { return *m_Geometry.get(); }
-    SafePtr<class Material>     GetMaterial(uint32_t index) { return m_Materials[index]; }
+
+    SafePtr<class Material>     GetMaterial(uint32_t index)
+    {
+        return m_Materials[index];
+    }
 
     void                        SetMaterial(SafePtr<Material> mat, uint32_t index)
     {
-        if (index > m_Materials.size()) return; 
+        if (index > m_Materials.size()) return;
         m_Materials[index] = mat;
     }
 
@@ -128,20 +107,17 @@ private:
     std::filesystem::path       m_Path{};
     std::vector<SubMesh>        m_SubMeshes{};
 
-    std::unique_ptr<Geometry>   m_Geometry{};
+    std::unique_ptr<Geometry>   m_Geometry;
     uint32_t                    m_TotalVertexCount{};
     uint32_t                    m_TotalIndexCount{};
 
     // TODO: move to a resource manager
-    std::vector<SafePtr<class Material>> m_Materials{};
-    SafePtr<class GfxPipeline> m_Pipeline{};
-    SafePtr<class GfxPipeline> m_TransparentPipeline{};
-    std::vector<SafePtr<class Texture>> m_Textures{};
+    std::vector<SafePtr<class Material>> m_Materials;
+    SafePtr<class GfxPipeline> m_Pipeline;
+    SafePtr<class GfxPipeline> m_TransparentPipeline;
+    std::vector<SafePtr<class Texture>> m_Textures;
 private:
-    StaticMesh()
-    {
-        m_Materials.resize(1);
-    }
+    StaticMesh();
 
     void InitSubmeshes(const struct aiScene* scene);
     void LoadData(const struct aiScene* scene);

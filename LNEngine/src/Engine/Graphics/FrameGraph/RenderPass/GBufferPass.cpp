@@ -6,6 +6,7 @@
 #include "Graphics/FrameGraph/FrameGraph.h"
 #include "Graphics/Pipeline.h"
 #include "Graphics/Material.h"
+#include "Graphics/Mesh.h"
 #include "Graphics/GfxContext.h"
 #include "Core/Utils/Profiling.h"
 

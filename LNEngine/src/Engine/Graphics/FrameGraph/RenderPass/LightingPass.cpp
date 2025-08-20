@@ -5,6 +5,10 @@
 #include <Graphics/Renderer.h>
 #include <Graphics/FrameGraph/FrameGraph.h>
 #include "Core/Utils/Profiling.h"
+#include <Graphics/Pipeline.h>
+#include <Graphics/Material.h>
+#include <Graphics/Texture.h>
+#include <Graphics/Mesh.h>
 
 namespace lne
 {

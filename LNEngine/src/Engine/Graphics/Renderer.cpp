@@ -24,6 +24,11 @@
 namespace lne
 {
 #define PROFILING_COL 0xFF5B53
+
+Renderer::Renderer() = default;
+
+Renderer::~Renderer() = default;
+
 void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskScheduler> taskScheduler)
 {
     m_Context = window->GetGfxContext();
@@ -85,6 +90,21 @@ void Renderer::InitResources()
     Dispatch(cmdBuffer, brdfProgram, 512 / 32, 512 / 32, 1);
 
     m_BRDFLut->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
+}
+
+uint32_t Renderer::GetCurrentFrameIndex() const
+{
+    return m_Context->GetCurrentFrameIndex();
+}
+
+lne::SafePtr<class GfxContext> Renderer::GetGfxContext() const
+{
+    return m_Context;
+}
+
+lne::SafePtr<class GfxLoader> Renderer::GetGfxLoader() const
+{
+    return m_GfxLoader;
 }
 
 void Renderer::PushLabel(vk::CommandBuffer cmdBuffer, std::string_view label) const
@@ -560,17 +580,15 @@ SafePtr<WorldEnvironment> Renderer::CreateEnvironmentMap(std::string_view pathTo
     return m_GfxLoader->CreateEnvironmentMap(pathToEnvMap);
 }
 
-SafePtr<UniformBufferManager> Renderer::RegisterObject()
-{
-    SafePtr<UniformBufferManager> uboManager;
-    uboManager.Reset(lnnew UniformBufferManager(m_Context, sizeof(glm::mat4)));
-    return uboManager;
-}
-
 void Renderer::AddTextureToUpdate(SafePtr<class Texture> texture)
 {
     std::lock_guard<std::mutex> lock(m_TexturesToUpdateMutex);
     m_TexturesToUpdate.push_back(texture);
+}
+
+lne::SafePtr<class Texture> Renderer::GetBRDFLut() const
+{
+    return m_BRDFLut;
 }
 
 std::filesystem::path Renderer::GetShaderCachePath() const

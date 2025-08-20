@@ -5,6 +5,7 @@
 
 namespace lne
 {
+class GfxLoader;
 class StorageBuffer : public RefCountBase
 {
 public:

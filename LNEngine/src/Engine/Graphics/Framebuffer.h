@@ -1,12 +1,13 @@
 #pragma once
 #include "Engine/Core/SafePtr.h"
+#include "Engine/Graphics/Texture.h"
 
 namespace lne
 {
 
 struct AttachmentDesc
 {
-    SafePtr<class Texture> Texture = nullptr;
+    SafePtr<class Texture> Texture;
     vk::AttachmentLoadOp LoadOp = vk::AttachmentLoadOp::eDontCare;
     vk::AttachmentStoreOp StoreOp = vk::AttachmentStoreOp::eDontCare;
     vk::ImageLayout InitialLayout = vk::ImageLayout::eUndefined;

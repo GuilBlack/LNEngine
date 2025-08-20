@@ -1,6 +1,5 @@
 #pragma once
 #include "Engine/Core/SafePtr.h"
-#include "Engine/Graphics/UniformBuffer.h"
 #include "Engine/Graphics/Structs.h"
 
 namespace lne
@@ -21,17 +20,13 @@ struct WorldData
 // TODO: move this in the World renderer
 struct FrameData
 {
-    SafePtr<UniformBuffer>                      CurrentWorldDataUniforms;
+    SafePtr<class UniformBuffer>                CurrentWorldDataUniforms;
     SafePtr<class DynamicDescriptorAllocator>   DescriptorAllocator;
-    vk::DescriptorSet                           DescriptorSet;
+    vk::DescriptorSet                           DescriptorSet{};
     vk::DescriptorSetLayout                     DescriptorSetLayout;
-    WorldData                                   CurrentWorldData;
+    WorldData                                   CurrentWorldData{};
 
     FrameData(SafePtr<class DynamicDescriptorAllocator> descriptorAllocator,
-        vk::DescriptorSetLayout descriptorSetLayout)
-        : CurrentWorldDataUniforms(nullptr),
-        DescriptorAllocator(descriptorAllocator),
-        DescriptorSetLayout(descriptorSetLayout)
-    {}
+              vk::DescriptorSetLayout descriptorSetLayout);
 };
 }

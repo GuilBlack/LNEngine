@@ -36,7 +36,7 @@ public:
     [[nodiscard]] Shader::Header GetHeader() const { return m_Header; }
     [[nodiscard]] std::string GetName() const { return m_Name; }
     virtual ~Shader();
-
+     
 public:
     struct MatTypeInfo
     {

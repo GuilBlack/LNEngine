@@ -7,6 +7,7 @@
 #include "../CommandPoolManager.h"
 #include "../DynamicDescriptorAllocator.h"
 #include "../Framebuffer.h"
+#include "Engine/Resources/GfxLoader.h"
 #include "Core/Utils/Log.h"
 
 namespace lne

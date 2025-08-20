@@ -2,7 +2,6 @@
 #include "Engine/Core/SafePtr.h"
 #include "Engine/ECS/Types.h"
 #include "Engine/Graphics/Structs.h"
-#include "Engine/Graphics/Mesh.h"
 
 namespace lne
 {

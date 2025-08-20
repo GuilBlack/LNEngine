@@ -5,6 +5,7 @@
 
 #include "GfxContext.h"
 #include "Core/ApplicationBase.h"
+#include "Engine/Resources/GfxLoader.h"
 #include "Renderer.h"
 #include "CommandPoolManager.h"
 #include "DynamicDescriptorAllocator.h"

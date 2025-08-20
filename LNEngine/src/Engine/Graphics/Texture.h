@@ -2,7 +2,6 @@
 #include "../vendor/VMA/vk_mem_alloc.h"
 #include "Engine/Core/SafePtr.h"
 #include "Engine/Graphics/Structs.h"
-#include "GfxContext.h"
 
 namespace lne
 {

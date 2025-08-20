@@ -18,7 +18,12 @@
 namespace lne
 {
 StaticMesh::StaticMesh(std::filesystem::path path, SafePtr<GfxPipeline> pipeline, SafePtr<GfxPipeline> transparentPipeline)
-    : m_Path(path), m_Pipeline(pipeline), m_TransparentPipeline(transparentPipeline), m_Geometry(lnnew Geometry())
+    : m_Path(path), 
+    m_Geometry(nullptr), 
+    m_Materials{}, 
+    m_Pipeline(pipeline), 
+    m_TransparentPipeline(transparentPipeline),
+    m_Textures{}
 {
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(path.string(), aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_CalcTangentSpace);
@@ -38,8 +43,14 @@ StaticMesh::StaticMesh(std::filesystem::path path, SafePtr<GfxPipeline> pipeline
     uint32_t totalVertexCount = 0;
     uint32_t totalIndexCount = 0;
 
+    m_Geometry.reset(lnnew Geometry());
     InitSubmeshes(scene);
     LoadData(scene);
+}
+
+StaticMesh::StaticMesh()
+{
+    m_Materials.resize(1);
 }
 
 void StaticMesh::InitSubmeshes(const aiScene* scene)
@@ -479,6 +490,37 @@ Geometry::Geometry(GfxContext* ctx, SafePtr<StorageBuffer> vertexGPUBuffer, Safe
       VertexCount(vertexCount), IndexCount(indexCount)
 {
     InitDescSet(ctx, ctx->GetGeometryDescriptorSetLayout());
+}
+
+Geometry::Geometry(Geometry&& other) noexcept
+    : VertexGPUBuffer(std::move(other.VertexGPUBuffer)),
+    IndexGPUBuffer(std::move(other.IndexGPUBuffer)),
+    Vertices(other.Vertices),
+    Indices(other.Indices),
+    VertexCount(other.VertexCount),
+    IndexCount(other.IndexCount)
+{
+    other.Vertices = nullptr;
+    other.Indices = nullptr;
+    other.IndexCount = 0;
+    other.VertexCount = 0;
+}
+
+Geometry& Geometry::operator=(Geometry&& other) noexcept
+{
+    if (this == &other)
+        return *this;
+    VertexGPUBuffer = std::move(other.VertexGPUBuffer);
+    IndexGPUBuffer = std::move(other.IndexGPUBuffer);
+    Vertices = other.Vertices;
+    Indices = other.Indices;
+    VertexCount = other.VertexCount;
+    IndexCount = other.IndexCount;
+    other.Vertices = nullptr;
+    other.Indices = nullptr;
+    other.IndexCount = 0;
+    other.VertexCount = 0;
+    return *this;
 }
 
 Geometry::~Geometry()
