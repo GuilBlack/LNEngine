@@ -22,20 +22,33 @@ public:
     }
 
     void CopyData(vk::CommandBuffer cb, const void* data, uint64_t size, uint64_t offset = 0);
+protected:
+    SafePtr<class GfxContext> m_Context;
 
 private:
     friend class GfxLoader;
-
-    SafePtr<class GfxContext> m_Context;
     BufferAllocation m_Allocation;
     BufferAllocation m_StagingAllocation;
     uint64_t m_Size;
     vk::MemoryPropertyFlags m_MemoryFlags;
     StorageBufferType::Enum m_Type;
-    bool m_HasStagingBuffer{true};
+    bool m_HasStagingBuffer{ true };
 
 private:
     void InitStatic(const void* data);
     void InitDynamic();
+};
+
+// Has its own descriptor set layout
+class StandaloneStorageBuffer : public StorageBuffer
+{
+public:
+    StandaloneStorageBuffer(SafePtr<class GfxContext> ctx, uint64_t size, const void* data, StorageBufferType::Enum type = StorageBufferType::eStatic);
+    ~StandaloneStorageBuffer();
+
+    vk::DescriptorSet GetDescSet() const { return m_DescSet; }
+
+private:
+    vk::DescriptorSet m_DescSet;
 };
 }

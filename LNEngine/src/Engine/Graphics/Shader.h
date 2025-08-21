@@ -54,6 +54,7 @@ private:
     std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> m_SpirvCode{};
     std::unordered_map<ShaderStage::Enum, vk::ShaderModule> m_Modules{};
     std::vector<vk::DescriptorSetLayout> m_DescriptorSetLayouts{};
+    std::vector<vk::DescriptorSetLayout> m_CreatedLayouts{};
     ReflectedData m_ReflectedData{};
     Header m_Header{};
 

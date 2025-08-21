@@ -189,6 +189,7 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
                 ssboLayoutBindings
             }
         );
+        SetVkObjectName(m_StorageOnlyDescriptorSetLayouts[i], "SSBOOnlyDescSetLayout" + std::to_string(i));
     }
 #pragma endregion
 }

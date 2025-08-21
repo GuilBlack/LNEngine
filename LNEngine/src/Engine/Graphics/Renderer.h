@@ -51,12 +51,12 @@ public:
 
     void                                            Draw(vk::CommandBuffer cmdBuffer, 
                                                          const SafePtr<class StaticMesh>& mesh, 
-                                                         const SafePtr<class StorageBuffer>& transformBuffer, 
+                                                         const SafePtr<class StandaloneStorageBuffer>& transformBuffer,
                                                          uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount);
 
     void                                            Draw(vk::CommandBuffer cmdBuffer, 
                                                          const SafePtr<StaticMesh>& mesh, 
-                                                         const SafePtr<StorageBuffer>& transformBuffer, 
+                                                         const SafePtr<StandaloneStorageBuffer>& transformBuffer,
                                                          SafePtr<Material> overrideMaterial, 
                                                          uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount);
 

@@ -417,7 +417,7 @@ Shader::Shader(SafePtr<class GfxContext> ctx, std::string_view filePath)
 Shader::~Shader()
 {
     ShaderResourceDeletion shaderDeletion {
-        .DescriptorSetLayouts = m_DescriptorSetLayouts,
+        .DescriptorSetLayouts = m_CreatedLayouts,
     };
     for (auto& [stage, module] : m_Modules)
         shaderDeletion.ShaderModules.push_back(module);
@@ -724,8 +724,7 @@ void Shader::CreateDescriptorSetLayouts()
     {
         if (m_Header.MaterialType == MaterialType::eUnknown)
             return;
-        if (setIndex == matTypeInfo.SetIndices[MaterialSetIndexType::eGlobal] ||
-            setIndex == matTypeInfo.SetIndices[MaterialSetIndexType::eVertex])
+        if (setIndex == matTypeInfo.SetIndices[MaterialSetIndexType::eGlobal])
         {
             stages = StageFlags::eAll;
             return;
@@ -733,6 +732,19 @@ void Shader::CreateDescriptorSetLayouts()
     };
     for (auto&[setIndex, set] : m_ReflectedData.DescriptorSets)
     {
+        if (setIndex == matTypeInfo.SetIndices[MaterialSetIndexType::eVertex])
+        {
+            m_DescriptorSetLayouts[layoutIndex] = m_Context->GetStorageOnlyDescriptorSetLayout(2);
+            layoutIndex++;
+            continue;
+        }
+        else if (setIndex == matTypeInfo.SetIndices[MaterialSetIndexType::eTransform])
+        {
+            m_DescriptorSetLayouts[layoutIndex] = m_Context->GetStorageOnlyDescriptorSetLayout(1);
+            layoutIndex++;
+            continue;
+        }
+
         vk::DescriptorSetLayoutCreateInfo descSetLayoutCI{};
         descSetLayoutCI.setBindingCount((uint32_t)set.UniformBuffers.size() + (uint32_t)set.StorageBuffers.size());
         std::vector<vk::DescriptorSetLayoutBinding> bindings{};
@@ -753,6 +765,7 @@ void Shader::CreateDescriptorSetLayouts()
         }
         descSetLayoutCI.setBindings(bindings);
         m_DescriptorSetLayouts[layoutIndex] = m_Context->GetDevice().createDescriptorSetLayout(descSetLayoutCI);
+        m_CreatedLayouts.emplace_back(m_DescriptorSetLayouts[layoutIndex]);
         m_Context->SetVkObjectName(m_DescriptorSetLayouts[layoutIndex], std::format("DescSetLayout {}, set: {}", m_Name, setIndex));
         layoutIndex++;
     }

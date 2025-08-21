@@ -32,7 +32,7 @@ WorldRenderer::WorldRenderer(const SafePtr<FrameGraph>& frameGraph)
     // 2 MB of transform data per frame since a mat4 is 64 bytes. 1024 * 32 = 32k transforms
     for (uint32_t i = 0; i < maxFramesInFlight; ++i)
     {
-        m_TransformBuffers[i].Buffer.Reset(lnnew StorageBuffer(gfxContext, sizeof(glm::mat4) * 1024 * 32, nullptr, StorageBufferType::eDynamic));
+        m_TransformBuffers[i].Buffer.Reset(lnnew StandaloneStorageBuffer(gfxContext, sizeof(glm::mat4) * 1024 * 32, nullptr, StorageBufferType::eDynamic));
         m_TransformBuffers[i].Data = lnnew glm::mat4[1024*32];
     }
 }

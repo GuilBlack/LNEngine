@@ -18,7 +18,7 @@ struct SubMeshTransformArray
 
 struct TransformBuffer
 {
-    SafePtr<class StorageBuffer> Buffer;
+    SafePtr<class StandaloneStorageBuffer> Buffer;
     glm::mat4* Data;
 };
 

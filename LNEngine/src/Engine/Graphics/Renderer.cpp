@@ -207,8 +207,10 @@ void Renderer::EndRenderPass(const Framebuffer& framebuffer) const
     framebuffer.Unbind(m_Context->GetPrimaryCommandBuffer());
 }
 
-void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>& mesh, const SafePtr<lne::StorageBuffer>& transformBuffer,
-    uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount)
+void Renderer::Draw(vk::CommandBuffer cmdBuffer, 
+                    const SafePtr<StaticMesh>& mesh, 
+                    const SafePtr<StandaloneStorageBuffer>& transformBuffer,
+                    uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount)
 {
     LNE_PROFILE_FUNCTION_C(PROFILING_COL)
     auto& submesh = mesh->GetSubMeshes()[subMeshIndex];
@@ -229,22 +231,8 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>&
         m_LastUsedPipeline = pipeline;
         hasPipelineChanged = true;
 
-        auto transformDescSet = descAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[1]);
-
-        vk::DescriptorBufferInfo transformInfo = transformBuffer->GetDescriptorInfo();
-        vk::WriteDescriptorSet writeTransformDescriptorSet = vk::WriteDescriptorSet{
-            transformDescSet,
-            0,
-            0,
-            1,
-            vk::DescriptorType::eStorageBuffer,
-            nullptr,
-            &transformInfo,
-            nullptr
-        };
-        device.updateDescriptorSets(writeTransformDescriptorSet, nullptr);
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
-        { m_FrameData[m_Context->GetCurrentFrameIndex()].DescriptorSet, transformDescSet }, {});
+        { m_FrameData[m_Context->GetCurrentFrameIndex()].DescriptorSet, transformBuffer->GetDescSet() }, {});
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 4,
         { m_Context->GetBindlessDescriptorSet() }, {});
     }
@@ -300,7 +288,11 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>&
     cmdBuffer.draw(submesh.IndexCount, instanceCount, submesh.BaseIndex, offset);
 }
 
-void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>& mesh, const SafePtr<lne::StorageBuffer>& transformBuffer, SafePtr<Material> overrideMaterial, uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount)
+void Renderer::Draw(vk::CommandBuffer cmdBuffer, 
+                    const SafePtr<StaticMesh>& mesh, 
+                    const SafePtr<StandaloneStorageBuffer>& transformBuffer, 
+                    SafePtr<Material> overrideMaterial, 
+                    uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount)
 {
     LNE_PROFILE_FUNCTION_C(PROFILING_COL)
     auto& submesh = mesh->GetSubMeshes()[subMeshIndex];
@@ -321,22 +313,9 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer, const SafePtr<lne::StaticMesh>&
         m_LastUsedPipeline = pipeline;
         hasPipelineChanged = true;
 
-        auto transformDescSet = descAllocator->Allocate(pipeline->GetDescriptorSetLayouts()[1]);
-
-        vk::DescriptorBufferInfo transformInfo = transformBuffer->GetDescriptorInfo();
-        vk::WriteDescriptorSet writeTransformDescriptorSet = vk::WriteDescriptorSet{
-            transformDescSet,
-            0,
-            0,
-            1,
-            vk::DescriptorType::eStorageBuffer,
-            nullptr,
-            &transformInfo,
-            nullptr
-        };
-        device.updateDescriptorSets(writeTransformDescriptorSet, nullptr);
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
-            { m_FrameData[m_Context->GetCurrentFrameIndex()].DescriptorSet, transformDescSet }, {});
+            { m_FrameData[m_Context->GetCurrentFrameIndex()].DescriptorSet, transformBuffer->GetDescSet() }, {});
+
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 4,
             { m_Context->GetBindlessDescriptorSet() }, {});
     }

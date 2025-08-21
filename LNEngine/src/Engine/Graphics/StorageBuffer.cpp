@@ -167,4 +167,30 @@ void StorageBuffer::InitDynamic()
         m_HasStagingBuffer = false;
     }
 }
+
+StandaloneStorageBuffer::StandaloneStorageBuffer(SafePtr<class GfxContext> ctx, uint64_t size, const void* data, StorageBufferType::Enum type /*= StorageBufferType::eStatic*/)
+    : StorageBuffer(ctx, size, data, type)
+{
+    m_DescSet = m_Context->AllocateDescriptorSet(ctx->GetStorageOnlyDescriptorSetLayout(1), DescriptorType::eStorageOnly);
+    
+    vk::DescriptorBufferInfo bufferInfo = GetDescriptorInfo();
+    vk::WriteDescriptorSet writeDescSet{
+        m_DescSet,
+        0,
+        0,
+        1,
+        vk::DescriptorType::eStorageBuffer,
+        nullptr,
+        &bufferInfo,
+        nullptr
+    };
+    
+    m_Context->GetDevice().updateDescriptorSets(writeDescSet, nullptr);
+}
+
+StandaloneStorageBuffer::~StandaloneStorageBuffer()
+{
+    m_Context->FreeDescriptorSet(m_DescSet, DescriptorType::eStorageOnly);
+}
+
 }
