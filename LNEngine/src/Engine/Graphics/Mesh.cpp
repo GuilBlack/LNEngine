@@ -138,7 +138,7 @@ void StaticMesh::LoadData(const aiScene* scene)
     m_Geometry->IndexGPUBuffer = renderer.CreateGeometryBuffer(m_Geometry->Indices, m_TotalIndexCount * sizeof(uint32_t));
 
     SafePtr ctx = renderer.GetGfxContext();
-    m_Geometry->InitDescSet(ctx.GetPtr(), ctx->GetGeometryDescriptorSetLayout());
+    m_Geometry->InitDescSet(ctx.GetPtr(), ctx->GetStorageOnlyDescriptorSetLayout(2));
 }
 
 void StaticMesh::LoadMaterials(const aiScene* scene)
@@ -360,7 +360,7 @@ SafePtr<StaticMesh> StaticMesh::GenerateCube(uint32_t tesselationLevel)
     geometry->IndexCount = (uint32_t)indices.size();
 
     SafePtr ctx = renderer.GetGfxContext();
-    geometry->InitDescSet(ctx.GetPtr(), ctx->GetGeometryDescriptorSetLayout());
+    geometry->InitDescSet(ctx.GetPtr(), ctx->GetStorageOnlyDescriptorSetLayout(2));
 
     SafePtr<StaticMesh> mesh = lnnew StaticMesh();
     mesh->m_Geometry.reset(geometry);
@@ -477,7 +477,7 @@ SafePtr<StaticMesh> StaticMesh::GenerateUVSphere(float radius, uint32_t nLatitud
     geometry->Indices = indices;
 
     SafePtr ctx = renderer.GetGfxContext();
-    geometry->InitDescSet(ctx.GetPtr(), ctx->GetGeometryDescriptorSetLayout());
+    geometry->InitDescSet(ctx.GetPtr(), ctx->GetStorageOnlyDescriptorSetLayout(2));
     
     SafePtr<StaticMesh> mesh = lnnew StaticMesh();
     mesh->m_Geometry.reset(geometry);
@@ -489,7 +489,7 @@ Geometry::Geometry(GfxContext* ctx, SafePtr<StorageBuffer> vertexGPUBuffer, Safe
       Vertices(vertices), Indices(indices), 
       VertexCount(vertexCount), IndexCount(indexCount)
 {
-    InitDescSet(ctx, ctx->GetGeometryDescriptorSetLayout());
+    InitDescSet(ctx, ctx->GetStorageOnlyDescriptorSetLayout(2));
 }
 
 Geometry::Geometry(Geometry&& other) noexcept

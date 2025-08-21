@@ -430,7 +430,7 @@ void Texture::UploadData(vk::CommandBuffer cmdBuffer, BufferAllocation stagingBu
     else
     {
         imageSize = size;
-        bytesPerPixel = imageSize / (m_Extents.width * m_Extents.height * m_NumLayers);
+        bytesPerPixel = (uint32_t)imageSize / (m_Extents.width * m_Extents.height * m_NumLayers);
     }
 
     if (m_NumLayers > 1)

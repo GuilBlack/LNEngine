@@ -724,14 +724,10 @@ void Shader::CreateDescriptorSetLayouts()
     {
         if (m_Header.MaterialType == MaterialType::eUnknown)
             return;
-        if (setIndex == matTypeInfo.SetIndices[MaterialSetIndexType::eGlobal])
+        if (setIndex == matTypeInfo.SetIndices[MaterialSetIndexType::eGlobal] ||
+            setIndex == matTypeInfo.SetIndices[MaterialSetIndexType::eVertex])
         {
             stages = StageFlags::eAll;
-            return;
-        }
-        if (setIndex == matTypeInfo.SetIndices[MaterialSetIndexType::eVertex])
-        {
-            stages = StageFlags::eVertex | StageFlags::eGeometry;
             return;
         }
     };

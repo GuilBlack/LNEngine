@@ -9,6 +9,7 @@
 #include "Shader.h"
 #include "Engine/Core/SafePtr.h"
 #include "DynamicDescriptorAllocator.h"
+#include "Engine/Core/Utils/Log.h"
 
 namespace lne
 {
@@ -30,6 +31,9 @@ struct QueueFamilyIndices
 
 class GfxContext : public RefCountBase
 {
+public:
+    static constexpr uint32_t   s_MaxSSBOsPerSet = 4;
+
 public:
     GfxContext(vk::SurfaceKHR surface);
     virtual ~GfxContext();
@@ -61,7 +65,13 @@ public:
     [[nodiscard]] const class Geometry& GetDefaultFullscreenQuad() const { return *m_DefaultFullscreenQuad; }
     [[nodiscard]] const class Texture* GetDefaultTexture() const { return m_DefaultTexture; }
     [[nodiscard]] vk::Sampler GetDefaultSampler() const { return m_DefaultSampler; }
-    [[nodiscard]] vk::DescriptorSetLayout GetGeometryDescriptorSetLayout() const { return m_GeometryDescriptorSetLayout; }
+
+    // numBindings MUST be in range [1, 4]
+    [[nodiscard]] vk::DescriptorSetLayout GetStorageOnlyDescriptorSetLayout(uint32_t numBindings) const
+    { 
+        LNE_ASSERT(numBindings >= 1 && numBindings <= s_MaxSSBOsPerSet, "numBindings must be in range [1, 4]");
+        return m_StorageOnlyDescriptorSetLayouts[(numBindings) > s_MaxSSBOsPerSet ? s_MaxSSBOsPerSet - 1 : numBindings - 1];
+    }
 
 #pragma region PhysicalDevice
     [[nodiscard]] const vk::PhysicalDeviceProperties& GetProperties() const { return m_Properties; }
@@ -153,6 +163,7 @@ private:
     static class vk::Instance   s_VulkanInstance;
     static vkb::Instance        s_VkbInstance;
     static bool                 s_DynamicLoaderInitialized;
+    using SSBODescriptorSetLayoutArray = std::array<vk::DescriptorSetLayout, s_MaxSSBOsPerSet>;
 
     vk::PhysicalDevice                      m_PhysicalDevice;
     vk::Device                              m_Device;
@@ -194,7 +205,7 @@ private:
     std::unique_ptr<DynamicDescriptorAllocator> m_UniformOnlyDescriptorAllocator{};
     std::unique_ptr<DynamicDescriptorAllocator> m_StorageOnlyDescriptorAllocator{};
     std::unique_ptr<DynamicDescriptorAllocator> m_UniformStorageDescriptorAllocator{};
-    vk::DescriptorSetLayout                     m_GeometryDescriptorSetLayout;
+    SSBODescriptorSetLayoutArray                m_StorageOnlyDescriptorSetLayouts{};
 
     std::mutex                      m_ResourceDeletionMutex{};
     std::vector<ResourceDeletion>   m_ResourceDeletionQueue{};

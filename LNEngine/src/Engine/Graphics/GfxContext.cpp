@@ -171,27 +171,25 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
     };
     m_UniformStorageDescriptorAllocator = std::make_unique<DynamicDescriptorAllocator>(this, uniformStoragePoolSizes, "UniformStoragePool", 1024, 1.0f, vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet);
 
-    std::array<vk::DescriptorSetLayoutBinding, 2> geometryLayoutBindings{
-        vk::DescriptorSetLayoutBinding{
-            0,
-            vk::DescriptorType::eStorageBuffer,
-            1,
-            vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eGeometry
-        },
-        vk::DescriptorSetLayoutBinding{
-            1,
-            vk::DescriptorType::eStorageBuffer,
-            1,
-            vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eGeometry
-        }
-    };
-
-    m_GeometryDescriptorSetLayout = m_Device.createDescriptorSetLayout(
-        vk::DescriptorSetLayoutCreateInfo{
-            {},
-            geometryLayoutBindings
-        }
-    );
+    std::vector<vk::DescriptorSetLayoutBinding> ssboLayoutBindings{};
+    ssboLayoutBindings.reserve(4);
+    for (uint32_t i = 0; i < s_MaxSSBOsPerSet; ++i)
+    {
+        ssboLayoutBindings.emplace_back(
+            vk::DescriptorSetLayoutBinding{
+                i,
+                vk::DescriptorType::eStorageBuffer,
+                1,
+                vk::ShaderStageFlagBits::eAll
+            }
+        );
+        m_StorageOnlyDescriptorSetLayouts[i] = m_Device.createDescriptorSetLayout(
+            vk::DescriptorSetLayoutCreateInfo{
+                {},
+                ssboLayoutBindings
+            }
+        );
+    }
 #pragma endregion
 }
 
@@ -357,7 +355,13 @@ void GfxContext::NukeDefaultResources()
 {
     delete m_DefaultTexture;
     m_Device.destroySampler(m_DefaultSampler);
-    m_Device.destroyDescriptorSetLayout(m_GeometryDescriptorSetLayout);
+    for (auto& ssboLayout : m_StorageOnlyDescriptorSetLayouts)
+    {
+        if (ssboLayout == nullptr)
+            return;
+        m_Device.destroyDescriptorSetLayout(ssboLayout);
+        ssboLayout = nullptr;
+    }
     delete m_DefaultFullscreenQuad;
     delete m_WhitePixel;
 }
