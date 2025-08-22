@@ -44,6 +44,11 @@ project "ImGui"
     filter "system:windows"
         cppdialect "C++20"
         systemversion "latest"
+        
+        flags
+        {
+            "MultiProcessorCompile"
+        }
 
         includedirs
         {

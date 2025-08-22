@@ -78,6 +78,11 @@ project "LNEngine"
             "LNE_PLATFORM_WINDOWS"
         }
 
+        flags 
+        {
+            "MultiProcessorCompile"
+        }
+
         includedirs
         {
             os.getenv("VULKAN_SDK") .. "/Include"

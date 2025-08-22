@@ -19,6 +19,11 @@ project "stb"
     filter "system:windows"
         cppdialect "C++20"
         systemversion "latest"
+        
+        flags
+        {
+            "MultiProcessorCompile"
+        }
 
     filter "configurations:Debug"
         runtime "Debug"

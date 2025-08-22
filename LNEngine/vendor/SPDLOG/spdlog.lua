@@ -23,6 +23,11 @@ project "spdlog"
         {
             "SPDLOG_COMPILED_LIB",
         }
+        
+        flags
+        {
+            "MultiProcessorCompile"
+        }
 
     filter "configurations:Debug"
         runtime "Debug"

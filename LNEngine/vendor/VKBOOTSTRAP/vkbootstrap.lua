@@ -42,6 +42,11 @@ project "VkBootstrap"
         cppdialect "C++20"
         systemversion "latest"
 
+        flags
+        {
+            "MultiProcessorCompile"
+        }
+        
         includedirs
         {
             os.getenv("VULKAN_SDK") .. "/Include"

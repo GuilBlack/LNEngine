@@ -62,6 +62,11 @@ project "LNApp"
             "_CRT_SECURE_NO_WARNINGS",
             "LNE_PLATFORM_WINDOWS"
         }
+
+        flags 
+        {
+            "MultiProcessorCompile"
+        }
         
         includedirs
         {

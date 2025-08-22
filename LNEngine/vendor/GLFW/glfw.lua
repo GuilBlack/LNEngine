@@ -88,6 +88,11 @@
             "_GLFW_WIN32",
             "_CRT_SECURE_NO_WARNINGS"
         }
+        
+        flags
+        {
+            "MultiProcessorCompile"
+        }
 
     filter "configurations:Debug"
         symbols "On"
