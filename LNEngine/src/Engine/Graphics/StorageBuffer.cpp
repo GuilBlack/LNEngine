@@ -190,7 +190,14 @@ StandaloneStorageBuffer::StandaloneStorageBuffer(SafePtr<class GfxContext> ctx, 
 
 StandaloneStorageBuffer::~StandaloneStorageBuffer()
 {
-    m_Context->FreeDescriptorSet(m_DescSet, DescriptorType::eStorageOnly);
+    DescriptorSetDeletion resourceDeletion{
+               .Type = DescriptorType::eStorageOnly,
+               .DescriptorSet = m_DescSet,
+    };
+    m_Context->EnqueueResourceDeletion(ResourceDeletion{
+        .Type = ResourceType::eDescriptorSet,
+        .Resource = resourceDeletion
+    });
 }
 
 }
