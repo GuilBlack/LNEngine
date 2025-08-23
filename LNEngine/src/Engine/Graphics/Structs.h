@@ -30,7 +30,17 @@ struct UniformElement
     uint32_t                                BindingIndex;
     uint32_t                                Offset;
     uint32_t                                Size;
-    UniformElementType::Enum                Type;
+    ShaderElementType::Enum                 Type;
+};
+
+struct StorageBufferElement
+{
+    uint32_t                                SetIndex;
+    uint32_t                                BindingIndex;
+    uint32_t                                Offset;
+    uint32_t                                Size;
+    ShaderElementType::Enum                 Type;
+    uint32_t                                ArrayStride;
 };
 
 struct BufferAllocation

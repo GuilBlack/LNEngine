@@ -16,7 +16,7 @@ const char* enumValues[7] = {
 const char** s_Enum = enumValues;
 }
 
-namespace UniformElementType
+namespace ShaderElementType
 {
 const char* enumValues[17] = {
         "Unknown",

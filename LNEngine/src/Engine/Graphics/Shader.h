@@ -3,6 +3,11 @@
 #include "Engine/Core/SafePtr.h"
 #include "Structs.h"
 
+namespace spirv_cross
+{
+class Compiler;
+}
+
 namespace lne
 {
 
@@ -10,6 +15,7 @@ struct ReflectedData
 {
     std::map<uint32_t, DescriptorSet> DescriptorSets;
     std::unordered_map<std::string, UniformElement> UniformElements;
+    std::unordered_map<std::string, StorageBufferElement> StorageElements;
 };
 
 class Shader : public RefCountBase
@@ -64,6 +70,8 @@ private:
     Shader::Header ParseHeader(std::string& headerSource);
     std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> CompileToSpirv(const std::string& sourceCode, Shader::Header header);
     void ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> spirvCode);
+    void ReflectStructMembers(spirv_cross::Compiler& compiler, uint32_t struct_type_id,
+                              const std::string& prefix, uint32_t set, uint32_t binding);
     std::unordered_map<ShaderStage::Enum, vk::ShaderModule> CreateModules(std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> spirvCode);
     void CreateDescriptorSetLayouts();
 };

@@ -39,7 +39,7 @@ inline Mask ToMask(Enum type)
 }
 }
 
-namespace UniformElementType
+namespace ShaderElementType
 {
 enum Enum : byte
 {

@@ -69,20 +69,20 @@ std::string ShaderStageToDefine(ShaderStage::Enum stage)
     return Vertex;
 }
 
-UniformElementType::Enum SpirvTypeToUniformElementType(spirv_cross::SPIRType type)
+ShaderElementType::Enum SpirvTypeToUniformElementType(spirv_cross::SPIRType type)
 {
     if (type.columns > 1)
     {
         switch (type.columns)
         {
         case 2:
-            return UniformElementType::eMatrix2x2;
+            return ShaderElementType::eMatrix2x2;
         case 3:
-            return UniformElementType::eMatrix3x3;
+            return ShaderElementType::eMatrix3x3;
         case 4:
-            return UniformElementType::eMatrix4x4;
+            return ShaderElementType::eMatrix4x4;
         default:
-            return UniformElementType::eUnknown;
+            return ShaderElementType::eUnknown;
         }
     }
     switch (type.basetype)
@@ -92,13 +92,13 @@ UniformElementType::Enum SpirvTypeToUniformElementType(spirv_cross::SPIRType typ
         switch (type.vecsize)
         {
         case 2:
-            return UniformElementType::eInt2;
+            return ShaderElementType::eInt2;
         case 3:
-            return UniformElementType::eInt3;
+            return ShaderElementType::eInt3;
         case 4:
-            return UniformElementType::eInt4;
+            return ShaderElementType::eInt4;
         default:
-            return UniformElementType::eInt;
+            return ShaderElementType::eInt;
         }
     }
     case spirv_cross::SPIRType::UInt:
@@ -106,13 +106,13 @@ UniformElementType::Enum SpirvTypeToUniformElementType(spirv_cross::SPIRType typ
         switch (type.vecsize)
         {
         case 2:
-            return UniformElementType::eUInt2;
+            return ShaderElementType::eUInt2;
         case 3:
-            return UniformElementType::eUInt3;
+            return ShaderElementType::eUInt3;
         case 4:
-            return UniformElementType::eUInt4;
+            return ShaderElementType::eUInt4;
         default:
-            return UniformElementType::eUInt;
+            return ShaderElementType::eUInt;
         }
     }
     case spirv_cross::SPIRType::Float:
@@ -120,17 +120,17 @@ UniformElementType::Enum SpirvTypeToUniformElementType(spirv_cross::SPIRType typ
         switch (type.vecsize)
         {
         case 2:
-            return UniformElementType::eFloat2;
+            return ShaderElementType::eFloat2;
         case 3:
-            return UniformElementType::eFloat3;
+            return ShaderElementType::eFloat3;
         case 4:
-            return UniformElementType::eFloat4;
+            return ShaderElementType::eFloat4;
         default:
-            return UniformElementType::eFloat;
+            return ShaderElementType::eFloat;
         }
     }
     default:
-        return UniformElementType::eUnknown;
+        return ShaderElementType::eUnknown;
     }
 }
 
@@ -607,32 +607,36 @@ std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> Shader::CompileToSp
 
 void Shader::ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> spirvCode)
 {
+    MatTypeInfo matTypeInfo{};
+    bool isUnknownMatType = (m_Header.MaterialType == MaterialType::eUnknown);
+    if (isUnknownMatType == false)
+        matTypeInfo = MatTypeInfos[m_Header.MaterialType];
     for (auto& [stage, code] : spirvCode)
     {
         LNE_INFO("Stage: {}", ShaderStageToDefine(stage));
         spirv_cross::Compiler compiler(code);
         spirv_cross::ShaderResources resources = compiler.get_shader_resources();
 
+        // =============== UNIFORM BUFFERS ===============
         for (const auto& res : resources.uniform_buffers)
         {
             uint32_t set = compiler.get_decoration(res.id, spv::DecorationDescriptorSet);
             uint32_t binding = compiler.get_decoration(res.id, spv::DecorationBinding);
             spirv_cross::SPIRType type = compiler.get_type(res.base_type_id);
-            uint32_t bufferSize = (uint32_t)compiler.get_declared_struct_size(type);
+            uint32_t bufferSize = static_cast<uint32_t>(compiler.get_declared_struct_size(type));
 
-            if (m_ReflectedData.DescriptorSets.contains(set) == false)
+            if (!m_ReflectedData.DescriptorSets.contains(set))
                 m_ReflectedData.DescriptorSets[set] = DescriptorSet{ .SetIndex = set };
 
-            if (m_ReflectedData.DescriptorSets[set].UniformBuffers.contains(res.name))
+            auto& setRef = m_ReflectedData.DescriptorSets[set];
+            auto it = setRef.UniformBuffers.find(res.name);
+            if (it != setRef.UniformBuffers.end())
             {
-                BufferBinding& uniformStages = m_ReflectedData.DescriptorSets[set].UniformBuffers[res.name];
-                uniformStages.Stages = uniformStages.Stages | ShaderStageToVk(stage);
-                continue;
+                it->second.Stages = it->second.Stages | ShaderStageToVk(stage);
             }
             else
             {
-                m_ReflectedData.DescriptorSets[set].UniformBuffers[res.name] =
-                {
+                setRef.UniformBuffers[res.name] = {
                     .SetIndex = set,
                     .BindingIndex = binding,
                     .Size = bufferSize,
@@ -640,14 +644,18 @@ void Shader::ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<ui
                 };
             }
 
-            LNE_INFO("    Name: {}, Set: {}, Binding: {}, Size: {}", res.name, set, binding, bufferSize);
+            LNE_INFO("    UBO Name: {}, Set: {}, Binding: {}, Size: {}", res.name, set, binding, bufferSize);
+
             for (uint32_t i = 0; i < type.member_types.size(); ++i)
             {
                 std::string memberName = compiler.get_member_name(res.base_type_id, i);
                 uint32_t offset = compiler.get_member_decoration(res.base_type_id, i, spv::DecorationOffset);
-                uint32_t size = (uint32_t)compiler.get_declared_struct_member_size(type, i);
+                uint32_t size = static_cast<uint32_t>(compiler.get_declared_struct_member_size(type, i));
                 spirv_cross::SPIRType memberType = compiler.get_type(type.member_types[i]);
-                LNE_INFO("        Member: {}, Offset: {}, Size: {}, Type: {}", memberName, offset, size, UniformElementType::ToString(SpirvTypeToUniformElementType(memberType)));
+
+                LNE_INFO("        Member: {}, Offset: {}, Size: {}, Type: {}",
+                         memberName, offset, size, ShaderElementType::ToString(SpirvTypeToUniformElementType(memberType)));
+
                 m_ReflectedData.UniformElements[memberName] = {
                     .SetIndex = set,
                     .BindingIndex = binding,
@@ -658,26 +666,26 @@ void Shader::ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<ui
             }
         }
 
+        // =============== STORAGE BUFFERS ===============
         for (const auto& res : resources.storage_buffers)
         {
             uint32_t set = compiler.get_decoration(res.id, spv::DecorationDescriptorSet);
             uint32_t binding = compiler.get_decoration(res.id, spv::DecorationBinding);
             spirv_cross::SPIRType type = compiler.get_type(res.base_type_id);
-            uint32_t bufferSize = (uint32_t)compiler.get_declared_struct_size(type);
+            uint32_t bufferSize = static_cast<uint32_t>(compiler.get_declared_struct_size(type));
 
-            if (m_ReflectedData.DescriptorSets.contains(set) == false)
+            if (!m_ReflectedData.DescriptorSets.contains(set))
                 m_ReflectedData.DescriptorSets[set] = DescriptorSet{ .SetIndex = set };
 
-            if (m_ReflectedData.DescriptorSets[set].StorageBuffers.contains(res.name))
+            auto& setRef = m_ReflectedData.DescriptorSets[set];
+            auto it = setRef.StorageBuffers.find(res.name);
+            if (it != setRef.StorageBuffers.end())
             {
-                BufferBinding& uniformStages = m_ReflectedData.DescriptorSets[set].StorageBuffers[res.name];
-                uniformStages.Stages = uniformStages.Stages | ShaderStageToVk(stage);
-                continue;
+                it->second.Stages = it->second.Stages | ShaderStageToVk(stage);
             }
             else
             {
-                m_ReflectedData.DescriptorSets[set].StorageBuffers[res.name] =
-                {
+                setRef.StorageBuffers[res.name] = {
                     .SetIndex = set,
                     .BindingIndex = binding,
                     .Size = bufferSize,
@@ -685,7 +693,99 @@ void Shader::ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<ui
                 };
             }
 
-            LNE_INFO("    Name: {}, Set: {}, Binding: {}, Size: {}", res.name, set, binding, bufferSize);
+            LNE_INFO("    SSBO Name: {}, Set: {}, Binding: {}, Declared Size (w/o runtime part): {}",
+                     res.name, set, binding, bufferSize);
+
+            ReflectStructMembers(compiler, res.base_type_id, res.name, set, binding);
+        }
+    }
+}
+
+void Shader::ReflectStructMembers(spirv_cross::Compiler& compiler, uint32_t struct_type_id, const std::string& prefix, uint32_t set, uint32_t binding)
+{
+    auto LogMember = [&](const std::string& qname, uint32_t set, uint32_t binding,
+                         uint32_t offset, uint32_t size, const spirv_cross::SPIRType& memberType)
+        {
+            LNE_INFO("        Member: {} | Set {}, Binding {}, Offset {}, Size {}, Type {}",
+                     qname, set, binding, offset, size, ShaderElementType::ToString(SpirvTypeToUniformElementType(memberType)));
+        };
+
+    const spirv_cross::SPIRType& st = compiler.get_type(struct_type_id);
+    for (uint32_t i = 0; i < st.member_types.size(); ++i)
+    {
+        const std::string memberName = compiler.get_member_name(struct_type_id, i);
+        const std::string qname = prefix.empty() ? memberName : (prefix + "." + memberName);
+
+        const uint32_t offset = compiler.get_member_decoration(struct_type_id, i, spv::DecorationOffset);
+        const uint32_t size = static_cast<uint32_t>(compiler.get_declared_struct_member_size(st, i));
+        const spirv_cross::SPIRType& memberType = compiler.get_type(st.member_types[i]);
+
+        LogMember(qname, set, binding, offset, size, memberType);
+
+        auto TryReflectArrayElementStruct = [&](const std::string& arrayQname)
+            {
+                const uint32_t arrayStride =
+                    static_cast<uint32_t>(compiler.type_struct_member_array_stride(st, i));
+
+                uint32_t elem_type_id = memberType.parent_type;
+                if (elem_type_id == 0)
+                    return;
+
+                const spirv_cross::SPIRType& elemType = compiler.get_type(elem_type_id);
+                if (elemType.basetype != spirv_cross::SPIRType::Struct)
+                    return;
+
+                const uint32_t elemSize =
+                    static_cast<uint32_t>(compiler.get_declared_struct_size(elemType));
+
+                LNE_INFO("        Array: {} | arrayStride {}, elementSize {}",
+                         arrayQname, arrayStride, elemSize);
+
+                for (uint32_t j = 0; j < elemType.member_types.size(); ++j)
+                {
+                    const std::string elemMemberName = compiler.get_member_name(elem_type_id, j);
+
+                    const uint32_t elemOffset =
+                        compiler.get_member_decoration(elem_type_id, j, spv::DecorationOffset);
+                    const uint32_t elemMemberSize =
+                        static_cast<uint32_t>(compiler.get_declared_struct_member_size(elemType, j));
+                    const spirv_cross::SPIRType& elemMemberType =
+                        compiler.get_type(elemType.member_types[j]);
+
+                    LogMember(elemMemberName, set, binding, elemOffset, elemMemberSize, elemMemberType);
+
+                    m_ReflectedData.StorageElements[elemMemberName] = {
+                        .SetIndex = set,
+                        .BindingIndex = binding,
+                        .Offset = elemOffset,
+                        .Size = elemMemberSize,
+                        .Type = SpirvTypeToUniformElementType(elemMemberType),
+                        .ArrayStride = arrayStride
+                    };
+                }
+            };
+
+        if (!memberType.array.empty())
+        {
+            const std::string arrayQName = qname + "[]";
+            TryReflectArrayElementStruct(arrayQName);
+        }
+        else if (memberType.basetype == spirv_cross::SPIRType::Struct)
+        {
+            ReflectStructMembers(compiler, st.member_types[i], qname, set, binding);
+        }
+
+        // Finally, if you want to record leaf scalars/vectors/matrices too:
+        if (memberType.basetype != spirv_cross::SPIRType::Struct && memberType.array.empty())
+        {
+            m_ReflectedData.StorageElements[qname] = {
+                .SetIndex = set,
+                .BindingIndex = binding,
+                .Offset = offset,
+                .Size = size,
+                .Type = SpirvTypeToUniformElementType(memberType),
+                .ArrayStride = 0u
+            };
         }
     }
 }
