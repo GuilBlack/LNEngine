@@ -98,6 +98,8 @@ void WorldRenderer::Render(EntityRegistry& registry)
         {
             auto [transform, staticMesh] = staticMeshView.Get(index);
 
+            if (!staticMesh.Mesh)
+                continue;
             // TODO: will probably insert frustum culling here
             auto& subMeshes = staticMesh.Mesh->GetSubMeshes();
             for (uint32_t i = 0; i < subMeshes.size(); ++i)

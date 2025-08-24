@@ -364,7 +364,7 @@ SafePtr<StaticMesh> StaticMesh::GenerateCube(uint32_t tesselationLevel)
 
     SafePtr<StaticMesh> mesh = lnnew StaticMesh();
     mesh->m_Geometry.reset(geometry);
-
+    mesh->m_SubMeshes = { { 0, 0, geometry->VertexCount, geometry->IndexCount, 0, AABB{.Min = {-1,-1,-1}, .Max = {1,1,1} }, "Cube" } };
     return mesh;
 }
 
@@ -481,6 +481,7 @@ SafePtr<StaticMesh> StaticMesh::GenerateUVSphere(float radius, uint32_t nLatitud
     
     SafePtr<StaticMesh> mesh = lnnew StaticMesh();
     mesh->m_Geometry.reset(geometry);
+    mesh->m_SubMeshes = { { 0, 0, geometry->VertexCount, geometry->IndexCount, 0, AABB{.Min = {-radius,0,0}, .Max = {radius,0,0} }, "UVSphere" } };
     return mesh;
 }
 
