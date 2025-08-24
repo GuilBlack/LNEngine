@@ -644,7 +644,11 @@ void Shader::ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<ui
                 };
             }
 
-            LNE_INFO("    UBO Name: {}, Set: {}, Binding: {}, Size: {}", res.name, set, binding, bufferSize);
+
+            if (!(isUnknownMatType == false &&
+                (set != matTypeInfo.SetIndices[MaterialSetIndexType::eMaterial] &&
+                 set != matTypeInfo.SetIndices[MaterialSetIndexType::eVertex])))
+                LNE_INFO("    UBO Name: {}, Set: {}, Binding: {}, Size: {}", res.name, set, binding, bufferSize);
 
             for (uint32_t i = 0; i < type.member_types.size(); ++i)
             {
@@ -653,7 +657,10 @@ void Shader::ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<ui
                 uint32_t size = static_cast<uint32_t>(compiler.get_declared_struct_member_size(type, i));
                 spirv_cross::SPIRType memberType = compiler.get_type(type.member_types[i]);
 
-                LNE_INFO("        Member: {}, Offset: {}, Size: {}, Type: {}",
+                if (!(isUnknownMatType == false &&
+                      (set != matTypeInfo.SetIndices[MaterialSetIndexType::eMaterial] &&
+                       set != matTypeInfo.SetIndices[MaterialSetIndexType::eVertex])))
+                    LNE_INFO("        Member: {}, Offset: {}, Size: {}, Type: {}",
                          memberName, offset, size, ShaderElementType::ToString(SpirvTypeToUniformElementType(memberType)));
 
                 m_ReflectedData.UniformElements[memberName] = {
@@ -693,19 +700,31 @@ void Shader::ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<ui
                 };
             }
 
-            LNE_INFO("    SSBO Name: {}, Set: {}, Binding: {}, Declared Size (w/o runtime part): {}",
+            if (!(isUnknownMatType == false &&
+                  (set != matTypeInfo.SetIndices[MaterialSetIndexType::eMaterial] &&
+                   set != matTypeInfo.SetIndices[MaterialSetIndexType::eVertex])))
+                LNE_INFO("    SSBO Name: {}, Set: {}, Binding: {}, Declared Size (w/o runtime part): {}",
                      res.name, set, binding, bufferSize);
 
-            ReflectStructMembers(compiler, res.base_type_id, res.name, set, binding);
+            ReflectSSBOStructMembers(compiler, res.base_type_id, res.name, set, binding);
         }
     }
 }
 
-void Shader::ReflectStructMembers(spirv_cross::Compiler& compiler, uint32_t struct_type_id, const std::string& prefix, uint32_t set, uint32_t binding)
+void Shader::ReflectSSBOStructMembers(spirv_cross::Compiler& compiler, uint32_t struct_type_id, const std::string& prefix, uint32_t set, uint32_t binding)
 {
+    MatTypeInfo matTypeInfo{};
+    bool isUnknownMatType = (m_Header.MaterialType == MaterialType::eUnknown);
+    if (isUnknownMatType == false)
+        matTypeInfo = MatTypeInfos[m_Header.MaterialType];
+
     auto LogMember = [&](const std::string& qname, uint32_t set, uint32_t binding,
                          uint32_t offset, uint32_t size, const spirv_cross::SPIRType& memberType)
         {
+            if (isUnknownMatType == false &&
+                (set != matTypeInfo.SetIndices[MaterialSetIndexType::eMaterial] &&
+                 set != matTypeInfo.SetIndices[MaterialSetIndexType::eVertex]))
+                return;
             LNE_INFO("        Member: {} | Set {}, Binding {}, Offset {}, Size {}, Type {}",
                      qname, set, binding, offset, size, ShaderElementType::ToString(SpirvTypeToUniformElementType(memberType)));
         };
@@ -762,6 +781,13 @@ void Shader::ReflectStructMembers(spirv_cross::Compiler& compiler, uint32_t stru
                         .Type = SpirvTypeToUniformElementType(elemMemberType),
                         .ArrayStride = arrayStride
                     };
+
+                    m_ReflectedData.StorageArrays[arrayQname] = {
+                    .SetIndex = set,
+                    .BindingIndex = binding,
+                    .ArrayStride = arrayStride,
+                    .ElementSize = elemSize
+                    };
                 }
             };
 
@@ -772,7 +798,7 @@ void Shader::ReflectStructMembers(spirv_cross::Compiler& compiler, uint32_t stru
         }
         else if (memberType.basetype == spirv_cross::SPIRType::Struct)
         {
-            ReflectStructMembers(compiler, st.member_types[i], qname, set, binding);
+            ReflectSSBOStructMembers(compiler, st.member_types[i], qname, set, binding);
         }
 
         // Finally, if you want to record leaf scalars/vectors/matrices too:

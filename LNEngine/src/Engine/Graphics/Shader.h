@@ -11,11 +11,39 @@ class Compiler;
 namespace lne
 {
 
+struct UniformElement
+{
+    uint32_t                                SetIndex;
+    uint32_t                                BindingIndex;
+    uint32_t                                Offset;
+    uint32_t                                Size;
+    ShaderElementType::Enum                 Type;
+};
+
+struct StorageBufferElement
+{
+    uint32_t                                SetIndex;
+    uint32_t                                BindingIndex;
+    uint32_t                                Offset;
+    uint32_t                                Size;
+    ShaderElementType::Enum                 Type;
+    uint32_t                                ArrayStride;
+};
+
+struct StorageBufferArray
+{
+    uint32_t                                SetIndex;
+    uint32_t                                BindingIndex;
+    uint32_t                                ArrayStride;
+    uint32_t                                ElementSize;
+};
+
 struct ReflectedData
 {
     std::map<uint32_t, DescriptorSet> DescriptorSets;
     std::unordered_map<std::string, UniformElement> UniformElements;
     std::unordered_map<std::string, StorageBufferElement> StorageElements;
+    std::unordered_map<std::string, StorageBufferArray> StorageArrays;
 };
 
 class Shader : public RefCountBase
@@ -35,12 +63,18 @@ class Shader : public RefCountBase
 
 public:
     Shader(SafePtr<class GfxContext> ctx, std::string_view filePath);
+
     [[nodiscard]] std::unordered_map<ShaderStage::Enum, vk::ShaderModule> GetModules() const { return m_Modules; }
-    [[nodiscard]] uint32_t GetStageCount() const { return (uint32_t)m_Modules.size(); }
-    [[nodiscard]] const std::vector<vk::DescriptorSetLayout>& GetDescriptorSetLayouts() const { return m_DescriptorSetLayouts; }
-    [[nodiscard]] const ReflectedData& GetReflectedData() const { return m_ReflectedData; }
-    [[nodiscard]] Shader::Header GetHeader() const { return m_Header; }
-    [[nodiscard]] std::string GetName() const { return m_Name; }
+
+    [[nodiscard]] uint32_t                  GetStageCount() const 
+    { return (uint32_t)m_Modules.size(); }
+
+    [[nodiscard]] const std::vector<vk::DescriptorSetLayout>& GetDescriptorSetLayouts() const
+    { return m_DescriptorSetLayouts; }
+
+    [[nodiscard]] const ReflectedData&      GetReflectedData() const { return m_ReflectedData; }
+    [[nodiscard]] Shader::Header            GetHeader() const { return m_Header; }
+    [[nodiscard]] std::string               GetName() const { return m_Name; }
     virtual ~Shader();
      
 public:
@@ -65,15 +99,22 @@ private:
     Header m_Header{};
 
 private:
-    std::string ShaderStageToExtension(ShaderStage::Enum stage);
+    std::string                             ShaderStageToExtension(ShaderStage::Enum stage);
+
     std::tuple<std::string, Shader::Header> ReadFile(std::string_view filePath);
-    Shader::Header ParseHeader(std::string& headerSource);
+    Shader::Header                          ParseHeader(std::string& headerSource);
+
     std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> CompileToSpirv(const std::string& sourceCode, Shader::Header header);
-    void ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> spirvCode);
-    void ReflectStructMembers(spirv_cross::Compiler& compiler, uint32_t struct_type_id,
-                              const std::string& prefix, uint32_t set, uint32_t binding);
+
+    void                                    ReflectOnSpirv(std::unordered_map<ShaderStage::Enum,
+                                               std::vector<uint32_t>> spirvCode);
+    void                                    ReflectSSBOStructMembers(spirv_cross::Compiler& compiler, 
+                                                                     uint32_t struct_type_id, 
+                                                                     const std::string& prefix, 
+                                                                     uint32_t set, uint32_t binding);
+
     std::unordered_map<ShaderStage::Enum, vk::ShaderModule> CreateModules(std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> spirvCode);
-    void CreateDescriptorSetLayouts();
+    void                                    CreateDescriptorSetLayouts();
 };
 
 namespace vkut
