@@ -1,10 +1,10 @@
 #include "lnepch.h"
 #include "Pipeline.h"
-#include "GfxContext.h"
-#include "Framebuffer.h"
+#include "Graphics/GfxContext.h"
+#include "Graphics/Framebuffer.h"
 #include "Texture.h"
 #include "Core/Utils/Log.h"
-#include "FrameGraph/FrameGraph.h"
+#include "Graphics/FrameGraph/FrameGraph.h"
 
 namespace lne
 {

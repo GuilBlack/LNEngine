@@ -1,6 +1,6 @@
 #include "lnepch.h"
 #include "UniformBuffer.h"
-#include "GfxContext.h"
+#include "Engine/Graphics/GfxContext.h"
 
 namespace lne
 {

@@ -1,11 +1,11 @@
 #include "Texture.h"
-#include "GfxContext.h"
+#include "Graphics/GfxContext.h"
 #include "Engine/Core/Utils/_Defines.h"
 #include "Engine/Core/Utils/Log.h"
-#include "CommandPoolManager.h"
+#include "Graphics/CommandPoolManager.h"
 #include "Core/ApplicationBase.h"
-#include "Renderer.h"
-#include "DynamicDescriptorAllocator.h"
+#include "Graphics/Renderer.h"
+#include "Graphics/DynamicDescriptorAllocator.h"
 
 namespace lne
 {

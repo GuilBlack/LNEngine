@@ -1,7 +1,7 @@
 #pragma once
 #include "Engine/Core/Utils/Defines.h"
 #include "Engine/Core/SafePtr.h"
-#include "Engine/Graphics/UniformBuffer.h"
+#include "Engine/Graphics/Resources/UniformBuffer.h"
 
 namespace lne
 {

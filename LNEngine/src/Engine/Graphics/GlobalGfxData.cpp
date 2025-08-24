@@ -1,7 +1,7 @@
 
 #include "GlobalGfxData.h"
 #include "DynamicDescriptorAllocator.h"
-#include "UniformBuffer.h"
+#include "Graphics/Resources/UniformBuffer.h"
 
 namespace lne
 {

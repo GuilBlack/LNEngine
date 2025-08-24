@@ -3,13 +3,13 @@
 
 #include <Core/Utils/Log.h>
 
-#include "Pipeline.h"
-#include "Shader.h"
-#include "Renderer.h"
+#include "Graphics/Resources/Pipeline.h"
+#include "Graphics/Resources/Shader.h"
+#include "Graphics/Renderer.h"
 #include "Core/ApplicationBase.h"
-#include "CommandPoolManager.h"
-#include "DynamicDescriptorAllocator.h"
-#include "Texture.h"
+#include "Graphics/CommandPoolManager.h"
+#include "Graphics/DynamicDescriptorAllocator.h"
+#include "Graphics/Resources/Texture.h"
 
 namespace lne
 {

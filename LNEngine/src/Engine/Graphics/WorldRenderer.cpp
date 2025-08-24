@@ -3,13 +3,13 @@
 #include "DynamicDescriptorAllocator.h"
 #include "Core/ApplicationBase.h"
 #include "Renderer.h"
-#include "Material.h"
+#include "Resources/Material.h"
 #include "CommandPoolManager.h"
 #include "WorldRenderer.h"
 #include <Graphics/FrameGraph/RenderPass/IRenderPass.h>
 #include "ECS/EntityRegistry.h"
 #include "Scene/Components.h"
-#include "Mesh.h"
+#include "Resources/Mesh.h"
 #include "Core/Utils/Profiling.h"
 #include <Scene/Entity.h>
 

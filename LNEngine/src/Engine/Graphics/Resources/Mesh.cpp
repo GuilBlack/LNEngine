@@ -8,7 +8,7 @@
 #include "Graphics/Renderer.h"
 #include "Core/Utils/_Defines.h"
 #include "Graphics/Pipeline.h"
-#include "Graphics/Material.h"
+#include "Graphics/Resources/Material.h"
 #include "Graphics/Texture.h"
 #include "Graphics/DynamicDescriptorAllocator.h"
 

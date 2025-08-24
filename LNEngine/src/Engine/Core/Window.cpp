@@ -9,7 +9,7 @@
 #include "Inputs/Inputs.h"
 #include "Graphics/GfxContext.h"
 #include "Graphics/Swapchain.h"
-#include "Graphics/Texture.h"
+#include "Graphics/Resources/Texture.h"
 
 namespace lne
 {

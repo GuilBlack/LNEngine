@@ -1,7 +1,7 @@
 #pragma once
 #include "Engine/Core/SafePtr.h"
-#include "Structs.h"
-#include "Enums.h"
+#include "Engine/Graphics/Structs.h"
+#include "Engine/Graphics/Enums.h"
 
 namespace lne
 {

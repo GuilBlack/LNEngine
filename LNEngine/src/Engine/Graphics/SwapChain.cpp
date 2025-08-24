@@ -1,6 +1,6 @@
 #include "SwapChain.h"
 #include "GfxContext.h"
-#include "Texture.h"
+#include "Resources/Texture.h"
 #include "Framebuffer.h"
 #include "Core/Utils/_Defines.h"
 #include "Core/Utils/Log.h"

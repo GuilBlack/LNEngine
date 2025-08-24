@@ -1,6 +1,6 @@
 #pragma once
 #include "Engine/Core/SafePtr.h"
-#include "Engine/Graphics/Texture.h"
+#include "Engine/Graphics/Resources/Texture.h"
 
 namespace lne
 {

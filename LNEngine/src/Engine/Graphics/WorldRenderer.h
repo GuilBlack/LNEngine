@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "Engine/Core/SafePtr.h"
 #include "Engine/Graphics/Structs.h"
-#include "Engine/Graphics/StorageBuffer.h"
+#include "Engine/Graphics/Resources/StorageBuffer.h"
 #include "Engine/Core/DataStructures/CircularBuffer.h"
 #include "Engine/Graphics/WorldEnvironment.h"
 #include "Engine/Graphics/GlobalGfxData.h"

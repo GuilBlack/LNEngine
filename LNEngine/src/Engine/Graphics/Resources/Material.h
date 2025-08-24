@@ -1,8 +1,8 @@
 #pragma once
 #include "Engine/Core/SafePtr.h"
-#include "Engine/Graphics/UniformBuffer.h"
-#include "Engine/Graphics/Pipeline.h"
-#include "Structs.h"
+#include "Engine/Graphics/Resources/UniformBuffer.h"
+#include "Engine/Graphics/Resources/Pipeline.h"
+#include "Engine/Graphics/Structs.h"
 
 namespace lne
 {

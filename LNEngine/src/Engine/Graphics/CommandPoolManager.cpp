@@ -4,7 +4,7 @@
 #include "Core/Utils/Log.h"
 #include "Core/Utils/_Defines.h"
 #include "Core/ApplicationBase.h"
-#include "Texture.h"
+#include "Graphics/Resources/Texture.h"
 
 namespace lne
 {

@@ -3,13 +3,13 @@
 
 #include <Core/Utils/Log.h>
 
-#include "GfxContext.h"
+#include "Engine/Graphics/GfxContext.h"
 #include "Core/ApplicationBase.h"
 #include "Engine/Resources/GfxLoader.h"
-#include "Renderer.h"
-#include "CommandPoolManager.h"
-#include "DynamicDescriptorAllocator.h"
-#include "Texture.h"
+#include "Engine/Graphics/Renderer.h"
+#include "Engine/Graphics/CommandPoolManager.h"
+#include "Engine/Graphics/DynamicDescriptorAllocator.h"
+#include "Engine/Graphics/Resources/Texture.h"
 
 namespace lne
 {

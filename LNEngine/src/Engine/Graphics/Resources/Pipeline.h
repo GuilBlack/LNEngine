@@ -1,6 +1,6 @@
 #pragma once
 #include "Shader.h"
-#include "Framebuffer.h"
+#include "Engine/Graphics/Framebuffer.h"
 #include "Engine/Core/SafePtr.h"
 
 namespace lne

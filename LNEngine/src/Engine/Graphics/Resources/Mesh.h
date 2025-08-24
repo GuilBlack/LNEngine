@@ -1,9 +1,9 @@
 #pragma once
-#include "Structs.h"
+#include "Engine/Graphics/Structs.h"
 #include <unordered_map>
 #include "Engine/Core/Utils/_Defines.h"
-#include "Engine/Graphics/StorageBuffer.h"
-#include "Engine/Graphics/Material.h"
+#include "Engine/Graphics/Resources/StorageBuffer.h"
+#include "Engine/Graphics/Resources/Material.h"
 
 
 namespace lne

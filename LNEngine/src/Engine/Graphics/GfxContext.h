@@ -6,7 +6,7 @@
 #include "Swapchain.h"
 #include "Enums.h"
 #include "Structs.h"
-#include "Shader.h"
+#include "Engine/Graphics/Resources/Shader.h"
 #include "Engine/Core/SafePtr.h"
 #include "DynamicDescriptorAllocator.h"
 #include "Engine/Core/Utils/Log.h"

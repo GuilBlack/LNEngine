@@ -2,7 +2,7 @@
 #include "Core/ApplicationBase.h"
 #include "Core/Window.h"
 #include "../GfxContext.h"
-#include "../Texture.h"
+#include "Graphics/Resources/Texture.h"
 #include "../Renderer.h"
 #include "../CommandPoolManager.h"
 #include "../DynamicDescriptorAllocator.h"

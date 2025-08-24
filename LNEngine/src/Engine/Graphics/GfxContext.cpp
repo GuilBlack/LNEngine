@@ -5,12 +5,12 @@
 #define VMA_STATIC_VULKAN_FUNCTIONS 0
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 0
 #include <vk_mem_alloc.h>
-#include <Graphics/Mesh.h>
-#include <Graphics/StorageBuffer.h>
+#include <Graphics/Resources/Mesh.h>
+#include <Graphics/Resources/StorageBuffer.h>
 
-#include "Shader.h"
+#include "Resources/Shader.h"
 #include "Core/ApplicationBase.h"
-#include "Engine/Graphics/Texture.h"
+#include "Engine/Graphics/Resources/Texture.h"
 #include "CommandPoolManager.h"
 #include "Enums.h"
 

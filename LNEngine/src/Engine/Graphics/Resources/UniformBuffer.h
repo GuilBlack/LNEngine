@@ -2,16 +2,14 @@
 #include "Engine/Core/Utils/Defines.h"
 #include "Engine/Core/SafePtr.h"
 #include "../vendor/VMA/vk_mem_alloc.h"
-#include "Structs.h"
-#include "GfxContext.h"
+#include "Engine/Graphics/Structs.h"
+#include "Engine/Graphics/GfxContext.h"
 
 namespace lne
 {
 class UniformBuffer : public RefCountBase
 {
 public:
-    MOVABLE_ONLY(UniformBuffer);
-
     UniformBuffer() = default;
     UniformBuffer(SafePtr<class GfxContext> ctx, uint32_t size);
     UniformBuffer(UniformBuffer&& other) noexcept;

@@ -4,9 +4,10 @@
 #include "Graphics/WorldRenderer.h"
 #include "Graphics/Renderer.h"
 #include "Graphics/FrameGraph/FrameGraph.h"
-#include "Graphics/Pipeline.h"
-#include "Graphics/Material.h"
-#include "Graphics/Mesh.h"
+#include "Graphics/Resources/Pipeline.h"
+#include "Graphics/Resources/Material.h"
+#include "Graphics/Resources/Mesh.h"
+#include "Graphics/Resources/Texture.h"
 #include "Graphics/GfxContext.h"
 #include "Core/Utils/Profiling.h"
 

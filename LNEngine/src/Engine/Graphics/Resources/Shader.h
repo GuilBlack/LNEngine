@@ -1,7 +1,7 @@
 #pragma once
-#include "Enums.h"
+#include "Engine/Graphics/Enums.h"
 #include "Engine/Core/SafePtr.h"
-#include "Structs.h"
+#include "Engine/Graphics/Structs.h"
 
 namespace spirv_cross
 {

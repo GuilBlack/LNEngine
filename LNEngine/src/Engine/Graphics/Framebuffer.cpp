@@ -1,7 +1,7 @@
 #include "lnepch.h"
 #include "Framebuffer.h"
 #include "GfxContext.h"
-#include "Texture.h"
+#include "Graphics/Resources/Texture.h"
 #include "Engine/Core/Utils/_Defines.h"
 #include "Engine/Core/Utils/Log.h"
 

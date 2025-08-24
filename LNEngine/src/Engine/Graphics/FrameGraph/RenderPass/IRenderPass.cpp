@@ -1,6 +1,6 @@
 ﻿#include "IRenderPass.h"
-#include "Graphics/Material.h"
-#include "Engine/Graphics/Mesh.h"
+#include "Graphics/Resources/Material.h"
+#include "Engine/Graphics/Resources/Mesh.h"
 
 namespace lne
 {

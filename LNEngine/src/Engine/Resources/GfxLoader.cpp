@@ -3,8 +3,8 @@
 #include <assimp/Importer.hpp>
 
 #include "Core/Utils/Log.h"
-#include "Graphics/Texture.h"
-#include "Graphics/StorageBuffer.h"
+#include "Graphics/Resources/Texture.h"
+#include "Graphics/Resources/StorageBuffer.h"
 #include "Graphics/GfxContext.h"
 #include "Graphics/CommandPoolManager.h"
 #include "Graphics/Renderer.h"
@@ -13,8 +13,8 @@
 
 #include "GfxLoader.h"
 #include "Core/ApplicationBase.h"
-#include <Graphics/Pipeline.h>
-#include "Graphics/Material.h"
+#include <Graphics/Resources/Pipeline.h>
+#include "Graphics/Resources/Material.h"
 
 namespace lne
 {

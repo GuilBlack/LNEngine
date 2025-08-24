@@ -4,11 +4,11 @@
 #include <spirv_cross/spirv_cross.hpp>
 #include <spirv_cross/spirv_common.hpp>
 
-#include "GfxContext.h"
+#include "Graphics/GfxContext.h"
 #include "Core/Utils/Log.h"
 #include "Core/Utils/_Defines.h"
 #include "Core/ApplicationBase.h"
-#include "Graphics/Texture.h"
+#include "Graphics/Resources/Texture.h"
 #include "Resources/ShaderFileIncluder.h"
 #include "Graphics/Renderer.h"
 
