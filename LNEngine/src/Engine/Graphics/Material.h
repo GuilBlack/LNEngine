@@ -9,7 +9,6 @@ namespace lne
 class Material : public RefCountBase
 {
 public:
-    MOVABLE_ONLY(Material);
     Material(SafePtr<class GfxPipeline> pipeline, MaterialType::Enum materialType = MaterialType::eMesh);
     ~Material();
 
@@ -18,16 +17,26 @@ public:
     bool IsTransparent() const { return m_IsTransparent; }
     void SetTransparency(bool isTransparent) { m_IsTransparent = isTransparent; }
 
-    void SetProperty(std::string_view name, float value);
-    void SetProperty(std::string_view name, const glm::vec2& value);
-    void SetProperty(std::string_view name, const glm::vec3& value);
-    void SetProperty(std::string_view name, const glm::vec4& value);
+    void                        SetProperty(const std::string& name, float value)
+    { SetProperty<float>(name, value); }
 
-    void SetProperty(std::string_view name, const glm::mat2& value);
-    void SetProperty(std::string_view name, const glm::mat3& value);
-    void SetProperty(std::string_view name, const glm::mat4& value);
-    
-    void SetTexture(std::string_view name, SafePtr<class Texture> texture);
+    void                        SetProperty(const std::string& name, const glm::vec2& value)
+    { SetProperty<glm::vec2>(name, value); }
+
+    void                        SetProperty(const std::string& name, const glm::vec3& value)
+    { SetProperty<glm::vec3>(name, value); }
+    void                        SetProperty(const std::string& name, const glm::vec4& value)
+    { SetProperty<glm::vec4>(name, value); }
+
+    void                        SetProperty(const std::string& name, const glm::mat2& value)
+    { SetProperty<glm::mat2>(name, value); }
+    void                        SetProperty(const std::string& name, const glm::mat3& value)
+    { SetProperty<glm::mat3>(name, value); }
+    void                        SetProperty(const std::string& name, const glm::mat4& value)
+    { SetProperty<glm::mat4>(name, value); }
+
+    void                        SetTexture(const std::string& name, 
+                                           SafePtr<class Texture> texture);
 
 private:
     SafePtr<class GfxPipeline> m_Pipeline;
@@ -37,18 +46,22 @@ private:
     bool m_IsTransparent{ false };
     uint32_t m_CurrentFrameInFlight;
     std::vector<vk::DescriptorSet> m_DescSets;
+    std::unordered_map<std::string, SafePtr<class Texture>> m_Textures;
 
     friend class Renderer;
 
 private:
     template<typename T> requires std::is_trivially_copyable_v<T>
-    void SetProperty(const std::string& name, const T& value)
+    bool SetProperty(const std::string& name, const T& value)
     {
         if (m_MaterialConstants.contains(name) == false)
-            return;
+            return false;
         auto& matConst = m_MaterialConstants.at(name);
         if (matConst.Size == sizeof(T))
             SetUniformBuffer(m_MaterialConstants.at(name).BindingIndex, &value, sizeof(T), matConst.Offset);
+        else
+            return false;
+        return true;
     }
     void SetUniformBuffer(uint32_t binding, const void* data, uint32_t size, uint32_t offset = 0);
 };
@@ -58,24 +71,34 @@ private:
 class ComputeProgram : public RefCountBase
 {
 public:
-    MOVABLE_ONLY(ComputeProgram);
     ComputeProgram(SafePtr<ComputePipeline> pipeline);
     ~ComputeProgram();
 
-    SafePtr<ComputePipeline> GetPipeline() const { return m_Pipeline; }
+    SafePtr<ComputePipeline>    GetPipeline() const { return m_Pipeline; }
 
     // Set property overloads.
-    void SetProperty(std::string_view name, float value);
-    void SetProperty(std::string_view name, uint32_t value);
-    void SetProperty(std::string_view name, int32_t value);
-    void SetProperty(std::string_view name, const glm::vec2& value);
-    void SetProperty(std::string_view name, const glm::vec3& value);
-    void SetProperty(std::string_view name, const glm::vec4& value);
-    void SetProperty(std::string_view name, const glm::mat2& value);
-    void SetProperty(std::string_view name, const glm::mat3& value);
-    void SetProperty(std::string_view name, const glm::mat4& value);
+    void                        SetProperty(const std::string& name, float value)
+    { SetProperty<float>(name, value); }
+    void                        SetProperty(const std::string& name, uint32_t value)
+    { SetProperty<uint32_t>(name, value); }
+    void                        SetProperty(const std::string& name, int32_t value)
+    { SetProperty<int32_t>(name, value); }
 
-    void SetTexture(std::string_view name, SafePtr<class Texture> texture, bool isStorage = true);
+    void                        SetProperty(const std::string& name, const glm::vec2& value)
+    { SetProperty<glm::vec2>(name, value); }
+    void                        SetProperty(const std::string& name, const glm::vec3& value)
+    { SetProperty<glm::vec3>(name, value); }
+    void                        SetProperty(const std::string& name, const glm::vec4& value)
+    { SetProperty<glm::vec4>(name, value); }
+
+    void                        SetProperty(const std::string& name, const glm::mat2& value)
+    { SetProperty<glm::mat2>(name, value); }
+    void                        SetProperty(const std::string& name, const glm::mat3& value)
+    { SetProperty<glm::mat3>(name, value); }
+    void                        SetProperty(const std::string& name, const glm::mat4& value)
+    { SetProperty<glm::mat4>(name, value); }
+
+    void                        SetTexture(const std::string& name, SafePtr<class Texture> texture, bool isStorage = true);
 
     // Dispatch method: bind the compute pipeline and launch compute work.
     void Dispatch(uint32_t groupCountX,
@@ -85,11 +108,12 @@ public:
 
 private:
     // Pointer to our compute pipeline.
-    SafePtr<ComputePipeline> m_Pipeline;
+    SafePtr<ComputePipeline>                                m_Pipeline;
 
     // A map of uniform metadata. This should be populated during shader reflection.
-    std::unordered_map<std::string, UniformElement> m_ProgramConstants;
-    std::map<uint32_t, SafePtr<UniformBuffer>> m_UniformBuffers;
+    std::unordered_map<std::string, UniformElement>         m_ProgramConstants;
+    std::map<uint32_t, SafePtr<UniformBuffer>>              m_UniformBuffers;
+    std::unordered_map<std::string, SafePtr<class Texture>> m_Textures;
 
     friend class Renderer;
 
@@ -97,13 +121,16 @@ private:
 
     // Templated helper to update a uniform buffer given the name.
     template<typename T> requires std::is_trivially_copyable_v<T>
-    void SetProperty(const std::string& name, const T& value)
+    bool SetProperty(const std::string& name, const T& value)
     {
         if (m_ProgramConstants.contains(name) == false)
-            return;
+            return false;
         auto& progConst = m_ProgramConstants.at(name);
         if (progConst.Size == sizeof(T))
             SetUniformBuffer(progConst.BindingIndex, &value, sizeof(T), progConst.Offset);
+        else
+            return false;
+        return true;
     }
 
     // Function to update the uniform buffer for a given binding.

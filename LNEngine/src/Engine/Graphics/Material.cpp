@@ -57,44 +57,18 @@ Material::~Material()
 {
 }
 
-void Material::SetProperty(std::string_view name, float value)
+void Material::SetTexture(const std::string& name, SafePtr<Texture> texture)
 {
-    SetProperty<float>(std::string(name), value);
-}
-
-void Material::SetProperty(std::string_view name, const glm::vec2& value)
-{
-    SetProperty<glm::vec2>(std::string(name), value);
-}
-
-void Material::SetProperty(std::string_view name, const glm::vec3 & value)
-{
-    SetProperty<glm::vec3>(std::string(name), value);
-}
-
-void Material::SetProperty(std::string_view name, const glm::vec4 & value)
-{
-    SetProperty<glm::vec4>(std::string(name), value);
-}
-
-void Material::SetProperty(std::string_view name, const glm::mat2& value)
-{
-    SetProperty<glm::mat2>(std::string(name), value);
-}
-
-void Material::SetProperty(std::string_view name, const glm::mat3& value)
-{
-    SetProperty<glm::mat3>(std::string(name), value);
-}
-
-void Material::SetProperty(std::string_view name, const glm::mat4& value)
-{
-    SetProperty<glm::mat4>(std::string(name), value);
-}
-
-void Material::SetTexture(std::string_view name, SafePtr<Texture> texture)
-{
-    SetProperty<uint32_t>(std::string(name), texture->GetBindlessTextureHandle());
+    bool success = SetProperty<uint32_t>(name, texture->GetBindlessTextureHandle());
+    if (!success)
+    {
+        LNE_WARN("Texture property '{}' not found in material", name);
+        return;
+    }
+    if (m_Textures.contains(name))
+        m_Textures.at(name) = texture;
+    else
+        m_Textures.emplace(name, texture);
 }
 
 // TODO: make sure we use it just once instead of updating it for every single changes in the material
@@ -106,7 +80,7 @@ void Material::SetUniformBuffer(uint32_t binding, const void* data, uint32_t siz
 }
 
 //////////////////////////////////////////////////////////////////////////
-// ComputeProgram implementation /////////////////////////////////////////
+// ComputeProgram const std::string&
 //////////////////////////////////////////////////////////////////////////
 
 ComputeProgram::ComputeProgram(SafePtr<ComputePipeline> pipeline)
@@ -128,57 +102,23 @@ ComputeProgram::~ComputeProgram()
 {
 }
 
-void ComputeProgram::SetProperty(std::string_view name, float value)
+void ComputeProgram::SetTexture(const std::string& name, SafePtr<Texture> texture, bool isStorage)
 {
-    SetProperty<float>(std::string(name), value);
-}
-
-void ComputeProgram::SetProperty(std::string_view name, uint32_t value)
-{
-    SetProperty<uint32_t>(std::string(name), value);
-}
-
-void ComputeProgram::SetProperty(std::string_view name, int32_t value)
-{
-    SetProperty<int32_t>(std::string(name), value);
-}
-
-void ComputeProgram::SetProperty(std::string_view name, const glm::vec2& value)
-{
-    SetProperty<glm::vec2>(std::string(name), value);
-}
-
-void ComputeProgram::SetProperty(std::string_view name, const glm::vec3& value)
-{
-    SetProperty<glm::vec3>(std::string(name), value);
-}
-
-void ComputeProgram::SetProperty(std::string_view name, const glm::vec4& value)
-{
-    SetProperty<glm::vec4>(std::string(name), value);
-}
-
-void ComputeProgram::SetProperty(std::string_view name, const glm::mat2& value)
-{
-    SetProperty<glm::mat2>(std::string(name), value);
-}
-
-void ComputeProgram::SetProperty(std::string_view name, const glm::mat3& value)
-{
-    SetProperty<glm::mat3>(std::string(name), value);
-}
-
-void ComputeProgram::SetProperty(std::string_view name, const glm::mat4& value)
-{
-    SetProperty<glm::mat4>(std::string(name), value);
-}
-
-void ComputeProgram::SetTexture(std::string_view name, SafePtr<Texture> texture, bool isStorage)
-{
+    bool success = false;
     if (isStorage)
-        SetProperty<uint32_t>(std::string(name), texture->GetBindlessStorageHandle());
+        success = SetProperty<uint32_t>(std::string(name), texture->GetBindlessStorageHandle());
     else
-        SetProperty<uint32_t>(std::string(name), texture->GetBindlessTextureHandle());
+        success = SetProperty<uint32_t>(std::string(name), texture->GetBindlessTextureHandle());
+
+    if (!success)
+    {
+        LNE_WARN("Texture property '{}' not found in material", name);
+        return;
+    }
+    if (m_Textures.contains(name))
+        m_Textures.at(name) = texture;
+    else
+        m_Textures.emplace(name, texture);
 }
 
 void ComputeProgram::Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ, bool immediate)
