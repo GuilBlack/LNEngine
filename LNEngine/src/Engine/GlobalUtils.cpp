@@ -7,7 +7,7 @@ void GlobalUtils::PrintLine(const std::string& msg)
     std::cout << msg << '\n';
 }
 
-std::size_t GlobalUtils::hash_u64(uint64_t value) noexcept
+std::size_t GlobalUtils::HashU64(uint64_t value) noexcept
 {
 #if SIZE_MAX == UINT64_MAX
     // SplitMix64

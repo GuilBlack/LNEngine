@@ -87,7 +87,7 @@ enum Enum : char
 constexpr uint32_t NUM_MATERIAL_TYPES = 2;
 }
 
-namespace MaterialSetIndexType
+namespace ShaderSetIndexType
 {
 enum Enum : char
 {
@@ -172,12 +172,45 @@ enum Enum : byte
 };
 }
 
+namespace TransparencyMode
+{
+enum Enum : byte
+{
+    eOpaque,                // no blending
+    eTransparent,           // standard src alpha
+    ePremultiplied,         // src is premultiplied by alpha
+    eAdditive,              // glow/particles
+    eAlphaAdditive,         // soft add: alpha scales the add
+    eMultiply,              // color burn/multiply
+    eScreen,                // 1 - (1-S)*(1-D)
+    eDisabled               // no blend and no depth (for post-process)
+};
+}
+
+namespace DepthMode
+{
+enum Enum : byte
+{
+    eNone = 0,
+    eReadOnly = 1,
+    eReadWrite = 2
+};
+}
+
 // TODO: convert these to enum namespaces
 enum class EFillMode : byte
 {
     Solid = 0,
     Wireframe = 1,
     Point = 2
+};
+
+enum class ECullMode : byte
+{
+    None = 0,
+    Front = 1,
+    Back = 2,
+    FrontAndBack = 3
 };
 
 enum class EBlendColorWriteMask : byte
@@ -187,14 +220,6 @@ enum class EBlendColorWriteMask : byte
     Blue = 1 << 2,
     Alpha = 1 << 3,
     All = Red | Green | Blue | Alpha
-};
-
-enum class ECullMode : byte
-{
-    None = 0,
-    Front = 1,
-    Back = 2,
-    FrontAndBack = 3
 };
 
 enum class EWindingOrder : byte

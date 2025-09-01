@@ -412,6 +412,7 @@ Shader::Shader(SafePtr<class GfxContext> ctx, std::string_view filePath)
     ReflectOnSpirv(m_SpirvCode);
     m_Modules = CreateModules(m_SpirvCode);
     CreateDescriptorSetLayouts();
+    MakePushConstantRange();
 }
 
 Shader::~Shader()
@@ -506,7 +507,7 @@ Shader::Header Shader::ParseHeader(std::string& headerSource)
             if (token == "Rp")
             {
                 header.RenderPass = value;
-                header.RenderPassHash = GlobalUtils::hash_u64(std::hash<std::string>{}(value));
+                header.RenderPassHash = GlobalUtils::HashU64(std::hash<std::string>{}(value));
                 continue;
             }
             if (token == "Tp")
@@ -646,8 +647,8 @@ void Shader::ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<ui
 
 
             if (!(isUnknownMatType == false &&
-                (set != matTypeInfo.SetIndices[MaterialSetIndexType::eMaterial] &&
-                 set != matTypeInfo.SetIndices[MaterialSetIndexType::eVertex])))
+                (set != matTypeInfo.SetIndices[ShaderSetIndexType::eMaterial] &&
+                 set != matTypeInfo.SetIndices[ShaderSetIndexType::eVertex])))
                 LNE_INFO("    UBO Name: {}, Set: {}, Binding: {}, Size: {}", res.name, set, binding, bufferSize);
 
             for (uint32_t i = 0; i < type.member_types.size(); ++i)
@@ -658,8 +659,8 @@ void Shader::ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<ui
                 spirv_cross::SPIRType memberType = compiler.get_type(type.member_types[i]);
 
                 if (!(isUnknownMatType == false &&
-                      (set != matTypeInfo.SetIndices[MaterialSetIndexType::eMaterial] &&
-                       set != matTypeInfo.SetIndices[MaterialSetIndexType::eVertex])))
+                      (set != matTypeInfo.SetIndices[ShaderSetIndexType::eMaterial] &&
+                       set != matTypeInfo.SetIndices[ShaderSetIndexType::eVertex])))
                     LNE_INFO("        Member: {}, Offset: {}, Size: {}, Type: {}",
                          memberName, offset, size, ShaderElementType::ToString(SpirvTypeToUniformElementType(memberType)));
 
@@ -701,17 +702,82 @@ void Shader::ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<ui
             }
 
             if (!(isUnknownMatType == false &&
-                  (set != matTypeInfo.SetIndices[MaterialSetIndexType::eMaterial] &&
-                   set != matTypeInfo.SetIndices[MaterialSetIndexType::eVertex])))
+                  (set != matTypeInfo.SetIndices[ShaderSetIndexType::eMaterial] &&
+                   set != matTypeInfo.SetIndices[ShaderSetIndexType::eVertex])))
                 LNE_INFO("    SSBO Name: {}, Set: {}, Binding: {}, Declared Size (w/o runtime part): {}",
                      res.name, set, binding, bufferSize);
 
-            ReflectSSBOStructMembers(compiler, res.base_type_id, res.name, set, binding);
+            setRef.StorageBuffers[res.name].Size = ReflectSSBOStructMembers(compiler, res.base_type_id, res.name, set, binding);
+        }
+
+        // =============== PUSH CONSTANTS ===============
+        for (const auto& res : resources.push_constant_buffers)
+        {
+            spirv_cross::SPIRType type = compiler.get_type(res.base_type_id);
+            const uint32_t declaredSize = static_cast<uint32_t>(compiler.get_declared_struct_size(type));
+
+            // SPIRV-Cross can report per-stage active ranges for this push block.
+            const auto ranges = compiler.get_active_buffer_ranges(res.id);
+
+            // Compute the minimal active [minOffset, maxEnd) for THIS stage.
+            uint32_t stageMin = UINT32_MAX;
+            uint32_t stageMax = 0;
+            for (const auto& r : ranges)
+            {
+                stageMin = std::min(stageMin, (uint32_t)r.offset);
+                stageMax = std::max(stageMax, (uint32_t)r.offset + (uint32_t)r.range);
+            }
+            if (ranges.empty())
+            {
+                // Fallback: if active ranges not reported, use the declared size from 0.
+                stageMin = 0;
+                stageMax = declaredSize;
+            }
+
+            auto& block = m_ReflectedData.PushConstants[res.name];
+            if (block.Size == 0 && block.Stages == vk::ShaderStageFlags{})
+            {
+                // First time we see it
+                block.Offset = stageMin;
+                block.Size = (stageMax - stageMin);
+            }
+            else
+            {
+                // Merge across stages
+                const uint32_t curEnd = block.Offset + block.Size;
+                const uint32_t newMin = std::min(block.Offset, stageMin);
+                const uint32_t newMax = std::max(curEnd, stageMax);
+                block.Offset = newMin;
+                block.Size = newMax - newMin;
+            }
+
+            block.Stages |= ShaderStageToVk(stage);
+
+            LNE_INFO("    PUSH Name: {}, Stage: {}, DeclaredSize: {}, ActiveRange: [{}..{}), Merged: offset {}, size {}",
+                     res.name, ShaderStageToDefine(stage), declaredSize, stageMin, stageMax, block.Offset, block.Size);
+
+            // Reflect members of the push-constant struct
+            for (uint32_t i = 0; i < type.member_types.size(); ++i)
+            {
+                const std::string memberName = compiler.get_member_name(res.base_type_id, i);
+                const uint32_t offset = compiler.get_member_decoration(res.base_type_id, i, spv::DecorationOffset);
+                const uint32_t size = static_cast<uint32_t>(compiler.get_declared_struct_member_size(type, i));
+                const spirv_cross::SPIRType memberType = compiler.get_type(type.member_types[i]);
+
+                LNE_INFO("        PC Member: {} | Offset {}, Size {}, Type {}",
+                         memberName, offset, size, ShaderElementType::ToString(SpirvTypeToUniformElementType(memberType)));
+
+                block.Members[memberName] = {
+                    .Offset = offset,
+                    .Size = size,
+                    .Type = SpirvTypeToUniformElementType(memberType)
+                };
+            }
         }
     }
 }
 
-void Shader::ReflectSSBOStructMembers(spirv_cross::Compiler& compiler, uint32_t struct_type_id, const std::string& prefix, uint32_t set, uint32_t binding)
+uint32_t Shader::ReflectSSBOStructMembers(spirv_cross::Compiler& compiler, uint32_t struct_type_id, const std::string& prefix, uint32_t set, uint32_t binding)
 {
     MatTypeInfo matTypeInfo{};
     bool isUnknownMatType = (m_Header.MaterialType == MaterialType::eUnknown);
@@ -722,14 +788,15 @@ void Shader::ReflectSSBOStructMembers(spirv_cross::Compiler& compiler, uint32_t 
                          uint32_t offset, uint32_t size, const spirv_cross::SPIRType& memberType)
         {
             if (isUnknownMatType == false &&
-                (set != matTypeInfo.SetIndices[MaterialSetIndexType::eMaterial] &&
-                 set != matTypeInfo.SetIndices[MaterialSetIndexType::eVertex]))
+                (set != matTypeInfo.SetIndices[ShaderSetIndexType::eMaterial] &&
+                 set != matTypeInfo.SetIndices[ShaderSetIndexType::eVertex]))
                 return;
             LNE_INFO("        Member: {} | Set {}, Binding {}, Offset {}, Size {}, Type {}",
                      qname, set, binding, offset, size, ShaderElementType::ToString(SpirvTypeToUniformElementType(memberType)));
         };
 
     const spirv_cross::SPIRType& st = compiler.get_type(struct_type_id);
+    uint32_t fullStride{};
     for (uint32_t i = 0; i < st.member_types.size(); ++i)
     {
         const std::string memberName = compiler.get_member_name(struct_type_id, i);
@@ -748,11 +815,11 @@ void Shader::ReflectSSBOStructMembers(spirv_cross::Compiler& compiler, uint32_t 
 
                 uint32_t elem_type_id = memberType.parent_type;
                 if (elem_type_id == 0)
-                    return;
+                    return arrayStride;
 
                 const spirv_cross::SPIRType& elemType = compiler.get_type(elem_type_id);
                 if (elemType.basetype != spirv_cross::SPIRType::Struct)
-                    return;
+                    return arrayStride;
 
                 const uint32_t elemSize =
                     static_cast<uint32_t>(compiler.get_declared_struct_size(elemType));
@@ -789,12 +856,13 @@ void Shader::ReflectSSBOStructMembers(spirv_cross::Compiler& compiler, uint32_t 
                     .ElementSize = elemSize
                     };
                 }
+                return arrayStride;
             };
 
         if (!memberType.array.empty())
         {
             const std::string arrayQName = qname + "[]";
-            TryReflectArrayElementStruct(arrayQName);
+            fullStride += TryReflectArrayElementStruct(arrayQName);
         }
         else if (memberType.basetype == spirv_cross::SPIRType::Struct)
         {
@@ -814,6 +882,7 @@ void Shader::ReflectSSBOStructMembers(spirv_cross::Compiler& compiler, uint32_t 
             };
         }
     }
+    return fullStride;
 }
 
 std::unordered_map<ShaderStage::Enum, vk::ShaderModule> Shader::CreateModules(std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> spirvCode)
@@ -850,7 +919,7 @@ void Shader::CreateDescriptorSetLayouts()
     {
         if (m_Header.MaterialType == MaterialType::eUnknown)
             return;
-        if (setIndex == matTypeInfo.SetIndices[MaterialSetIndexType::eGlobal])
+        if (setIndex == matTypeInfo.SetIndices[ShaderSetIndexType::eGlobal])
         {
             stages = StageFlags::eAll;
             return;
@@ -858,13 +927,13 @@ void Shader::CreateDescriptorSetLayouts()
     };
     for (auto&[setIndex, set] : m_ReflectedData.DescriptorSets)
     {
-        if (setIndex == matTypeInfo.SetIndices[MaterialSetIndexType::eVertex])
+        if (setIndex == matTypeInfo.SetIndices[ShaderSetIndexType::eVertex])
         {
             m_DescriptorSetLayouts[layoutIndex] = m_Context->GetStorageOnlyDescriptorSetLayout(2);
             layoutIndex++;
             continue;
         }
-        else if (setIndex == matTypeInfo.SetIndices[MaterialSetIndexType::eTransform])
+        else if (setIndex == matTypeInfo.SetIndices[ShaderSetIndexType::eTransform])
         {
             m_DescriptorSetLayouts[layoutIndex] = m_Context->GetStorageOnlyDescriptorSetLayout(1);
             layoutIndex++;
@@ -896,6 +965,23 @@ void Shader::CreateDescriptorSetLayouts()
         layoutIndex++;
     }
 }
+
+void Shader::MakePushConstantRange()
+{
+    m_PushConstantRanges.reserve(m_ReflectedData.PushConstants.size());
+    for (const auto& [name, pc] : m_ReflectedData.PushConstants)
+    {
+        if (pc.Size == 0)
+            continue;
+
+        vk::PushConstantRange r{};
+        r.stageFlags = pc.Stages;
+        r.offset = pc.Offset;
+        r.size = pc.Size;
+        m_PushConstantRanges.push_back(r);
+    }
+}
+
 }
 
 vk::ShaderStageFlagBits lne::vkut::ShaderStageToVk(ShaderStage::Enum stage)

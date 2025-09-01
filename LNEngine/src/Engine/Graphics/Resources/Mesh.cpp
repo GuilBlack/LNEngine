@@ -7,9 +7,9 @@
 #include "Core/ApplicationBase.h"
 #include "Graphics/Renderer.h"
 #include "Core/Utils/_Defines.h"
-#include "Graphics/Pipeline.h"
+#include "Graphics/Resources/Pipeline.h"
 #include "Graphics/Resources/Material.h"
-#include "Graphics/Texture.h"
+#include "Graphics/Resources/Texture.h"
 #include "Graphics/DynamicDescriptorAllocator.h"
 
 #include "Mesh.h"

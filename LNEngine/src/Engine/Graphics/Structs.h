@@ -9,21 +9,6 @@ namespace lne
 using ResourceDeletionHandle = void*;
 using BindlessImageHandle = uint32_t;
 
-struct BufferBinding
-{
-    uint32_t                SetIndex;
-    uint32_t                BindingIndex;
-    uint32_t                Size;
-    vk::ShaderStageFlags    Stages;
-};
-
-struct DescriptorSet
-{
-    uint32_t                                        SetIndex;
-    std::unordered_map<std::string, BufferBinding>  UniformBuffers;
-    std::unordered_map<std::string, BufferBinding>  StorageBuffers;
-};
-
 struct BufferAllocation
 {
     vk::Buffer                              Buffer;

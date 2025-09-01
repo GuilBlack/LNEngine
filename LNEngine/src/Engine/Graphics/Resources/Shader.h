@@ -11,6 +11,21 @@ class Compiler;
 namespace lne
 {
 
+struct BufferBinding
+{
+    uint32_t                SetIndex;
+    uint32_t                BindingIndex;
+    uint32_t                Size;
+    vk::ShaderStageFlags    Stages;
+};
+
+struct DescriptorSet
+{
+    uint32_t                                        SetIndex;
+    std::unordered_map<std::string, BufferBinding>  UniformBuffers;
+    std::unordered_map<std::string, BufferBinding>  StorageBuffers;
+};
+
 struct UniformElement
 {
     uint32_t                                SetIndex;
@@ -38,12 +53,28 @@ struct StorageBufferArray
     uint32_t                                ElementSize;
 };
 
+struct PushConstantMember
+{
+    uint32_t Offset;
+    uint32_t Size;
+    ShaderElementType::Enum Type;
+};
+
+struct PushConstantBlock
+{
+    uint32_t Offset = 0;      // merged min active offset across stages
+    uint32_t Size = 0;      // merged (maxEnd - minOffset) across stages
+    vk::ShaderStageFlags Stages{};
+    std::unordered_map<std::string, PushConstantMember> Members; // by qualified member name
+};
+
 struct ReflectedData
 {
     std::map<uint32_t, DescriptorSet> DescriptorSets;
     std::unordered_map<std::string, UniformElement> UniformElements;
     std::unordered_map<std::string, StorageBufferElement> StorageElements;
     std::unordered_map<std::string, StorageBufferArray> StorageArrays;
+    std::unordered_map<std::string, PushConstantBlock> PushConstants; // by block name
 };
 
 class Shader : public RefCountBase
@@ -71,16 +102,26 @@ public:
 
     [[nodiscard]] const std::vector<vk::DescriptorSetLayout>& GetDescriptorSetLayouts() const
     { return m_DescriptorSetLayouts; }
+    [[nodiscard]] const std::vector<vk::PushConstantRange>& GetPushConstantRanges() const
+    { return m_PushConstantRanges; }
 
     [[nodiscard]] const ReflectedData&      GetReflectedData() const { return m_ReflectedData; }
     [[nodiscard]] Shader::Header            GetHeader() const { return m_Header; }
     [[nodiscard]] std::string               GetName() const { return m_Name; }
+    [[nodiscard]] MaterialType::Enum        GetMaterialType() const { return m_Header.MaterialType; }
+    [[nodiscard]] uint32_t                  GetSetIndex(ShaderSetIndexType::Enum type) const
+    {
+        if (m_Header.MaterialType == MaterialType::eUnknown || 
+            (uint32_t)m_Header.MaterialType >= MaterialType::NUM_MATERIAL_TYPES)
+            return -1;
+        return MatTypeInfos[m_Header.MaterialType].SetIndices[type];
+    }
     virtual ~Shader();
      
 public:
     struct MatTypeInfo
     {
-        std::array<int8_t, MaterialSetIndexType::NUM_MATERIAL_SET_INDICES> SetIndices{-1,-1,-1,-1,-1};
+        std::array<int8_t, ShaderSetIndexType::NUM_MATERIAL_SET_INDICES> SetIndices{-1,-1,-1,-1,-1};
     };
     constexpr static std::array<MatTypeInfo, MaterialType::NUM_MATERIAL_TYPES> MatTypeInfos = {
         MatTypeInfo{ {  0,  3,  4,  2,  1 } }, // eMesh
@@ -88,6 +129,8 @@ public:
     };
 
 private:
+    friend class GfxPipeline;
+    friend class ComputePipeline;
     SafePtr<class GfxContext> m_Context;
     std::string m_FilePath;
     std::string m_Name;
@@ -95,6 +138,7 @@ private:
     std::unordered_map<ShaderStage::Enum, vk::ShaderModule> m_Modules{};
     std::vector<vk::DescriptorSetLayout> m_DescriptorSetLayouts{};
     std::vector<vk::DescriptorSetLayout> m_CreatedLayouts{};
+    std::vector<vk::PushConstantRange> m_PushConstantRanges{};
     ReflectedData m_ReflectedData{};
     Header m_Header{};
 
@@ -108,13 +152,14 @@ private:
 
     void                                    ReflectOnSpirv(std::unordered_map<ShaderStage::Enum,
                                                std::vector<uint32_t>> spirvCode);
-    void                                    ReflectSSBOStructMembers(spirv_cross::Compiler& compiler, 
+    uint32_t                                ReflectSSBOStructMembers(spirv_cross::Compiler& compiler, 
                                                                      uint32_t struct_type_id, 
                                                                      const std::string& prefix, 
                                                                      uint32_t set, uint32_t binding);
 
     std::unordered_map<ShaderStage::Enum, vk::ShaderModule> CreateModules(std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> spirvCode);
     void                                    CreateDescriptorSetLayouts();
+    void                                    MakePushConstantRange();
 };
 
 namespace vkut

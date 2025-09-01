@@ -50,6 +50,15 @@ void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNo
     m_Pipeline = renderer.CreateGraphicsPipeline(desc);
     m_Material = lne::SafePtr(lnnew lne::Material(m_Pipeline, lne::MaterialType::ePostProcess));
 
+    SafePtr gbufferTestEffect = lnnew lne::Effect(lne::ApplicationBase::GetRenderer().GetGfxContext(),
+                                                  lne::ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\GBufferEffectTest.glsl");
+    lne::GraphicsPipelineDescV2 desc2{};
+    desc2.CullMode = lne::ECullMode::Back;
+    desc2.Fill = lne::EFillMode::Solid;
+    desc2.TransparencyMode = lne::TransparencyMode::eOpaque;
+    desc2.FrameGraph = frameGraph;
+    auto handle = gbufferTestEffect->CreateOrGetPipeline(desc2);
+
     for (FrameGraphResourceHandle resourceHandle : node->InputResources)
     {
         FrameGraphResource& resource = *frameGraph->GetResource(resourceHandle);

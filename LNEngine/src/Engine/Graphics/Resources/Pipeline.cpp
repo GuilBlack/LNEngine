@@ -32,7 +32,8 @@ PipelineBase::PipelineBase(SafePtr<GfxContext> ctx, const std::string& name, vk:
     : m_Context(ctx), m_Name(name), m_BindPoint(bindPoint)
 {}
 
-vk::PipelineLayout PipelineBase::CreatePipelineLayout(const std::vector<vk::DescriptorSetLayout>& layouts)
+vk::PipelineLayout PipelineBase::CreatePipelineLayout(const std::vector<vk::DescriptorSetLayout>& layouts,
+                                                      const std::vector<vk::PushConstantRange>& pcRanges)
 {
     std::vector<vk::DescriptorSetLayout> completeLayouts;
     completeLayouts.reserve(layouts.size() + 1);
@@ -40,7 +41,8 @@ vk::PipelineLayout PipelineBase::CreatePipelineLayout(const std::vector<vk::Desc
     completeLayouts.emplace_back(m_Context->GetBindlessDescriptorSetLayout());
     auto layout = m_Context->GetDevice().createPipelineLayout(vk::PipelineLayoutCreateInfo{
         {},
-        completeLayouts
+        completeLayouts,
+        pcRanges
     });
     m_Context->SetVkObjectName(layout, std::format("PipelineLayout: {}", m_Name));
     return layout;
@@ -50,7 +52,7 @@ vk::PipelineLayout PipelineBase::CreatePipelineLayout(const std::vector<vk::Desc
 
 #pragma region Graphics pipeline
 
-DepthDesc& DepthDesc::SetDepthTest(bool isEnabled, bool write, ECompareOperation compare)
+DepthState& DepthState::SetDepthTest(bool isEnabled, bool write, ECompareOperation compare)
 {
     DepthTestEnable = isEnabled;
     DepthWriteEnable = isEnabled;
@@ -223,7 +225,7 @@ GfxPipeline::GfxPipeline(SafePtr<GfxContext> ctx, const GraphicsPipelineDesc& de
     vk::PipelineDynamicStateCreateInfo dynamicStateInfo = vk::PipelineDynamicStateCreateInfo(
         {}, (uint32_t)dynamicStates.size(), dynamicStates.data());
 
-    m_Layout = CreatePipelineLayout(m_Shader->GetDescriptorSetLayouts());
+    m_Layout = CreatePipelineLayout(m_Shader->GetDescriptorSetLayouts(), m_Shader->GetPushConstantRanges());
 
     vk::GraphicsPipelineCreateInfo graphicsPipelineInfo = vk::GraphicsPipelineCreateInfo(
         vk::PipelineCreateFlags(),
@@ -261,6 +263,187 @@ GfxPipeline::GfxPipeline(SafePtr<GfxContext> ctx, const GraphicsPipelineDesc& de
     m_Desc.FrameGraph = nullptr;// We don't need the frame graph anymore
 }
 
+GfxPipeline::GfxPipeline(SafePtr<Shader> shader, GraphicsPipelineDescV2& desc)
+    : PipelineBase(shader->m_Context, desc.Shader->GetName(), vk::PipelineBindPoint::eGraphics)
+{
+    static constexpr vk::PipelineVertexInputStateCreateInfo vertexInputStateInfo({}, 0, nullptr, 0, nullptr);
+    static constexpr std::array<vk::DynamicState, 2> dynamicStates = { vk::DynamicState::eViewport, vk::DynamicState::eScissor };
+
+    BlendState blend = MakeBlendState(desc.TransparencyMode);
+    DepthState depth = GetDepthStateFromTransparency(desc.TransparencyMode, desc);
+
+    m_Shader = shader;
+    std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
+    m_AssociatedRenderPassName = m_Shader->GetHeader().RenderPass;
+    m_AssociatedRenderPassNameHash = m_Shader->GetHeader().RenderPassHash;
+
+    shaderStages.reserve(m_Shader->GetStageCount());
+    std::vector<std::string> entryPoints{};
+    entryPoints.reserve(m_Shader->GetStageCount());
+    for (auto& [stage, module] : m_Shader->GetModules())
+    {
+        entryPoints.push_back(m_Shader->GetHeader().StageHeaders.at(stage).EntryPoint);
+        shaderStages.push_back(vk::PipelineShaderStageCreateInfo(
+            {},
+            vkut::ShaderStageToVk(stage),
+            module,
+            entryPoints.back().c_str()
+        ));
+    }
+
+    vk::PipelineInputAssemblyStateCreateInfo inputAssemblyStateInfo = vk::PipelineInputAssemblyStateCreateInfo()
+        .setTopology(vk::PrimitiveTopology::eTriangleList)
+        .setPrimitiveRestartEnable(vk::False);
+
+    vk::PipelineTessellationStateCreateInfo tessellationStateInfo{};
+
+    vk::PipelineViewportStateCreateInfo viewportStateInfo = vk::PipelineViewportStateCreateInfo()
+        .setViewportCount(1)
+        .setScissorCount(1);
+
+    vk::PipelineRasterizationStateCreateInfo rasterizationStateInfo = vk::PipelineRasterizationStateCreateInfo()
+        .setCullMode((vk::CullModeFlagBits)desc.CullMode)
+        .setFrontFace((vk::FrontFace)EWindingOrder::CounterClockwise)
+        .setPolygonMode((vk::PolygonMode)desc.Fill)
+        .setLineWidth(1.0f);
+
+    vk::PipelineMultisampleStateCreateInfo multisampleStateInfo = vk::PipelineMultisampleStateCreateInfo(
+        {},
+        vk::SampleCountFlagBits::e1, vk::False, 1.0f,
+        nullptr,
+        vk::False, vk::False
+    );
+
+    vk::PipelineDepthStencilStateCreateInfo depthStencilStateInfo = vk::PipelineDepthStencilStateCreateInfo(
+        {},
+        depth.DepthTestEnable, depth.DepthWriteEnable, (vk::CompareOp)depth.DepthCompareOp,
+        vk::False, vk::False,
+        {}, {},
+        0.0f, 0.0f
+    );
+
+    vk::PipelineColorBlendAttachmentState blendState = vk::PipelineColorBlendAttachmentState()
+        .setColorWriteMask((vk::ColorComponentFlagBits)blend.ColorWriteMask)
+        .setBlendEnable(blend.BlendEnable)
+        .setSrcColorBlendFactor(blend.SrcColor)
+        .setDstColorBlendFactor(blend.DstColor)
+        .setColorBlendOp((vk::BlendOp)blend.ColorOp);
+
+    if (blend.SepareteAlphaBlendEnable)
+    {
+        blendState.setSrcAlphaBlendFactor(blend.SrcAlpha)
+            .setDstAlphaBlendFactor(blend.DstAlpha)
+            .setAlphaBlendOp((vk::BlendOp)blend.AlphaOp);
+    }
+    else
+    {
+        blendState.setSrcAlphaBlendFactor(blend.SrcColor)
+            .setDstAlphaBlendFactor(blend.DstColor)
+            .setAlphaBlendOp((vk::BlendOp)blend.ColorOp);
+    }
+    const FrameGraphNode* node = desc.FrameGraph->GetNode(m_AssociatedRenderPassName);
+
+    if (!node)
+    {
+        LNE_ERROR("Failed to find node with name: {}", m_AssociatedRenderPassName);
+        m_Desc.FrameGraph = nullptr;
+        return;
+    }
+
+    if (node->Type != RenderPassType::eGraphics)
+    {
+        LNE_ERROR("Node with name: {} is not a graphics node", node->Name);
+        m_Desc.FrameGraph = nullptr;
+        return;
+    }
+
+    std::vector<vk::Format> colorFormats;
+    vk::Format depthFormat = vk::Format::eUndefined;
+    for (auto& outputHandle : node->OutputResources)
+    {
+        auto output = desc.FrameGraph->GetResource(outputHandle);
+        if (output != nullptr && output->Type == FrameGraphResourceType::eAttachment)
+        {
+            FrameGraphResourceImageInfo imageInfo = std::get<FrameGraphResourceImageInfo>(output->Info.Variant);
+            if (imageInfo.Flags & vk::ImageUsageFlagBits::eColorAttachment)
+            {
+                colorFormats.emplace_back(imageInfo.Format);
+            }
+            else if (imageInfo.Flags & vk::ImageUsageFlagBits::eDepthStencilAttachment)
+            {
+                depthFormat = imageInfo.Format;
+            }
+        }
+    }
+
+    for (auto& inputHandle : node->InputResources)
+    {
+        auto input = desc.FrameGraph->GetResource(inputHandle);
+        if (input != nullptr && input->Type == FrameGraphResourceType::eAttachment)
+        {
+            FrameGraphResourceImageInfo imageInfo = std::get<FrameGraphResourceImageInfo>(input->Info.Variant);
+            if (imageInfo.Flags & vk::ImageUsageFlagBits::eColorAttachment)
+            {
+                colorFormats.emplace_back(imageInfo.Format);
+            }
+            else if (imageInfo.Flags & vk::ImageUsageFlagBits::eDepthStencilAttachment)
+            {
+                depthFormat = imageInfo.Format;
+            }
+        }
+    }
+
+    std::vector<vk::PipelineColorBlendAttachmentState> blendAttachments(colorFormats.size(), blendState);
+
+    vk::PipelineColorBlendStateCreateInfo colorBlendStateInfo = vk::PipelineColorBlendStateCreateInfo(
+        {},
+        blend.BlendEnable,
+        vk::LogicOp::eCopy,
+        (uint32_t)blendAttachments.size(),
+        blendAttachments.data(),
+        { 0.0f, 0.0f, 0.0f, 0.0f }
+    );
+
+    vk::PipelineDynamicStateCreateInfo dynamicStateInfo = vk::PipelineDynamicStateCreateInfo(
+        {}, (uint32_t)dynamicStates.size(), dynamicStates.data());
+
+    m_Layout = CreatePipelineLayout(m_Shader->GetDescriptorSetLayouts(), m_Shader->GetPushConstantRanges());
+
+    vk::GraphicsPipelineCreateInfo graphicsPipelineInfo = vk::GraphicsPipelineCreateInfo(
+        vk::PipelineCreateFlags(),
+        shaderStages,
+        &vertexInputStateInfo,
+        &inputAssemblyStateInfo,
+        &tessellationStateInfo,
+        &viewportStateInfo,
+        &rasterizationStateInfo,
+        &multisampleStateInfo,
+        &depthStencilStateInfo,
+        &colorBlendStateInfo,
+        &dynamicStateInfo,
+        m_Layout
+    );
+
+    vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> pipelineInfoChain = {
+        graphicsPipelineInfo,
+        vk::PipelineRenderingCreateInfo{
+            0,
+            colorFormats,
+            depthFormat
+        }
+    };
+
+    auto result = m_Context->GetDevice().createGraphicsPipeline(nullptr, pipelineInfoChain.get<vk::GraphicsPipelineCreateInfo>(), nullptr);
+
+    if (result.result != vk::Result::eSuccess)
+    {
+        LNE_ERROR("Failed to create graphics pipeline: {}", vk::to_string(result.result));
+        return;
+    }
+    m_Pipeline = result.value;
+    m_Context->SetVkObjectName(m_Pipeline, std::format("GraphicsPipeline: {}", m_Name));
+}
+
 #pragma endregion
 
 ComputePipeline::ComputePipeline(SafePtr<GfxContext> ctx, const ComputePipelineDesc& desc)
@@ -275,7 +458,7 @@ ComputePipeline::ComputePipeline(SafePtr<GfxContext> ctx, const ComputePipelineD
         entryPoint.c_str()
     );
 
-    m_Layout = CreatePipelineLayout(m_Shader->GetDescriptorSetLayouts());
+    m_Layout = CreatePipelineLayout(m_Shader->GetDescriptorSetLayouts(), m_Shader->GetPushConstantRanges());
 
     vk::ComputePipelineCreateInfo computePipelineInfo = vk::ComputePipelineCreateInfo(
         {},

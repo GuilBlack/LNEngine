@@ -29,7 +29,7 @@ private:
         std::size_t operator()(const vk::DescriptorSet& set) const
         {
             // use this hash function since VkDescriptorSet can be low-enthropy
-            return GlobalUtils::hash_u64((uint64_t)(VkDescriptorSet)set);
+            return GlobalUtils::HashU64((uint64_t)(VkDescriptorSet)set);
         }
     };
     using SetMap = std::unordered_map<vk::DescriptorSet, uint32_t, SetHasher>;

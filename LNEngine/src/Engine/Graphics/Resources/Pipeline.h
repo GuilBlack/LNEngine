@@ -2,11 +2,13 @@
 #include "Shader.h"
 #include "Engine/Graphics/Framebuffer.h"
 #include "Engine/Core/SafePtr.h"
+#include "Engine/GlobalUtils.h"
 
 namespace lne
 {
 class FrameGraph;
-
+class GfxContext;
+class Shader;
 class PipelineBase : public RefCountBase
 {
 public:
@@ -23,7 +25,8 @@ public:
 protected:
     PipelineBase(SafePtr<GfxContext> ctx, const std::string& name, vk::PipelineBindPoint bindPoint);
 
-    vk::PipelineLayout CreatePipelineLayout(const std::vector<vk::DescriptorSetLayout>& layouts);
+    vk::PipelineLayout CreatePipelineLayout(const std::vector<vk::DescriptorSetLayout>& layouts,
+                                            const std::vector<vk::PushConstantRange>& pcRanges);
 
     virtual std::string_view GetDebugName() const override
     {
@@ -41,14 +44,14 @@ protected:
 
 #pragma region Graphics pipeline
 
-struct DepthDesc
+struct DepthState
 {
     bool                DepthTestEnable = false;
     bool                DepthWriteEnable = false;
     ECompareOperation       DepthCompareOp = ECompareOperation::Less;
     bool                StencilTestEnable = false;
 
-    DepthDesc& SetDepthTest(bool read, bool write, ECompareOperation compare);
+    DepthState& SetDepthTest(bool read, bool write, ECompareOperation compare);
 };
 
 struct BlendState
@@ -84,7 +87,7 @@ struct GraphicsPipelineDesc
     EFillMode Fill = EFillMode::Solid;
 
     // depth stencil settings
-    DepthDesc   Depth{};
+    DepthState   Depth{};
     BlendState  Blend{};
 
     FrameGraph* FrameGraph = nullptr;
@@ -100,10 +103,123 @@ struct GraphicsPipelineDesc
     }
 };
 
+struct GraphicsPipelineDescV2
+{
+    FrameGraph*             FrameGraph = nullptr;
+
+    ECullMode               CullMode = ECullMode::Back;
+    EFillMode               Fill = EFillMode::Solid;
+
+    TransparencyMode::Enum  TransparencyMode = TransparencyMode::eOpaque;
+
+    bool                    DeriveDepthFromTransparency = true; // if true, Depth and Blend settings will be overridden based on TransparencyMode
+    DepthMode::Enum         DepthMode = DepthMode::eReadWrite;
+    ECompareOperation       DepthCompareOp = ECompareOperation::LessOrEqual;
+private:
+    friend class Effect;
+    friend class GfxPipeline;
+    SafePtr<Shader>         Shader{};
+};
+
+inline BlendState MakeBlendState(TransparencyMode::Enum mode,
+                                 EBlendColorWriteMask mask = EBlendColorWriteMask::All)
+{
+    BlendState s{};
+    s.ColorWriteMask = mask;
+
+    auto set = [&](vk::BlendFactor sc, vk::BlendFactor dc, vk::BlendOp co,
+                   vk::BlendFactor sa, vk::BlendFactor da, vk::BlendOp ao,
+                   bool enable, bool separate)
+        {
+            s.SrcColor = sc; s.DstColor = dc; s.ColorOp = co;
+            s.SrcAlpha = sa; s.DstAlpha = da; s.AlphaOp = ao;
+            s.BlendEnable = enable;
+            s.SepareteAlphaBlendEnable = separate; // (typo in member name, see note)
+        };
+
+    switch (mode)
+    {
+    case TransparencyMode::eOpaque:
+        set(vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd,
+            vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd,
+            false, false);
+        break;
+
+    case TransparencyMode::eTransparent: // straight alpha
+        set(vk::BlendFactor::eSrcAlpha, vk::BlendFactor::eOneMinusSrcAlpha, vk::BlendOp::eAdd,
+            vk::BlendFactor::eOne, vk::BlendFactor::eOneMinusSrcAlpha, vk::BlendOp::eAdd,
+            true, true);
+        break;
+
+    case TransparencyMode::ePremultiplied:
+        set(vk::BlendFactor::eOne, vk::BlendFactor::eOneMinusSrcAlpha, vk::BlendOp::eAdd,
+            vk::BlendFactor::eOne, vk::BlendFactor::eOneMinusSrcAlpha, vk::BlendOp::eAdd,
+            true, false);
+        break;
+
+    case TransparencyMode::eAdditive:
+        set(vk::BlendFactor::eOne, vk::BlendFactor::eOne, vk::BlendOp::eAdd,
+            vk::BlendFactor::eZero, vk::BlendFactor::eOne, vk::BlendOp::eAdd,
+            true, true);
+        break;
+
+    case TransparencyMode::eAlphaAdditive: // soft add
+        set(vk::BlendFactor::eSrcAlpha, vk::BlendFactor::eOne, vk::BlendOp::eAdd,
+            vk::BlendFactor::eZero, vk::BlendFactor::eOne, vk::BlendOp::eAdd,
+            true, true);
+        break;
+
+    case TransparencyMode::eMultiply: // S * D
+        set(vk::BlendFactor::eDstColor, vk::BlendFactor::eZero, vk::BlendOp::eAdd,
+            vk::BlendFactor::eZero, vk::BlendFactor::eOne, vk::BlendOp::eAdd,
+            true, true);
+        break;
+
+    case TransparencyMode::eScreen: // S + D - S*D
+        set(vk::BlendFactor::eOneMinusDstColor, vk::BlendFactor::eOne, vk::BlendOp::eAdd,
+            vk::BlendFactor::eZero, vk::BlendFactor::eOne, vk::BlendOp::eAdd,
+            true, true);
+        break;
+
+    case TransparencyMode::eDisabled:
+        set(vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd,
+            vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd,
+            false, false);
+        break;
+    }
+
+    return s;
+}
+
+inline DepthState GetDepthStateFromTransparency(TransparencyMode::Enum mode, GraphicsPipelineDescV2& desc)
+{
+    DepthState state{};
+    if (!desc.DeriveDepthFromTransparency)
+    {
+        switch (mode)
+        {
+        case TransparencyMode::eOpaque:
+            desc.DepthMode = DepthMode::eReadWrite;
+            desc.DepthCompareOp = ECompareOperation::LessOrEqual;
+            break;
+        default:
+            desc.DepthMode = DepthMode::eReadOnly;
+            desc.DepthCompareOp = ECompareOperation::LessOrEqual;
+            break;
+        }
+    }
+
+    return state.SetDepthTest(
+        desc.DepthMode != DepthMode::eNone,
+        desc.DepthMode == DepthMode::eReadWrite,
+        desc.DepthCompareOp);
+}
+
 class GfxPipeline : public PipelineBase
 {
 public:
-    GfxPipeline(SafePtr<class GfxContext> ctx, const GraphicsPipelineDesc& desc);
+    GfxPipeline(SafePtr<GfxContext> ctx, const GraphicsPipelineDesc& desc);
+    GfxPipeline(SafePtr<Shader> shader, GraphicsPipelineDescV2& desc);
     virtual ~GfxPipeline() {}
 
 private:
