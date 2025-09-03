@@ -69,6 +69,7 @@
 #include "Engine/Graphics/Resources/Mesh.h"
 #include "Engine/Graphics/Resources/Material.h"
 #include "Engine/Graphics/Resources/Effect.h"
+#include "Engine/Graphics/Resources/GfxTechnique.h"
 
 #include "Engine/Scene/Components.h"
 #include "Engine/Scene/HierarchicalScene.h"

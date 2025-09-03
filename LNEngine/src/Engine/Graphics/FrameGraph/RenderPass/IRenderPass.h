@@ -8,6 +8,9 @@ namespace lne
 #define LNE_PROFILING_RP_COL 0xE2892F
 class FrameGraph;
 struct FrameGraphNode;
+using PassID = uint64_t;
+
+PassID MakePassID(std::string_view name);
 
 class IRenderPass : public RefCountBase
 {
@@ -15,6 +18,7 @@ public:
     IRenderPass() = default;
     virtual ~IRenderPass() = default;
 
+    void OnBindInternal(FrameGraph* frameGraph, FrameGraphNode* node);
     virtual void OnBind(FrameGraph* frameGraph, FrameGraphNode* node) {}
     virtual void BeginFrame() {}
 
@@ -28,13 +32,17 @@ public:
     virtual void OnResize(glm::vec2 dimension) {}
     virtual void OnImGuiRender() {}
 
-    std::string_view GetName() const { return m_Name; }
-    const EntitySignature& MustHaveComponents() const { return m_MustHaveComponents; }
-    virtual std::string_view GetDebugName() const override { return m_Name; }
+    std::string_view            GetName() const { return m_Name; }
+    PassID                      GetID() const { return m_ID; }
+    const EntitySignature&      MustHaveComponents() const { return m_MustHaveComponents; }
+    virtual std::string_view    GetDebugName() const override { return m_Name; }
 
 protected:
     std::string     m_Name{};
     EntitySignature m_MustHaveComponents{};
+
+private:
+    PassID          m_ID{};
 };
 
 class IDrawStaticMeshes

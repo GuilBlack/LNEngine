@@ -13,6 +13,9 @@ namespace lne
 class StorageBuffer;
 class StaticMesh;
 class GfxContext;
+class Shader;
+class Effect;
+class Technique;
 class GfxPipeline;
 class Material;
 class Texture;
@@ -125,6 +128,8 @@ private:
 
     std::mutex                                  m_ShaderIncludeDirsMutex;
     std::vector<std::filesystem::path>          m_ShaderInudeDirs;
+
+    std::unordered_map<std::string, SafePtr<Shader>> m_ShaderLibrary;
 
     bool m_LoadAsync{ true };
 

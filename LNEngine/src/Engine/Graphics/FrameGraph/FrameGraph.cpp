@@ -524,7 +524,7 @@ void FrameGraph::BindRenderPass(SafePtr<IRenderPass> renderPass)
     LNE_ASSERT(node != nullptr, "Node not found");
 
     node->RenderPass = renderPass;
-    renderPass->OnBind(this, node);
+    renderPass->OnBindInternal(this, node);
 }
 
 FrameGraphNodeHandle FrameGraph::CreateNode(const FrameGraphNodeDesc& desc)

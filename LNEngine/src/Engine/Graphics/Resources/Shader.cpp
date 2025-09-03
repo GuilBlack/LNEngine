@@ -152,14 +152,14 @@ ShaderStage::Enum MapShaderToken(std::string_view token)
         return ShaderStage::eUnknown;
 }
 
-MaterialType::Enum MapMaterialTypeToken(std::string_view token)
+ShaderDomain::Enum MapMaterialTypeToken(std::string_view token)
 {
     if (token == "Mesh")
-        return MaterialType::eMesh;
+        return ShaderDomain::eMesh;
     else if (token == "PostProcess")
-        return MaterialType::ePostProcess;
+        return ShaderDomain::ePostProcess;
     else
-        return MaterialType::eUnknown;
+        return ShaderDomain::eUnknown;
 }
 
 #pragma endregion
@@ -512,7 +512,7 @@ Shader::Header Shader::ParseHeader(std::string& headerSource)
             }
             if (token == "Tp")
             {
-                header.MaterialType = MapMaterialTypeToken(value);
+                header.ShaderDomain = MapMaterialTypeToken(value);
                 continue;
             }
             LNE_WARN("Unknown token in shader header: {}", token);
@@ -609,9 +609,9 @@ std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> Shader::CompileToSp
 void Shader::ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> spirvCode)
 {
     MatTypeInfo matTypeInfo{};
-    bool isUnknownMatType = (m_Header.MaterialType == MaterialType::eUnknown);
+    bool isUnknownMatType = (m_Header.ShaderDomain == ShaderDomain::eUnknown);
     if (isUnknownMatType == false)
-        matTypeInfo = MatTypeInfos[m_Header.MaterialType];
+        matTypeInfo = MatTypeInfos[m_Header.ShaderDomain];
     for (auto& [stage, code] : spirvCode)
     {
         LNE_INFO("Stage: {}", ShaderStageToDefine(stage));
@@ -780,9 +780,9 @@ void Shader::ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<ui
 uint32_t Shader::ReflectSSBOStructMembers(spirv_cross::Compiler& compiler, uint32_t struct_type_id, const std::string& prefix, uint32_t set, uint32_t binding)
 {
     MatTypeInfo matTypeInfo{};
-    bool isUnknownMatType = (m_Header.MaterialType == MaterialType::eUnknown);
+    bool isUnknownMatType = (m_Header.ShaderDomain == ShaderDomain::eUnknown);
     if (isUnknownMatType == false)
-        matTypeInfo = MatTypeInfos[m_Header.MaterialType];
+        matTypeInfo = MatTypeInfos[m_Header.ShaderDomain];
 
     auto LogMember = [&](const std::string& qname, uint32_t set, uint32_t binding,
                          uint32_t offset, uint32_t size, const spirv_cross::SPIRType& memberType)
@@ -912,12 +912,12 @@ void Shader::CreateDescriptorSetLayouts()
     uint32_t layoutIndex = 0;
     using StageFlags = vk::ShaderStageFlagBits;
     MatTypeInfo matTypeInfo{};
-    if (m_Header.MaterialType != MaterialType::eUnknown)
-        matTypeInfo = MatTypeInfos[m_Header.MaterialType];
+    if (m_Header.ShaderDomain != ShaderDomain::eUnknown)
+        matTypeInfo = MatTypeInfos[m_Header.ShaderDomain];
 
     auto setStageIfNeeded = [&matTypeInfo, this](int32_t setIndex, vk::ShaderStageFlags& stages)
     {
-        if (m_Header.MaterialType == MaterialType::eUnknown)
+        if (m_Header.ShaderDomain == ShaderDomain::eUnknown)
             return;
         if (setIndex == matTypeInfo.SetIndices[ShaderSetIndexType::eGlobal])
         {

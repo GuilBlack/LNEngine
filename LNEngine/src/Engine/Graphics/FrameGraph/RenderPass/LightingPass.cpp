@@ -22,7 +22,7 @@ void LightingPass::OnBind(FrameGraph* frameGraph, FrameGraphNode* node)
     desc.Blend.EnableBlend(false);
     desc.CullMode = ECullMode::None;
     m_Pipeline = renderer.CreateGraphicsPipeline(desc);
-    m_Material = lnnew Material(m_Pipeline, MaterialType::ePostProcess);
+    m_Material = lnnew Material(m_Pipeline, ShaderDomain::ePostProcess);
 
     
     for (FrameGraphResourceHandle resourceHandle : node->OutputResources)

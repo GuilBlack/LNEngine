@@ -75,7 +75,7 @@ inline std::string_view ToString(Enum type)
 }
 }
 
-namespace MaterialType
+namespace ShaderDomain
 {
 enum Enum : char
 {

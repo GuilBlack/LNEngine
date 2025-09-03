@@ -373,7 +373,7 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer,
 void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, const SafePtr<class Material>& material)
 {
     LNE_PROFILE_FUNCTION_C(PROFILING_COL)
-    if (material->GetMaterialType() != MaterialType::ePostProcess)
+    if (material->GetMaterialType() != ShaderDomain::ePostProcess)
     {
         LNE_ERROR("Material type not supported for fullscreen quad");
         return;

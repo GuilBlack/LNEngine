@@ -87,7 +87,7 @@ class Shader : public RefCountBase
     struct Header
     {
         std::unordered_map<ShaderStage::Enum, ShaderHeaderInfo> StageHeaders;
-        MaterialType::Enum MaterialType = MaterialType::eUnknown;
+        ShaderDomain::Enum ShaderDomain = ShaderDomain::eUnknown;
         std::string RenderPass;
         uint64_t RenderPassHash;
     };
@@ -108,13 +108,13 @@ public:
     [[nodiscard]] const ReflectedData&      GetReflectedData() const { return m_ReflectedData; }
     [[nodiscard]] Shader::Header            GetHeader() const { return m_Header; }
     [[nodiscard]] std::string               GetName() const { return m_Name; }
-    [[nodiscard]] MaterialType::Enum        GetMaterialType() const { return m_Header.MaterialType; }
+    [[nodiscard]] ShaderDomain::Enum        GetMaterialType() const { return m_Header.ShaderDomain; }
     [[nodiscard]] uint32_t                  GetSetIndex(ShaderSetIndexType::Enum type) const
     {
-        if (m_Header.MaterialType == MaterialType::eUnknown || 
-            (uint32_t)m_Header.MaterialType >= MaterialType::NUM_MATERIAL_TYPES)
+        if (m_Header.ShaderDomain == ShaderDomain::eUnknown || 
+            (uint32_t)m_Header.ShaderDomain >= ShaderDomain::NUM_MATERIAL_TYPES)
             return -1;
-        return MatTypeInfos[m_Header.MaterialType].SetIndices[type];
+        return MatTypeInfos[m_Header.ShaderDomain].SetIndices[type];
     }
     virtual ~Shader();
      
@@ -123,7 +123,7 @@ public:
     {
         std::array<int8_t, ShaderSetIndexType::NUM_MATERIAL_SET_INDICES> SetIndices{-1,-1,-1,-1,-1};
     };
-    constexpr static std::array<MatTypeInfo, MaterialType::NUM_MATERIAL_TYPES> MatTypeInfos = {
+    constexpr static std::array<MatTypeInfo, ShaderDomain::NUM_MATERIAL_TYPES> MatTypeInfos = {
         MatTypeInfo{ {  0,  3,  4,  2,  1 } }, // eMesh
         MatTypeInfo{ {  0,  2,  3,  1, -1 } }, // ePostProcess
     };

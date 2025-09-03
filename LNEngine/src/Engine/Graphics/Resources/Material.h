@@ -9,11 +9,11 @@ namespace lne
 class Material : public RefCountBase
 {
 public:
-    Material(SafePtr<class GfxPipeline> pipeline, MaterialType::Enum materialType = MaterialType::eMesh);
+    Material(SafePtr<class GfxPipeline> pipeline, ShaderDomain::Enum materialType = ShaderDomain::eMesh);
     ~Material();
 
     SafePtr<class GfxPipeline> GetPipeline() const { return m_Pipeline; }
-    MaterialType::Enum GetMaterialType() const { return m_MaterialType; }
+    ShaderDomain::Enum GetMaterialType() const { return m_MaterialType; }
     bool IsTransparent() const { return m_IsTransparent; }
     void SetTransparency(bool isTransparent) { m_IsTransparent = isTransparent; }
 
@@ -42,7 +42,7 @@ private:
     SafePtr<class GfxPipeline> m_Pipeline;
     std::unordered_map<std::string, UniformElement> m_MaterialConstants;
     std::map<uint32_t, SafePtr<UniformBuffer>> m_UniformBuffers;
-    MaterialType::Enum m_MaterialType;
+    ShaderDomain::Enum m_MaterialType;
     bool m_IsTransparent{ false };
     uint32_t m_CurrentFrameInFlight;
     std::vector<vk::DescriptorSet> m_DescSets;

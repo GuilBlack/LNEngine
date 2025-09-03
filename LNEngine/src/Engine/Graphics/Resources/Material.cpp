@@ -13,14 +13,14 @@
 
 namespace lne
 {
-Material::Material(SafePtr<GfxPipeline> pipeline, MaterialType::Enum materialType)
+Material::Material(SafePtr<GfxPipeline> pipeline, ShaderDomain::Enum materialType)
     : m_Pipeline(pipeline), m_MaterialType(materialType)
 {
     DescriptorSet materialDescSet = {};
 
     switch (materialType)
     {
-    case MaterialType::eMesh:
+    case ShaderDomain::eMesh:
     {
         materialDescSet = m_Pipeline->m_Shader->GetReflectedData().DescriptorSets.at(3);
         for (const auto& [name, element] :
@@ -31,7 +31,7 @@ Material::Material(SafePtr<GfxPipeline> pipeline, MaterialType::Enum materialTyp
         }
         break;
     }
-    case MaterialType::ePostProcess:
+    case ShaderDomain::ePostProcess:
     {
         materialDescSet = m_Pipeline->m_Shader->GetReflectedData().DescriptorSets.at(2);
         for (const auto& [name, element] :
@@ -42,7 +42,7 @@ Material::Material(SafePtr<GfxPipeline> pipeline, MaterialType::Enum materialTyp
         }
         break;
     }
-    case MaterialType::eUnknown:
+    case ShaderDomain::eUnknown:
     default:
         LNE_ASSERT(false, "Material type not supported");
         break;

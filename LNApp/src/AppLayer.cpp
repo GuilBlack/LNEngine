@@ -48,7 +48,7 @@ void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNo
     desc.Blend.EnableBlend(false);
     desc.CullMode = lne::ECullMode::None;
     m_Pipeline = renderer.CreateGraphicsPipeline(desc);
-    m_Material = lne::SafePtr(lnnew lne::Material(m_Pipeline, lne::MaterialType::ePostProcess));
+    m_Material = lne::SafePtr(lnnew lne::Material(m_Pipeline, lne::ShaderDomain::ePostProcess));
 
     SafePtr gbufferTestEffect = lnnew lne::Effect(lne::ApplicationBase::GetRenderer().GetGfxContext(),
                                                   lne::ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\GBufferEffectTest.glsl");
@@ -58,6 +58,22 @@ void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNo
     desc2.TransparencyMode = lne::TransparencyMode::eOpaque;
     desc2.FrameGraph = frameGraph;
     auto handle = gbufferTestEffect->CreateOrGetPipeline(desc2);
+
+
+    GfxTechnique::Desc techDesc{};
+    techDesc.Name = "GBufferTestOpaque";
+    techDesc.TechniqueState.Cull = lne::ECullMode::Back;
+    techDesc.TechniqueState.Fill = lne::EFillMode::Solid;
+    techDesc.TechniqueState.Transparency = lne::TransparencyMode::eOpaque;
+    techDesc.TechniqueState.DepthMode = lne::DepthMode::eReadWrite;
+
+    PassBindingDesc passDesc{};
+    passDesc.PassName = "GBufferPass";
+    passDesc.PassEffect = gbufferTestEffect;
+    techDesc.Passes.push_back(passDesc);
+    SafePtr technique = lnnew GfxTechnique(techDesc);
+
+    technique->CreateOrGetPipeline(MakePassID("GBufferPass"), frameGraph);
 
     for (FrameGraphResourceHandle resourceHandle : node->InputResources)
     {
@@ -135,7 +151,7 @@ void AppLayer::ToneMappingPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGr
     desc.Blend.EnableBlend(false);
     desc.CullMode = lne::ECullMode::None;
     m_Pipeline = renderer.CreateGraphicsPipeline(desc);
-    m_Material = lne::SafePtr(lnnew lne::Material(m_Pipeline, lne::MaterialType::ePostProcess));
+    m_Material = lne::SafePtr(lnnew lne::Material(m_Pipeline, lne::ShaderDomain::ePostProcess));
 
     for (FrameGraphResourceHandle resourceHandle : node->OutputResources)
     {

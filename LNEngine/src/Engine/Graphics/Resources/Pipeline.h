@@ -118,6 +118,7 @@ struct GraphicsPipelineDescV2
 private:
     friend class Effect;
     friend class GfxPipeline;
+    friend class GfxTechnique;
     SafePtr<Shader>         Shader{};
 };
 

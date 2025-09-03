@@ -25,10 +25,10 @@ Effect::Effect(SafePtr<GfxContext> context, const std::string& shaderPath)
         uint32_t initialCapacity;
         switch (m_Shader->GetMaterialType())
         {
-        case MaterialType::eMesh:
+        case ShaderDomain::eMesh:
             initialCapacity = 256;
             break;
-        case MaterialType::ePostProcess:
+        case ShaderDomain::ePostProcess:
             initialCapacity = 4;
             break;
         default:
