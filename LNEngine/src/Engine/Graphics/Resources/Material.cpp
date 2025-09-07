@@ -10,6 +10,8 @@
 #include "Graphics/CommandPoolManager.h"
 #include "Graphics/DynamicDescriptorAllocator.h"
 #include "Graphics/Resources/Texture.h"
+#include "GfxTechnique.h"
+#include "Graphics/Resources/StorageBuffer.h"
 
 namespace lne
 {
@@ -80,7 +82,131 @@ void Material::SetUniformBuffer(uint32_t binding, const void* data, uint32_t siz
 }
 
 //////////////////////////////////////////////////////////////////////////
-// ComputeProgram const std::string&
+// MaterialV2 ////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+MaterialV2::MaterialV2(SafePtr<GfxTechnique> technique)
+    : m_Technique(technique)
+{
+    for (auto& [passId, _, effect] : technique->GetPasses())
+    {
+        SafePtr shader = effect->GetShader();
+        uint32_t matSetIndex = shader->GetSetIndex(ShaderSetIndexType::eMaterial);
+        for (const auto& [name, element] : shader->GetReflectedData().StorageArrays)
+        {
+            if (element.SetIndex != matSetIndex)
+                continue;
+            MatPassDataHash hash{
+                .PassId = passId,
+                .SetIndex = matSetIndex,
+                .Binding = element.BindingIndex
+            };
+            byte* passData = new byte[element.ElementSize];
+            m_PassData.emplace(hash, passData);
+        }
+
+        for (const auto& [name, element] : shader->GetReflectedData().StorageElements)
+        {
+            if (element.SetIndex != matSetIndex)
+                continue;
+            m_Constants.emplace(name, MaterialElement{passId, element});
+        }
+
+        m_AllocatedSlots = technique->AllocateMaterialSlots();
+    }
+}
+
+MaterialV2::~MaterialV2()
+{
+
+    for (auto& [_, passData] : m_PassData)
+        delete[] passData;
+}
+
+ShaderDomain::Enum MaterialV2::GetMaterialType() const
+{
+    return m_Technique->GetPasses()[0].PassEffect->GetShader()->GetShaderDomain();
+}
+
+SafePtr<lne::GfxTechnique> MaterialV2::GetTechnique() const
+{
+    return m_Technique;
+}
+
+MaterialPassSlot MaterialV2::GetMaterialPassSlot(PassID passId) const
+{
+    auto it = std::find_if(m_AllocatedSlots.begin(), m_AllocatedSlots.end(), [&passId](const MaterialPassSlot& slot)
+                 {
+                     return slot.PassId == passId;
+                 });
+    if (it == m_AllocatedSlots.end())
+    {
+        LNE_ERROR("PassID not found in material");
+        return MaterialPassSlot{};
+    }
+    return *it;
+}
+
+void MaterialV2::SetTexture(const std::string& name, SafePtr<Texture> texture)
+{
+    bool success = SetProperty<uint32_t>(name, texture->GetBindlessTextureHandle());
+    if (!success)
+    {
+        LNE_WARN("Texture property '{}' not found in material", name);
+        return;
+    }
+    if (m_Textures.contains(name))
+        m_Textures.at(name) = texture;
+    else
+        m_Textures.emplace(name, texture);
+}
+
+void MaterialV2::InvalidateMaterial()
+{
+    auto& renderer = ApplicationBase::GetRenderer();
+    m_DirtyFrames = renderer.GetGfxContext()->GetMaxFramesInFlight();
+    renderer.AddDirtyMaterial(SafePtr(this));
+}
+
+bool MaterialV2::IsOfShaderElementType(TypeId typeId, ShaderElementType::Enum elemType)
+{
+    static const std::unordered_map<TypeId, ShaderElementType::Enum> typeMap = {
+        { TypeIdHelper<float>::Get(), ShaderElementType::eFloat },
+        { TypeIdHelper<glm::vec2>::Get(), ShaderElementType::eFloat2 },
+        { TypeIdHelper<glm::vec3>::Get(), ShaderElementType::eFloat3 },
+        { TypeIdHelper<glm::vec4>::Get(), ShaderElementType::eFloat4 },
+        { TypeIdHelper<int32_t>::Get(), ShaderElementType::eInt },
+        { TypeIdHelper<glm::ivec2>::Get(), ShaderElementType::eInt2 },
+        { TypeIdHelper<glm::ivec3>::Get(), ShaderElementType::eInt3 },
+        { TypeIdHelper<glm::ivec4>::Get(), ShaderElementType::eInt4 },
+        { TypeIdHelper<uint32_t>::Get(), ShaderElementType::eUInt },
+        { TypeIdHelper<glm::uvec2>::Get(), ShaderElementType::eUInt2 },
+        { TypeIdHelper<glm::uvec3>::Get(), ShaderElementType::eUInt3 },
+        { TypeIdHelper<glm::uvec4>::Get(), ShaderElementType::eUInt4 },
+        { TypeIdHelper<glm::mat2>::Get(), ShaderElementType::eMatrix2x2 },
+        { TypeIdHelper<glm::mat3>::Get(), ShaderElementType::eMatrix3x3 },
+        { TypeIdHelper<glm::mat4>::Get(), ShaderElementType::eMatrix4x4 },
+    };
+    if (typeMap.contains(typeId) == false)
+        return false;
+    return typeMap.at(typeId) == elemType;
+}
+
+void MaterialV2::CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, uint32_t frameIndex)
+{
+    for (auto& [hash, passData] : m_PassData)
+    {
+        auto effect = m_Technique->GetPassEffect(hash.PassId);
+        auto it = std::find_if(m_AllocatedSlots.begin(), m_AllocatedSlots.end(), [&hash](const MaterialPassSlot& slot)
+                  {
+                      return slot.PassId == hash.PassId;
+                  });
+        effect->CopyMaterialDataToBuffer(cmdBuffer, frameIndex, it->Slot, hash.Binding, passData);
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////
+// ComputeProgram ////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
 ComputeProgram::ComputeProgram(SafePtr<ComputePipeline> pipeline)
@@ -134,4 +260,5 @@ void ComputeProgram::SetUniformBuffer(uint32_t binding, const void* data, uint32
     auto& renderer = ApplicationBase::GetRenderer();
     ub->CopyData(ApplicationBase::GetRenderer().GetGfxContext()->GetPrimaryCommandBuffer(), data, size, offset);
 }
+
 }

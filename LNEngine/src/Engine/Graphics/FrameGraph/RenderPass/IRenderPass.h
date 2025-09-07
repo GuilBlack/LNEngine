@@ -8,7 +8,6 @@ namespace lne
 #define LNE_PROFILING_RP_COL 0xE2892F
 class FrameGraph;
 struct FrameGraphNode;
-using PassID = uint64_t;
 
 PassID MakePassID(std::string_view name);
 
@@ -57,9 +56,9 @@ public:
 public:
     virtual ~IDrawStaticMeshes() = default;
     virtual void AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, uint32_t subMeshIndex);
-    void ClearDrawCommands() { m_DrawCommands.clear(); }
+    void ClearDrawCommands();
 protected:
-    std::unordered_map<StaticMeshHash, DrawCommand> m_DrawCommands{};
+    std::unordered_map<StaticMeshHash, DrawCommand> m_DrawCommands;
 };
 }
 

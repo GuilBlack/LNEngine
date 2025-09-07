@@ -73,7 +73,10 @@ void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNo
     techDesc.Passes.push_back(passDesc);
     SafePtr technique = lnnew GfxTechnique(techDesc);
 
-    technique->CreateOrGetPipeline(MakePassID("GBufferPass"), frameGraph);
+    auto pipelineHandle = technique->CreateOrGetPipeline(MakePassID("GBufferPass"), frameGraph);
+
+    SafePtr<MaterialV2> mat = lnnew MaterialV2(technique);
+    mat->SetProperty("uColor", glm::vec4(1.0, 1.0, 1.0, 1.0));
 
     for (FrameGraphResourceHandle resourceHandle : node->InputResources)
     {
@@ -153,6 +156,25 @@ void AppLayer::ToneMappingPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGr
     m_Pipeline = renderer.CreateGraphicsPipeline(desc);
     m_Material = lne::SafePtr(lnnew lne::Material(m_Pipeline, lne::ShaderDomain::ePostProcess));
 
+    SafePtr toneMapperEffect = lnnew lne::Effect(lne::ApplicationBase::GetRenderer().GetGfxContext(),
+                                                  lne::ApplicationBase::GetAssetsPath() + "Shaders\\ToneMapperEffect.glsl");
+    GfxTechnique::Desc techDesc{};
+    techDesc.Name = "ToneMapperTechnique";
+    techDesc.TechniqueState.Cull = lne::ECullMode::None;
+    techDesc.TechniqueState.Fill = lne::EFillMode::Solid;
+    techDesc.TechniqueState.Transparency = lne::TransparencyMode::eOpaque;
+    techDesc.TechniqueState.DepthMode = lne::DepthMode::eNone;
+
+    PassBindingDesc passDesc{};
+    passDesc.PassName = "ToneMappingPass";
+    passDesc.PassEffect = toneMapperEffect;
+    techDesc.Passes.push_back(passDesc);
+    SafePtr technique = lnnew GfxTechnique(techDesc);
+
+    auto pipelineHandle = technique->CreateOrGetPipeline(GetID(), frameGraph);
+
+    SafePtr<MaterialV2> mat = lnnew MaterialV2(technique);
+
     for (FrameGraphResourceHandle resourceHandle : node->OutputResources)
     {
         FrameGraphResource& resource = *frameGraph->GetResource(resourceHandle);
@@ -165,6 +187,14 @@ void AppLayer::ToneMappingPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGr
             m_DebugTexture = debugTexture;
         }
     }
+
+    for (lne::FrameGraphResourceHandle handle : node->InputResources)
+    {
+        lne::FrameGraphResource* resource = frameGraph->GetResource(handle);
+        lne::SafePtr<lne::Texture> sceneTexture = resource->Resource.GetAs<lne::Texture>();
+        mat->SetTexture("tSceneTexture", sceneTexture);
+    }
+    m_MaterialV2 = mat;
 }
 
 void AppLayer::ToneMappingPass::Execute(vk::CommandBuffer cmdBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
@@ -177,7 +207,7 @@ void AppLayer::ToneMappingPass::Execute(vk::CommandBuffer cmdBuffer, class lne::
         lne::SafePtr<lne::Texture> sceneTexture = resource->Resource.GetAs<lne::Texture>();
         m_Material->SetTexture("tSceneTexture", sceneTexture);
     }
-    renderer.DrawFullscreenQuad(cmdBuffer, m_Material);
+    renderer.DrawFullscreenQuad(cmdBuffer, m_MaterialV2, GetID());
 }
 
 void AppLayer::ToneMappingPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)

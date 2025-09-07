@@ -22,6 +22,7 @@ public:
     }
 
     void CopyData(vk::CommandBuffer cb, const void* data, uint64_t size, uint64_t offset = 0);
+    void Grow(vk::CommandBuffer cb, uint64_t newSize);
 protected:
     SafePtr<class GfxContext> m_Context;
 
@@ -37,6 +38,10 @@ private:
 private:
     void InitStatic(const void* data);
     void InitDynamic();
+    void CopyBufferToBuffer(vk::CommandBuffer cb, 
+                            BufferAllocation src, BufferAllocation dst, 
+                            uint64_t size, 
+                            uint64_t srcOffset = 0, uint64_t dstOffset = 0);
 };
 
 // Has its own descriptor set layout

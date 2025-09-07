@@ -1,5 +1,6 @@
 #pragma once
 #include "Engine/Graphics/Enums.h"
+#include "Engine/Graphics/Structs.h"
 #include "Engine/Core/SafePtr.h"
 #include "Engine/Graphics/FrameGraph/RenderPass/IRenderPass.h"
 #include "Engine/Graphics/Resources/Effect.h"
@@ -16,7 +17,7 @@ struct PassBindingDesc
 };
 struct PassBinding
 {
-    PassID              PassName;
+    PassID              PassId;
     PipelineHandle      PipelineHandle{};
     SafePtr<Effect>     PassEffect;
 };
@@ -44,11 +45,15 @@ public:
 public:
     GfxTechnique(const Desc& desc);
 
-    PipelineHandle CreateOrGetPipeline(PassID passID, SafePtr<FrameGraph> frameGraph);
-    SafePtr<GfxPipeline> GetPipeline(PassID passID, PipelineHandle handle);
+    [[nodiscard]] PipelineHandle                                CreateOrGetPipeline(PassID passID, SafePtr<FrameGraph> frameGraph);
+    [[nodiscard]] SafePtr<GfxPipeline>                          GetPipeline(PassID passID);
+    [[nodiscard]] SafePtr<Effect>                               GetPassEffect(PassID passID);
+    [[nodiscard]] const std::vector<PassBinding>&               GetPasses() const { return m_Passes; }
+    [[nodiscard]] std::vector<MaterialPassSlot>                 AllocateMaterialSlots();
 
 private:
     std::string                 m_Name;
+    std::mutex                  m_PipelineMutex;
     std::vector<PassBinding>    m_Passes;
     State                       m_State;
 };

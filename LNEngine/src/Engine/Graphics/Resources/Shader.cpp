@@ -953,8 +953,7 @@ void Shader::CreateDescriptorSetLayouts()
         }
         for (auto& [name, buffer] : set.StorageBuffers)
         {
-            auto stages = buffer.Stages;
-            setStageIfNeeded(buffer.SetIndex, stages);
+            auto stages = StageFlags::eAll;
 
             bindings.emplace_back(vk::DescriptorSetLayoutBinding(buffer.BindingIndex, vk::DescriptorType::eStorageBuffer, 1, stages));
         }

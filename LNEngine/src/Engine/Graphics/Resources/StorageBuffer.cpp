@@ -72,10 +72,9 @@ void StorageBuffer::CopyData(vk::CommandBuffer cb, const void* data, uint64_t si
         vk::PipelineStageFlags srcStage = vk::PipelineStageFlagBits::eHost;
         vk::PipelineStageFlags dstStage =
             vk::PipelineStageFlagBits::eComputeShader |
-                vk::PipelineStageFlagBits::eVertexShader;
+                vk::PipelineStageFlagBits::eAllGraphics;
 
         cb.pipelineBarrier(srcStage, dstStage, vk::DependencyFlags{}, nullptr, barrier, nullptr);
-
     }
     else
     {
@@ -91,6 +90,7 @@ void StorageBuffer::CopyData(vk::CommandBuffer cb, const void* data, uint64_t si
             offset,
             size
         };
+        cb.pipelineBarrier(vk::PipelineStageFlagBits::eHost, vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlags{}, nullptr, barrier, nullptr);
 
         vk::BufferCopy copyRegion{
             offset,
@@ -109,7 +109,100 @@ void StorageBuffer::CopyData(vk::CommandBuffer cb, const void* data, uint64_t si
             offset,
             size
         };
+        cb.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, 
+                          vk::PipelineStageFlagBits::eComputeShader | vk::PipelineStageFlagBits::eVertexShader, 
+                           vk::DependencyFlags{}, nullptr, barrier2, nullptr);
     }
+}
+
+void StorageBuffer::Grow(vk::CommandBuffer cb, uint64_t newSize)
+{
+    if (newSize == m_Size)
+        return;
+    if (newSize <= m_Size)
+    {
+        LNE_ERROR("StorageBuffer::Grow - size must be greater than current size");
+        return;
+    }
+
+    // 1. Create new buffer
+    uint64_t oldSize = m_Size;
+    m_Size = newSize;
+    vk::BufferCreateInfo bufferCI{};
+    VmaAllocationCreateInfo allocCI{};
+    switch (m_Type)
+    {
+    case StorageBufferType::eStatic:
+    {
+        bufferCI = {
+            {},
+            m_Size,
+            vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
+            vk::SharingMode::eExclusive,
+        };
+        allocCI = {
+            .flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
+            .usage = VMA_MEMORY_USAGE_AUTO,
+            .priority = 1.0f,
+        };
+        break;
+    }
+    case StorageBufferType::eDynamic:
+    {
+        bufferCI = {
+            {},
+            m_Size,
+            vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
+            vk::SharingMode::eExclusive,
+        };
+        allocCI = {
+            .flags = VMA_ALLOCATION_CREATE_MAPPED_BIT
+                | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
+                | VMA_ALLOCATION_CREATE_HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT,
+            .usage = VMA_MEMORY_USAGE_AUTO,
+            .preferredFlags = VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+        };
+        break;
+    }
+    }
+
+    BufferAllocation newAllocation;
+    m_Context->AllocateBuffer(newAllocation, bufferCI, allocCI);
+
+    bool hasStagingBuffer = m_HasStagingBuffer;
+    BufferAllocation newStagingAllocation;
+    // 1.5. check if we need a staging buffer
+    if (m_Type == StorageBufferType::eDynamic && bool(newAllocation.MemoryFlags & vk::MemoryPropertyFlagBits::eHostVisible) == false)
+    {
+        bufferCI.usage = vk::BufferUsageFlagBits::eTransferSrc;
+        allocCI.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+        m_Context->AllocateBuffer(newStagingAllocation, bufferCI, allocCI);
+        hasStagingBuffer = true;
+    }
+    else
+    {
+        m_HasStagingBuffer = false;
+    }
+
+    // 2. Copy old data to new buffer
+    CopyBufferToBuffer(cb, m_Allocation, newAllocation, oldSize);
+
+    // 3. Free old buffer
+    BufferResourceDeletion bufferDeletion{
+        .MainAllocation = m_Allocation,
+        .StagingAllocation = m_StagingAllocation,
+        .HasStaging = m_HasStagingBuffer,
+    };
+    ResourceDeletion deletion{
+        .Type = ResourceType::eBuffer,
+        .Resource = bufferDeletion,
+    };
+    m_Context->EnqueueResourceDeletion(deletion);
+
+    // 4. Update members
+    m_Allocation = newAllocation;
+    m_StagingAllocation = newStagingAllocation;
+    m_HasStagingBuffer = hasStagingBuffer;
 }
 
 void StorageBuffer::InitStatic(const void* data)
@@ -122,7 +215,7 @@ void StorageBuffer::InitStatic(const void* data)
     vk::BufferCreateInfo bufferCI{
         {},
         m_Size,
-        vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+        vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
         vk::SharingMode::eExclusive,
     };
 
@@ -142,7 +235,7 @@ void StorageBuffer::InitDynamic()
     vk::BufferCreateInfo bufferCI{
         {},
         m_Size,
-        vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+        vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
         vk::SharingMode::eExclusive,
     };
 
@@ -166,6 +259,56 @@ void StorageBuffer::InitDynamic()
     {
         m_HasStagingBuffer = false;
     }
+}
+
+void StorageBuffer::CopyBufferToBuffer(vk::CommandBuffer cb, 
+                                       BufferAllocation src, BufferAllocation dst, 
+                                       uint64_t size, 
+                                       uint64_t srcOffset /*= 0*/, uint64_t dstOffset /*= 0*/)
+{
+    if (src.MemoryFlags & vk::MemoryPropertyFlagBits::eHostVisible)
+    {
+        if (!(src.MemoryFlags & vk::MemoryPropertyFlagBits::eHostCoherent))
+            vmaFlushAllocation(m_Context->GetMemoryAllocator(), src.Allocation, srcOffset, size);
+
+        vk::BufferMemoryBarrier preCopySrcBarrier{
+            vk::AccessFlagBits::eHostWrite,         // srcAccessMask
+            vk::AccessFlagBits::eTransferRead,      // dstAccessMask
+            VK_QUEUE_FAMILY_IGNORED,
+            VK_QUEUE_FAMILY_IGNORED,
+            src.Buffer,
+            srcOffset,
+            size
+        };
+
+        cb.pipelineBarrier(vk::PipelineStageFlagBits::eHost,
+                           vk::PipelineStageFlagBits::eTransfer,
+                           {}, {}, preCopySrcBarrier, {});
+    }
+
+    const vk::BufferCopy copy{ srcOffset, dstOffset, size };
+    cb.copyBuffer(src.Buffer, dst.Buffer, copy);
+
+    vk::AccessFlags dstAccess =
+        vk::AccessFlagBits::eShaderRead;
+
+    vk::PipelineStageFlags dstStages =
+        vk::PipelineStageFlagBits::eAllGraphics |
+        vk::PipelineStageFlagBits::eComputeShader;
+
+    vk::BufferMemoryBarrier postCopyDstBarrier{
+        vk::AccessFlagBits::eTransferWrite,
+        dstAccess,
+        VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED,
+        dst.Buffer,
+        dstOffset,
+        size
+    };
+
+    cb.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+                       dstStages,
+                       {}, {}, postCopyDstBarrier, {});
 }
 
 StandaloneStorageBuffer::StandaloneStorageBuffer(SafePtr<class GfxContext> ctx, uint64_t size, const void* data, StorageBufferType::Enum type /*= StorageBufferType::eStatic*/)

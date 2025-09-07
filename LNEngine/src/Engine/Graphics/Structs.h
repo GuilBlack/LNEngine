@@ -8,6 +8,8 @@ namespace lne
 
 using ResourceDeletionHandle = void*;
 using BindlessImageHandle = uint32_t;
+using MaterialSlot = uint32_t;
+using PassID = uint64_t;
 
 struct BufferAllocation
 {
@@ -91,11 +93,18 @@ struct StaticMeshHash
     // TODO: Should probably change this to an ID instead of a pointer...
     uint64_t                                MeshAddress;
     uint32_t                                SubMeshIndex;
-    
+
     bool operator==(const StaticMeshHash& other) const
     {
         return MeshAddress == other.MeshAddress && SubMeshIndex == other.SubMeshIndex;
     }
+};
+
+struct MaterialPassSlot
+{
+    PassID                                  PassId;
+    MaterialSlot                            Slot;
+    vk::ShaderStageFlags                    Stages;
 };
 }
 

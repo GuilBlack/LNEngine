@@ -108,8 +108,8 @@ public:
     [[nodiscard]] const ReflectedData&      GetReflectedData() const { return m_ReflectedData; }
     [[nodiscard]] Shader::Header            GetHeader() const { return m_Header; }
     [[nodiscard]] std::string               GetName() const { return m_Name; }
-    [[nodiscard]] ShaderDomain::Enum        GetMaterialType() const { return m_Header.ShaderDomain; }
-    [[nodiscard]] uint32_t                  GetSetIndex(ShaderSetIndexType::Enum type) const
+    [[nodiscard]] ShaderDomain::Enum        GetShaderDomain() const { return m_Header.ShaderDomain; }
+    [[nodiscard]] constexpr uint32_t        GetSetIndex(ShaderSetIndexType::Enum type) const
     {
         if (m_Header.ShaderDomain == ShaderDomain::eUnknown || 
             (uint32_t)m_Header.ShaderDomain >= ShaderDomain::NUM_MATERIAL_TYPES)

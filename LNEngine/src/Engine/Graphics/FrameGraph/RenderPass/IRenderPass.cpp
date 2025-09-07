@@ -36,4 +36,9 @@ lne::PassID MakePassID(std::string_view name)
     return hash;
 }
 
+void IDrawStaticMeshes::ClearDrawCommands()
+{
+    m_DrawCommands.clear();
+}
+
 }

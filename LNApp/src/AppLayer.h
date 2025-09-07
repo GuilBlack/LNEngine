@@ -73,6 +73,7 @@ class AppLayer final : public lne::Layer
     private:
         lne::SafePtr<lne::GfxPipeline> m_Pipeline{};
         lne::SafePtr<lne::Material> m_Material{};
+        lne::SafePtr<lne::MaterialV2> m_MaterialV2{};
         lne::SafePtr<lne::Texture> m_DebugTexture{};
         bool m_IsDebugOpen{ false };
     };

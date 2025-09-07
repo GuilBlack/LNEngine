@@ -1,25 +1,27 @@
 #include "enkiTS/src/TaskScheduler.h"
 #include "Renderer.h"
 #include "Core/Utils/Log.h"
-#include "Engine/Core/Window.h"
-#include "GfxContext.h"
-#include "CommandPoolManager.h"
-#include "Graphics/Resources/Texture.h"
-#include "Framebuffer.h"
-#include "Graphics/Resources/Pipeline.h"
+#include "Core/Window.h"
 #include "Core/Utils/Defines.h"
 #include "Core/Utils/Profiling.h"
-#include "DynamicDescriptorAllocator.h"
-#include "Resources/Mesh.h"
-#include "Graphics/Resources/StorageBuffer.h"
-#include "Scene/Components.h"
-#include "Resources/Material.h"
 #include "Resources/GfxLoader.h"
+#include "Scene/Components.h"
+#include "Graphics/CommandPoolManager.h"
+#include "Graphics/Framebuffer.h"
+#include "Graphics/GfxContext.h"
+#include "Graphics/DynamicDescriptorAllocator.h"
+#include "Graphics/Resources/Mesh.h"
+#include "Graphics/Resources/Material.h"
+#include "Graphics/Resources/Texture.h"
+#include "Graphics/Resources/Pipeline.h"
+#include "Graphics/Resources/StorageBuffer.h"
+#include "Graphics/Resources/GfxTechnique.h"
 
 // TODO: move this to a resource manager
 #include <stb/stb_image.h>
 #include "WorldEnvironment.h"
 #include "Core/ApplicationBase.h"
+#include "Resources/Effect.h"
 
 namespace lne
 {
@@ -120,11 +122,14 @@ void Renderer::PopLabel(vk::CommandBuffer cmdBuffer) const
 void Renderer::BeginFrame()
 {
     LNE_PROFILE_FUNCTION_C(PROFILING_COL);
-    uint32_t imageIndex = m_Context->GetCurrentFrameIndex();
+    m_CurrentFrameInFlight = m_Context->GetCurrentFrameIndex();
     m_Context->GetCommandPoolManager().ResetFrameCommands(m_Context->GetCurrentFrameIndex());
     vk::CommandBuffer cmdBuffer = m_Context->GetPrimaryCommandBuffer();
     auto currentImage = m_Swapchain->GetCurrentImage();
     currentImage->TransitionLayout(cmdBuffer, vk::ImageLayout::eGeneral);
+
+    ProcessDirtyEffects(cmdBuffer);
+    ProcessDirtyMaterials(cmdBuffer);
 
     if (m_LoadAsync == false)
         m_GfxLoader->Update();
@@ -138,7 +143,7 @@ void Renderer::BeginFrame()
     vp.height *= -1;
     cmdBuffer.setViewport(0, vp);
 
-    m_FrameData[imageIndex].DescriptorAllocator->Clear();
+    m_FrameData[m_CurrentFrameInFlight].DescriptorAllocator->Clear();
 }
 
 void Renderer::EndFrame()
@@ -436,6 +441,51 @@ void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, const SafePtr<cla
     cmdBuffer.draw(geometry.GetIndexCount(), 1, 0, 0);
 }
 
+void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, SafePtr<MaterialV2> material, PassID passId)
+{
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL);
+    if (material->GetMaterialType() != ShaderDomain::ePostProcess)
+    {
+        LNE_ERROR("Material type not supported for fullscreen quad");
+        return;
+    }
+    SafePtr technique = material->GetTechnique();
+    SafePtr effect = technique->GetPassEffect(passId);
+    SafePtr pipeline = technique->GetPipeline(passId);
+    if (pipeline == nullptr)
+    {
+        LNE_ERROR("Pipeline is null");
+        return;
+    }
+    vk::Device device = m_Context->GetDevice();
+    const Geometry& geometry = m_Context->GetDefaultFullscreenQuad();
+    bool hasPipelineChanged = false;
+    if (pipeline != m_LastUsedPipeline)
+    {
+        pipeline->Bind(cmdBuffer);
+        m_LastUsedPipeline = pipeline;
+        hasPipelineChanged = true;
+
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
+                                     { m_FrameData[m_Context->GetCurrentFrameIndex()].DescriptorSet }, {});
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 3,
+                                     { m_Context->GetBindlessDescriptorSet() }, {});
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 1,
+                                     { geometry.GetDescSet() }, {});
+    }
+    auto matSlot = material->GetMaterialPassSlot(passId);
+
+    cmdBuffer.pushConstants<MaterialSlot>(pipeline->GetLayout(), matSlot.Stages, 0, { matSlot.Slot });
+    auto matDescSet = effect->GetFrameDescriptorSet(m_CurrentFrameInFlight);
+    cmdBuffer.bindDescriptorSets(
+        vk::PipelineBindPoint::eGraphics,
+        pipeline->GetLayout(), 2,
+        { matDescSet },
+        {}
+    );
+    cmdBuffer.draw(geometry.GetIndexCount(), 1, 0, 0);
+}
+
 void Renderer::Dispatch(SafePtr<ComputeProgram> program, uint32_t x, uint32_t y, uint32_t z, bool async)
 {
     LNE_PROFILE_FUNCTION_C(PROFILING_COL)
@@ -565,6 +615,18 @@ void Renderer::AddTextureToUpdate(SafePtr<class Texture> texture)
     m_TexturesToUpdate.push_back(texture);
 }
 
+void Renderer::AddDirtyEffect(SafePtr<Effect> effect)
+{
+    std::lock_guard<std::mutex> lock(m_DirtyEffectsMutex);
+    m_DirtyEffects.push_back(effect);
+}
+
+void Renderer::AddDirtyMaterial(SafePtr<MaterialV2> material)
+{
+    std::lock_guard<std::mutex> lock(m_DirtyMaterialsMutex);
+    m_DirtyMaterials.push_back(material);
+}
+
 lne::SafePtr<class Texture> Renderer::GetBRDFLut() const
 {
     return m_BRDFLut;
@@ -618,6 +680,46 @@ void Renderer::UpdateTextures(vk::CommandBuffer cmdBuffer)
         texture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
     }
     m_TexturesToUpdate.clear();
+}
+
+void Renderer::ProcessDirtyEffects(vk::CommandBuffer cmdBuffer)
+{
+    std::lock_guard<std::mutex> lock(m_DirtyEffectsMutex);
+    if (m_DirtyEffects.empty())
+        return;
+    uint32_t currentFrameInFlight = m_Context->GetCurrentFrameIndex();
+    for (size_t i = m_DirtyEffects.size(); i-- > 0; )
+    {
+        auto effect = m_DirtyEffects[i];
+
+        --effect->m_DirtyFrames;
+        effect->GrowBank(cmdBuffer, currentFrameInFlight);
+
+        if (effect->m_DirtyFrames == 0)
+        {
+            std::swap(m_DirtyEffects[i], m_DirtyEffects.back());
+            m_DirtyEffects.pop_back();
+        }
+    }
+}
+
+void Renderer::ProcessDirtyMaterials(vk::CommandBuffer cmdBuffer)
+{
+    std::lock_guard<std::mutex> lock(m_DirtyMaterialsMutex);
+    if (m_DirtyMaterials.empty())
+        return;
+    uint32_t currentFrameInFlight = m_Context->GetCurrentFrameIndex();
+    for (size_t i = m_DirtyMaterials.size(); i-- > 0; )
+    {
+        auto material = m_DirtyMaterials[i];
+        --material->m_DirtyFrames;
+        material->CopyPassDataToBuffers(cmdBuffer, currentFrameInFlight);
+        if (material->m_DirtyFrames == 0)
+        {
+            std::swap(m_DirtyMaterials[i], m_DirtyMaterials.back());
+            m_DirtyMaterials.pop_back();
+        }
+    }
 }
 
 }

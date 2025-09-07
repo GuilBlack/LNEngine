@@ -18,6 +18,7 @@ class Effect;
 class Technique;
 class GfxPipeline;
 class Material;
+class MaterialV2;
 class Texture;
 class ComputeProgram;
 class Framebuffer;
@@ -67,6 +68,10 @@ public:
     void                                            DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, 
                                                                        const SafePtr<class Material>& material);
 
+    void                                            DrawFullscreenQuad(vk::CommandBuffer cmdBuffer,
+                                                                        SafePtr<MaterialV2> material,
+                                                                       PassID passId);
+
 
     void                                            Dispatch(SafePtr<class ComputeProgram> program, 
                                                              uint32_t x, uint32_t y, uint32_t z, 
@@ -101,6 +106,9 @@ public:
         m_ShaderInudeDirs.push_back(dir);
     }
 
+    void                                            AddDirtyEffect(SafePtr<class Effect> effect);
+    void                                            AddDirtyMaterial(SafePtr<class MaterialV2> material);
+
     [[nodiscard]] std::vector<std::filesystem::path> GetShaderIncludeDirs()
     {
         std::lock_guard<std::mutex> lock(m_ShaderIncludeDirsMutex);
@@ -117,6 +125,11 @@ private:
     std::shared_ptr<class enki::TaskScheduler>  m_TaskScheduler;
     std::vector<SafePtr<class Texture>>         m_TexturesToUpdate{};
     std::mutex                                  m_TexturesToUpdateMutex{};
+    std::vector<SafePtr<class Effect>>          m_DirtyEffects{};
+    std::mutex                                  m_DirtyEffectsMutex{};
+    std::vector<SafePtr<class MaterialV2>>      m_DirtyMaterials{};
+    std::mutex                                  m_DirtyMaterialsMutex{};
+    uint32_t                                    m_CurrentFrameInFlight{ 0 };
 
     // TODO: move to a command buffer manager to the context (maybe)
     std::vector<struct FrameData>               m_FrameData;
@@ -136,5 +149,7 @@ private:
 private:
     void InitFrameData(uint32_t index);
     void UpdateTextures(vk::CommandBuffer cmdBuffer);
+    void ProcessDirtyEffects(vk::CommandBuffer cmdBuffer);
+    void ProcessDirtyMaterials(vk::CommandBuffer cmdBuffer);
 };
 }
