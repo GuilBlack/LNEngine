@@ -4,6 +4,7 @@
 #include "Engine/Core/SafePtr.h"
 #include "Engine/Graphics/FrameGraph/RenderPass/IRenderPass.h"
 #include "Engine/Graphics/Resources/Effect.h"
+#include "Engine/Core/DataStructures/FlatHashClasses.h"
 
 namespace lne
 {
@@ -17,7 +18,6 @@ struct PassBindingDesc
 };
 struct PassBinding
 {
-    PassID              PassId;
     PipelineHandle      PipelineHandle{};
     SafePtr<Effect>     PassEffect;
 };
@@ -48,13 +48,13 @@ public:
     [[nodiscard]] PipelineHandle                                CreateOrGetPipeline(PassID passID, SafePtr<FrameGraph> frameGraph);
     [[nodiscard]] SafePtr<GfxPipeline>                          GetPipeline(PassID passID);
     [[nodiscard]] SafePtr<Effect>                               GetPassEffect(PassID passID);
-    [[nodiscard]] const std::vector<PassBinding>&               GetPasses() const { return m_Passes; }
-    [[nodiscard]] std::vector<MaterialPassSlot>                 AllocateMaterialSlots();
+    [[nodiscard]] const FlatHashMap<PassID, PassBinding>&       GetPasses() const { return m_Passes; }
+    [[nodiscard]] FlatHashMap<PassID, MaterialPassSlot>         AllocateMaterialSlots();
 
 private:
-    std::string                 m_Name;
-    std::mutex                  m_PipelineMutex;
-    std::vector<PassBinding>    m_Passes;
-    State                       m_State;
+    std::string                         m_Name;
+    std::mutex                          m_PipelineMutex;
+    FlatHashMap<PassID, PassBinding>    m_Passes;
+    State                               m_State;
 };
 }

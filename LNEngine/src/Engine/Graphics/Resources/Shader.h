@@ -2,6 +2,7 @@
 #include "Engine/Graphics/Enums.h"
 #include "Engine/Core/SafePtr.h"
 #include "Engine/Graphics/Structs.h"
+#include "Engine/Core/DataStructures/FlatHashClasses.h"
 
 namespace spirv_cross
 {
@@ -21,9 +22,9 @@ struct BufferBinding
 
 struct DescriptorSet
 {
-    uint32_t                                        SetIndex;
-    std::unordered_map<std::string, BufferBinding>  UniformBuffers;
-    std::unordered_map<std::string, BufferBinding>  StorageBuffers;
+    uint32_t                                SetIndex;
+    FlatHashMap<std::string, BufferBinding> UniformBuffers;
+    FlatHashMap<std::string, BufferBinding> StorageBuffers;
 };
 
 struct UniformElement
@@ -65,16 +66,16 @@ struct PushConstantBlock
     uint32_t Offset = 0;      // merged min active offset across stages
     uint32_t Size = 0;      // merged (maxEnd - minOffset) across stages
     vk::ShaderStageFlags Stages{};
-    std::unordered_map<std::string, PushConstantMember> Members; // by qualified member name
+    FlatHashMap<std::string, PushConstantMember> Members; // by qualified member name
 };
 
 struct ReflectedData
 {
     std::map<uint32_t, DescriptorSet> DescriptorSets;
-    std::unordered_map<std::string, UniformElement> UniformElements;
-    std::unordered_map<std::string, StorageBufferElement> StorageElements;
-    std::unordered_map<std::string, StorageBufferArray> StorageArrays;
-    std::unordered_map<std::string, PushConstantBlock> PushConstants; // by block name
+    FlatHashMap<std::string, UniformElement> UniformElements;
+    FlatHashMap<std::string, StorageBufferElement> StorageElements;
+    FlatHashMap<std::string, StorageBufferArray> StorageArrays;
+    FlatHashMap<std::string, PushConstantBlock> PushConstants; // by block name
 };
 
 class Shader : public RefCountBase
@@ -95,7 +96,7 @@ class Shader : public RefCountBase
 public:
     Shader(SafePtr<class GfxContext> ctx, std::string_view filePath);
 
-    [[nodiscard]] std::unordered_map<ShaderStage::Enum, vk::ShaderModule> GetModules() const { return m_Modules; }
+    [[nodiscard]] FlatHashMap<ShaderStage::Enum, vk::ShaderModule> GetModules() const { return m_Modules; }
 
     [[nodiscard]] uint32_t                  GetStageCount() const 
     { return (uint32_t)m_Modules.size(); }
@@ -134,8 +135,8 @@ private:
     SafePtr<class GfxContext> m_Context;
     std::string m_FilePath;
     std::string m_Name;
-    std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> m_SpirvCode{};
-    std::unordered_map<ShaderStage::Enum, vk::ShaderModule> m_Modules{};
+    FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>> m_SpirvCode{};
+    FlatHashMap<ShaderStage::Enum, vk::ShaderModule> m_Modules{};
     std::vector<vk::DescriptorSetLayout> m_DescriptorSetLayouts{};
     std::vector<vk::DescriptorSetLayout> m_CreatedLayouts{};
     std::vector<vk::PushConstantRange> m_PushConstantRanges{};
@@ -148,16 +149,17 @@ private:
     std::tuple<std::string, Shader::Header> ReadFile(std::string_view filePath);
     Shader::Header                          ParseHeader(std::string& headerSource);
 
-    std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> CompileToSpirv(const std::string& sourceCode, Shader::Header header);
+    FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>> CompileToSpirv(const std::string& sourceCode, 
+                                                                         Shader::Header header);
 
-    void                                    ReflectOnSpirv(std::unordered_map<ShaderStage::Enum,
-                                               std::vector<uint32_t>> spirvCode);
+    void                                    ReflectOnSpirv(FlatHashMap<ShaderStage::Enum,
+                                                           std::vector<uint32_t>> spirvCode);
     uint32_t                                ReflectSSBOStructMembers(spirv_cross::Compiler& compiler, 
                                                                      uint32_t struct_type_id, 
                                                                      const std::string& prefix, 
                                                                      uint32_t set, uint32_t binding);
 
-    std::unordered_map<ShaderStage::Enum, vk::ShaderModule> CreateModules(std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> spirvCode);
+    FlatHashMap<ShaderStage::Enum, vk::ShaderModule> CreateModules(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>> spirvCode);
     void                                    CreateDescriptorSetLayouts();
     void                                    MakePushConstantRange();
 };

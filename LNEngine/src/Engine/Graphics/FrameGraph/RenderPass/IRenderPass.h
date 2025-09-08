@@ -2,6 +2,8 @@
 #include "Engine/Core/SafePtr.h"
 #include "Engine/ECS/Types.h"
 #include "Engine/Graphics/Structs.h"
+#include "Engine/Graphics/StructsHashes.h"
+#include "Engine/Core/DataStructures/FlatHashClasses.h"
 
 namespace lne
 {
@@ -58,7 +60,7 @@ public:
     virtual void AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, uint32_t subMeshIndex);
     void ClearDrawCommands();
 protected:
-    std::unordered_map<StaticMeshHash, DrawCommand> m_DrawCommands;
+    FlatHashMap<StaticMeshHash, DrawCommand> m_DrawCommands;
 };
 }
 

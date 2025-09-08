@@ -5,6 +5,7 @@
 #include "Exceptions.h"
 #include "Types.h"
 #include "Engine/Core/DataStructures/CircularBuffer.h"
+#include "Engine/Core/DataStructures/FlatHashClasses.h"
 
 namespace lne
 {
@@ -248,27 +249,31 @@ public:
     }
 
 private:
+    using ArchetypeMap = FlatHashMap<EntitySignature, std::unique_ptr<Archetype>,
+        std::hash<EntitySignature>>;
+    using ArchetypeCache = FlatHashMap<EntitySignature, std::vector<Archetype*>,
+        std::hash<EntitySignature>>;
+
     uint32_t m_EntityCount = 0;
     uint32_t m_MaxEntityCount = 4096;
 
-    CircularBuffer<EntityID> m_AvailableEntities;
+    CircularBuffer<EntityID>                                        m_AvailableEntities;
     struct EntityMetadata
     {
         EntitySignature Signature{};
         Archetype*      Archetype{};
     };
-    std::vector<EntityMetadata> m_EntitySignatures;
-
-    std::unordered_map<EntitySignature, std::unique_ptr<Archetype>> m_Archetypes;
-    std::unordered_map<EntitySignature, std::vector<Archetype*>>    m_ArchetypeCache; // list of archetypes that has AT LEAST these components for looping through entities faster
+    std::vector<EntityMetadata>                                     m_EntitySignatures;
+    ArchetypeMap                                                    m_Archetypes;
+    ArchetypeCache                                                  m_ArchetypeCache; // list of archetypes that has AT LEAST these components for looping through entities faster
 
     CircularBuffer<EntityID> m_DeletedEntities;
-    CircularBuffer<std::pair<EntityID, ComponentTypeIndex>> m_DeletedComponents;
+    CircularBuffer<std::pair<EntityID, ComponentTypeIndex>>         m_DeletedComponents;
 
 private:
-    static inline std::array<CreateStorageFunc, MAX_COMPONENTS>    s_CreateStorageFuncs = {};
-    static inline std::array<MoveComponentFunc, MAX_COMPONENTS>    s_MoveComponentFuncs = {};
-    static inline std::array<RemoveComponentFunc, MAX_COMPONENTS>  s_RemoveComponentFuncs = {};
+    static inline std::array<CreateStorageFunc, MAX_COMPONENTS>     s_CreateStorageFuncs = {};
+    static inline std::array<MoveComponentFunc, MAX_COMPONENTS>     s_MoveComponentFuncs = {};
+    static inline std::array<RemoveComponentFunc, MAX_COMPONENTS>   s_RemoveComponentFuncs = {};
 
 private:
 

@@ -211,7 +211,7 @@ uint64_t FileTimeToNs(std::filesystem::file_time_type t)
 
 void SaveCombinedSpv(
     const std::filesystem::path& outPath,
-    const std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>>& stages,
+    const FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>>& stages,
     const std::vector<GlslhInfo> glslHeadersInfo)
 {
     namespace fs = std::filesystem;
@@ -292,7 +292,7 @@ void SaveCombinedSpv(
     }
 }
 
-bool LoadCombinedSpv(const std::filesystem::path& iPath, std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>>& oResult)
+bool LoadCombinedSpv(const std::filesystem::path& iPath, FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>>& oResult)
 {
     namespace fs = std::filesystem;
     std::ifstream is(iPath, std::ios::binary | std::ios::ate);
@@ -535,7 +535,7 @@ Shader::Header Shader::ParseHeader(std::string& headerSource)
     return header;
 }
 
-std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> Shader::CompileToSpirv(const std::string& sourceCode, Shader::Header header)
+FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>> Shader::CompileToSpirv(const std::string& sourceCode, Shader::Header header)
 {
     // Check if the shader has been compiled before && if the source code hasn't changed
     std::filesystem::path cachePath = ApplicationBase::GetRenderer().GetShaderCachePath() / (m_Name + ".pspv"); // Packed SPIR-V file
@@ -548,7 +548,7 @@ std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> Shader::CompileToSp
         if (fileTime <= cacheTime)
         {
             LNE_INFO("Using cached SPIR-V for shader: {}", m_Name);
-            std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> cachedSpirv;
+            FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>> cachedSpirv;
             bool success = LoadCombinedSpv(cachePath, cachedSpirv);
             if (success && !cachedSpirv.empty())
                 return cachedSpirv;
@@ -573,7 +573,7 @@ std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> Shader::CompileToSp
         ApplicationBase::GetRenderer().GetShaderIncludeDirs(),
         shaderHeaderCallback
     ));
-    std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> spirvCode;
+    FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>> spirvCode;
     std::vector<shaderc::CompileOptions> optionsForShaders(header.StageHeaders.size(), options);
     uint32_t optionsIndex = 0;
 
@@ -606,7 +606,7 @@ std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> Shader::CompileToSp
     return spirvCode;
 }
 
-void Shader::ReflectOnSpirv(std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> spirvCode)
+void Shader::ReflectOnSpirv(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>> spirvCode)
 {
     MatTypeInfo matTypeInfo{};
     bool isUnknownMatType = (m_Header.ShaderDomain == ShaderDomain::eUnknown);
@@ -885,10 +885,10 @@ uint32_t Shader::ReflectSSBOStructMembers(spirv_cross::Compiler& compiler, uint3
     return fullStride;
 }
 
-std::unordered_map<ShaderStage::Enum, vk::ShaderModule> Shader::CreateModules(std::unordered_map<ShaderStage::Enum, std::vector<uint32_t>> spirvCode)
+FlatHashMap<ShaderStage::Enum, vk::ShaderModule> Shader::CreateModules(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>> spirvCode)
 {
     vk::ShaderModuleCreateInfo createInfo;
-    std::unordered_map<ShaderStage::Enum, vk::ShaderModule> modules;
+    FlatHashMap<ShaderStage::Enum, vk::ShaderModule> modules;
 
     for (auto& [stage, code] : spirvCode)
     {

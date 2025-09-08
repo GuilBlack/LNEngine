@@ -2,6 +2,7 @@
 // This piece of code is from my other GitHub project: https://github.com/GuilBlack/ECS
 
 #include "Types.h"
+#include "Engine/Core/DataStructures/FlatHashClasses.h"
 
 namespace lne
 {
@@ -182,9 +183,9 @@ public:
     }
 
 private:
-    std::vector<EntityID> m_Entities;
-    std::unordered_map<EntityID, uint32_t> m_EntityIndexMap;
-    std::unordered_map<ComponentTypeIndex, std::unique_ptr<IComponentStorage>> m_ComponentStorages;
+    std::vector<EntityID>                                               m_Entities;
+    FlatHashMap<EntityID, uint32_t>                                     m_EntityIndexMap;
+    FlatHashMap<ComponentTypeIndex, std::unique_ptr<IComponentStorage>> m_ComponentStorages;
 
     friend class EntityRegistry;
 };

@@ -6,6 +6,7 @@
 #include "Engine/Graphics/Structs.h"
 #include "Engine/GlobalUtils.h"
 #include "Engine/Graphics/FrameGraph/RenderPass/IRenderPass.h"
+#include "Engine/Core/DataStructures/FlatHashClasses.h"
 
 namespace lne
 {
@@ -104,7 +105,7 @@ public:
     MaterialV2(SafePtr<GfxTechnique> technique);
     ~MaterialV2();
 
-    ShaderDomain::Enum          GetMaterialType() const;
+    ShaderDomain::Enum          GetMaterialType() const { return m_MaterialType; }
     SafePtr<GfxTechnique>       GetTechnique() const;
     MaterialPassSlot            GetMaterialPassSlot(PassID passId) const;
 
@@ -152,17 +153,18 @@ private:
     };
 
     friend class Renderer;
-    using MatPassDataMap = std::unordered_map<MatPassDataHash, byte*, MatPassDataHasher>;
-    using MaterialElementMap = std::unordered_map<std::string, MaterialElement>;
-    using TextureMap = std::unordered_map<std::string, SafePtr<Texture>>;
+    using MatPassDataMap = FlatHashMap<MatPassDataHash, byte*, MatPassDataHasher>;
+    using MaterialElementMap = FlatHashMap<std::string, MaterialElement>;
+    using TextureMap = FlatHashMap<std::string, SafePtr<Texture>>;
 
     SafePtr<GfxTechnique>                           m_Technique;
     MaterialElementMap                              m_Constants;
     MatPassDataMap                                  m_PassData;
-    std::vector<MaterialPassSlot>                   m_AllocatedSlots;
+    FlatHashMap<PassID, MaterialPassSlot>           m_AllocatedSlots;
     bool                                            m_IsTransparent{ false };
     TextureMap                                      m_Textures;
     uint32_t                                        m_DirtyFrames{ 0 };
+    ShaderDomain::Enum                              m_MaterialType{ ShaderDomain::eUnknown };
 
 private:
     template<typename T> requires std::is_trivially_copyable_v<T>

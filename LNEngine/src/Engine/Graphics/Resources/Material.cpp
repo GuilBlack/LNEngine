@@ -88,9 +88,9 @@ void Material::SetUniformBuffer(uint32_t binding, const void* data, uint32_t siz
 MaterialV2::MaterialV2(SafePtr<GfxTechnique> technique)
     : m_Technique(technique)
 {
-    for (auto& [passId, _, effect] : technique->GetPasses())
+    for (auto& [passId, passBinding] : technique->GetPasses())
     {
-        SafePtr shader = effect->GetShader();
+        SafePtr shader = passBinding.PassEffect->GetShader();
         uint32_t matSetIndex = shader->GetSetIndex(ShaderSetIndexType::eMaterial);
         for (const auto& [name, element] : shader->GetReflectedData().StorageArrays)
         {
@@ -114,6 +114,7 @@ MaterialV2::MaterialV2(SafePtr<GfxTechnique> technique)
 
         m_AllocatedSlots = technique->AllocateMaterialSlots();
     }
+    m_MaterialType = m_Technique->GetPasses().begin()->second.PassEffect->GetShader()->GetShaderDomain();
 }
 
 MaterialV2::~MaterialV2()
@@ -123,11 +124,6 @@ MaterialV2::~MaterialV2()
         delete[] passData;
 }
 
-ShaderDomain::Enum MaterialV2::GetMaterialType() const
-{
-    return m_Technique->GetPasses()[0].PassEffect->GetShader()->GetShaderDomain();
-}
-
 SafePtr<lne::GfxTechnique> MaterialV2::GetTechnique() const
 {
     return m_Technique;
@@ -135,16 +131,13 @@ SafePtr<lne::GfxTechnique> MaterialV2::GetTechnique() const
 
 MaterialPassSlot MaterialV2::GetMaterialPassSlot(PassID passId) const
 {
-    auto it = std::find_if(m_AllocatedSlots.begin(), m_AllocatedSlots.end(), [&passId](const MaterialPassSlot& slot)
-                 {
-                     return slot.PassId == passId;
-                 });
+    auto it = m_AllocatedSlots.find(passId);
     if (it == m_AllocatedSlots.end())
     {
         LNE_ERROR("PassID not found in material");
         return MaterialPassSlot{};
     }
-    return *it;
+    return it->second;
 }
 
 void MaterialV2::SetTexture(const std::string& name, SafePtr<Texture> texture)
@@ -197,11 +190,9 @@ void MaterialV2::CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, uint32_t fra
     for (auto& [hash, passData] : m_PassData)
     {
         auto effect = m_Technique->GetPassEffect(hash.PassId);
-        auto it = std::find_if(m_AllocatedSlots.begin(), m_AllocatedSlots.end(), [&hash](const MaterialPassSlot& slot)
-                  {
-                      return slot.PassId == hash.PassId;
-                  });
-        effect->CopyMaterialDataToBuffer(cmdBuffer, frameIndex, it->Slot, hash.Binding, passData);
+        effect->CopyMaterialDataToBuffer(cmdBuffer, frameIndex, 
+                                         m_AllocatedSlots[hash.PassId].Slot, hash.Binding, 
+                                         passData);
     }
 }
 

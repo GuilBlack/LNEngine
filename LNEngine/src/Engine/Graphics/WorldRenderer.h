@@ -1,10 +1,12 @@
 ﻿#pragma once
 #include "Engine/Core/SafePtr.h"
 #include "Engine/Graphics/Structs.h"
+#include "Engine/Graphics/StructsHashes.h"
 #include "Engine/Graphics/Resources/StorageBuffer.h"
 #include "Engine/Core/DataStructures/CircularBuffer.h"
 #include "Engine/Graphics/WorldEnvironment.h"
 #include "Engine/Graphics/GlobalGfxData.h"
+#include "Engine/Core/DataStructures/FlatHashClasses.h"
 
 class FrameGraph;
 
@@ -44,7 +46,7 @@ private:
     SafePtr<FrameGraph> m_FrameGraph{};
     SafePtr<WorldEnvironment> m_Environment{};
 
-    std::unordered_map<StaticMeshHash, SubMeshTransformArray> m_Transfroms{};
+    FlatHashMap<StaticMeshHash, SubMeshTransformArray> m_Transfroms{};
     std::vector<TransformBuffer> m_TransformBuffers{};
     WorldData m_GlobalData{};
     std::vector<SafePtr<UniformBuffer>> m_WorldGlobalUniforms{};
