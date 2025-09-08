@@ -28,6 +28,7 @@
 #include <tuple>
 #include <bitset>
 #include <variant>
+#include "../vendor/BOOST/include/Unordered/boost_unordered.hpp"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include "../vendor/GLM/glm/glm.hpp"

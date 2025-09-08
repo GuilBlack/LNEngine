@@ -18,7 +18,8 @@ project "LNEngine"
         "src/**.h",
         "src/**.cpp",
         "Assets/**.glsl",
-        "vendor/VMA/**.h"
+        "vendor/VMA/**.h",
+        "vendor/BOOST/**.hpp",
     }
 
     includedirs
@@ -29,6 +30,7 @@ project "LNEngine"
         "%{IncludeDir.SPDLOG}",
         "%{IncludeDir.GLFW}",
         "%{IncludeDir.VMA}",
+        "%{IncludeDir.Boost}",
         "%{IncludeDir.VkBootstrap}",
         "%{IncludeDir.ImGui}/imgui",
         "%{IncludeDir.STB}",
