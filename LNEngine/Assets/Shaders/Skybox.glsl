@@ -1,15 +1,21 @@
 //#lne_head [Vt main][Fg main][Rp SkyboxPass][Tp PostProcess]
 #version 460
 
-#extension GL_EXT_scalar_block_layout :     enable
-#extension GL_EXT_nonuniform_qualifier :    require
-
 #include "Common.glslh"
 #include "CommonPostProcess.glslh"
 
-layout(scalar, set = MAT_SET, binding = 0) uniform MaterialData {
+struct MaterialData {
     uint tCubeAlbedo;
 };
+
+layout(scalar, push_constant) uniform MatPC
+{
+    uint id;
+} matPC;
+
+layout(scalar, set = MAT_SET, binding = 0) readonly buffer MaterialBuffer {
+    MaterialData materials[];
+} mb;
 
 layout(set = TEX_SET, binding = 0) uniform sampler2D                  globalTextures[];
 layout(set = TEX_SET, binding = 0) uniform samplerCube                globalCubemaps[];
@@ -56,8 +62,8 @@ void main() {
     vec4 viewDir = inverse(uProj) * clipSpacePos;
     viewDir = vec4(viewDir.xy, -1.0, 0.0); 
     vec3 worldDir = normalize((inverse(uView) * viewDir).xyz);
-    
-    oColor = textureLod(globalCubemaps[nonuniformEXT(tCubeAlbedo)], worldDir, 0);
+
+    oColor = textureLod(globalCubemaps[nonuniformEXT(mb.materials[matPC.id].tCubeAlbedo)], worldDir, 0);
 }
 
 #endif

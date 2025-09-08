@@ -40,43 +40,27 @@ void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNo
 {
     using namespace lne;
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
-    lne::GraphicsPipelineDesc desc{};
-    desc.PathToShaders = lne::ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\Skybox.glsl";
-    desc.Name = "Skybox";
-    desc.FrameGraph = frameGraph;
-    desc.EnableDepthTest(true, false);
-    desc.Blend.EnableBlend(false);
-    desc.CullMode = lne::ECullMode::None;
-    m_Pipeline = renderer.CreateGraphicsPipeline(desc);
-    m_Material = lne::SafePtr(lnnew lne::Material(m_Pipeline, lne::ShaderDomain::ePostProcess));
 
-    SafePtr gbufferTestEffect = lnnew lne::Effect(lne::ApplicationBase::GetRenderer().GetGfxContext(),
-                                                  lne::ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\GBufferEffectTest.glsl");
-    lne::GraphicsPipelineDescV2 desc2{};
-    desc2.CullMode = lne::ECullMode::Back;
-    desc2.Fill = lne::EFillMode::Solid;
-    desc2.TransparencyMode = lne::TransparencyMode::eOpaque;
-    desc2.FrameGraph = frameGraph;
-    auto handle = gbufferTestEffect->CreateOrGetPipeline(desc2);
-
+    SafePtr skyboxEffect = lnnew lne::Effect(lne::ApplicationBase::GetRenderer().GetGfxContext(),
+                                             lne::ApplicationBase::GetAssetsPath() 
+                                             + "Engine\\Shaders\\Skybox.glsl");
 
     GfxTechnique::Desc techDesc{};
-    techDesc.Name = "GBufferTestOpaque";
-    techDesc.TechniqueState.Cull = lne::ECullMode::Back;
+    techDesc.Name = "SkyboxTechnique";
+    techDesc.TechniqueState.Cull = lne::ECullMode::None;
     techDesc.TechniqueState.Fill = lne::EFillMode::Solid;
     techDesc.TechniqueState.Transparency = lne::TransparencyMode::eOpaque;
-    techDesc.TechniqueState.DepthMode = lne::DepthMode::eReadWrite;
+    techDesc.TechniqueState.DepthMode = lne::DepthMode::eNone;
 
     PassBindingDesc passDesc{};
-    passDesc.PassName = "GBufferPass";
-    passDesc.PassEffect = gbufferTestEffect;
+    passDesc.PassName = "SkyboxPass";
+    passDesc.PassEffect = skyboxEffect;
     techDesc.Passes.push_back(passDesc);
     SafePtr technique = lnnew GfxTechnique(techDesc);
 
-    auto pipelineHandle = technique->CreateOrGetPipeline(MakePassID("GBufferPass"), frameGraph);
+    auto pipelineHandle = technique->CreateOrGetPipeline(GetID(), frameGraph);
 
-    SafePtr<MaterialV2> mat = lnnew MaterialV2(technique);
-    mat->SetProperty("uColor", glm::vec4(1.0, 1.0, 1.0, 1.0));
+    m_MaterialV2 = lnnew MaterialV2(technique);
 
     for (FrameGraphResourceHandle resourceHandle : node->InputResources)
     {
@@ -101,10 +85,10 @@ void AppLayer::SkyboxPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRender
     if (m_Texture != worldRenderer->GetEnvironment()->SkyboxTexture)
     {
         m_Texture = worldRenderer->GetEnvironment()->SkyboxTexture;
-        m_Material->SetTexture("tCubeAlbedo", m_Texture);
+        m_MaterialV2->SetTexture("tCubeAlbedo", m_Texture);
     }
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
-    renderer.DrawFullscreenQuad(cmdBuffer, m_Material);
+    renderer.DrawFullscreenQuad(cmdBuffer, m_MaterialV2, GetID());
 }
 
 void AppLayer::SkyboxPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
@@ -146,15 +130,6 @@ void AppLayer::ToneMappingPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGr
 {
     using namespace lne;
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
-    lne::GraphicsPipelineDesc desc{};
-    desc.PathToShaders = lne::ApplicationBase::GetAssetsPath() + "Shaders\\ToneMapper.glsl";
-    desc.Name = "ToneMapper";
-    desc.FrameGraph = frameGraph;
-    desc.EnableDepthTest(false, false);
-    desc.Blend.EnableBlend(false);
-    desc.CullMode = lne::ECullMode::None;
-    m_Pipeline = renderer.CreateGraphicsPipeline(desc);
-    m_Material = lne::SafePtr(lnnew lne::Material(m_Pipeline, lne::ShaderDomain::ePostProcess));
 
     SafePtr toneMapperEffect = lnnew lne::Effect(lne::ApplicationBase::GetRenderer().GetGfxContext(),
                                                   lne::ApplicationBase::GetAssetsPath() + "Shaders\\ToneMapperEffect.glsl");
@@ -205,7 +180,6 @@ void AppLayer::ToneMappingPass::Execute(vk::CommandBuffer cmdBuffer, class lne::
     {
         lne::FrameGraphResource* resource = frameGraph->GetResource(handle);
         lne::SafePtr<lne::Texture> sceneTexture = resource->Resource.GetAs<lne::Texture>();
-        m_Material->SetTexture("tSceneTexture", sceneTexture);
     }
     renderer.DrawFullscreenQuad(cmdBuffer, m_MaterialV2, GetID());
 }
