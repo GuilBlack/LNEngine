@@ -94,6 +94,13 @@ void Renderer::InitResources()
     m_BRDFLut->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
 }
 
+void Renderer::NukeResources()
+{
+    m_ShadersLibrary.clear();
+    m_EffectsLibrary.clear();
+    m_TechniquesLibrary.clear();
+}
+
 uint32_t Renderer::GetCurrentFrameIndex() const
 {
     return m_Context->GetCurrentFrameIndex();
@@ -607,6 +614,77 @@ SafePtr<Texture> Renderer::CreateCubemapTexture(const std::vector<std::string>& 
 SafePtr<WorldEnvironment> Renderer::CreateEnvironmentMap(std::string_view pathToEnvMap, uint32_t dimensions)
 {
     return m_GfxLoader->CreateEnvironmentMap(pathToEnvMap);
+}
+
+SafePtr<Shader> Renderer::CreateOrGetShader(const std::string& path)
+{
+    namespace fs = std::filesystem;
+
+    if (path.empty() || std::filesystem::exists(path) == false)
+    {
+        LNE_ERROR("Shader path is empty");
+        return {};
+    }
+    std::string_view assetsPath = ApplicationBase::GetAssetsPath();
+    fs::path rel = fs::weakly_canonical(path).lexically_relative(fs::weakly_canonical(assetsPath));
+    if (rel.empty() || *rel.begin() == "..")
+    {
+        LNE_ERROR("Effect path is not relative to assets path");
+        return {};
+    }
+    std::lock_guard<std::mutex> lock(m_ShadersLibraryMutex);
+    auto it = m_ShadersLibrary.find(rel.string());
+    if (it != m_ShadersLibrary.end())
+        return it->second;
+    auto shader = SafePtr(lnnew Shader(m_Context, path));
+    m_ShadersLibrary[rel.string()] = shader;
+    return shader;
+}
+
+SafePtr<Effect> Renderer::CreateOrGetEffect(const std::string& path)
+{
+    namespace fs = std::filesystem;
+
+    if (path.empty() || fs::exists(path) == false)
+    {
+        LNE_ERROR("Effect path is empty");
+        return {};
+    }
+    std::string_view assetsPath = ApplicationBase::GetAssetsPath();
+    fs::path rel = fs::weakly_canonical(path).lexically_relative(fs::weakly_canonical(assetsPath));
+    if (rel.empty() || *rel.begin() == "..")
+    {
+        LNE_ERROR("Effect path is not relative to assets path");
+        return {};
+    }
+    std::lock_guard<std::mutex> lock(m_EffectsLibraryMutex);
+    auto it = m_EffectsLibrary.find(rel.string());
+    if (it != m_EffectsLibrary.end())
+        return it->second;
+    auto effect = SafePtr(lnnew Effect(m_Context, path));
+    m_EffectsLibrary[rel.string()] = effect;
+    return effect;
+}
+
+SafePtr<GfxTechnique> Renderer::CreateOrGetTechnique(const GfxTechniqueDesc& techniqueDesc)
+{
+    if (techniqueDesc.Name.empty())
+    {
+        LNE_ERROR("Technique name is empty");
+        return {};
+    }
+    std::lock_guard<std::mutex> lock(m_TechniquesLibraryMutex);
+    auto it = m_TechniquesLibrary.find(techniqueDesc.Name);
+    if (it != m_TechniquesLibrary.end())
+        return it->second;
+    auto technique = SafePtr(lnnew GfxTechnique(techniqueDesc));
+    m_TechniquesLibrary[techniqueDesc.Name] = technique;
+    return technique;
+}
+
+lne::SafePtr<lne::GfxTechnique> Renderer::GetTechnique(const std::string& name)
+{
+    return {};
 }
 
 void Renderer::AddTextureToUpdate(SafePtr<class Texture> texture)

@@ -18,11 +18,10 @@ void LightingPass::OnBind(FrameGraph* frameGraph, FrameGraphNode* node)
 {
     Renderer& renderer = ApplicationBase::GetRenderer();
 
-    SafePtr skyboxEffect = lnnew Effect(ApplicationBase::GetRenderer().GetGfxContext(),
-		                                lne::ApplicationBase::GetAssetsPath()
-		                                + "Engine\\Shaders\\Lighting.glsl");
+    SafePtr skyboxEffect = renderer.CreateOrGetEffect(ApplicationBase::GetAssetsPath()
+                                                      + "Engine\\Shaders\\Lighting.glsl");
 
-	GfxTechnique::Desc techDesc{};
+	GfxTechniqueDesc techDesc{};
 	techDesc.Name = "LightingTechnique";
 	techDesc.TechniqueState.Cull = ECullMode::None;
 	techDesc.TechniqueState.Fill = EFillMode::Solid;
@@ -33,7 +32,7 @@ void LightingPass::OnBind(FrameGraph* frameGraph, FrameGraphNode* node)
 	passDesc.PassName = "LightingPass";
 	passDesc.PassEffect = skyboxEffect;
 	techDesc.Passes.push_back(passDesc);
-	SafePtr technique = lnnew GfxTechnique(techDesc);
+    SafePtr technique = renderer.CreateOrGetTechnique(techDesc);
 
 	auto pipelineHandle = technique->CreateOrGetPipeline(GetID(), frameGraph);
 

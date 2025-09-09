@@ -1,12 +1,24 @@
 //#lne_head [Vt main][Fg main][Rp ToneMappingPass][Tp PostProcess]
 #version 460
 
+#extension GL_GOOGLE_include_directive : require
+#extension GL_ARB_shading_language_include : require
+
 #include "Common.glslh"
 #include "CommonPostProcess.glslh"
 
-layout(scalar, set = MAT_SET, binding = 0) uniform MaterialData {
+struct MaterialData {
     uint tSceneTexture;
 };
+
+layout(scalar, push_constant) uniform MatPC
+{
+    uint id;
+} matPC;
+
+layout(scalar, set = MAT_SET, binding = 0) readonly buffer MaterialBuffer {
+    MaterialData materials[];
+} mb;
 
 layout(set = TEX_SET, binding = 0) uniform sampler2D                  globalTextures[];
 
@@ -30,7 +42,7 @@ layout(location = 0) out vec2 oUV;
 void main() {
     uint currentIndex = indexBuffer.indices[gl_VertexIndex];
     Vertex v = vertexBuffer.vertices[currentIndex];
-    
+
     gl_Position = vec4(v.position.xy, 1.0, 1.0);
     oUV = v.position.xy;
 }
@@ -46,7 +58,7 @@ layout(location = 0) out vec4 oColor;
 void main() {
     vec2 uv = iUV * 0.5 + 0.5;
     uv.y = 1.0 - uv.y;
-    vec3 mappedColor = vec3(1.0) - exp(-texture(globalTextures[nonuniformEXT(tSceneTexture)], uv).xyz);
+    vec3 mappedColor = vec3(1.0) - exp(-texture(globalTextures[nonuniformEXT(mb.materials[matPC.id].tSceneTexture)], uv).xyz);
     oColor = vec4(mappedColor, 0.0);
 }
 

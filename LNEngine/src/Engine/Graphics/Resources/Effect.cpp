@@ -12,7 +12,12 @@ namespace lne
 Effect::Effect(SafePtr<GfxContext> context, const std::string& shaderPath)
     : m_Context(context), m_Pipelines(8)
 {
-    m_Shader = m_Context->CreateShader(shaderPath);
+    m_Shader = ApplicationBase::GetRenderer().CreateOrGetShader(shaderPath);
+    if (!m_Shader)
+    {
+        LNE_ERROR("Failed to create effect from shader '{}'", shaderPath);
+        return;
+    }
     m_Name = m_Shader->GetName();
     uint32_t matSetIndex = m_Shader->GetSetIndex(ShaderSetIndexType::eMaterial);
     uint32_t maxFramesInFlight = m_Context->GetMaxFramesInFlight();

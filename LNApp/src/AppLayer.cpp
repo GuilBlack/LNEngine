@@ -41,11 +41,10 @@ void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNo
     using namespace lne;
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
 
-    SafePtr skyboxEffect = lnnew lne::Effect(lne::ApplicationBase::GetRenderer().GetGfxContext(),
-                                             lne::ApplicationBase::GetAssetsPath() 
-                                             + "Engine\\Shaders\\Skybox.glsl");
+    SafePtr skyboxEffect = renderer.CreateOrGetEffect(lne::ApplicationBase::GetAssetsPath() 
+                                                      + "Engine\\Shaders\\Skybox.glsl");
 
-    GfxTechnique::Desc techDesc{};
+    GfxTechniqueDesc techDesc{};
     techDesc.Name = "SkyboxTechnique";
     techDesc.TechniqueState.Cull = lne::ECullMode::None;
     techDesc.TechniqueState.Fill = lne::EFillMode::Solid;
@@ -56,7 +55,7 @@ void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNo
     passDesc.PassName = "SkyboxPass";
     passDesc.PassEffect = skyboxEffect;
     techDesc.Passes.push_back(passDesc);
-    SafePtr technique = lnnew GfxTechnique(techDesc);
+    SafePtr technique = renderer.CreateOrGetTechnique(techDesc);
 
     auto pipelineHandle = technique->CreateOrGetPipeline(GetID(), frameGraph);
 
@@ -131,9 +130,10 @@ void AppLayer::ToneMappingPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGr
     using namespace lne;
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
 
-    SafePtr toneMapperEffect = lnnew lne::Effect(lne::ApplicationBase::GetRenderer().GetGfxContext(),
-                                                  lne::ApplicationBase::GetAssetsPath() + "Shaders\\ToneMapperEffect.glsl");
-    GfxTechnique::Desc techDesc{};
+    SafePtr toneMapperEffect = renderer.CreateOrGetEffect(ApplicationBase::GetAssetsPath()
+                                                          + "Shaders\\ToneMapper.glsl");
+
+    GfxTechniqueDesc techDesc{};
     techDesc.Name = "ToneMapperTechnique";
     techDesc.TechniqueState.Cull = lne::ECullMode::None;
     techDesc.TechniqueState.Fill = lne::EFillMode::Solid;
@@ -144,7 +144,7 @@ void AppLayer::ToneMappingPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGr
     passDesc.PassName = "ToneMappingPass";
     passDesc.PassEffect = toneMapperEffect;
     techDesc.Passes.push_back(passDesc);
-    SafePtr technique = lnnew GfxTechnique(techDesc);
+    SafePtr technique = renderer.CreateOrGetTechnique(techDesc);
 
     auto pipelineHandle = technique->CreateOrGetPipeline(GetID(), frameGraph);
 

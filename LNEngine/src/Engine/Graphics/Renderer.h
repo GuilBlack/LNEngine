@@ -2,6 +2,8 @@
 #include "Engine/Core/SafePtr.h"
 #include "Engine/Graphics/GlobalGfxData.h"
 #include "Engine/Resources/GfxLoader.h"
+#include "Engine/GlobalUtils.h"
+#include "Engine/Core/DataStructures/FlatHashClasses.h"
 
 namespace enki
 {
@@ -15,13 +17,15 @@ class StaticMesh;
 class GfxContext;
 class Shader;
 class Effect;
-class Technique;
+class GfxTechnique;
+struct GfxTechniqueDesc;
 class GfxPipeline;
 class Material;
 class MaterialV2;
 class Texture;
 class ComputeProgram;
 class Framebuffer;
+class Swapchain;
 
 class Renderer
 {
@@ -33,6 +37,7 @@ public:
                                                          std::shared_ptr<enki::TaskScheduler> taskScheduler);
     void                                            Nuke();
     void                                            InitResources();
+    void                                            NukeResources();
 
     [[nodiscard]] uint32_t                          GetCurrentFrameIndex() const;
     [[nodiscard]] SafePtr<class GfxContext>         GetGfxContext() const;
@@ -96,6 +101,10 @@ public:
     [[nodiscard]] SafePtr<class WorldEnvironment>   CreateEnvironmentMap(std::string_view pathToEnvMap, 
                                                                          uint32_t dimensions = 1024);
 
+    [[nodiscard]] SafePtr<Shader>                   CreateOrGetShader(const std::string& path);
+    [[nodiscard]] SafePtr<Effect>                   CreateOrGetEffect(const std::string& path);
+    [[nodiscard]] SafePtr<GfxTechnique>             CreateOrGetTechnique(const GfxTechniqueDesc& techniqueDesc);
+    [[nodiscard]] SafePtr<GfxTechnique>             GetTechnique(const std::string& name);
 
     void                                            AddTextureToUpdate(SafePtr<class Texture> texture);
 
@@ -115,34 +124,39 @@ public:
         return m_ShaderInudeDirs;
     }
 
-    [[nodiscard]] SafePtr<class Texture>            GetBRDFLut() const;
+    [[nodiscard]] SafePtr<Texture>            GetBRDFLut() const;
     [[nodiscard]] std::filesystem::path             GetShaderCachePath() const;
 
 private:
-    SafePtr<class GfxContext>                   m_Context;
-    SafePtr<class Swapchain>                    m_Swapchain;
-    SafePtr<class GfxLoader>                    m_GfxLoader;
-    std::shared_ptr<class enki::TaskScheduler>  m_TaskScheduler;
-    std::vector<SafePtr<class Texture>>         m_TexturesToUpdate{};
-    std::mutex                                  m_TexturesToUpdateMutex{};
-    std::vector<SafePtr<class Effect>>          m_DirtyEffects{};
-    std::mutex                                  m_DirtyEffectsMutex{};
-    std::vector<SafePtr<class MaterialV2>>      m_DirtyMaterials{};
-    std::mutex                                  m_DirtyMaterialsMutex{};
-    uint32_t                                    m_CurrentFrameInFlight{ 0 };
+    SafePtr<GfxContext>                             m_Context;
+    SafePtr<Swapchain>                              m_Swapchain;
+    SafePtr<GfxLoader>                              m_GfxLoader;
+    std::shared_ptr<enki::TaskScheduler>            m_TaskScheduler;
+    std::vector<SafePtr<Texture>>                   m_TexturesToUpdate{};
+    std::mutex                                      m_TexturesToUpdateMutex{};
+    std::vector<SafePtr<Effect>>                    m_DirtyEffects{};
+    std::mutex                                      m_DirtyEffectsMutex{};
+    std::vector<SafePtr<MaterialV2>>                m_DirtyMaterials{};
+    std::mutex                                      m_DirtyMaterialsMutex{};
+    uint32_t                                        m_CurrentFrameInFlight{ 0 };
 
-    // TODO: move to a command buffer manager to the context (maybe)
-    std::vector<struct FrameData>               m_FrameData;
+    std::vector<FrameData>                          m_FrameData;
 
-    SafePtr<class GfxPipeline>                  m_LastUsedPipeline;
-    SafePtr<class StaticMesh>                   m_LastUsedStaticMesh;
+    SafePtr<GfxPipeline>                            m_LastUsedPipeline;
+    SafePtr<StaticMesh>                             m_LastUsedStaticMesh;
 
-    SafePtr<class Texture>                      m_BRDFLut;
+    SafePtr<Texture>                                m_BRDFLut;
 
-    std::mutex                                  m_ShaderIncludeDirsMutex;
-    std::vector<std::filesystem::path>          m_ShaderInudeDirs;
+    std::mutex                                      m_ShaderIncludeDirsMutex;
+    std::vector<std::filesystem::path>              m_ShaderInudeDirs;
 
-    std::unordered_map<std::string, SafePtr<Shader>> m_ShaderLibrary;
+    // TODO: move to a resource manager
+    FlatHashMap<std::string, SafePtr<Shader>>       m_ShadersLibrary;
+    std::mutex                                      m_ShadersLibraryMutex;
+    FlatHashMap<std::string, SafePtr<Effect>>       m_EffectsLibrary;
+    std::mutex                                      m_EffectsLibraryMutex;
+    FlatHashMap<std::string, SafePtr<GfxTechnique>> m_TechniquesLibrary;
+    std::mutex                                      m_TechniquesLibraryMutex;
 
     bool m_LoadAsync{ true };
 

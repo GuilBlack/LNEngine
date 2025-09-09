@@ -185,6 +185,7 @@ bool ApplicationBase::OnWindowClose(WindowCloseEvent& e)
     gfxContext->WaitIdle();
 
     m_Window->GetGfxContext()->NukeDefaultResources();
+    m_Renderer->NukeResources();
 
     for (auto layer : m_LayerStack)
         layer->OnDetach();

@@ -7,7 +7,7 @@
 
 namespace lne
 {
-GfxTechnique::GfxTechnique(const Desc& desc)
+GfxTechnique::GfxTechnique(const GfxTechniqueDesc& desc)
     : m_Name(desc.Name), m_State(desc.TechniqueState)
 {
     for (const PassBindingDesc& passDesc : desc.Passes)

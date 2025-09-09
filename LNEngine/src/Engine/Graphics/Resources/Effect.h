@@ -103,7 +103,6 @@ private:
 class Effect : public RefCountBase
 {
 public:
-    Effect(SafePtr<GfxContext> context, const std::string& shaderPath);
     ~Effect();
 
     /**
@@ -141,6 +140,9 @@ private:
     PipelineCache                       m_Pipelines;
     std::mutex                          m_SlotAllocMutex{};
     uint32_t                            m_DirtyFrames{};
+
+private:
+    Effect(SafePtr<GfxContext> context, const std::string& shaderPath);
 
     void                                GrowFreeSlots();
     void                                GrowBank(vk::CommandBuffer cmdBuffer, uint32_t currentFrameInFLight);

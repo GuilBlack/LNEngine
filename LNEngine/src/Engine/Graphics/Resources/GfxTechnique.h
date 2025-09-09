@@ -22,28 +22,27 @@ struct PassBinding
     SafePtr<Effect>     PassEffect;
 };
 
+struct GfxTechniqueState
+{
+    TransparencyMode::Enum          Transparency = TransparencyMode::eOpaque;
+    bool                            DeriveDepthFromTransparency = true;
+    DepthMode::Enum                 DepthMode = DepthMode::eReadWrite;
+    ECompareOperation               DepthCompareOp = ECompareOperation::LessOrEqual;
+    EFillMode                       Fill = EFillMode::Solid;
+    ECullMode                       Cull = ECullMode::Back;
+};
+
+struct GfxTechniqueDesc
+{
+    std::string                     Name;
+    GfxTechniqueState               TechniqueState{};
+    std::vector<PassBindingDesc>    Passes{};
+};
+
 class GfxTechnique :
     public RefCountBase
 {
 public:
-    struct State
-    {
-        TransparencyMode::Enum          Transparency = TransparencyMode::eOpaque;
-        bool                            DeriveDepthFromTransparency = true;
-        DepthMode::Enum                 DepthMode = DepthMode::eReadWrite;
-        ECompareOperation               DepthCompareOp = ECompareOperation::LessOrEqual;
-        EFillMode                       Fill = EFillMode::Solid;
-        ECullMode                       Cull = ECullMode::Back;
-    };
-    struct Desc
-    {
-        std::string                     Name;
-        State                           TechniqueState{};
-        std::vector<PassBindingDesc>    Passes{};
-    };
-
-public:
-    GfxTechnique(const Desc& desc);
 
     [[nodiscard]] PipelineHandle                                CreateOrGetPipeline(PassID passID, SafePtr<FrameGraph> frameGraph);
     [[nodiscard]] SafePtr<GfxPipeline>                          GetPipeline(PassID passID);
@@ -52,9 +51,13 @@ public:
     [[nodiscard]] FlatHashMap<PassID, MaterialPassSlot>         AllocateMaterialSlots();
 
 private:
+    friend class Renderer;
     std::string                         m_Name;
     std::mutex                          m_PipelineMutex;
     FlatHashMap<PassID, PassBinding>    m_Passes;
-    State                               m_State;
+    GfxTechniqueState                   m_State;
+
+private:
+    GfxTechnique(const GfxTechniqueDesc& desc);
 };
 }
