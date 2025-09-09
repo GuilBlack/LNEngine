@@ -59,7 +59,14 @@ void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNo
 
     auto pipelineHandle = technique->CreateOrGetPipeline(GetID(), frameGraph);
 
+    techDesc.Name = "SkyboxTechniqueTest";
+    techDesc.TechniqueState.Cull = lne::ECullMode::Back;
+    SafePtr techTest = renderer.CreateOrGetTechnique(techDesc);
+
+    //auto pipelineHandleTest = techTest->CreateOrGetPipeline(GetID(), frameGraph);
+
     m_MaterialV2 = lnnew MaterialV2(technique);
+    //m_MaterialV2Test = lnnew MaterialV2(techTest);
 
     for (FrameGraphResourceHandle resourceHandle : node->InputResources)
     {

@@ -1,6 +1,7 @@
 #pragma once
 #include "Engine/Core/SafePtr.h"
 #include "Engine/Graphics/Resources/Pipeline.h"
+#include "Engine/Core/DataStructures/FlatHashClasses.h"
 
 namespace lne
 {
@@ -43,7 +44,25 @@ inline PipelineHandle MakeHandle(const lne::GraphicsPipelineDescV2& d)
     out.H2 = static_cast<uint64_t>(s2);
     return out;
 }
+}
 
+namespace boost
+{
+template<>
+struct hash<lne::PipelineHandle>
+{
+    std::size_t operator()(const lne::PipelineHandle& p) const
+    {
+        size_t seed = 0;
+        hash_combine(seed, p.H1);
+        hash_combine(seed, p.H2);
+        return seed;
+    }
+};
+}
+
+namespace lne
+{
 struct BankItem
 {
     std::vector<SafePtr<StorageBuffer>> FrameBuffer{};
@@ -56,48 +75,6 @@ struct MaterialBank
     std::vector<uint32_t>           FreeSlots;
     uint32_t                        Count;
     std::vector<vk::DescriptorSet>  FrameDescSets;
-};
-
-struct PipelineCacheItem
-{
-    PipelineHandle          Handle;
-    SafePtr<GfxPipeline>    Pipeline;
-};
-
-class PipelineCache
-{
-public:
-    PipelineCache(size_t initialCapacity = 16);
-
-    bool Add(const PipelineHandle& handle, SafePtr<GfxPipeline> pipeline);
-    bool Has(const PipelineHandle& handle) const;
-
-    // Lookup by 128-bit handle
-    SafePtr<GfxPipeline> Get(const PipelineHandle& handle) const;
-
-    size_t Size() const { return m_Size; }
-    size_t Capacity() const { return m_Capacity; }
-
-    void Clear()
-    {
-        m_Pipelines.assign(m_Capacity, PipelineCacheItem{});
-        m_UsedIndices.clear();
-        m_Size = 0;
-    }
-
-private:
-    std::vector<PipelineCacheItem> m_Pipelines{};
-    std::vector<uint32_t>          m_UsedIndices{};
-    size_t                         m_Capacity = 0; // power-of-two
-    size_t                         m_Size = 0;
-
-private:
-    static uint32_t IndexFor(uint64_t h1, size_t cap)
-    {
-        return static_cast<uint32_t>(h1 & (cap - 1)); // cap is power-of-two so this is equivalent to h1 % cap
-    }
-
-    void GrowAndRehash(size_t newCapacity);
 };
 
 class Effect : public RefCountBase
@@ -132,12 +109,13 @@ public:
 private:
     friend class Renderer;
     friend class MaterialV2;
+    using PipelineCache = FlatHashMap<PipelineHandle, SafePtr<GfxPipeline>>;
     std::string                         m_Name;
     SafePtr<GfxContext>                 m_Context;
     SafePtr<Shader>                     m_Shader;
     MaterialBank                        m_Bank{};
     std::mutex                          m_PipelinesMutex{};
-    PipelineCache                       m_Pipelines;
+    PipelineCache                       m_Pipelines{};
     std::mutex                          m_SlotAllocMutex{};
     uint32_t                            m_DirtyFrames{};
 
