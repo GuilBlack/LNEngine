@@ -104,6 +104,21 @@ Effect::Effect(SafePtr<GfxContext> context, const std::string& shaderPath)
 Effect::~Effect()
 {
     m_Pipelines.clear();
+    m_Bank.Items.clear();
+    
+    for (auto& descSet : m_Bank.FrameDescSets)
+    {
+        DescriptorSetDeletion descSetDel{
+            .Type = DescriptorType::eStorageOnly,
+            .DescriptorSet = descSet
+        };
+        m_Context->EnqueueResourceDeletion(
+            ResourceDeletion{
+                .Type = ResourceType::Enum::eDescriptorSet,
+                .Resource = descSetDel
+            }
+        );
+    }
 }
 
 PipelineHandle Effect::CreateOrGetPipeline(GraphicsPipelineDescV2& pipelineDesc)
