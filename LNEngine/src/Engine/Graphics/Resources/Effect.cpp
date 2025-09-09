@@ -50,7 +50,7 @@ Effect::Effect(SafePtr<GfxContext> context, const std::string& shaderPath)
         initialCapacity = 256;
         break;
     case ShaderDomain::ePostProcess:
-        initialCapacity = 4;
+        initialCapacity = 1;
         break;
     default:
         initialCapacity = 16;

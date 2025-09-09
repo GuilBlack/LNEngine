@@ -4,13 +4,22 @@
 #include "Common.glslh"
 #include "CommonPostProcess.glslh"
 
-layout(scalar, set = MAT_SET, binding = 0) uniform MaterialData {
+struct MaterialData {
     // texture indices
     uint tAlbedo;
     uint tNormal;
     uint tPosition;
     uint tMetalnessRoughness;
 };
+
+layout(scalar, push_constant) uniform MatPC
+{
+    uint id;
+} matPC;
+
+layout(scalar, set = MAT_SET, binding = 0) readonly buffer MaterialBuffer {
+    MaterialData materials[];
+} mb;
 
 layout(set = TEX_SET, binding = 0) uniform sampler2D      globalTextures[];
 layout(set = TEX_SET, binding = 0) uniform samplerCube    globalCubemaps[];
@@ -66,10 +75,11 @@ vec3 samplePrefilteredReflection(vec3 reflectDir, float roughness) {
 
 void main()
 {
-    vec3 albedo = texture(globalTextures[nonuniformEXT(tAlbedo)], iUV).xyz;
-    vec3 normal = normalize(texture(globalTextures[nonuniformEXT(tNormal)], iUV).xyz);
-    vec3 position = texture(globalTextures[nonuniformEXT(tPosition)], iUV).xyz;
-    vec3 metalnessRoughness = texture(globalTextures[nonuniformEXT(tMetalnessRoughness)], iUV).xyz;
+    MaterialData mat = mb.materials[matPC.id];
+    vec3 albedo = texture(globalTextures[nonuniformEXT(mat.tAlbedo)], iUV).xyz;
+    vec3 normal = normalize(texture(globalTextures[nonuniformEXT(mat.tNormal)], iUV).xyz);
+    vec3 position = texture(globalTextures[nonuniformEXT(mat.tPosition)], iUV).xyz;
+    vec3 metalnessRoughness = texture(globalTextures[nonuniformEXT(mat.tMetalnessRoughness)], iUV).xyz;
     float metalness = metalnessRoughness.x;
     float roughness = metalnessRoughness.y;
 
