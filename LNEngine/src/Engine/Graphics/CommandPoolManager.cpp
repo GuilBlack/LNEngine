@@ -20,10 +20,10 @@ CommandPoolManager::CommandPoolManager(GfxContext* ctx, uint32_t numThreads)
 
 CommandPoolManager::~CommandPoolManager()
 {
-    DestroySingleUseContext(m_GraphicsSingleUseContext);
-    DestroySingleUseContext(m_TransferSingleUseContext);
-    DestroySingleUseContext(m_ComputeSingleUseContext);
-    DestroyFrameContext();
+    NukeSingleUseContext(m_GraphicsSingleUseContext);
+    NukeSingleUseContext(m_TransferSingleUseContext);
+    NukeSingleUseContext(m_ComputeSingleUseContext);
+    NukeFrameContext();
 }
 
 vk::CommandBuffer CommandPoolManager::BeginOrGetPrimaryFrameCommandBuffer(uint32_t frameIndex)
@@ -197,7 +197,7 @@ void CommandPoolManager::InitSingleUseContext(SingleUseCommandContext& context,
     }
 }
 
-void CommandPoolManager::DestroySingleUseContext(SingleUseCommandContext& context)
+void CommandPoolManager::NukeSingleUseContext(SingleUseCommandContext& context)
 {
     for (int i = 0; i < context.ThreadContexts.size(); ++i)
     {
@@ -235,7 +235,7 @@ void CommandPoolManager::InitFrameContext(uint32_t numThreads)
     }
 }
 
-void CommandPoolManager::DestroyFrameContext()
+void CommandPoolManager::NukeFrameContext()
 {
     m_Context->GetDevice().waitIdle();
     for (auto& frameContext : m_GraphicsFrameContexts)

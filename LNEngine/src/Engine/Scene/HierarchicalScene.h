@@ -21,7 +21,7 @@ public:
         return entity;
     }
 
-    void DestroyEntity(Entity entity)
+    void RemoveEntity(Entity entity)
     {
         m_EntityRegistry.DeleteEntity(entity.GetID());
         m_EntityIDMap.erase(entity.GetID());

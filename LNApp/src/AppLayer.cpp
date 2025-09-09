@@ -542,7 +542,7 @@ void AppLayer::OnImGuiRender()
 
     if (ImGui::Button("Delete Model"))
     {
-        m_Scene->DestroyEntity(m_ModelEntity);
+        m_Scene->RemoveEntity(m_ModelEntity);
         m_ModelEntity = lne::Entity{};
     }
     auto& transform = m_CubeEntity.GetComponent<lne::TransformComponent>();

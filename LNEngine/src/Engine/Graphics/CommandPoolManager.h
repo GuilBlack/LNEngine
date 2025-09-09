@@ -106,9 +106,9 @@ private:
 private:
     void InitSingleUseContext(
         SingleUseCommandContext& context, uint32_t numThreads, EQueueFamilyType queueFamily);
-    void DestroySingleUseContext(SingleUseCommandContext& context);
+    void NukeSingleUseContext(SingleUseCommandContext& context);
     void InitFrameContext(uint32_t numThreads);
-    void DestroyFrameContext();
+    void NukeFrameContext();
 
     [[nodiscard]] vk::CommandBuffer         AllocateCommandBuffer(
         vk::CommandPool pool, vk::CommandBufferLevel level,
