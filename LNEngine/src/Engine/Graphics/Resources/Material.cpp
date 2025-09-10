@@ -110,7 +110,10 @@ MaterialV2::MaterialV2(SafePtr<GfxTechnique> technique)
         {
             if (element.SetIndex != matSetIndex)
                 continue;
-            m_Constants.emplace(name, MaterialElement{passId, element});
+            if (m_Constants.contains(name) == false)
+                m_Constants.emplace(name, std::vector{ MaterialElement{passId, element} });
+            else
+                m_Constants[name].emplace_back(MaterialElement{ passId, element });
         }
 
         m_AllocatedSlots = technique->AllocateMaterialSlots();

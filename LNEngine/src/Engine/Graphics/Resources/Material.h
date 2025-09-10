@@ -156,11 +156,11 @@ private:
 
     friend class Renderer;
     using MatPassDataMap = FlatHashMap<MatPassDataHash, byte*, MatPassDataHasher>;
-    using MaterialElementMap = FlatHashMap<std::string, MaterialElement>;
+    using MaterialElementsMap = FlatHashMap<std::string, std::vector<MaterialElement>>;
     using TextureMap = FlatHashMap<std::string, SafePtr<Texture>>;
 
     SafePtr<GfxTechnique>                           m_Technique;
-    MaterialElementMap                              m_Constants;
+    MaterialElementsMap                             m_Constants;
     MatPassDataMap                                  m_PassData;
     FlatHashMap<PassID, MaterialPassSlot>           m_AllocatedSlots;
     FlatHashMap<MaterialPipelineHash, PipelineHandle, boost::hash<lne::MaterialPipelineHash>> m_AllocatedPipelines;
@@ -175,21 +175,32 @@ private:
     {
         if (m_Constants.contains(name) == false)
             return false;
-        auto& matConst = m_Constants.at(name);
-        if (IsOfShaderElementType(TypeIdHelper<T>::Get(), matConst.Element.Type) == false)
-            return false;
+        auto& matConsts = m_Constants.at(name);
+        bool success = true;
+        for (auto& matConst : matConsts)
+        {
+            if (IsOfShaderElementType(TypeIdHelper<T>::Get(), matConst.Element.Type) == false)
+            {
+                LNE_ERROR("Type mismatch when setting material property '{}'", name);
+                success = false;
+            }
 
-        MatPassDataHash hash{
-            .PassId = matConst.PassId,
-            .SetIndex = matConst.Element.SetIndex,
-            .Binding = matConst.Element.BindingIndex
-        };
-        if (m_PassData.contains(hash) == false)
-            return false;
-        byte* passData = m_PassData.at(hash);
-        memcpy(passData + matConst.Element.Offset, &value, sizeof(T));
-        InvalidateMaterial();
-        return true;
+            MatPassDataHash hash{
+                .PassId = matConst.PassId,
+                .SetIndex = matConst.Element.SetIndex,
+                .Binding = matConst.Element.BindingIndex
+            };
+            if (m_PassData.contains(hash) == false) // normally shouldn't happen
+            {
+                LNE_ERROR("Pass data not found in material... what??");
+                success = false;
+            }
+            byte* passData = m_PassData.at(hash);
+            memcpy(passData + matConst.Element.Offset, &value, sizeof(T));
+            InvalidateMaterial();
+        }
+        
+        return success;
     }
     void                        InvalidateMaterial();
     bool                        IsOfShaderElementType(TypeId typeId, ShaderElementType::Enum elemType);
