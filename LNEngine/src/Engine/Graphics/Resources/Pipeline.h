@@ -105,7 +105,7 @@ struct GraphicsPipelineDesc
 
 struct GraphicsPipelineDescV2
 {
-    FrameGraph*             FrameGraph = nullptr;
+    SafePtr<FrameGraph>     FrameGraph = nullptr;
 
     ECullMode               CullMode = ECullMode::Back;
     EFillMode               Fill = EFillMode::Solid;

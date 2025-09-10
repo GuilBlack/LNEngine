@@ -4,6 +4,7 @@
 #include "Engine/Graphics/Resources/UniformBuffer.h"
 #include "Engine/Graphics/Resources/Pipeline.h"
 #include "Engine/Graphics/Structs.h"
+#include "Engine/Graphics/StructsHashes.h"
 #include "Engine/GlobalUtils.h"
 #include "Engine/Graphics/FrameGraph/RenderPass/IRenderPass.h"
 #include "Engine/Core/DataStructures/FlatHashClasses.h"
@@ -14,6 +15,7 @@ class GfxPipeline;
 class GfxTechnique;
 class Texture;
 class ComputePipeline;
+class FrameGraph;
 
 class Material : public RefCountBase
 {
@@ -161,6 +163,7 @@ private:
     MaterialElementMap                              m_Constants;
     MatPassDataMap                                  m_PassData;
     FlatHashMap<PassID, MaterialPassSlot>           m_AllocatedSlots;
+    FlatHashMap<MaterialPipelineHash, PipelineHandle, boost::hash<lne::MaterialPipelineHash>> m_AllocatedPipelines;
     bool                                            m_IsTransparent{ false };
     TextureMap                                      m_Textures;
     uint32_t                                        m_DirtyFrames{ 0 };
@@ -188,9 +191,10 @@ private:
         InvalidateMaterial();
         return true;
     }
-    void InvalidateMaterial();
-    bool IsOfShaderElementType(TypeId typeId, ShaderElementType::Enum elemType);
-    void CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, uint32_t frameIndex);
+    void                        InvalidateMaterial();
+    bool                        IsOfShaderElementType(TypeId typeId, ShaderElementType::Enum elemType);
+    void                        CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, uint32_t frameIndex);
+    SafePtr<class GfxPipeline>  GetPipeline(PassID passId, SafePtr<FrameGraph> frameGraph);
 };
 
 

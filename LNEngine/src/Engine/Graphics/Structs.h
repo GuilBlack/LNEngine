@@ -105,4 +105,28 @@ struct MaterialPassSlot
     MaterialSlot                            Slot;
     vk::ShaderStageFlags                    Stages;
 };
+
+struct PipelineHandle
+{
+    uint64_t H1 = 0; // used for indexing
+    uint64_t H2 = 0; // verification tag
+    bool operator==(const PipelineHandle& o) const { return H1 == o.H1 && H2 == o.H2; }
+    bool operator!=(const PipelineHandle& o) const { return !(*this == o); }
+};
+
+// find a better name for this.
+struct MaterialPipelineHash
+{
+    PassID     PassId;
+    uint64_t   FrameGraphHash;
+
+    bool operator==(const MaterialPipelineHash& other) const
+    {
+        return PassId == other.PassId && FrameGraphHash == other.FrameGraphHash;
+    }
+    bool operator!=(const MaterialPipelineHash& o) const
+    {
+        return !(*this == o);
+    }
+};
 }

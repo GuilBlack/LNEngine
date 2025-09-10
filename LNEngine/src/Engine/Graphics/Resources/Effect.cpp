@@ -208,4 +208,34 @@ void Effect::CopyMaterialDataToBuffer(vk::CommandBuffer cmdBuffer,
     auto& item = m_Bank.Items[binding];
     item.FrameBuffer[currentFrameInFlight]->CopyData(cmdBuffer, data, item.ElementSize, matSlot * item.ElementSize);
 }
+
+lne::PipelineHandle Effect::MakeHandle(const lne::GraphicsPipelineDescV2& d)
+{
+    // arbitrary large primes
+    size_t s1 = 0x41788a801d56c693ull; // A
+    size_t s2 = 0x72ec9023ea2a1533ull; // B
+
+    auto mix = [&](size_t& s)
+        {
+            lne::GlobalUtils::HashCombine(s, lne::GlobalUtils::HashEnum(d.CullMode));
+            lne::GlobalUtils::HashCombine(s, lne::GlobalUtils::HashEnum(d.Fill));
+            lne::GlobalUtils::HashCombine(s, static_cast<size_t>(d.TransparencyMode));
+            lne::GlobalUtils::HashCombine(s, static_cast<size_t>(d.DeriveDepthFromTransparency));
+            lne::GlobalUtils::HashCombine(s, reinterpret_cast<size_t>(d.FrameGraph.GetPtr()));
+            if (!d.DeriveDepthFromTransparency)
+            {
+                lne::GlobalUtils::HashCombine(s, lne::GlobalUtils::HashEnum(d.DepthMode));
+                lne::GlobalUtils::HashCombine(s, lne::GlobalUtils::HashEnum(d.DepthCompareOp));
+            }
+        };
+
+    mix(s1);
+    mix(s2);
+
+    PipelineHandle out;
+    out.H1 = static_cast<uint64_t>(s1);
+    out.H2 = static_cast<uint64_t>(s2);
+    return out;
+}
+
 }

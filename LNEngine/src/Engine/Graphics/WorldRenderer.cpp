@@ -72,7 +72,7 @@ void WorldRenderer::BeginScene(Entity& cameraEntity)
         .IrradianceMap = m_Environment->IrradianceTexture->GetBindlessTextureHandle(),
         .PrefilteredMap = m_Environment->PrefilteredTexture->GetBindlessTextureHandle()
     };
-    ApplicationBase::GetRenderer().BeginScene(m_GlobalData, m_WorldGlobalUniforms[ApplicationBase::GetRenderer().GetCurrentFrameIndex()]);
+    ApplicationBase::GetRenderer().BeginScene(this, m_FrameGraph, m_GlobalData, m_WorldGlobalUniforms[ApplicationBase::GetRenderer().GetCurrentFrameIndex()]);
 }
 
 void WorldRenderer::Render(EntityRegistry& registry)

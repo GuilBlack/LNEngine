@@ -112,7 +112,7 @@ private:
     lne::Entity m_CubeEntity;
     lne::Entity m_SphereEntity;
 
-    glm::vec3 m_LightDirection{ 1.0f, -1.0f, -1.0f };
+    glm::vec3 m_LightDirection{ 0.0f, -5.0f, 0.0f };
     float m_AmbientLight{ 0.03f };
     float m_Metalness{ 0.0f };
     float m_Roughness{ 0.0f };

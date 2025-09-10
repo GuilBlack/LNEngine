@@ -2,63 +2,15 @@
 #include "Engine/Core/SafePtr.h"
 #include "Engine/Graphics/Resources/Pipeline.h"
 #include "Engine/Core/DataStructures/FlatHashClasses.h"
+#include "Engine/Graphics/Structs.h"
+#include "Engine/Graphics/StructsHashes.h"
 
 namespace lne
 {
 class GfxContext;
 class Shader;
 class StorageBuffer;
-
-struct PipelineHandle
-{
-    uint64_t H1 = 0; // used for indexing
-    uint64_t H2 = 0; // verification tag
-    bool operator==(const PipelineHandle& o) const { return H1 == o.H1 && H2 == o.H2; }
-    bool operator!=(const PipelineHandle& o) const { return !(*this == o); }
-};
-
-inline PipelineHandle MakeHandle(const lne::GraphicsPipelineDescV2& d)
-{
-    // arbitrary large primes
-    size_t s1 = 0x41788a801d56c693ull; // A
-    size_t s2 = 0x72ec9023ea2a1533ull; // B
-
-    auto mix = [&](size_t& s)
-        {
-            lne::GlobalUtils::HashCombine(s, lne::GlobalUtils::HashEnum(d.CullMode));
-            lne::GlobalUtils::HashCombine(s, lne::GlobalUtils::HashEnum(d.Fill));
-            lne::GlobalUtils::HashCombine(s, static_cast<size_t>(d.TransparencyMode));
-            lne::GlobalUtils::HashCombine(s, static_cast<size_t>(d.DeriveDepthFromTransparency));
-            if (!d.DeriveDepthFromTransparency)
-            {
-                lne::GlobalUtils::HashCombine(s, lne::GlobalUtils::HashEnum(d.DepthMode));
-                lne::GlobalUtils::HashCombine(s, lne::GlobalUtils::HashEnum(d.DepthCompareOp));
-            }
-        };
-
-    mix(s1);
-    mix(s2);
-
-    PipelineHandle out;
-    out.H1 = static_cast<uint64_t>(s1);
-    out.H2 = static_cast<uint64_t>(s2);
-    return out;
-}
-}
-
-namespace boost
-{
-template<>
-struct hash<lne::PipelineHandle>
-{
-    std::size_t operator()(const lne::PipelineHandle& p) const
-    {
-        size_t seed = 0;
-        hash_combine(seed, p.H1);
-        hash_combine(seed, p.H2);
-        return seed;
-    }
-};
+class FrameGraph;
 }
 
 namespace lne
@@ -129,6 +81,8 @@ private:
                                                                  MaterialSlot matSlot,
                                                                  uint32_t binding,
                                                                  void* data);
+
+    inline PipelineHandle MakeHandle(const lne::GraphicsPipelineDescV2& d);
 };
 }
 

@@ -34,8 +34,6 @@ void LightingPass::OnBind(FrameGraph* frameGraph, FrameGraphNode* node)
 	techDesc.Passes.push_back(passDesc);
     SafePtr technique = renderer.CreateOrGetTechnique(techDesc);
 
-	auto pipelineHandle = technique->CreateOrGetPipeline(GetID(), frameGraph);
-
 	m_MaterialV2 = lnnew MaterialV2(technique);
     
     for (FrameGraphResourceHandle resourceHandle : node->OutputResources)

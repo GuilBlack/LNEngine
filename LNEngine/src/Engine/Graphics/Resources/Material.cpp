@@ -12,6 +12,7 @@
 #include "Graphics/Resources/Texture.h"
 #include "GfxTechnique.h"
 #include "Graphics/Resources/StorageBuffer.h"
+#include "../FrameGraph/FrameGraph.h"
 
 namespace lne
 {
@@ -194,6 +195,20 @@ void MaterialV2::CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, uint32_t fra
                                          m_AllocatedSlots[hash.PassId].Slot, hash.Binding, 
                                          passData);
     }
+}
+
+lne::SafePtr<class GfxPipeline> MaterialV2::GetPipeline(PassID passId, SafePtr<FrameGraph> frameGraph)
+{
+    MaterialPipelineHash hash{
+        .PassId = passId,
+        .FrameGraphHash = (uint64_t)frameGraph.GetPtr()
+    };
+    auto it = m_AllocatedPipelines.find(hash);
+    if (it != m_AllocatedPipelines.end())
+        return m_Technique->GetPipeline(passId, it->second);
+    auto handle = m_Technique->CreateOrGetPipeline(passId, frameGraph);
+    m_AllocatedPipelines.emplace(hash, handle);
+    return m_Technique->GetPipeline(passId, handle);
 }
 
 //////////////////////////////////////////////////////////////////////////

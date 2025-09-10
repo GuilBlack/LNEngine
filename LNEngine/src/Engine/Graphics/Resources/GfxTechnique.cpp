@@ -27,8 +27,7 @@ PipelineHandle GfxTechnique::CreateOrGetPipeline(PassID passID, SafePtr<FrameGra
 
     std::scoped_lock lock(m_PipelineMutex);
     PassBinding& passBinding = it->second;
-    if (passBinding.PipelineHandle != PipelineHandle{})
-        return passBinding.PipelineHandle;
+
     GraphicsPipelineDescV2 desc{};
     desc.CullMode = m_State.Cull;
     desc.Fill = m_State.Fill;
@@ -41,18 +40,17 @@ PipelineHandle GfxTechnique::CreateOrGetPipeline(PassID passID, SafePtr<FrameGra
         desc.DepthCompareOp = m_State.DepthCompareOp;
     }
     desc.Shader = passBinding.PassEffect->GetShader();
-    passBinding.PipelineHandle = passBinding.PassEffect->CreateOrGetPipeline(desc);
-    return passBinding.PipelineHandle;
+    return passBinding.PassEffect->CreateOrGetPipeline(desc);
 }
 
-SafePtr<GfxPipeline> GfxTechnique::GetPipeline(PassID passID)
+SafePtr<GfxPipeline> GfxTechnique::GetPipeline(PassID passID, PipelineHandle handle)
 {
     auto it = m_Passes.find(passID);
     if (it == m_Passes.end())
         return nullptr;
 
     std::scoped_lock lock(m_PipelineMutex);
-    return it->second.PassEffect->GetPipeline(it->second.PipelineHandle);
+    return it->second.PassEffect->GetPipeline(handle);
 }
 
 lne::SafePtr<lne::Effect> GfxTechnique::GetPassEffect(PassID passID)

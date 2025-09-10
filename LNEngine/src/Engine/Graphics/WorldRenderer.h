@@ -43,6 +43,7 @@ public:
     void EndFrame();
 
 private:
+    friend class Renderer;
     SafePtr<FrameGraph> m_FrameGraph{};
     SafePtr<WorldEnvironment> m_Environment{};
 
@@ -50,5 +51,7 @@ private:
     std::vector<TransformBuffer> m_TransformBuffers{};
     WorldData m_GlobalData{};
     std::vector<SafePtr<UniformBuffer>> m_WorldGlobalUniforms{};
+
+private:
 };
 }

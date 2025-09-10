@@ -126,6 +126,7 @@ public:
     }
 
     RefCountType* GetPtr() { return m_Ptr; }
+    const RefCountType* GetPtr() const { return m_Ptr; }
 
     template<typename CastType>
     SafePtr<CastType> GetAs()

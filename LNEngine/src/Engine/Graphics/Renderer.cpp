@@ -16,12 +16,14 @@
 #include "Graphics/Resources/Pipeline.h"
 #include "Graphics/Resources/StorageBuffer.h"
 #include "Graphics/Resources/GfxTechnique.h"
+#include "Graphics/FrameGraph/FrameGraph.h"
 
 // TODO: move this to a resource manager
 #include <stb/stb_image.h>
 #include "WorldEnvironment.h"
 #include "Core/ApplicationBase.h"
 #include "Resources/Effect.h"
+#include "WorldRenderer.h"
 
 namespace lne
 {
@@ -63,8 +65,6 @@ void Renderer::Nuke()
 {
     m_Context->WaitIdle();
     m_GfxLoader->Nuke();
-    m_LastUsedPipeline.Reset();
-    m_LastUsedStaticMesh.Reset();
     for (auto& frameData : m_FrameData)
     {
         frameData.DescriptorAllocator.Reset();
@@ -96,6 +96,10 @@ void Renderer::InitResources()
 
 void Renderer::NukeResources()
 {
+    m_LastUsedPipeline.Reset();
+    m_LastUsedStaticMesh.Reset();
+    m_CurrentWorldRenderer.Reset();
+    m_CurrentFrameGraph.Reset();
     m_ShadersLibrary.clear();
     m_EffectsLibrary.clear();
     m_TechniquesLibrary.clear();
@@ -175,9 +179,14 @@ void Renderer::PostFrame()
     m_Context->DeferredNukeResources();
 }
 
-void Renderer::BeginScene(WorldData globalData, SafePtr<UniformBuffer> worldGlobalUniforms)
+void Renderer::BeginScene(SafePtr<WorldRenderer> worldRenderer,
+                          SafePtr<FrameGraph> frameGraph,
+                          WorldData globalData,
+                          SafePtr<class UniformBuffer> worldGlobalUniforms)
 {
-    LNE_PROFILE_FUNCTION_C(PROFILING_COL)
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL);
+    m_CurrentWorldRenderer = worldRenderer;
+    m_CurrentFrameGraph = frameGraph;
     uint32_t imageIndex = m_Context->GetCurrentFrameIndex();
     vk::CommandBuffer cmdBuffer = m_Context->GetPrimaryCommandBuffer();
     FrameData& frameData = m_FrameData[imageIndex];
@@ -458,7 +467,7 @@ void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, SafePtr<MaterialV
     }
     SafePtr technique = material->GetTechnique();
     SafePtr effect = technique->GetPassEffect(passId);
-    SafePtr pipeline = technique->GetPipeline(passId);
+    SafePtr pipeline = material->GetPipeline(passId, m_CurrentFrameGraph);
     if (pipeline == nullptr)
     {
         LNE_ERROR("Pipeline is null");

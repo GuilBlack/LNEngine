@@ -18,7 +18,6 @@ struct PassBindingDesc
 };
 struct PassBinding
 {
-    PipelineHandle      PipelineHandle{};
     SafePtr<Effect>     PassEffect;
 };
 
@@ -45,7 +44,7 @@ class GfxTechnique :
 public:
 
     [[nodiscard]] PipelineHandle                                CreateOrGetPipeline(PassID passID, SafePtr<FrameGraph> frameGraph);
-    [[nodiscard]] SafePtr<GfxPipeline>                          GetPipeline(PassID passID);
+    [[nodiscard]] SafePtr<GfxPipeline>                          GetPipeline(PassID passID, PipelineHandle handle);
     [[nodiscard]] SafePtr<Effect>                               GetPassEffect(PassID passID);
     [[nodiscard]] const FlatHashMap<PassID, PassBinding>&       GetPasses() const { return m_Passes; }
     [[nodiscard]] FlatHashMap<PassID, MaterialPassSlot>         AllocateMaterialSlots();

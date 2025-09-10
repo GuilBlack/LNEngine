@@ -26,6 +26,8 @@ class Texture;
 class ComputeProgram;
 class Framebuffer;
 class Swapchain;
+class WorldRenderer;
+class FrameGraph;
 
 class Renderer
 {
@@ -51,7 +53,9 @@ public:
     void                                            EndFrame();
     void                                            PostFrame();
 
-    void                                            BeginScene(WorldData globalData, 
+    void                                            BeginScene(SafePtr<WorldRenderer> worldRenderer,
+                                                               SafePtr<FrameGraph> frameGraph,
+                                                               WorldData globalData,
                                                                SafePtr<class UniformBuffer> worldGlobalUniforms);
 
     void                                            BeginRenderPass(const class Framebuffer& framebuffer) const;
@@ -124,7 +128,7 @@ public:
         return m_ShaderInudeDirs;
     }
 
-    [[nodiscard]] SafePtr<Texture>            GetBRDFLut() const;
+    [[nodiscard]] SafePtr<Texture>                  GetBRDFLut() const;
     [[nodiscard]] std::filesystem::path             GetShaderCachePath() const;
 
 private:
@@ -144,6 +148,10 @@ private:
 
     SafePtr<GfxPipeline>                            m_LastUsedPipeline;
     SafePtr<StaticMesh>                             m_LastUsedStaticMesh;
+
+    // TODO: change this for multiple world renderers for later
+    SafePtr<WorldRenderer>                          m_CurrentWorldRenderer;
+    SafePtr<FrameGraph>                             m_CurrentFrameGraph;
 
     SafePtr<Texture>                                m_BRDFLut;
 

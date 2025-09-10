@@ -16,4 +16,28 @@ struct hash<lne::StaticMeshHash>
         return seed;
     }
 };
+
+template<>
+struct hash<lne::PipelineHandle>
+{
+    std::size_t operator()(const lne::PipelineHandle& p) const
+    {
+        size_t seed = 0;
+        hash_combine(seed, p.H1);
+        hash_combine(seed, p.H2);
+        return seed;
+    }
+};
+
+template<>
+struct hash<lne::MaterialPipelineHash>
+{
+    std::size_t operator()(const lne::MaterialPipelineHash& k) const
+    {
+        size_t seed = 0;
+        hash_combine(seed, k.PassId);
+        hash_combine(seed, k.FrameGraphHash);
+        return seed;
+    }
+};
 }

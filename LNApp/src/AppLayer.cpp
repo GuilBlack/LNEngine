@@ -57,13 +57,9 @@ void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNo
     techDesc.Passes.push_back(passDesc);
     SafePtr technique = renderer.CreateOrGetTechnique(techDesc);
 
-    auto pipelineHandle = technique->CreateOrGetPipeline(GetID(), frameGraph);
-
     techDesc.Name = "SkyboxTechniqueTest";
     techDesc.TechniqueState.Cull = lne::ECullMode::Back;
     SafePtr techTest = renderer.CreateOrGetTechnique(techDesc);
-
-    //auto pipelineHandleTest = techTest->CreateOrGetPipeline(GetID(), frameGraph);
 
     m_MaterialV2 = lnnew MaterialV2(technique);
     //m_MaterialV2Test = lnnew MaterialV2(techTest);
@@ -152,8 +148,6 @@ void AppLayer::ToneMappingPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGr
     passDesc.PassEffect = toneMapperEffect;
     techDesc.Passes.push_back(passDesc);
     SafePtr technique = renderer.CreateOrGetTechnique(techDesc);
-
-    auto pipelineHandle = technique->CreateOrGetPipeline(GetID(), frameGraph);
 
     SafePtr<MaterialV2> mat = lnnew MaterialV2(technique);
 
@@ -324,7 +318,7 @@ void AppLayer::OnAttach()
     //        tempMeshComp.Mesh = sphereMesh;
     //}
 
-    cameraTransform.Position = { -2.0f, 0.0f, 0.0f };
+    cameraTransform.Position = { -2.0f, 4.0f, 0.0f };
     cameraTransform.LookAt({ 0.0f, 0.0f, 0.0f });
 
     auto& windowSettings = ApplicationBase::GetWindow().GetSettings();
