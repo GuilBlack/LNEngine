@@ -51,7 +51,7 @@ void StorageBuffer::CopyData(vk::CommandBuffer cb, const void* data, uint64_t si
     
     if (m_Allocation.MemoryFlags & vk::MemoryPropertyFlagBits::eHostVisible)
     {
-        vmaCopyMemoryToAllocation(m_Context->GetMemoryAllocator(), data, m_Allocation.Allocation, offset, size);
+        VkResult r = vmaCopyMemoryToAllocation(m_Context->GetMemoryAllocator(), data, m_Allocation.Allocation, offset, size);
 
         // Ensure visibility if memory is not host-coherent
         if (!(m_Allocation.MemoryFlags & vk::MemoryPropertyFlagBits::eHostCoherent))

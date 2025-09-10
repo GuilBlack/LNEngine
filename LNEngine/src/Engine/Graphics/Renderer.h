@@ -171,7 +171,13 @@ private:
 private:
     void InitFrameData(uint32_t index);
     void UpdateTextures(vk::CommandBuffer cmdBuffer);
+
+    // grows the material table bank for the effect
     void ProcessDirtyEffects(vk::CommandBuffer cmdBuffer);
+
+    // used after processing dirty materials because the material must know when it's safe
+    // to update.
+    void CleanupDirtyEffects();
     void ProcessDirtyMaterials(vk::CommandBuffer cmdBuffer);
 };
 }

@@ -52,7 +52,7 @@ class AppLayer final : public lne::Layer
         void OnImGuiRender() override;
     private:
         lne::SafePtr<lne::MaterialV2> m_MaterialV2{};
-        lne::SafePtr<lne::MaterialV2> m_MaterialV2Test{};
+
         lne::SafePtr<lne::Texture> m_Texture{};
 
         lne::SafePtr<lne::Texture> m_DebugTexture{};

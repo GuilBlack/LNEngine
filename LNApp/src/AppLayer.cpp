@@ -57,12 +57,7 @@ void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNo
     techDesc.Passes.push_back(passDesc);
     SafePtr technique = renderer.CreateOrGetTechnique(techDesc);
 
-    techDesc.Name = "SkyboxTechniqueTest";
-    techDesc.TechniqueState.Cull = lne::ECullMode::Back;
-    SafePtr techTest = renderer.CreateOrGetTechnique(techDesc);
-
     m_MaterialV2 = lnnew MaterialV2(technique);
-    //m_MaterialV2Test = lnnew MaterialV2(techTest);
 
     for (FrameGraphResourceHandle resourceHandle : node->InputResources)
     {
@@ -83,12 +78,13 @@ void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNo
 void AppLayer::SkyboxPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worldRenderer,
     lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
-    LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
+    LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL);
     if (m_Texture != worldRenderer->GetEnvironment()->SkyboxTexture)
     {
         m_Texture = worldRenderer->GetEnvironment()->SkyboxTexture;
         m_MaterialV2->SetTexture("tCubeAlbedo", m_Texture);
     }
+
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
     renderer.DrawFullscreenQuad(cmdBuffer, m_MaterialV2, GetID());
 }

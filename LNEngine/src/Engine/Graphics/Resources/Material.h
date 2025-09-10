@@ -193,7 +193,7 @@ private:
     }
     void                        InvalidateMaterial();
     bool                        IsOfShaderElementType(TypeId typeId, ShaderElementType::Enum elemType);
-    void                        CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, uint32_t frameIndex);
+    bool CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, uint32_t frameIndex);
     SafePtr<class GfxPipeline>  GetPipeline(PassID passId, SafePtr<FrameGraph> frameGraph);
 };
 

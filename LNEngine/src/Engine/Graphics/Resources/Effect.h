@@ -76,7 +76,7 @@ private:
 
     void                                GrowFreeSlots();
     void                                GrowBank(vk::CommandBuffer cmdBuffer, uint32_t currentFrameInFLight);
-    void                                CopyMaterialDataToBuffer(vk::CommandBuffer cmdBuffer,
+    bool CopyMaterialDataToBuffer(vk::CommandBuffer cmdBuffer,
                                                                  uint32_t currentFrameInFlight,
                                                                  MaterialSlot matSlot,
                                                                  uint32_t binding,

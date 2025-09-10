@@ -199,14 +199,17 @@ void Effect::GrowBank(vk::CommandBuffer cmdBuffer, uint32_t currentFrameInFlight
     m_Context->GetDevice().updateDescriptorSets(writeDescSets, nullptr);
 }
 
-void Effect::CopyMaterialDataToBuffer(vk::CommandBuffer cmdBuffer,
+bool Effect::CopyMaterialDataToBuffer(vk::CommandBuffer cmdBuffer,
                                       uint32_t currentFrameInFlight,
                                       MaterialSlot matSlot,
                                       uint32_t binding,
                                       void* data)
 {
     auto& item = m_Bank.Items[binding];
+    if (item.FrameBuffer[currentFrameInFlight]->GetMemoryFlags() & vk::MemoryPropertyFlagBits::eHostVisible && m_DirtyFrames != 0)
+        return false;
     item.FrameBuffer[currentFrameInFlight]->CopyData(cmdBuffer, data, item.ElementSize, matSlot * item.ElementSize);
+    return true;
 }
 
 lne::PipelineHandle Effect::MakeHandle(const lne::GraphicsPipelineDescV2& d)

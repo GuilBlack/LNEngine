@@ -20,6 +20,7 @@ public:
             m_Size
         };
     }
+    vk::MemoryPropertyFlags GetMemoryFlags() const { return m_Allocation.MemoryFlags; }
 
     void CopyData(vk::CommandBuffer cb, const void* data, uint64_t size, uint64_t offset = 0);
     void Grow(vk::CommandBuffer cb, uint64_t newSize);
@@ -36,6 +37,7 @@ private:
     bool m_HasStagingBuffer{ true };
 
 private:
+    StorageBuffer(SafePtr<class GfxContext> ctx, BufferAllocation oldAllocation, BufferAllocation oldStagingAllocation, bool hasStagingBuffer, StorageBufferType::Enum type);
     void InitStatic(const void* data);
     void InitDynamic();
     void CopyBufferToBuffer(vk::CommandBuffer cb, 

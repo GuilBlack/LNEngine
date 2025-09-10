@@ -141,6 +141,7 @@ void Renderer::BeginFrame()
 
     ProcessDirtyEffects(cmdBuffer);
     ProcessDirtyMaterials(cmdBuffer);
+    CleanupDirtyEffects();
 
     if (m_LoadAsync == false)
         m_GfxLoader->Update();
@@ -778,10 +779,16 @@ void Renderer::ProcessDirtyEffects(vk::CommandBuffer cmdBuffer)
     for (size_t i = m_DirtyEffects.size(); i-- > 0; )
     {
         auto effect = m_DirtyEffects[i];
-
-        --effect->m_DirtyFrames;
         effect->GrowBank(cmdBuffer, currentFrameInFlight);
+    }
+}
 
+void Renderer::CleanupDirtyEffects()
+{
+    for (size_t i = m_DirtyEffects.size(); i-- > 0; )
+    {
+        auto effect = m_DirtyEffects[i];
+        --effect->m_DirtyFrames; 
         if (effect->m_DirtyFrames == 0)
         {
             std::swap(m_DirtyEffects[i], m_DirtyEffects.back());
@@ -799,8 +806,8 @@ void Renderer::ProcessDirtyMaterials(vk::CommandBuffer cmdBuffer)
     for (size_t i = m_DirtyMaterials.size(); i-- > 0; )
     {
         auto material = m_DirtyMaterials[i];
-        --material->m_DirtyFrames;
-        material->CopyPassDataToBuffers(cmdBuffer, currentFrameInFlight);
+        if (material->CopyPassDataToBuffers(cmdBuffer, currentFrameInFlight))
+            --material->m_DirtyFrames;
         if (material->m_DirtyFrames == 0)
         {
             std::swap(m_DirtyMaterials[i], m_DirtyMaterials.back());

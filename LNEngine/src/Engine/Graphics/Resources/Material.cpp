@@ -158,8 +158,9 @@ void MaterialV2::SetTexture(const std::string& name, SafePtr<Texture> texture)
 void MaterialV2::InvalidateMaterial()
 {
     auto& renderer = ApplicationBase::GetRenderer();
+    if (m_DirtyFrames == 0)
+        renderer.AddDirtyMaterial(SafePtr(this));
     m_DirtyFrames = renderer.GetGfxContext()->GetMaxFramesInFlight();
-    renderer.AddDirtyMaterial(SafePtr(this));
 }
 
 bool MaterialV2::IsOfShaderElementType(TypeId typeId, ShaderElementType::Enum elemType)
@@ -186,15 +187,18 @@ bool MaterialV2::IsOfShaderElementType(TypeId typeId, ShaderElementType::Enum el
     return typeMap.at(typeId) == elemType;
 }
 
-void MaterialV2::CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, uint32_t frameIndex)
+bool MaterialV2::CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, uint32_t frameIndex)
 {
+    bool success = true;
     for (auto& [hash, passData] : m_PassData)
     {
         auto effect = m_Technique->GetPassEffect(hash.PassId);
-        effect->CopyMaterialDataToBuffer(cmdBuffer, frameIndex, 
+        if (effect->CopyMaterialDataToBuffer(cmdBuffer, frameIndex, 
                                          m_AllocatedSlots[hash.PassId].Slot, hash.Binding, 
-                                         passData);
+                                         passData) == false)
+            success = false;
     }
+    return success;
 }
 
 lne::SafePtr<class GfxPipeline> MaterialV2::GetPipeline(PassID passId, SafePtr<FrameGraph> frameGraph)
