@@ -1,6 +1,9 @@
 //#lne_head [Vt main][Fg main][Rp GBufferPass][Tp Mesh]
 #version 460
 
+#extension GL_GOOGLE_include_directive : require
+#extension GL_ARB_shading_language_include : require
+
 #include "Common.glslh"
 #include "CommonMesh.glslh"
 
@@ -8,7 +11,8 @@ layout(scalar, set = TRANSFORM_SET, binding = 0) readonly buffer TransformBuffer
     mat4 transforms[];
 } transformBuffer;
 
-layout(scalar, set = MAT_SET, binding = 0) uniform MaterialData {
+struct MaterialData
+{
     vec4 uColor;
     float uMetalness;
     float uRoughness;
@@ -19,6 +23,15 @@ layout(scalar, set = MAT_SET, binding = 0) uniform MaterialData {
     uint tRoughness;
     uint tNormal;
 };
+
+layout(scalar, push_constant) uniform MatPC
+{
+    uint id;
+} matPC;
+
+layout(scalar, set = MAT_SET, binding = 0) readonly buffer MaterialBuffer {
+    MaterialData materials[]; // MaterialData
+} mb;
 
 layout(set = TEX_SET, binding = 0) uniform sampler2D      globalTextures[];
 layout(set = TEX_SET, binding = 0) uniform samplerCube    globalCubemaps[];
@@ -82,25 +95,26 @@ layout(location = 3) out vec4 oMetalnessRoughness;
 
 void main()
 {
-    oAlbedo = texture(globalTextures[nonuniformEXT(tAlbedo)], iUV);
+    MaterialData mat = mb.materials[matPC.id];
+    oAlbedo = texture(globalTextures[nonuniformEXT(mat.tAlbedo)], iUV);
     oPosition = vec4(iWorldPos, 1.0);
 
-    float metalness = uMetalness;
-    if (tMetalness != 0)
-        metalness = texture(globalTextures[nonuniformEXT(tMetalness)], iUV).z;
-    float roughness = uRoughness;
-    if (tRoughness != 0)
-        roughness = texture(globalTextures[nonuniformEXT(tRoughness)], iUV).y;
+    float metalness = mat.uMetalness;
+    if (mat.tMetalness != 0)
+        metalness = texture(globalTextures[nonuniformEXT(mat.tMetalness)], iUV).z;
+    float roughness = mat.uRoughness;
+    if (mat.tRoughness != 0)
+        roughness = texture(globalTextures[nonuniformEXT(mat.tRoughness)], iUV).y;
     oMetalnessRoughness = vec4(metalness, roughness, 0.0, 1.0);
 
     vec3 normal = normalize(iNormal);
-    if (tNormal != 0)
+    if (mat.tNormal != 0)
     {
         vec3 tangent =   normalize(iTangent - normal * dot(normal, iTangent));
         vec3 bitangent = normalize(iBitangent);
 
         mat3 TBN = mat3(tangent, bitangent, normal);
-        oNormal = vec4(TBN * (texture(globalTextures[nonuniformEXT(tNormal)], iUV).xyz * 2.0 - vec3(1.0)), 1.0);
+        oNormal = vec4(TBN * (texture(globalTextures[nonuniformEXT(mat.tNormal)], iUV).xyz * 2.0 - vec3(1.0)), 1.0);
     }
     else
         oNormal = vec4(normal, 1.0);

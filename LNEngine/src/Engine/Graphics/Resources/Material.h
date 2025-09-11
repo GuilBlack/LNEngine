@@ -110,6 +110,7 @@ public:
     ShaderDomain::Enum          GetMaterialType() const { return m_MaterialType; }
     SafePtr<GfxTechnique>       GetTechnique() const;
     MaterialPassSlot            GetMaterialPassSlot(PassID passId) const;
+    bool                        CanRenderToPass(PassID passId) const;
 
     bool                        SetProperty(const std::string& name, uint32_t value)
     { return SetProperty<uint32_t>(name, value); }

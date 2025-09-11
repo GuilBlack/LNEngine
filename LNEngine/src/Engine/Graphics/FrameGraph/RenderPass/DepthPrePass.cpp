@@ -31,7 +31,7 @@ void DepthPrePass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worl
         SafePtr<StaticMesh> mesh = drawCommand.Mesh;
         SubMeshTransformArray& transforms = worldRenderer->GetTransforms(hash);
         TransformBuffer& transformBuffer = worldRenderer->GetTransformBuffer(renderer.GetCurrentFrameIndex());
-        renderer.Draw(cmdBuffer, drawCommand.Mesh, transformBuffer.Buffer, m_Material, transforms.Offset, drawCommand.SubMeshIndex, drawCommand.InstanceCount);
+        renderer.Draw(cmdBuffer, drawCommand.Mesh, transformBuffer.Buffer, GetID(), transforms.Offset, drawCommand.SubMeshIndex, drawCommand.InstanceCount);
     }
 }
 
@@ -49,6 +49,18 @@ void DepthPrePass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNode* node
 
     m_Pipeline = renderer.CreateGraphicsPipeline(desc);
     m_Material = lnnew Material(m_Pipeline);
+}
+
+void DepthPrePass::AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, uint32_t subMeshIndex)
+{
+    const SubMesh& submesh = mesh->GetSubMeshes()[hash.SubMeshIndex];
+    SafePtr material = mesh->GetMaterialV2(submesh.MaterialIndex);
+    if (material->CanRenderToPass(GetID()) == false)
+        return;
+    auto& drawCommands = m_DrawCommands[hash];
+    drawCommands.Mesh = mesh;
+    drawCommands.SubMeshIndex = subMeshIndex;
+    drawCommands.InstanceCount++;
 }
 
 }

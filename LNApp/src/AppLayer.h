@@ -100,6 +100,9 @@ private:
     lne::SafePtr<lne::Material> m_BasicMaterial{};
     lne::SafePtr<lne::Material> m_BasicMaterial2{};
 
+    lne::SafePtr<lne::GfxTechnique> m_OpaqueTechnique{};
+    lne::SafePtr<lne::GfxTechnique> m_TransparentTechnique{};
+
     struct CameraTarget
     {
         glm::vec3 Position;

@@ -8,7 +8,7 @@ layout(scalar, set = TRANSFORM_SET, binding = 0) readonly buffer TransformBuffer
     mat4 transforms[];
 } transformBuffer;
 
-layout(scalar, set = MAT_SET, binding = 0) uniform MaterialData {
+struct MaterialData {
     vec4 uColor;
     float uMetalness;
     float uRoughness;
@@ -19,6 +19,14 @@ layout(scalar, set = MAT_SET, binding = 0) uniform MaterialData {
     uint tRoughness;
     uint tNormal;
 };
+
+layout(scalar, push_constant) uniform MatPC {
+    uint id;
+} matPC;
+
+layout(scalar, set = MAT_SET, binding = 0) readonly buffer MaterialBuffer {
+    MaterialData materials[]; // MaterialData
+} mb;
 
 layout(set = TEX_SET, binding = 0) uniform sampler2D      globalTextures[];
 layout(set = TEX_SET, binding = 0) uniform samplerCube    globalCubemaps[];
@@ -49,7 +57,8 @@ layout(set = 2, binding = 1) readonly buffer IndexBuffer {
     uint indices[];
 } indexBuffer;
 
-void main() {
+void main()
+{
     uint currentIndex = indexBuffer.indices[gl_VertexIndex];
     mat4 model = transformBuffer.transforms[gl_InstanceIndex];
     gl_Position = uViewProj * model * vec4(vertexBuffer.vertices[currentIndex].position, 1.0);
@@ -77,7 +86,8 @@ layout(location = 0) out vec4 oColor;
 
 #include "PBR.glslh"
 
-vec3 samplePrefilteredReflection(vec3 reflectDir, float roughness) {
+vec3 samplePrefilteredReflection(vec3 reflectDir, float roughness)
+{
     float maxReflLod = log2(float(textureSize(globalTextures[nonuniformEXT(tPrefilteredMap)], 0).x));
     float lod = maxReflLod * roughness;
     float lodMin = floor(lod);
@@ -87,28 +97,30 @@ vec3 samplePrefilteredReflection(vec3 reflectDir, float roughness) {
     return mix(sample1, sample2, lod - lodMin);
 }
 
-void main() {
-    vec4 albedoMapValue = texture(globalTextures[tAlbedo], iUVs);
+void main() 
+{
+    MaterialData mat = mb.materials[matPC.id];
+    vec4 albedoMapValue = texture(globalTextures[mat.tAlbedo], iUVs);
     vec3 albedo = albedoMapValue.xyz;
 
     if (albedoMapValue.w == 0.0)
         discard;
 
-    float metalness = uMetalness;
-    if (tMetalness != 0)
-        metalness = texture(globalTextures[nonuniformEXT(tMetalness)], iUVs).z;
-    float roughness = uRoughness;
-    if (tRoughness != 0)
-        roughness = texture(globalTextures[nonuniformEXT(tRoughness)], iUVs).y;
+    float metalness = mat.uMetalness;
+    if (mat.tMetalness != 0)
+        metalness = texture(globalTextures[nonuniformEXT(mat.tMetalness)], iUVs).z;
+    float roughness = mat.uRoughness;
+    if (mat.tRoughness != 0)
+        roughness = texture(globalTextures[nonuniformEXT(mat.tRoughness)], iUVs).y;
         
     vec3 normal = normalize(iNormal);
-    if (tNormal != 0)
+    if (mat.tNormal != 0)
     {
         vec3 tangent =   normalize(iTangent - normal * dot(normal, iTangent));
         vec3 bitangent = normalize(iBitangent);
 
         mat3 TBN = mat3(tangent, bitangent, normal);
-        normal = vec3(TBN * (texture(globalTextures[nonuniformEXT(tNormal)], iUVs).xyz * 2.0 - vec3(1.0)));
+        normal = vec3(TBN * (texture(globalTextures[nonuniformEXT(mat.tNormal)], iUVs).xyz * 2.0 - vec3(1.0)));
     }
     vec3 viewDir = normalize(uEyePos - iWorldPos);
     vec3 lightDir = normalize(-uSunDir);

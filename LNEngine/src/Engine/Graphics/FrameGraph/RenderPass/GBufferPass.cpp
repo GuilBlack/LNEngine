@@ -75,7 +75,7 @@ void GBufferPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* world
         TransformBuffer& transformBuffer = worldRenderer->GetTransformBuffer(renderer.GetCurrentFrameIndex());
 
         // should render custom material
-        renderer.Draw(cmdBuffer, drawCommand.Mesh, transformBuffer.Buffer, transforms.Offset, drawCommand.SubMeshIndex, drawCommand.InstanceCount);
+        renderer.Draw(cmdBuffer, drawCommand.Mesh, transformBuffer.Buffer, GetID(), transforms.Offset, drawCommand.SubMeshIndex, drawCommand.InstanceCount);
     }
 }
 
@@ -133,4 +133,17 @@ void GBufferPass::OnImGuiRender()
         }
     }
 }
+
+void GBufferPass::AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, uint32_t subMeshIndex)
+{
+    const SubMesh& submesh = mesh->GetSubMeshes()[hash.SubMeshIndex];
+    SafePtr material = mesh->GetMaterialV2(submesh.MaterialIndex);
+    if (material->CanRenderToPass(GetID()) == false)
+        return;
+    auto& drawCommands = m_DrawCommands[hash];
+    drawCommands.Mesh = mesh;
+    drawCommands.SubMeshIndex = subMeshIndex;
+    drawCommands.InstanceCount++;
+}
+
 }

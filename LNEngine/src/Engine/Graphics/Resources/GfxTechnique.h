@@ -43,9 +43,14 @@ class GfxTechnique :
 {
 public:
 
-    [[nodiscard]] PipelineHandle                                CreateOrGetPipeline(PassID passID, SafePtr<FrameGraph> frameGraph);
-    [[nodiscard]] SafePtr<GfxPipeline>                          GetPipeline(PassID passID, PipelineHandle handle);
-    [[nodiscard]] SafePtr<Effect>                               GetPassEffect(PassID passID);
+    [[nodiscard]] PipelineHandle                                CreateOrGetPipeline(PassID passId, SafePtr<FrameGraph> frameGraph);
+    [[nodiscard]] SafePtr<GfxPipeline>                          GetPipeline(PassID passId, PipelineHandle handle);
+    [[nodiscard]] SafePtr<Effect>                               GetPassEffect(PassID passId);
+    
+    [[nodiscard]] bool                                          ContainsPass(PassID passId) const { return m_Passes.contains(passId); }
+    [[nodiscard]] const std::string&                            GetName() const { return m_Name; }
+    [[nodiscard]] const GfxTechniqueState&                      GetTechniqueState() const { return m_State; }
+
     [[nodiscard]] const FlatHashMap<PassID, PassBinding>&       GetPasses() const { return m_Passes; }
     [[nodiscard]] FlatHashMap<PassID, MaterialPassSlot>         AllocateMaterialSlots();
 

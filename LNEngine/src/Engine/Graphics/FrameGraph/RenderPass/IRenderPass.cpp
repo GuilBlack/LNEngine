@@ -1,21 +1,11 @@
 ﻿#include "IRenderPass.h"
+#include "Graphics/Resources/Mesh.h"
 #include "Graphics/Resources/Material.h"
-#include "Engine/Graphics/Resources/Mesh.h"
+#include "Graphics/Resources/GfxTechnique.h"
 #include "../FrameGraph.h"
 
 namespace lne
 {
-void lne::IDrawStaticMeshes::AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<StaticMesh> mesh, uint32_t subMeshIndex)
-{
-    const SubMesh& submesh = mesh->GetSubMeshes()[hash.SubMeshIndex];
-    SafePtr material = mesh->GetMaterial(submesh.MaterialIndex);
-    if (material->IsTransparent())
-        return;
-    auto& drawCommands = m_DrawCommands[hash];
-    drawCommands.Mesh = mesh;
-    drawCommands.SubMeshIndex = subMeshIndex;
-    drawCommands.InstanceCount++;
-}
 
 void IRenderPass::OnBindInternal(FrameGraph* frameGraph, FrameGraphNode* node)
 {

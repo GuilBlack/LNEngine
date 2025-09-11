@@ -8,9 +8,18 @@ layout(scalar, set = TRANSFORM_SET, binding = 0) readonly buffer TransformBuffer
     mat4 transforms[];
 } transformBuffer;
 
-layout(scalar, set = MAT_SET, binding = 0) uniform MaterialData {
-    float uDummy;
+struct MaterialData {
+    uint tAlphaClipping;
 };
+
+layout(scalar, push_constant) uniform MatPC
+{
+    uint id;
+} matPC;
+
+layout(scalar, set = MAT_SET, binding = 0) readonly buffer MaterialBuffer {
+    MaterialData materials[]; // MaterialData
+} mb;
 
 layout(set = TEX_SET, binding = 0) uniform sampler2D      globalTextures[];
 

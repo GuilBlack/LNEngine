@@ -229,8 +229,8 @@ void Renderer::EndRenderPass(const Framebuffer& framebuffer) const
     framebuffer.Unbind(m_Context->GetPrimaryCommandBuffer());
 }
 
-void Renderer::Draw(vk::CommandBuffer cmdBuffer, 
-                    const SafePtr<StaticMesh>& mesh, 
+void Renderer::Draw(vk::CommandBuffer cmdBuffer,
+                    const SafePtr<StaticMesh>& mesh,
                     const SafePtr<StandaloneStorageBuffer>& transformBuffer,
                     uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount)
 {
@@ -392,6 +392,65 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer,
     cmdBuffer.draw(submesh.IndexCount, instanceCount, submesh.BaseIndex, offset);
 }
 
+void Renderer::Draw(vk::CommandBuffer cmdBuffer,
+                    const SafePtr<StaticMesh>& mesh,
+                    const SafePtr<StandaloneStorageBuffer>& transformBuffer,
+                    PassID passId,
+                    uint32_t offset, uint32_t subMeshIndex,
+                    uint32_t instanceCount)
+{
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL);
+    auto& submesh = mesh->GetSubMeshes()[subMeshIndex];
+    auto material = mesh->GetMaterialV2(submesh.MaterialIndex);
+    auto pipeline = material->GetPipeline(passId, m_CurrentFrameGraph);
+    auto effect = material->GetTechnique()->GetPassEffect(passId);
+    if (effect == nullptr || pipeline == nullptr)
+    {
+        LNE_ERROR("Pipeline is null. No draw call issued.");
+        return;
+    }
+    
+    vk::Device device = m_Context->GetDevice();
+
+    bool hasPipelineChanged = false;
+    SafePtr descAllocator = m_FrameData[m_Context->GetCurrentFrameIndex()].DescriptorAllocator;
+    if (pipeline != m_LastUsedPipeline)
+    {
+        pipeline->Bind(cmdBuffer);
+        m_LastUsedPipeline = pipeline;
+        hasPipelineChanged = true;
+
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
+                                     { m_FrameData[m_Context->GetCurrentFrameIndex()].DescriptorSet, transformBuffer->GetDescSet() }, {});
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 4,
+                                     { m_Context->GetBindlessDescriptorSet() }, {});
+    }
+    if (hasPipelineChanged || mesh != m_LastUsedStaticMesh)
+    {
+        LNE_PROFILE_SCOPE_C("Set Geometry DescSet", PROFILING_COL)
+            const Geometry& geometry = mesh->GetGeometry();
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 2,
+                                     { geometry.GetDescSet() }, {});
+        m_LastUsedStaticMesh = mesh;
+    }
+
+    if (hasPipelineChanged || m_LastUsedEffect != effect)
+    {
+        LNE_PROFILE_SCOPE_C("Set Effect DescSet", PROFILING_COL)
+        auto matDescSet = effect->GetFrameDescriptorSet(m_CurrentFrameInFlight);
+        cmdBuffer.bindDescriptorSets(
+            vk::PipelineBindPoint::eGraphics,
+            pipeline->GetLayout(), 3,
+            { matDescSet },
+            {}
+        );
+        m_LastUsedEffect = effect;
+    }
+    auto matSlot = material->GetMaterialPassSlot(passId);
+    cmdBuffer.pushConstants<MaterialSlot>(pipeline->GetLayout(), matSlot.Stages, 0, { matSlot.Slot });
+    cmdBuffer.draw(submesh.IndexCount, instanceCount, submesh.BaseIndex, offset);
+}
+
 void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, const SafePtr<class Material>& material)
 {
     LNE_PROFILE_FUNCTION_C(PROFILING_COL)
@@ -493,13 +552,17 @@ void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, SafePtr<MaterialV
     auto matSlot = material->GetMaterialPassSlot(passId);
 
     cmdBuffer.pushConstants<MaterialSlot>(pipeline->GetLayout(), matSlot.Stages, 0, { matSlot.Slot });
-    auto matDescSet = effect->GetFrameDescriptorSet(m_CurrentFrameInFlight);
-    cmdBuffer.bindDescriptorSets(
-        vk::PipelineBindPoint::eGraphics,
-        pipeline->GetLayout(), 2,
-        { matDescSet },
-        {}
-    );
+    if (m_LastUsedEffect != effect || m_LastUsedPipeline != pipeline)
+    {
+        auto matDescSet = effect->GetFrameDescriptorSet(m_CurrentFrameInFlight);
+        cmdBuffer.bindDescriptorSets(
+            vk::PipelineBindPoint::eGraphics,
+            pipeline->GetLayout(), 2,
+            { matDescSet },
+            {}
+        );
+        m_LastUsedEffect = effect;
+    }
     cmdBuffer.draw(geometry.GetIndexCount(), 1, 0, 0);
 }
 

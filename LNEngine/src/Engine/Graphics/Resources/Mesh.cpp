@@ -8,6 +8,8 @@
 #include "Graphics/Renderer.h"
 #include "Core/Utils/_Defines.h"
 #include "Graphics/Resources/Pipeline.h"
+#include "Graphics/Resources/Effect.h"
+#include "Graphics/Resources/GfxTechnique.h"
 #include "Graphics/Resources/Material.h"
 #include "Graphics/Resources/Texture.h"
 #include "Graphics/DynamicDescriptorAllocator.h"
@@ -18,10 +20,11 @@
 namespace lne
 {
 StaticMesh::StaticMesh(std::filesystem::path path, SafePtr<GfxPipeline> pipeline, SafePtr<GfxPipeline> transparentPipeline)
-    : m_Path(path), 
-    m_Geometry(nullptr), 
-    m_Materials{}, 
-    m_Pipeline(pipeline), 
+    : m_Path(path),
+    m_Geometry{ nullptr },
+    m_Materials{},
+    m_UseMaterialsV2{ false },
+    m_Pipeline(pipeline),
     m_TransparentPipeline(transparentPipeline),
     m_Textures{}
 {
@@ -51,6 +54,38 @@ StaticMesh::StaticMesh(std::filesystem::path path, SafePtr<GfxPipeline> pipeline
 StaticMesh::StaticMesh()
 {
     m_Materials.resize(1);
+}
+
+StaticMesh::StaticMesh(std::filesystem::path path, SafePtr<GfxTechnique> opaqueTechnique, SafePtr<GfxTechnique> transparentTechnique)
+    : m_Path(path),
+    m_Geometry{ nullptr },
+    m_MaterialsV2{},
+    m_UseMaterialsV2{ true },
+    m_OpaqueTechnique(opaqueTechnique),
+    m_TransparentTechnique(transparentTechnique),
+    m_Textures{}
+{
+    Assimp::Importer importer;
+    const aiScene* scene = importer.ReadFile(path.string(), aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_CalcTangentSpace);
+
+    if (!scene)
+    {
+        LNE_ERROR("Assimp error: {0}", importer.GetErrorString());
+        return;
+    }
+
+    if (!scene->HasMeshes())
+    {
+        LNE_ERROR("No meshes found in file: {0}", path.string());
+        return;
+    }
+
+    uint32_t totalVertexCount = 0;
+    uint32_t totalIndexCount = 0;
+
+    m_Geometry.reset(lnnew Geometry());
+    InitSubmeshes(scene);
+    LoadData(scene);
 }
 
 void StaticMesh::InitSubmeshes(const aiScene* scene)
@@ -176,31 +211,52 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
 
         LNE_INFO("Material: {0}", name.C_Str());
 
-        
         SafePtr<Material> material{};
-        if (isTransparent)
-            material = SafePtr<Material>(lnnew Material(m_TransparentPipeline));
+        SafePtr<MaterialV2> materialV2{};
+        if (m_UseMaterialsV2)
+        {
+            if (isTransparent)
+                materialV2 = lnnew MaterialV2(m_TransparentTechnique);
+            else
+                materialV2 = lnnew MaterialV2(m_OpaqueTechnique);
+            m_MaterialsV2.push_back(materialV2);
+        }
         else
-            material = SafePtr<Material>(lnnew Material(m_Pipeline));
-        material->SetTransparency(isTransparent);
-        m_Materials.push_back(material);
+        {
+            if (isTransparent)
+                material = SafePtr<Material>(lnnew Material(m_TransparentPipeline));
+            else
+                material = SafePtr<Material>(lnnew Material(m_Pipeline));
+            m_Materials.push_back(material);
+            material->SetTransparency(isTransparent);
+        }
 
         aiColor3D aiColor(1.0f);
 
         if (aiMat->Get(AI_MATKEY_COLOR_DIFFUSE, aiColor) == AI_SUCCESS)
         {
             glm::vec4 color = { aiColor.r, aiColor.g, aiColor.b, 1.0f };
-            material->SetProperty("uColor", color);
+            if (m_UseMaterialsV2)
+                materialV2->SetProperty("uColor", color);
+            else
+                material->SetProperty("uColor", color);
         }
 
         float roughness, metallic;
         if (aiMat->Get(AI_MATKEY_REFLECTIVITY, metallic) != AI_SUCCESS)
             metallic = 0.0f;
-        material->SetProperty("uMetalness", metallic);
+        if (m_UseMaterialsV2)
+            materialV2->SetProperty("uMetalness", metallic);
+        else
+            material->SetProperty("uMetalness", metallic);
 
         if (aiMat->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness) != AI_SUCCESS)
             roughness = 0.4f;
-        material->SetProperty("uRoughness", roughness);
+
+        if (m_UseMaterialsV2)
+            materialV2->SetProperty("uRoughness", roughness);
+        else
+            material->SetProperty("uRoughness", roughness);
 
         if (hasColTex)
         {
@@ -212,7 +268,10 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
             else
             {
                 SafePtr<Texture> texture = renderer.CreateTexture(texPath.string());
-                material->SetTexture("tAlbedo", texture);
+                if (m_UseMaterialsV2)
+                    materialV2->SetTexture("tAlbedo", texture);
+                else
+                    material->SetTexture("tAlbedo", texture);
                 m_Textures.push_back(texture);
             }
         }
@@ -229,7 +288,10 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
             else
             {
                 SafePtr<Texture> texture = renderer.CreateTexture(texPath.string(), vk::Format::eR8G8B8A8Unorm);
-                material->SetTexture("tMetalness", texture);
+                if (m_UseMaterialsV2)
+                    materialV2->SetTexture("tMetalness", texture);
+                else
+                    material->SetTexture("tMetalness", texture);
                 m_Textures.push_back(texture);
             }
         }
@@ -249,11 +311,19 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
                 if (roughTex != metalTex)
                 {
                     SafePtr<Texture> texture = renderer.CreateTexture(texPath.string(), vk::Format::eR8G8B8A8Unorm);
-                    material->SetTexture("tRoughness", texture);
+                    if (m_UseMaterialsV2)
+                        materialV2->SetTexture("tRoughness", texture);
+                    else
+                        material->SetTexture("tRoughness", texture);
                     m_Textures.push_back(texture);
                 }
                 else
-                    material->SetTexture("tRoughness", m_Textures.back());
+                {
+                    if (m_UseMaterialsV2)
+                        materialV2->SetTexture("tRoughness", m_Textures.back());
+                    else
+                        material->SetTexture("tRoughness", m_Textures.back());
+                }
             }
         }
 
@@ -277,7 +347,10 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
             else
             {
                 SafePtr<Texture> texture = renderer.CreateTexture(texPath.string(), vk::Format::eR8G8B8A8Unorm);
-                material->SetTexture("tNormal", texture);
+                if (m_UseMaterialsV2)
+                    materialV2->SetTexture("tNormal", texture);
+                else
+                    material->SetTexture("tNormal", texture);
                 m_Textures.push_back(texture);
             }
         }

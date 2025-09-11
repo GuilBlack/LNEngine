@@ -144,6 +144,11 @@ MaterialPassSlot MaterialV2::GetMaterialPassSlot(PassID passId) const
     return it->second;
 }
 
+bool MaterialV2::CanRenderToPass(PassID passId) const
+{
+    return m_Technique->ContainsPass(passId);
+}
+
 void MaterialV2::SetTexture(const std::string& name, SafePtr<Texture> texture)
 {
     bool success = SetProperty<uint32_t>(name, texture->GetBindlessTextureHandle());

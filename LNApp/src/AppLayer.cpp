@@ -227,33 +227,42 @@ void AppLayer::OnAttach()
     InitFrameGraph();
     m_WorldRenderer = lnnew WorldRenderer(m_FrameGraph);
 
-    auto& fb = ApplicationBase::GetWindow().GetCurrentFramebuffer();
-    fb.SetClearColor({0.105f, 0.117f, 0.149f, 1.0f });
-    GraphicsPipelineDesc desc{};
-    desc.PathToShaders = ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\GBuffer.glsl";
-    desc.Name = "GBufferBasic";
-    desc.FrameGraph = m_FrameGraph.GetPtr();
-    desc.CullMode = ECullMode::Back; 
-    desc.EnableDepthTest(true, true, lne::ECompareOperation::LessOrEqual);
-    desc.Blend.EnableBlend(false);
-
-    m_BasePipeline = renderer.CreateGraphicsPipeline(desc);
-    m_BasicMaterial = lnnew Material(m_BasePipeline);
-    m_BasicMaterial2 = lnnew Material(m_BasePipeline);
-
-    desc.EnableDepthTest(true, true);
-    desc.Blend.EnableBlend(true);
-    desc.Blend.SetAlpha(vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd)
-        .SetColor(vk::BlendFactor::eSrcAlpha, vk::BlendFactor::eOneMinusSrcAlpha, vk::BlendOp::eAdd);
-    desc.Name = "TransparentForward";
-    desc.PathToShaders = ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\ForwardTransparent.glsl";
-    m_TransparentPipeline = renderer.CreateGraphicsPipeline(desc);
-
     SafePtr uvChecker = renderer.CreateTexture(lne::ApplicationBase::GetAssetsPath() + "Textures\\UVChecker.png");
 
-    m_BasicMaterial->SetProperty("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
-    m_BasicMaterial->SetTexture("tAlbedo", uvChecker);
-    m_BasicMaterial2->SetProperty("uColor", glm::vec4(0.25f, 0.25f, 0.25f, 0.25f));
+    SafePtr gbufferEffect = renderer.CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\GBuffer.glsl");
+    SafePtr forwardTransparentEffect = renderer.CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\ForwardTransparent.glsl");
+    SafePtr depthPrePassEffect = renderer.CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\DepthPrePass.glsl");
+
+    GfxTechniqueDesc techDesc{};
+    techDesc.Name = "DefaultMeshOpaque";
+    techDesc.TechniqueState.Cull = ECullMode::Back;
+    techDesc.TechniqueState.Fill = EFillMode::Solid;
+    techDesc.TechniqueState.Transparency = TransparencyMode::eOpaque;
+    techDesc.TechniqueState.DepthMode = DepthMode::eReadWrite;
+
+    PassBindingDesc passDesc{};
+    passDesc.PassName = "GBufferPass";
+    passDesc.PassEffect = gbufferEffect;
+    techDesc.Passes.push_back(passDesc);
+    passDesc.PassName = "DepthPrePass";
+    passDesc.PassEffect = depthPrePassEffect;
+    techDesc.Passes.push_back(passDesc);
+    m_OpaqueTechnique = renderer.CreateOrGetTechnique(techDesc);
+
+    techDesc.Name = "DefaultMeshTransparent";
+    techDesc.TechniqueState.Cull = ECullMode::Back;
+    techDesc.TechniqueState.Fill = EFillMode::Solid;
+    techDesc.TechniqueState.Transparency = TransparencyMode::eTransparent;
+    techDesc.TechniqueState.DepthMode = DepthMode::eReadOnly;
+    techDesc.Passes.clear();
+    passDesc.PassName = "TransparentForwardPass";
+    passDesc.PassEffect = forwardTransparentEffect;
+    techDesc.Passes.push_back(passDesc);
+    m_TransparentTechnique = renderer.CreateOrGetTechnique(techDesc);
+
+    //m_BasicMaterial->SetProperty("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+    //m_BasicMaterial->SetTexture("tAlbedo", uvChecker);
+    //m_BasicMaterial2->SetProperty("uColor", glm::vec4(0.25f, 0.25f, 0.25f, 0.25f));
 
 #pragma region CreateEntities
     m_CameraEntity = m_Scene->CreateEntity();
@@ -261,16 +270,16 @@ void AppLayer::OnAttach()
     TransformComponent& cameraTransform = m_CameraEntity.GetComponent<TransformComponent>();
 
     m_ModelEntity = m_Scene->CreateEntity();
-    m_CubeEntity = m_Scene->CreateEntity();
-    m_SphereEntity = m_Scene->CreateEntity();
+    //m_CubeEntity = m_Scene->CreateEntity();
+    //m_SphereEntity = m_Scene->CreateEntity();
     
     m_ModelEntity.EmplaceComponent<StaticMeshComponent>();
-    m_CubeEntity.EmplaceComponent<StaticMeshComponent>();
-    m_SphereEntity.EmplaceComponent<StaticMeshComponent>();
+    //m_CubeEntity.EmplaceComponent<StaticMeshComponent>();
+    //m_SphereEntity.EmplaceComponent<StaticMeshComponent>();
 
     auto[modelTransform, modelMeshComponent] = m_ModelEntity.GetComponents<TransformComponent, StaticMeshComponent>();
-    auto[cubeTransform, cubeMeshComponent] = m_CubeEntity.GetComponents<TransformComponent, StaticMeshComponent>();
-    auto[sphereTransform, sphereMeshComponent] = m_SphereEntity.GetComponents<TransformComponent, StaticMeshComponent>();
+    //auto[cubeTransform, cubeMeshComponent] = m_CubeEntity.GetComponents<TransformComponent, StaticMeshComponent>();
+    //auto[sphereTransform, sphereMeshComponent] = m_SphereEntity.GetComponents<TransformComponent, StaticMeshComponent>();
 #pragma endregion
 
 #pragma region LoadModels
@@ -278,18 +287,18 @@ void AppLayer::OnAttach()
     cubeMesh->SetMaterial(m_BasicMaterial, 0);
     SafePtr sphereMesh = StaticMesh::GenerateUVSphere(1.0f, 32, 32);
     sphereMesh->SetMaterial(m_BasicMaterial2, 0);
-    modelMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Sponza\\glTF\\Sponza.gltf", m_BasePipeline, m_TransparentPipeline);
+    modelMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Sponza\\glTF\\Sponza.gltf", m_OpaqueTechnique, m_TransparentTechnique);
 
-    cubeMeshComponent.Mesh = cubeMesh;
-    sphereMeshComponent.Mesh = sphereMesh;
+    //cubeMeshComponent.Mesh = cubeMesh;
+    //sphereMeshComponent.Mesh = sphereMesh;
 #pragma endregion
 
 #pragma region TransformInit
-    cubeTransform.Position =  { -0.5f, 0.0f, -30.0f };
-    cubeTransform.Scale =     { 0.25f, 0.25f, 0.25f };
+    //cubeTransform.Position =  { -0.5f, 0.0f, -30.0f };
+    //cubeTransform.Scale =     { 0.25f, 0.25f, 0.25f };
 
-    sphereTransform.Position = { 0.5f, 0.0f, 0.0f };
-    sphereTransform.Scale =    { 0.25f, 0.25f, 0.25f };
+    //sphereTransform.Position = { 0.5f, 0.0f, 0.0f };
+    //sphereTransform.Scale =    { 0.25f, 0.25f, 0.25f };
 
     modelTransform.Position = { 0.0f, 0.0f, 0.0f };
     modelTransform.Scale = { 100.f, 100.f, 100.f };
@@ -489,7 +498,7 @@ void AppLayer::OnUpdate(float deltaTime)
     float sinTime = (float)sin(currentTime);
     float cosTime = (float)cos(currentTime);
 
-    m_CubeEntity.GetComponent<lne::TransformComponent>().Position.y = sinTime * 0.5f;
+    // m_CubeEntity.GetComponent<lne::TransformComponent>().Position.y = sinTime * 0.5f;
 
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
 
@@ -542,7 +551,6 @@ void AppLayer::OnImGuiRender()
         m_Scene->RemoveEntity(m_ModelEntity);
         m_ModelEntity = lne::Entity{};
     }
-    auto& transform = m_CubeEntity.GetComponent<lne::TransformComponent>();
     ImGui::Text("This is some useful text.");
     ImGui::End();
 

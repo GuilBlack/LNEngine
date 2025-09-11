@@ -57,7 +57,7 @@ public:
     };
 public:
     virtual ~IDrawStaticMeshes() = default;
-    virtual void AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, uint32_t subMeshIndex);
+    virtual void AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, uint32_t subMeshIndex) = 0;
     void ClearDrawCommands();
 protected:
     FlatHashMap<StaticMeshHash, DrawCommand> m_DrawCommands;

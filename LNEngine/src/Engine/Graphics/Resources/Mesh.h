@@ -10,6 +10,11 @@ namespace lne
 {
 class GfxContext;
 class StorageBuffer;
+class GfxTechnique;
+class GfxPipeline;
+class Material;
+class MaterialV2;
+class Texture;
 
 struct Vertex
 {
@@ -22,23 +27,23 @@ struct Vertex
 class Geometry
 {
 public:
-    Geometry(
-        GfxContext* ctx,
-        SafePtr<StorageBuffer> vertexGPUBuffer, SafePtr<StorageBuffer> indexGPUBuffer,
-        void* vertices, void* indices,
-        uint32_t vertexCount, uint32_t indexCount);
+    Geometry(GfxContext* ctx,
+             SafePtr<StorageBuffer> vertexGPUBuffer, 
+             SafePtr<StorageBuffer> indexGPUBuffer,
+             void* vertices, void* indices,
+             uint32_t vertexCount, uint32_t indexCount);
 
     ~Geometry();
 
     Geometry(Geometry&& other) noexcept;
     Geometry& operator=(Geometry&& other) noexcept;
 
-    [[nodiscard]] uint32_t GetVertexCount() const { return VertexCount; }
-    [[nodiscard]] uint32_t GetIndexCount() const { return IndexCount; }
+    [[nodiscard]] uint32_t          GetVertexCount() const { return VertexCount; }
+    [[nodiscard]] uint32_t          GetIndexCount() const { return IndexCount; }
     [[nodiscard]] SafePtr<StorageBuffer> GetVertexBuffer() const { return VertexGPUBuffer; }
     [[nodiscard]] SafePtr<StorageBuffer> GetIndexBuffer() const { return IndexGPUBuffer; }
-    [[nodiscard]] void* GetVertices() const { return Vertices; }
-    [[nodiscard]] void* GetIndices() const { return Indices; }
+    [[nodiscard]] void*             GetVertices() const { return Vertices; }
+    [[nodiscard]] void*             GetIndices() const { return Indices; }
     [[nodiscard]] vk::DescriptorSet GetDescSet() const { return DescSet; }
 
 private:
@@ -54,7 +59,8 @@ private:
 private:
     friend class StaticMesh;
 
-    void InitDescSet(GfxContext* ctx, vk::DescriptorSetLayout layout);
+    void                            InitDescSet(GfxContext* ctx,
+                                                vk::DescriptorSetLayout layout);
 
     Geometry() = default;
     Geometry(const Geometry&) = delete;
@@ -80,42 +86,75 @@ class StaticMesh : public RefCountBase
 {
 public:
     // TODO: probably make a mesh importer class or something
-    StaticMesh(std::filesystem::path path, SafePtr<class GfxPipeline> pipeline, SafePtr<class GfxPipeline> transparentPipeline);
+    StaticMesh(std::filesystem::path path,
+               SafePtr<GfxPipeline> pipeline,
+               SafePtr<GfxPipeline> transparentPipeline);
+
+    StaticMesh(std::filesystem::path path,
+               SafePtr<GfxTechnique> opaqueTechnique,
+               SafePtr<GfxTechnique> transparentTechnique);
+
     StaticMesh(Geometry&& geometry,
-        SafePtr<class Material> material, std::vector<SafePtr<class Texture>> textures,
-        SafePtr<class GfxPipeline> pipeline);
+               SafePtr<Material> material,
+               std::vector<SafePtr<Texture>> textures,
+               SafePtr<GfxPipeline> pipeline);
 
-    std::vector<SubMesh>&       GetSubMeshes() { return m_SubMeshes; }
-    const Geometry&             GetGeometry() const { return *m_Geometry.get(); }
+    std::vector<SubMesh>&               GetSubMeshes() { return m_SubMeshes; }
+    const Geometry&                     GetGeometry() const { return *m_Geometry.get(); }
 
-    SafePtr<class Material>     GetMaterial(uint32_t index)
+    SafePtr<class Material>             GetMaterial(uint32_t index)
     {
         return m_Materials[index];
     }
 
-    void                        SetMaterial(SafePtr<Material> mat, uint32_t index)
+    [[nodiscard]] SafePtr<MaterialV2>   GetMaterialV2(uint32_t index)
     {
-        if (index > m_Materials.size()) return;
+        return m_MaterialsV2[index];
+    }
+
+    void                                SetMaterial(SafePtr<Material> mat, uint32_t index)
+    {
+        if (index > m_Materials.size())
+        {
+            LNE_WARN("Material index out of bounds");
+            return;
+        }
         m_Materials[index] = mat;
     }
 
-    static SafePtr<StaticMesh> GenerateCube(uint32_t tesselationLevel);
+    void                                SetMaterialV2(SafePtr<MaterialV2> mat, 
+                                                      uint32_t index)
+    {
+        if (index > m_MaterialsV2.size())
+        {
+            LNE_WARN("Material index out of bounds");
+            return;
+        }
+        m_MaterialsV2[index] = mat;
+    }
 
-    static SafePtr<StaticMesh> GenerateUVSphere(float radius = 1.f, uint32_t nLatitude = 32, uint32_t nLongitude = 32);
+    [[nodiscard]] static SafePtr<StaticMesh> GenerateCube(uint32_t tesselationLevel);
+    [[nodiscard]] static SafePtr<StaticMesh> GenerateUVSphere(float radius = 1.f,
+                                                              uint32_t nLatitude = 32,
+                                                              uint32_t nLongitude = 32);
 
 private:
-    std::filesystem::path       m_Path{};
-    std::vector<SubMesh>        m_SubMeshes{};
+    std::filesystem::path                   m_Path{};
 
-    std::unique_ptr<Geometry>   m_Geometry;
-    uint32_t                    m_TotalVertexCount{};
-    uint32_t                    m_TotalIndexCount{};
+    std::vector<SubMesh>                    m_SubMeshes{};
+    std::unique_ptr<Geometry>               m_Geometry;
+    uint32_t                                m_TotalVertexCount{};
+    uint32_t                                m_TotalIndexCount{};
 
     // TODO: move to a resource manager
-    std::vector<SafePtr<class Material>> m_Materials;
-    SafePtr<class GfxPipeline> m_Pipeline;
-    SafePtr<class GfxPipeline> m_TransparentPipeline;
-    std::vector<SafePtr<class Texture>> m_Textures;
+    bool                                    m_UseMaterialsV2{ false };
+    std::vector<SafePtr<Material>>          m_Materials;
+    std::vector<SafePtr<MaterialV2>>        m_MaterialsV2;
+    SafePtr<GfxPipeline>                    m_Pipeline;
+    SafePtr<GfxPipeline>                    m_TransparentPipeline;
+    SafePtr<GfxTechnique>                   m_OpaqueTechnique;
+    SafePtr<GfxTechnique>                   m_TransparentTechnique;
+    std::vector<SafePtr<Texture>>           m_Textures;
 private:
     StaticMesh();
 

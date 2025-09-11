@@ -73,6 +73,13 @@ public:
                                                          SafePtr<Material> overrideMaterial, 
                                                          uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount);
 
+    void                                            Draw(vk::CommandBuffer cmdBuffer,
+                                                         const SafePtr<StaticMesh>& mesh,
+                                                         const SafePtr<StandaloneStorageBuffer>& transformBuffer,
+                                                         PassID passId,
+                                                         uint32_t offset, uint32_t subMeshIndex,
+                                                         uint32_t instanceCount);
+
 
     void                                            DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, 
                                                                        const SafePtr<class Material>& material);
@@ -147,6 +154,7 @@ private:
     std::vector<FrameData>                          m_FrameData;
 
     SafePtr<GfxPipeline>                            m_LastUsedPipeline;
+    SafePtr<Effect>                                 m_LastUsedEffect;
     SafePtr<StaticMesh>                             m_LastUsedStaticMesh;
 
     // TODO: change this for multiple world renderers for later
