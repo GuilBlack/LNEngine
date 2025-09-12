@@ -192,11 +192,12 @@ public:
 private:
     // Pointer to our compute pipeline.
     SafePtr<ComputePipeline>                                m_Pipeline;
+    vk::DescriptorSet                                       m_DescriptorSet;
 
     // A map of uniform metadata. This should be populated during shader reflection.
-    std::unordered_map<std::string, UniformElement>         m_ProgramConstants;
-    std::map<uint32_t, SafePtr<UniformBuffer>>              m_UniformBuffers;
-    std::unordered_map<std::string, SafePtr<Texture>>       m_Textures;
+    FlatHashMap<std::string, UniformElement>                m_ProgramConstants;
+    FlatHashMap<uint32_t, SafePtr<UniformBuffer>>           m_UniformBuffers;
+    FlatHashMap<std::string, SafePtr<Texture>>              m_Textures;
 
     friend class Renderer;
 

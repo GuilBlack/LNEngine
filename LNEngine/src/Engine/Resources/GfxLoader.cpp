@@ -103,6 +103,9 @@ void GfxLoader::Nuke()
 {
     m_GraphicsContext->FreeBufferAllocation(m_StagingBuffer);
     m_GraphicsContext->GetDevice().destroySemaphore(m_TransferSemaphore);
+    m_PrefilterProgram.Reset();
+    m_HDRToCubemapProgram.Reset();
+    m_IrradianceProgram.Reset();
     m_LoadRequests.clear();
     m_UploadRequests.clear();
 }

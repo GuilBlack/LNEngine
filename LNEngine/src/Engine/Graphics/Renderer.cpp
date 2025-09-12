@@ -38,7 +38,7 @@ void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskS
     m_Context = window->GetGfxContext();
     m_Swapchain = window->GetSwapchain();
     m_TaskScheduler = taskScheduler;
-    m_LoadAsync = false;
+    m_LoadAsync = true;
     AddShaderIncludeDir(ApplicationBase::GetAssetsPath() + "Engine/Shaders/Includes");
     std::filesystem::path shaderCachePath = GetShaderCachePath();
     if (!std::filesystem::exists(shaderCachePath))
@@ -71,9 +71,9 @@ void Renderer::Nuke()
         m_Context->GetDevice().destroyDescriptorSetLayout(frameData.DescriptorSetLayout);
     }
     m_FrameData.clear();
-    m_Context.Reset();
-    m_Swapchain.Reset();
     m_GfxLoader.Reset();
+    m_Swapchain.Reset();
+    m_Context.Reset();
 }
 
 void Renderer::InitResources()
@@ -356,32 +356,11 @@ void Renderer::Dispatch(SafePtr<ComputeProgram> program, uint32_t x, uint32_t y,
 
 void Renderer::Dispatch(vk::CommandBuffer cmdBuffer, SafePtr<class ComputeProgram> program, uint32_t x, uint32_t y, uint32_t z)
 {
-    PushLabel(cmdBuffer, std::format("Compute Dispatch"));
+    PushLabel(cmdBuffer, std::format("Compute Dispatch {}", program->GetPipeline()->GetName()));
     auto pipeline = program->GetPipeline();
     pipeline->Bind(cmdBuffer);
-    auto descSetAlloc = m_FrameData[m_Context->GetCurrentFrameIndex()].DescriptorAllocator;
 
-    std::vector<vk::WriteDescriptorSet> progWriteDescriptorSets;
-    std::vector<vk::DescriptorBufferInfo> progUbInfo;
-    progUbInfo.reserve(program->m_UniformBuffers.size());
-    vk::DescriptorSet progDescSet = descSetAlloc->Allocate(pipeline->GetDescriptorSetLayouts()[0]);
-    for (const auto& [binding, ub] : program->m_UniformBuffers)
-    {
-        progUbInfo.emplace_back(ub->GetDescriptorInfo());
-        progWriteDescriptorSets.emplace_back(vk::WriteDescriptorSet{
-            progDescSet,
-            binding,
-            0,
-            1,
-            vk::DescriptorType::eUniformBuffer,
-            nullptr,
-            &progUbInfo.back(),
-            nullptr
-            });
-    }
-    m_Context->GetDevice().updateDescriptorSets(progWriteDescriptorSets, nullptr);
-
-    cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipeline->GetLayout(), 0, { progDescSet, m_Context->GetBindlessDescriptorSet() }, {});
+    cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipeline->GetLayout(), 0, { program->m_DescriptorSet, m_Context->GetBindlessDescriptorSet() }, {});
 
     cmdBuffer.dispatch(x, y, z);
 

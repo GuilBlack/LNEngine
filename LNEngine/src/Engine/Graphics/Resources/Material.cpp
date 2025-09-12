@@ -174,10 +174,44 @@ ComputeProgram::ComputeProgram(SafePtr<ComputePipeline> pipeline)
         if (element.SetIndex == 0)
             m_ProgramConstants.emplace(name, element);
     }
+    std::vector<vk::WriteDescriptorSet> progWriteDescriptorSets;
+    std::vector<vk::DescriptorBufferInfo> progUbInfo;
+    progUbInfo.reserve(m_UniformBuffers.size());
+    auto context = m_Pipeline->GetContext();
+
+    m_DescriptorSet = context->AllocateDescriptorSet(
+        pipeline->GetDescriptorSetLayouts()[0],
+        DescriptorType::eUniformOnly
+    );
+
+    for (const auto& [binding, ub] : m_UniformBuffers)
+    {
+        progUbInfo.emplace_back(ub->GetDescriptorInfo());
+        progWriteDescriptorSets.emplace_back(vk::WriteDescriptorSet{
+            m_DescriptorSet,
+            binding,
+            0,
+            1,
+            vk::DescriptorType::eUniformBuffer,
+            nullptr,
+            &progUbInfo.back(),
+            nullptr
+        });
+    }
+    context->GetDevice().updateDescriptorSets(progWriteDescriptorSets, nullptr);
 }
 
 ComputeProgram::~ComputeProgram()
 {
+    DescriptorSetDeletion descSetDeletion{
+        .Type = DescriptorType::eUniformOnly,
+        .DescriptorSet = m_DescriptorSet
+    };
+    ResourceDeletion resourceDeletion{
+        .Type = ResourceType::eDescriptorSet,
+        .Resource = descSetDeletion
+    };
+    ApplicationBase::GetRenderer().GetGfxContext()->EnqueueResourceDeletion(resourceDeletion);
 }
 
 void ComputeProgram::SetTexture(const std::string& name, SafePtr<Texture> texture, bool isStorage)

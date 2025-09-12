@@ -247,6 +247,8 @@ public:
     ComputePipeline(SafePtr<GfxContext> ctx, const ComputePipelineDesc& desc);
     virtual ~ComputePipeline() override {}
 
+    const std::string& GetName() const { return m_Desc.Name; }
+
 private:
     ComputePipelineDesc m_Desc;
 
