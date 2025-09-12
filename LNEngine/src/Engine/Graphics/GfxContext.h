@@ -13,6 +13,8 @@
 
 namespace lne
 {
+class Texture;
+
 struct QueueFamilyIndices
 {
     std::optional<uint32_t> GraphicsFamily;
@@ -63,7 +65,8 @@ public:
     [[nodiscard]] class CommandPoolManager& GetCommandPoolManager() const
     { return *m_CommandPoolManager; };
     [[nodiscard]] const class Geometry& GetDefaultFullscreenQuad() const { return *m_DefaultFullscreenQuad; }
-    [[nodiscard]] const class Texture* GetDefaultTexture() const { return m_DefaultTexture; }
+    [[nodiscard]] SafePtr<Texture> GetDefaultTexture() const;
+    [[nodiscard]] SafePtr<Texture> GetWhiteTexture() const;
     [[nodiscard]] vk::Sampler GetDefaultSampler() const { return m_DefaultSampler; }
 
     // numBindings MUST be in range [1, 4]
@@ -191,9 +194,9 @@ private:
 
 
     vk::Sampler         m_DefaultSampler;
-    class Texture*      m_DefaultTexture;
-    class Texture*      m_WhitePixel;
-    class Geometry*    m_DefaultFullscreenQuad;
+    SafePtr<Texture>    m_DefaultTexture;
+    SafePtr<Texture>    m_WhitePixel;
+    class Geometry*     m_DefaultFullscreenQuad;
 
     vk::DescriptorPool              m_BindlessDescriptorPool;
     vk::DescriptorSetLayout         m_BindlessDescriptorSetLayout;

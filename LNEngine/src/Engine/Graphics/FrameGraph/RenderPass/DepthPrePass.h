@@ -12,13 +12,7 @@ public:
 
     virtual void Execute(vk::CommandBuffer cmdBuffer, class WorldRenderer* worldRenderer, FrameGraph* frameGraph, FrameGraphNode* node) override;
 
-    virtual void OnBind(FrameGraph* frameGraph, FrameGraphNode* node) override;
-
     void AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, uint32_t subMeshIndex) override;
-
-private:
-    SafePtr<class GfxPipeline> m_Pipeline{};
-    SafePtr<class Material> m_Material{};
 };
 }
 

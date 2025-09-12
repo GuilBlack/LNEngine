@@ -51,7 +51,7 @@ class AppLayer final : public lne::Layer
         void PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
         void OnImGuiRender() override;
     private:
-        lne::SafePtr<lne::MaterialV2> m_MaterialV2{};
+        lne::SafePtr<lne::Material> m_MaterialV2{};
 
         lne::SafePtr<lne::Texture> m_Texture{};
 
@@ -71,7 +71,7 @@ class AppLayer final : public lne::Layer
         void PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
         void OnImGuiRender() override;
     private:
-        lne::SafePtr<lne::MaterialV2> m_MaterialV2{};
+        lne::SafePtr<lne::Material> m_MaterialV2{};
         lne::SafePtr<lne::Texture> m_DebugTexture{};
         bool m_IsDebugOpen{ false };
     };
@@ -95,8 +95,6 @@ public:
     void HandleInput(float deltaTime);
 
 private:
-    lne::SafePtr<lne::GfxPipeline> m_BasePipeline{};
-    lne::SafePtr<lne::GfxPipeline> m_TransparentPipeline{};
     lne::SafePtr<lne::Material> m_BasicMaterial{};
     lne::SafePtr<lne::Material> m_BasicMaterial2{};
 

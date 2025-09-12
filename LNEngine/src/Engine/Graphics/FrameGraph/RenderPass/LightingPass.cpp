@@ -34,7 +34,7 @@ void LightingPass::OnBind(FrameGraph* frameGraph, FrameGraphNode* node)
 	techDesc.Passes.push_back(passDesc);
     SafePtr technique = renderer.CreateOrGetTechnique(techDesc);
 
-	m_MaterialV2 = lnnew MaterialV2(technique);
+	m_Material = lnnew Material(technique);
     
     for (FrameGraphResourceHandle resourceHandle : node->OutputResources)
     {
@@ -54,22 +54,22 @@ void LightingPass::OnBind(FrameGraph* frameGraph, FrameGraphNode* node)
 		if (resource->Name == "GBufferPosition")
 		{
 			SafePtr<Texture> positionTexture = resource->Resource.GetAs<Texture>();
-            m_MaterialV2->SetTexture("tPosition", positionTexture);
+            m_Material->SetTexture("tPosition", positionTexture);
 		}
 		if (resource->Name == "GBufferNormal")
 		{
 			SafePtr<Texture> normalTexture = resource->Resource.GetAs<Texture>();
-            m_MaterialV2->SetTexture("tNormal", normalTexture);
+            m_Material->SetTexture("tNormal", normalTexture);
         }
         if (resource->Name == "GBufferColor")
         {
             SafePtr<Texture> colorTexture = resource->Resource.GetAs<Texture>();
-            m_MaterialV2->SetTexture("tAlbedo", colorTexture);
+            m_Material->SetTexture("tAlbedo", colorTexture);
         }
         if (resource->Name == "GBufferMetalRough")
         {
             SafePtr<Texture> colorTexture = resource->Resource.GetAs<Texture>();
-            m_MaterialV2->SetTexture("tMetalnessRoughness", colorTexture);
+            m_Material->SetTexture("tMetalnessRoughness", colorTexture);
 		}
 	}
 }
@@ -78,7 +78,7 @@ void LightingPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worl
 {
     LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     Renderer& renderer = ApplicationBase::GetRenderer();
-    renderer.DrawFullscreenQuad(cmdBuffer, m_MaterialV2, GetID());
+    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, GetID());
 }
 
 void LightingPass::PostExecute(vk::CommandBuffer cmdBuffer, FrameGraph* frameGraph, FrameGraphNode* node)

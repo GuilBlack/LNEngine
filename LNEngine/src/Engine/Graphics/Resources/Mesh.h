@@ -13,7 +13,7 @@ class StorageBuffer;
 class GfxTechnique;
 class GfxPipeline;
 class Material;
-class MaterialV2;
+class Material;
 class Texture;
 
 struct Vertex
@@ -87,50 +87,26 @@ class StaticMesh : public RefCountBase
 public:
     // TODO: probably make a mesh importer class or something
     StaticMesh(std::filesystem::path path,
-               SafePtr<GfxPipeline> pipeline,
-               SafePtr<GfxPipeline> transparentPipeline);
-
-    StaticMesh(std::filesystem::path path,
                SafePtr<GfxTechnique> opaqueTechnique,
                SafePtr<GfxTechnique> transparentTechnique);
-
-    StaticMesh(Geometry&& geometry,
-               SafePtr<Material> material,
-               std::vector<SafePtr<Texture>> textures,
-               SafePtr<GfxPipeline> pipeline);
 
     std::vector<SubMesh>&               GetSubMeshes() { return m_SubMeshes; }
     const Geometry&                     GetGeometry() const { return *m_Geometry.get(); }
 
-    SafePtr<class Material>             GetMaterial(uint32_t index)
+    [[nodiscard]] SafePtr<Material>   GetMaterial(uint32_t index)
     {
         return m_Materials[index];
     }
 
-    [[nodiscard]] SafePtr<MaterialV2>   GetMaterialV2(uint32_t index)
+    void                                SetMaterial(SafePtr<Material> mat, 
+                                                      uint32_t index)
     {
-        return m_MaterialsV2[index];
-    }
-
-    void                                SetMaterial(SafePtr<Material> mat, uint32_t index)
-    {
-        if (index > m_Materials.size())
+        if (index >= m_Materials.size())
         {
             LNE_WARN("Material index out of bounds");
             return;
         }
         m_Materials[index] = mat;
-    }
-
-    void                                SetMaterialV2(SafePtr<MaterialV2> mat, 
-                                                      uint32_t index)
-    {
-        if (index > m_MaterialsV2.size())
-        {
-            LNE_WARN("Material index out of bounds");
-            return;
-        }
-        m_MaterialsV2[index] = mat;
     }
 
     [[nodiscard]] static SafePtr<StaticMesh> GenerateCube(uint32_t tesselationLevel);
@@ -147,9 +123,7 @@ private:
     uint32_t                                m_TotalIndexCount{};
 
     // TODO: move to a resource manager
-    bool                                    m_UseMaterialsV2{ false };
-    std::vector<SafePtr<Material>>          m_Materials;
-    std::vector<SafePtr<MaterialV2>>        m_MaterialsV2;
+    std::vector<SafePtr<Material>>        m_Materials;
     SafePtr<GfxPipeline>                    m_Pipeline;
     SafePtr<GfxPipeline>                    m_TransparentPipeline;
     SafePtr<GfxTechnique>                   m_OpaqueTechnique;

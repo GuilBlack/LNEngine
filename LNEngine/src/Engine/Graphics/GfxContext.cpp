@@ -354,7 +354,7 @@ void GfxContext::UploadDefaultResources()
 
 void GfxContext::NukeDefaultResources()
 {
-    delete m_DefaultTexture;
+    m_DefaultTexture.Reset();
     m_Device.destroySampler(m_DefaultSampler);
     for (auto& ssboLayout : m_StorageOnlyDescriptorSetLayouts)
     {
@@ -364,7 +364,7 @@ void GfxContext::NukeDefaultResources()
         ssboLayout = nullptr;
     }
     delete m_DefaultFullscreenQuad;
-    delete m_WhitePixel;
+    m_WhitePixel.Reset();
 }
 
 void GfxContext::DeferredNukeResources()
@@ -387,6 +387,12 @@ void GfxContext::WaitIdle() const
 {
     m_Device.waitIdle();
 }
+
+lne::SafePtr<lne::Texture> GfxContext::GetDefaultTexture() const
+{ return m_DefaultTexture; }
+
+lne::SafePtr<lne::Texture> GfxContext::GetWhiteTexture() const
+{ return m_WhitePixel; }
 
 vkb::PhysicalDevice GfxContext::VkbSelectPhysicalDevice(const vkb::Instance& instance, vk::SurfaceKHR surface)
 {

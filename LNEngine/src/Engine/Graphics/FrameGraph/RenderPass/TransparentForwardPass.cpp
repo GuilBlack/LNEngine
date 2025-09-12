@@ -33,7 +33,7 @@ void TransparentForwardPass::Execute(vk::CommandBuffer commandBuffer, WorldRende
 void lne::TransparentForwardPass::AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, uint32_t subMeshIndex)
 {
     const SubMesh& submesh = mesh->GetSubMeshes()[hash.SubMeshIndex];
-    SafePtr material = mesh->GetMaterialV2(submesh.MaterialIndex);
+    SafePtr material = mesh->GetMaterial(submesh.MaterialIndex);
     if (material->CanRenderToPass(GetID()) == false)
         return;
     auto& drawCommands = m_DrawCommands[hash];

@@ -19,38 +19,6 @@
 
 namespace lne
 {
-StaticMesh::StaticMesh(std::filesystem::path path, SafePtr<GfxPipeline> pipeline, SafePtr<GfxPipeline> transparentPipeline)
-    : m_Path(path),
-    m_Geometry{ nullptr },
-    m_Materials{},
-    m_UseMaterialsV2{ false },
-    m_Pipeline(pipeline),
-    m_TransparentPipeline(transparentPipeline),
-    m_Textures{}
-{
-    Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile(path.string(), aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_CalcTangentSpace);
-
-    if (!scene)
-    {
-        LNE_ERROR("Assimp error: {0}", importer.GetErrorString());
-        return;
-    }
-
-    if (!scene->HasMeshes())
-    {
-        LNE_ERROR("No meshes found in file: {0}", path.string());
-        return;
-    }
-
-    uint32_t totalVertexCount = 0;
-    uint32_t totalIndexCount = 0;
-
-    m_Geometry.reset(lnnew Geometry());
-    InitSubmeshes(scene);
-    LoadData(scene);
-}
-
 StaticMesh::StaticMesh()
 {
     m_Materials.resize(1);
@@ -59,8 +27,7 @@ StaticMesh::StaticMesh()
 StaticMesh::StaticMesh(std::filesystem::path path, SafePtr<GfxTechnique> opaqueTechnique, SafePtr<GfxTechnique> transparentTechnique)
     : m_Path(path),
     m_Geometry{ nullptr },
-    m_MaterialsV2{},
-    m_UseMaterialsV2{ true },
+    m_Materials{},
     m_OpaqueTechnique(opaqueTechnique),
     m_TransparentTechnique(transparentTechnique),
     m_Textures{}
@@ -212,66 +179,38 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
         LNE_INFO("Material: {0}", name.C_Str());
 
         SafePtr<Material> material{};
-        SafePtr<MaterialV2> materialV2{};
-        if (m_UseMaterialsV2)
-        {
-            if (isTransparent)
-                materialV2 = lnnew MaterialV2(m_TransparentTechnique);
-            else
-                materialV2 = lnnew MaterialV2(m_OpaqueTechnique);
-            m_MaterialsV2.push_back(materialV2);
-        }
+        if (isTransparent)
+            material = lnnew Material(m_TransparentTechnique);
         else
-        {
-            if (isTransparent)
-                material = SafePtr<Material>(lnnew Material(m_TransparentPipeline));
-            else
-                material = SafePtr<Material>(lnnew Material(m_Pipeline));
-            m_Materials.push_back(material);
-            material->SetTransparency(isTransparent);
-        }
+            material = lnnew Material(m_OpaqueTechnique);
+        m_Materials.push_back(material);
 
         aiColor3D aiColor(1.0f);
 
         if (aiMat->Get(AI_MATKEY_COLOR_DIFFUSE, aiColor) == AI_SUCCESS)
         {
             glm::vec4 color = { aiColor.r, aiColor.g, aiColor.b, 1.0f };
-            if (m_UseMaterialsV2)
-                materialV2->SetProperty("uColor", color);
-            else
-                material->SetProperty("uColor", color);
+            material->SetProperty("uColor", color);
         }
 
         float roughness, metallic;
         if (aiMat->Get(AI_MATKEY_REFLECTIVITY, metallic) != AI_SUCCESS)
             metallic = 0.0f;
-        if (m_UseMaterialsV2)
-            materialV2->SetProperty("uMetalness", metallic);
-        else
-            material->SetProperty("uMetalness", metallic);
+        material->SetProperty("uMetalness", metallic);
 
         if (aiMat->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness) != AI_SUCCESS)
             roughness = 0.4f;
-
-        if (m_UseMaterialsV2)
-            materialV2->SetProperty("uRoughness", roughness);
-        else
-            material->SetProperty("uRoughness", roughness);
+        material->SetProperty("uRoughness", roughness);
 
         if (hasColTex)
         {
             std::filesystem::path texPath = m_Path.parent_path() / texturePath.C_Str();
             if (!std::filesystem::exists(texPath) || texturePath.length == 0)
-            {
                 LNE_WARN("Albedo texture not found for mat: {0}", aiMat->GetName().C_Str());
-            }
             else
             {
                 SafePtr<Texture> texture = renderer.CreateTexture(texPath.string());
-                if (m_UseMaterialsV2)
-                    materialV2->SetTexture("tAlbedo", texture);
-                else
-                    material->SetTexture("tAlbedo", texture);
+                material->SetTexture("tAlbedo", texture);
                 m_Textures.push_back(texture);
             }
         }
@@ -282,16 +221,11 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
         {
             std::filesystem::path texPath = m_Path.parent_path() / metalTex.C_Str();
             if (!std::filesystem::exists(texPath) || metalTex.length == 0)
-            {
                 LNE_WARN("Metalness texture not found for mat: {0}", aiMat->GetName().C_Str());
-            }
             else
             {
                 SafePtr<Texture> texture = renderer.CreateTexture(texPath.string(), vk::Format::eR8G8B8A8Unorm);
-                if (m_UseMaterialsV2)
-                    materialV2->SetTexture("tMetalness", texture);
-                else
-                    material->SetTexture("tMetalness", texture);
+                material->SetTexture("tMetalness", texture);
                 m_Textures.push_back(texture);
             }
         }
@@ -303,27 +237,17 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
         {
             std::filesystem::path texPath = m_Path.parent_path() / roughTex.C_Str();
             if (!std::filesystem::exists(texPath) || roughTex.length == 0)
-            {
                 LNE_WARN("Roughness texture not found for mat: {0}", aiMat->GetName().C_Str());
-            }
             else
             {
                 if (roughTex != metalTex)
                 {
                     SafePtr<Texture> texture = renderer.CreateTexture(texPath.string(), vk::Format::eR8G8B8A8Unorm);
-                    if (m_UseMaterialsV2)
-                        materialV2->SetTexture("tRoughness", texture);
-                    else
-                        material->SetTexture("tRoughness", texture);
+                    material->SetTexture("tRoughness", texture);
                     m_Textures.push_back(texture);
                 }
                 else
-                {
-                    if (m_UseMaterialsV2)
-                        materialV2->SetTexture("tRoughness", m_Textures.back());
-                    else
-                        material->SetTexture("tRoughness", m_Textures.back());
-                }
+                    material->SetTexture("tRoughness", m_Textures.back());
             }
         }
 
@@ -341,16 +265,11 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
         {
             std::filesystem::path texPath = m_Path.parent_path() / normalTex.C_Str();
             if (!std::filesystem::exists(texPath) || normalTex.length == 0)
-            {
                 LNE_WARN("Normal map not found for mat: {0}", aiMat->GetName().C_Str());
-            }
             else
             {
                 SafePtr<Texture> texture = renderer.CreateTexture(texPath.string(), vk::Format::eR8G8B8A8Unorm);
-                if (m_UseMaterialsV2)
-                    materialV2->SetTexture("tNormal", texture);
-                else
-                    material->SetTexture("tNormal", texture);
+                material->SetTexture("tNormal", texture);
                 m_Textures.push_back(texture);
             }
         }

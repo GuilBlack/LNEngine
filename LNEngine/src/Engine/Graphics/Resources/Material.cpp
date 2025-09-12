@@ -16,77 +16,11 @@
 
 namespace lne
 {
-Material::Material(SafePtr<GfxPipeline> pipeline, ShaderDomain::Enum materialType)
-    : m_Pipeline(pipeline), m_MaterialType(materialType)
-{
-    DescriptorSet materialDescSet = {};
-
-    switch (materialType)
-    {
-    case ShaderDomain::eMesh:
-    {
-        materialDescSet = m_Pipeline->m_Shader->GetReflectedData().DescriptorSets.at(3);
-        for (const auto& [name, element] :
-            m_Pipeline->m_Shader->GetReflectedData().UniformElements)
-        {
-            if (element.SetIndex == 3)
-                m_MaterialConstants.emplace(name, element);
-        }
-        break;
-    }
-    case ShaderDomain::ePostProcess:
-    {
-        materialDescSet = m_Pipeline->m_Shader->GetReflectedData().DescriptorSets.at(2);
-        for (const auto& [name, element] :
-            m_Pipeline->m_Shader->GetReflectedData().UniformElements)
-        {
-            if (element.SetIndex == 2)
-                m_MaterialConstants.emplace(name, element);
-        }
-        break;
-    }
-    case ShaderDomain::eUnknown:
-    default:
-        LNE_ASSERT(false, "Material type not supported");
-        break;
-    }
-    
-    for (const auto& [binding, ub] : materialDescSet.UniformBuffers)
-        m_UniformBuffers.emplace(std::make_pair(ub.BindingIndex, SafePtr(lnnew UniformBuffer(m_Pipeline->m_Context, ub.Size))));
-    m_DescSets.resize(m_Pipeline->GetContext()->GetMaxFramesInFlight());
-}
-
-Material::~Material()
-{
-}
-
-void Material::SetTexture(const std::string& name, SafePtr<Texture> texture)
-{
-    bool success = SetProperty<uint32_t>(name, texture->GetBindlessTextureHandle());
-    if (!success)
-    {
-        LNE_WARN("Texture property '{}' not found in material", name);
-        return;
-    }
-    if (m_Textures.contains(name))
-        m_Textures.at(name) = texture;
-    else
-        m_Textures.emplace(name, texture);
-}
-
-// TODO: make sure we use it just once instead of updating it for every single changes in the material
-void Material::SetUniformBuffer(uint32_t binding, const void* data, uint32_t size, uint32_t offset)
-{
-    auto ub = m_UniformBuffers.at(binding);
-    auto& renderer = ApplicationBase::GetRenderer();
-    ub->CopyData(ApplicationBase::GetRenderer().GetGfxContext()->GetPrimaryCommandBuffer(), data, size, offset);
-}
-
 //////////////////////////////////////////////////////////////////////////
-// MaterialV2 ////////////////////////////////////////////////////////////
+// Material //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-MaterialV2::MaterialV2(SafePtr<GfxTechnique> technique)
+Material::Material(SafePtr<GfxTechnique> technique)
     : m_Technique(technique)
 {
     for (auto& [passId, passBinding] : technique->GetPasses())
@@ -121,19 +55,19 @@ MaterialV2::MaterialV2(SafePtr<GfxTechnique> technique)
     m_MaterialType = m_Technique->GetPasses().begin()->second.PassEffect->GetShader()->GetShaderDomain();
 }
 
-MaterialV2::~MaterialV2()
+Material::~Material()
 {
 
     for (auto& [_, passData] : m_PassData)
         delete[] passData;
 }
 
-SafePtr<lne::GfxTechnique> MaterialV2::GetTechnique() const
+SafePtr<lne::GfxTechnique> Material::GetTechnique() const
 {
     return m_Technique;
 }
 
-MaterialPassSlot MaterialV2::GetMaterialPassSlot(PassID passId) const
+MaterialPassSlot Material::GetMaterialPassSlot(PassID passId) const
 {
     auto it = m_AllocatedSlots.find(passId);
     if (it == m_AllocatedSlots.end())
@@ -144,12 +78,12 @@ MaterialPassSlot MaterialV2::GetMaterialPassSlot(PassID passId) const
     return it->second;
 }
 
-bool MaterialV2::CanRenderToPass(PassID passId) const
+bool Material::CanRenderToPass(PassID passId) const
 {
     return m_Technique->ContainsPass(passId);
 }
 
-void MaterialV2::SetTexture(const std::string& name, SafePtr<Texture> texture)
+void Material::SetTexture(const std::string& name, SafePtr<Texture> texture)
 {
     bool success = SetProperty<uint32_t>(name, texture->GetBindlessTextureHandle());
     if (!success)
@@ -163,7 +97,7 @@ void MaterialV2::SetTexture(const std::string& name, SafePtr<Texture> texture)
         m_Textures.emplace(name, texture);
 }
 
-void MaterialV2::InvalidateMaterial()
+void Material::InvalidateMaterial()
 {
     auto& renderer = ApplicationBase::GetRenderer();
     if (m_DirtyFrames == 0)
@@ -171,7 +105,7 @@ void MaterialV2::InvalidateMaterial()
     m_DirtyFrames = renderer.GetGfxContext()->GetMaxFramesInFlight();
 }
 
-bool MaterialV2::IsOfShaderElementType(TypeId typeId, ShaderElementType::Enum elemType)
+bool Material::IsOfShaderElementType(TypeId typeId, ShaderElementType::Enum elemType)
 {
     static const std::unordered_map<TypeId, ShaderElementType::Enum> typeMap = {
         { TypeIdHelper<float>::Get(), ShaderElementType::eFloat },
@@ -195,7 +129,7 @@ bool MaterialV2::IsOfShaderElementType(TypeId typeId, ShaderElementType::Enum el
     return typeMap.at(typeId) == elemType;
 }
 
-bool MaterialV2::CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, uint32_t frameIndex)
+bool Material::CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, uint32_t frameIndex)
 {
     bool success = true;
     for (auto& [hash, passData] : m_PassData)
@@ -209,7 +143,7 @@ bool MaterialV2::CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, uint32_t fra
     return success;
 }
 
-lne::SafePtr<class GfxPipeline> MaterialV2::GetPipeline(PassID passId, SafePtr<FrameGraph> frameGraph)
+lne::SafePtr<class GfxPipeline> Material::GetPipeline(PassID passId, SafePtr<FrameGraph> frameGraph)
 {
     MaterialPipelineHash hash{
         .PassId = passId,

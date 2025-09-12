@@ -60,7 +60,7 @@ public:
 
 private:
     friend class Renderer;
-    friend class MaterialV2;
+    friend class Material;
     using PipelineCache = FlatHashMap<PipelineHandle, SafePtr<GfxPipeline>>;
     std::string                         m_Name;
     SafePtr<GfxContext>                 m_Context;

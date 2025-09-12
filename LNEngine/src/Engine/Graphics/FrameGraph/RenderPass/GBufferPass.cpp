@@ -17,16 +17,7 @@ void GBufferPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
     using namespace lne;
     Renderer& renderer = ApplicationBase::GetRenderer();
-    GraphicsPipelineDesc desc{};
-    desc.PathToShaders = ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\GBuffer.glsl";
-    desc.Name = "GBufferPassShader";
-    desc.EnableDepthTest(true, false);
-    desc.Blend.EnableBlend(false);
-    desc.CullMode = ECullMode::Back;
-    desc.FrameGraph = frameGraph;
     SafePtr<GfxContext> graphicsContext = ApplicationBase::GetWindow().GetGfxContext();
-    m_Pipeline = renderer.CreateGraphicsPipeline(desc);
-    m_Material = lnnew Material(m_Pipeline);
 
     for (FrameGraphResourceHandle resourceHandle : node->InputResources)
     {
@@ -137,7 +128,7 @@ void GBufferPass::OnImGuiRender()
 void GBufferPass::AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, uint32_t subMeshIndex)
 {
     const SubMesh& submesh = mesh->GetSubMeshes()[hash.SubMeshIndex];
-    SafePtr material = mesh->GetMaterialV2(submesh.MaterialIndex);
+    SafePtr material = mesh->GetMaterial(submesh.MaterialIndex);
     if (material->CanRenderToPass(GetID()) == false)
         return;
     auto& drawCommands = m_DrawCommands[hash];

@@ -24,8 +24,6 @@ public:
     void AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, uint32_t subMeshIndex) override;
 
 private:
-    SafePtr<class GfxPipeline> m_Pipeline{};
-    SafePtr<class Material> m_Material{};
     std::unordered_map<std::string, SafePtr<class Texture>> m_DebugTextures{};
     std::unordered_map<std::string, bool> m_IsDebugOpen{};
 };

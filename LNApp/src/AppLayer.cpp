@@ -57,7 +57,7 @@ void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNo
     techDesc.Passes.push_back(passDesc);
     SafePtr technique = renderer.CreateOrGetTechnique(techDesc);
 
-    m_MaterialV2 = lnnew MaterialV2(technique);
+    m_MaterialV2 = lnnew Material(technique);
 
     for (FrameGraphResourceHandle resourceHandle : node->InputResources)
     {
@@ -145,7 +145,7 @@ void AppLayer::ToneMappingPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGr
     techDesc.Passes.push_back(passDesc);
     SafePtr technique = renderer.CreateOrGetTechnique(techDesc);
 
-    SafePtr<MaterialV2> mat = lnnew MaterialV2(technique);
+    SafePtr<Material> mat = lnnew Material(technique);
 
     for (FrameGraphResourceHandle resourceHandle : node->OutputResources)
     {
@@ -260,9 +260,13 @@ void AppLayer::OnAttach()
     techDesc.Passes.push_back(passDesc);
     m_TransparentTechnique = renderer.CreateOrGetTechnique(techDesc);
 
-    //m_BasicMaterial->SetProperty("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
-    //m_BasicMaterial->SetTexture("tAlbedo", uvChecker);
-    //m_BasicMaterial2->SetProperty("uColor", glm::vec4(0.25f, 0.25f, 0.25f, 0.25f));
+    m_BasicMaterial = lnnew Material(m_OpaqueTechnique);
+    m_BasicMaterial2 = lnnew Material(m_OpaqueTechnique);
+
+    m_BasicMaterial->SetProperty("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+    m_BasicMaterial->SetTexture("tAlbedo", uvChecker);
+    m_BasicMaterial2->SetProperty("uColor", glm::vec4(0.25f, 0.25f, 0.25f, 0.25f));
+    m_BasicMaterial2->SetTexture("tAlbedo", renderer.GetDefaultTexture());
 
 #pragma region CreateEntities
     m_CameraEntity = m_Scene->CreateEntity();
@@ -270,16 +274,16 @@ void AppLayer::OnAttach()
     TransformComponent& cameraTransform = m_CameraEntity.GetComponent<TransformComponent>();
 
     m_ModelEntity = m_Scene->CreateEntity();
-    //m_CubeEntity = m_Scene->CreateEntity();
-    //m_SphereEntity = m_Scene->CreateEntity();
+    m_CubeEntity = m_Scene->CreateEntity();
+    m_SphereEntity = m_Scene->CreateEntity();
     
     m_ModelEntity.EmplaceComponent<StaticMeshComponent>();
-    //m_CubeEntity.EmplaceComponent<StaticMeshComponent>();
-    //m_SphereEntity.EmplaceComponent<StaticMeshComponent>();
+    m_CubeEntity.EmplaceComponent<StaticMeshComponent>();
+    m_SphereEntity.EmplaceComponent<StaticMeshComponent>();
 
     auto[modelTransform, modelMeshComponent] = m_ModelEntity.GetComponents<TransformComponent, StaticMeshComponent>();
-    //auto[cubeTransform, cubeMeshComponent] = m_CubeEntity.GetComponents<TransformComponent, StaticMeshComponent>();
-    //auto[sphereTransform, sphereMeshComponent] = m_SphereEntity.GetComponents<TransformComponent, StaticMeshComponent>();
+    auto[cubeTransform, cubeMeshComponent] = m_CubeEntity.GetComponents<TransformComponent, StaticMeshComponent>();
+    auto[sphereTransform, sphereMeshComponent] = m_SphereEntity.GetComponents<TransformComponent, StaticMeshComponent>();
 #pragma endregion
 
 #pragma region LoadModels
@@ -289,16 +293,16 @@ void AppLayer::OnAttach()
     sphereMesh->SetMaterial(m_BasicMaterial2, 0);
     modelMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Sponza\\glTF\\Sponza.gltf", m_OpaqueTechnique, m_TransparentTechnique);
 
-    //cubeMeshComponent.Mesh = cubeMesh;
-    //sphereMeshComponent.Mesh = sphereMesh;
+    cubeMeshComponent.Mesh = cubeMesh;
+    sphereMeshComponent.Mesh = sphereMesh;
 #pragma endregion
 
 #pragma region TransformInit
-    //cubeTransform.Position =  { -0.5f, 0.0f, -30.0f };
-    //cubeTransform.Scale =     { 0.25f, 0.25f, 0.25f };
+    cubeTransform.Position =  { -0.5f, 0.0f, -30.0f };
+    cubeTransform.Scale =     { 0.25f, 0.25f, 0.25f };
 
-    //sphereTransform.Position = { 0.5f, 0.0f, 0.0f };
-    //sphereTransform.Scale =    { 0.25f, 0.25f, 0.25f };
+    sphereTransform.Position = { 0.5f, 0.0f, 0.0f };
+    sphereTransform.Scale = { 0.25f, 0.25f, 0.25f };
 
     modelTransform.Position = { 0.0f, 0.0f, 0.0f };
     modelTransform.Scale = { 100.f, 100.f, 100.f };
@@ -478,12 +482,9 @@ void AppLayer::OnDetach()
     APP_INFO("AppLayer::OnDetach");
     m_WorldRenderer.Reset();
     m_FrameGraph.Reset();
-    m_BasePipeline.Reset();
-    m_TransparentPipeline.Reset();
     m_BasicMaterial.Reset();
     m_BasicMaterial2.Reset();
     m_Scene.Reset();
-    m_BasePipeline.Reset();
 }
 
 void AppLayer::OnUpdate(float deltaTime)

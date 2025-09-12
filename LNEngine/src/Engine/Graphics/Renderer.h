@@ -21,7 +21,7 @@ class GfxTechnique;
 struct GfxTechniqueDesc;
 class GfxPipeline;
 class Material;
-class MaterialV2;
+class Material;
 class Texture;
 class ComputeProgram;
 class Framebuffer;
@@ -85,7 +85,7 @@ public:
                                                                        const SafePtr<class Material>& material);
 
     void                                            DrawFullscreenQuad(vk::CommandBuffer cmdBuffer,
-                                                                        SafePtr<MaterialV2> material,
+                                                                        SafePtr<Material> material,
                                                                        PassID passId);
 
 
@@ -127,7 +127,7 @@ public:
     }
 
     void                                            AddDirtyEffect(SafePtr<class Effect> effect);
-    void                                            AddDirtyMaterial(SafePtr<class MaterialV2> material);
+    void                                            AddDirtyMaterial(SafePtr<class Material> material);
 
     [[nodiscard]] std::vector<std::filesystem::path> GetShaderIncludeDirs()
     {
@@ -136,6 +136,8 @@ public:
     }
 
     [[nodiscard]] SafePtr<Texture>                  GetBRDFLut() const;
+    [[nodiscard]] SafePtr<Texture>                  GetDefaultTexture() const;
+    [[nodiscard]] SafePtr<Texture>                  GetWhiteTexture() const;
     [[nodiscard]] std::filesystem::path             GetShaderCachePath() const;
 
 private:
@@ -147,7 +149,7 @@ private:
     std::mutex                                      m_TexturesToUpdateMutex{};
     std::vector<SafePtr<Effect>>                    m_DirtyEffects{};
     std::mutex                                      m_DirtyEffectsMutex{};
-    std::vector<SafePtr<MaterialV2>>                m_DirtyMaterials{};
+    std::vector<SafePtr<Material>>                m_DirtyMaterials{};
     std::mutex                                      m_DirtyMaterialsMutex{};
     uint32_t                                        m_CurrentFrameInFlight{ 0 };
 

@@ -3,7 +3,7 @@
 
 namespace lne
 {
-class MaterialV2;
+class Material;
 
 class LightingPass : public lne::IRenderPass
 {
@@ -18,7 +18,7 @@ public:
     void OnImGuiRender() override;
     
 private:
-    SafePtr<MaterialV2>         m_MaterialV2;
+    SafePtr<Material>         m_Material;
     
     SafePtr<class Texture>      m_DebugTexture{};
     bool                        m_IsDebugOpen{false};
