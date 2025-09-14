@@ -59,6 +59,7 @@ public:
     static vk::Instance VulkanInstance() { return s_VulkanInstance; }
     vk::PhysicalDevice GetPhysicalDevice() const { return m_PhysicalDevice; }
     vk::Device GetDevice() const { return m_Device; }
+    // Gets the current frame in flight on the main thread
     [[nodiscard]] constexpr uint32_t GetCurrentFrameIndex() const { return m_CurrentFrameInFlight; }
     [[nodiscard]] constexpr uint32_t GetMaxFramesInFlight() const { return m_MaxFramesInFlight; }
     [[nodiscard]] VmaAllocator GetMemoryAllocator() const { return m_MemoryAllocator; }

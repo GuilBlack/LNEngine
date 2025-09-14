@@ -9,6 +9,7 @@
 #include "../Framebuffer.h"
 #include "Engine/Resources/GfxLoader.h"
 #include "Core/Utils/Log.h"
+#include <Core/Utils/Profiling.h>
 
 namespace lne
 {
@@ -309,17 +310,27 @@ void ImGuiService::EndFrame()
     ImGui::Render();
 
     uint32_t imageIndex = m_Swapchain->GetCurrentFrameIndex();
-
     auto& renderer = ApplicationBase::GetRenderer();
-    auto cmdBuffer = m_GraphicsContext->GetPrimaryCommandBuffer();
 
-    renderer.PushLabel(cmdBuffer, "ImGui");
-    m_Framebuffers[imageIndex].Bind(cmdBuffer);
+    auto imGuiRenderCommand = [this, imageIndex]()
+        {
+            LNE_PROFILE_FUNCTION();
+            auto& renderer = ApplicationBase::GetRenderer();
+            auto cmdBuffer = m_GraphicsContext->GetPrimaryCommandBuffer();
 
-    RenderDrawData(ImGui::GetDrawData(), cmdBuffer);
+            renderer.PushLabel(cmdBuffer, "ImGui");
+            m_Framebuffers[imageIndex].Bind(cmdBuffer);
 
-    m_Framebuffers[imageIndex].Unbind(cmdBuffer);
-    renderer.PopLabel(cmdBuffer);
+            RenderDrawData(ImGui::GetDrawData(), cmdBuffer);
+
+            m_Framebuffers[imageIndex].Unbind(cmdBuffer);
+            renderer.PopLabel(cmdBuffer);
+        };
+
+    if (renderer.IsAsync())
+        renderer.AddRenderTask(imGuiRenderCommand);
+    else
+        imGuiRenderCommand;
 }
 
 void ImGuiService::CreateFontsTexture()

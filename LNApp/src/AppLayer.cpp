@@ -5,18 +5,8 @@ AppLayer::FinalPass::FinalPass()
 {
     using namespace lne;
     m_Name = "FinalPass";
-    ComputePipelineDesc desc{};
-    desc.Name = "Test";
-    desc.PathToShader = ApplicationBase::GetAssetsPath() + "Shaders\\Test.comp";
     auto context = ApplicationBase::GetRenderer().GetGfxContext();
-    m_Pipeline = lnnew ComputePipeline(context, desc);
-    m_Program = lnnew ComputeProgram(m_Pipeline);
     m_OutputTexture = lne::Texture::CreateColorAttachmentTexture(context, 1920, 1080, vk::Format::eR8G8B8A8Unorm, TextureUsageType::eSampledAndStorage, "Test");
-
-    m_Program->SetProperty("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
-    m_Program->SetTexture("tOutput", m_OutputTexture);
-
-    m_Program->Dispatch((1920 + 16) / 16, (1080 + 16) / 16, 1);
 }
 
 void AppLayer::FinalPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worldRenderer, 

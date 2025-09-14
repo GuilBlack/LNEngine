@@ -81,6 +81,7 @@ void WorldRenderer::Render(EntityRegistry& registry)
     auto& renderer = ApplicationBase::GetRenderer();
     vk::CommandBuffer cmdBuffer = renderer.GetGfxContext()->GetPrimaryCommandBuffer();
 
+    uint32_t totalSizeBytes;
     auto staticMeshView = registry.GetView<TransformComponent, StaticMeshComponent>();
     {
         LNE_PROFILE_SCOPE("Update Transform Buffer")
@@ -123,20 +124,31 @@ void WorldRenderer::Render(EntityRegistry& registry)
                 continue;
             subMeshArray.Offset = offset;
             // copy submesh transforms to the transform buffer
-            void* dst = m_TransformBuffers[renderer.GetCurrentFrameIndex()].Data + offset;
+            void* dst = m_TransformBuffers[renderer.GetGfxContext()->GetCurrentFrameIndex()].Data + offset;
             std::memcpy(dst, subMeshArray.Transforms.data(), size * sizeof(glm::mat4));
             offset += size;
         }
-        uint32_t totalSizeBytes = offset * sizeof(glm::mat4);
-        m_TransformBuffers[renderer.GetCurrentFrameIndex()].Buffer->CopyData(
-            cmdBuffer,
-            m_TransformBuffers[renderer.GetCurrentFrameIndex()].Data, totalSizeBytes, 0);
+        totalSizeBytes = offset * sizeof(glm::mat4);
+
     }
-    renderer.PushLabel(cmdBuffer, "Frame");
+    auto renderTask = [this, totalSizeBytes]()
+        {
+            LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
+            auto& renderer = ApplicationBase::GetRenderer();
+            vk::CommandBuffer cmdBuffer = renderer.GetGfxContext()->GetPrimaryCommandBuffer();
+            m_TransformBuffers[renderer.GetCurrentFrameIndex()].Buffer->CopyData(
+                cmdBuffer,
+                m_TransformBuffers[renderer.GetCurrentFrameIndex()].Data, totalSizeBytes, 0);
+            renderer.PushLabel(cmdBuffer, "Frame");
 
-    m_FrameGraph->Execute(cmdBuffer, this);
+            m_FrameGraph->Execute(cmdBuffer, this);
 
-    renderer.PopLabel(cmdBuffer);
+            renderer.PopLabel(cmdBuffer);
+        };
+    if (renderer.IsAsync())
+        renderer.AddRenderTask(renderTask);
+    else
+        renderTask();
 }
 
 void WorldRenderer::EndFrame()

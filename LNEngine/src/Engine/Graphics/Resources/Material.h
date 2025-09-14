@@ -103,8 +103,9 @@ private:
     SafePtr<GfxTechnique>                           m_Technique;
     MaterialElementsMap                             m_Constants;
     MatPassDataMap                                  m_PassData;
+    std::mutex                                      m_DataMutex;
     FlatHashMap<PassID, MaterialPassSlot>           m_AllocatedSlots;
-    FlatHashMap<MaterialPipelineHash, PipelineHandle, boost::hash<lne::MaterialPipelineHash>> m_AllocatedPipelines;
+    FlatHashMap<MaterialPipelineHash, PipelineHandle, boost::hash<lne::MaterialPipelineHash>>       m_AllocatedPipelines;
     bool                                            m_IsTransparent{ false };
     TextureMap                                      m_Textures;
     uint32_t                                        m_DirtyFrames{ 0 };
@@ -118,6 +119,7 @@ private:
             return false;
         auto& matConsts = m_Constants.at(name);
         bool success = true;
+        std::lock_guard<std::mutex> lock(m_DataMutex);
         for (auto& matConst : matConsts)
         {
             if (IsOfShaderElementType(TypeIdHelper<T>::Get(), matConst.Element.Type) == false)
@@ -145,7 +147,7 @@ private:
     }
     void                        InvalidateMaterial();
     bool                        IsOfShaderElementType(TypeId typeId, ShaderElementType::Enum elemType);
-    bool CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, uint32_t frameIndex);
+    bool                        CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, uint32_t frameIndex);
     SafePtr<class GfxPipeline>  GetPipeline(PassID passId, SafePtr<FrameGraph> frameGraph);
 };
 
@@ -160,28 +162,46 @@ public:
     SafePtr<ComputePipeline>    GetPipeline() const { return m_Pipeline; }
 
     // Set property overloads.
-    void                        SetProperty(const std::string& name, float value)
-    { SetProperty<float>(name, value); }
-    void                        SetProperty(const std::string& name, uint32_t value)
-    { SetProperty<uint32_t>(name, value); }
-    void                        SetProperty(const std::string& name, int32_t value)
-    { SetProperty<int32_t>(name, value); }
+    void                        SetProperty(vk::CommandBuffer cmdBuffer, const std::string& name, float value)
+    {
+        SetProperty<float>(cmdBuffer, name, value);
+    }
+    void                        SetProperty(vk::CommandBuffer cmdBuffer, const std::string& name, uint32_t value)
+    {
+        SetProperty<uint32_t>(cmdBuffer, name, value);
+    }
+    void                        SetProperty(vk::CommandBuffer cmdBuffer, const std::string& name, int32_t value)
+    {
+        SetProperty<int32_t>(cmdBuffer, name, value);
+    }
 
-    void                        SetProperty(const std::string& name, const glm::vec2& value)
-    { SetProperty<glm::vec2>(name, value); }
-    void                        SetProperty(const std::string& name, const glm::vec3& value)
-    { SetProperty<glm::vec3>(name, value); }
-    void                        SetProperty(const std::string& name, const glm::vec4& value)
-    { SetProperty<glm::vec4>(name, value); }
+    void                        SetProperty(vk::CommandBuffer cmdBuffer, const std::string& name, const glm::vec2& value)
+    {
+        SetProperty<glm::vec2>(cmdBuffer, name, value);
+    }
+    void                        SetProperty(vk::CommandBuffer cmdBuffer, const std::string& name, const glm::vec3& value)
+    {
+        SetProperty<glm::vec3>(cmdBuffer, name, value);
+    }
+    void                        SetProperty(vk::CommandBuffer cmdBuffer, const std::string& name, const glm::vec4& value)
+    {
+        SetProperty<glm::vec4>(cmdBuffer, name, value);
+    }
 
-    void                        SetProperty(const std::string& name, const glm::mat2& value)
-    { SetProperty<glm::mat2>(name, value); }
-    void                        SetProperty(const std::string& name, const glm::mat3& value)
-    { SetProperty<glm::mat3>(name, value); }
-    void                        SetProperty(const std::string& name, const glm::mat4& value)
-    { SetProperty<glm::mat4>(name, value); }
+    void                        SetProperty(vk::CommandBuffer cmdBuffer, const std::string& name, const glm::mat2& value)
+    {
+        SetProperty<glm::mat2>(cmdBuffer, name, value);
+    }
+    void                        SetProperty(vk::CommandBuffer cmdBuffer, const std::string& name, const glm::mat3& value)
+    {
+        SetProperty<glm::mat3>(cmdBuffer, name, value);
+    }
+    void                        SetProperty(vk::CommandBuffer cmdBuffer, const std::string& name, const glm::mat4& value)
+    {
+        SetProperty<glm::mat4>(cmdBuffer, name, value);
+    }
 
-    void                        SetTexture(const std::string& name, SafePtr<class Texture> texture, bool isStorage = true);
+    void                        SetTexture(vk::CommandBuffer cmdBuffer, const std::string& name, SafePtr<class Texture> texture, bool isStorage = true);
 
     // Dispatch method: bind the compute pipeline and launch compute work.
     void Dispatch(uint32_t groupCountX,
@@ -205,19 +225,19 @@ private:
 
     // Templated helper to update a uniform buffer given the name.
     template<typename T> requires std::is_trivially_copyable_v<T>
-    bool SetProperty(const std::string& name, const T& value)
+    bool SetProperty(vk::CommandBuffer cmdBuffer, const std::string& name, const T& value)
     {
         if (m_ProgramConstants.contains(name) == false)
             return false;
         auto& progConst = m_ProgramConstants.at(name);
         if (progConst.Size == sizeof(T))
-            SetUniformBuffer(progConst.BindingIndex, &value, sizeof(T), progConst.Offset);
+            SetUniformBuffer(cmdBuffer, progConst.BindingIndex, &value, sizeof(T), progConst.Offset);
         else
             return false;
         return true;
     }
 
     // Function to update the uniform buffer for a given binding.
-    void SetUniformBuffer(uint32_t binding, const void* data, uint32_t size, uint32_t offset = 0);
+    void SetUniformBuffer(vk::CommandBuffer cmdBuffer, uint32_t binding, const void* data, uint32_t size, uint32_t offset = 0);
 };
 }

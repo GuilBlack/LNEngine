@@ -38,7 +38,8 @@ void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskS
     m_Context = window->GetGfxContext();
     m_Swapchain = window->GetSwapchain();
     m_TaskScheduler = taskScheduler;
-    m_LoadAsync = true;
+    //m_FrameRenderTasks.resize(m_Context->GetMaxFramesInFlight());
+    m_IsAsync = true;
     AddShaderIncludeDir(ApplicationBase::GetAssetsPath() + "Engine/Shaders/Includes");
     std::filesystem::path shaderCachePath = GetShaderCachePath();
     if (!std::filesystem::exists(shaderCachePath))
@@ -49,7 +50,7 @@ void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskS
         .RendererParam = this,
         .Context = m_Context,
         .Scheduler = m_TaskScheduler,
-        .LoadAsync = m_LoadAsync,
+        .LoadAsync = m_IsAsync,
         .RadianceTextureMaxSize = 512
     };
 
@@ -63,6 +64,7 @@ void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskS
 
 void Renderer::Nuke()
 {
+    WaitForRenderTasksToFinish();
     m_Context->WaitIdle();
     m_GfxLoader->Nuke();
     for (auto& frameData : m_FrameData)
@@ -70,6 +72,7 @@ void Renderer::Nuke()
         frameData.DescriptorAllocator.Reset();
         m_Context->GetDevice().destroyDescriptorSetLayout(frameData.DescriptorSetLayout);
     }
+    delete m_RenderTasksLauncher;
     m_FrameData.clear();
     m_GfxLoader.Reset();
     m_Swapchain.Reset();
@@ -78,8 +81,9 @@ void Renderer::Nuke()
 
 void Renderer::InitResources()
 {
+    m_CurrentFrameInFlight = m_Context->GetCurrentFrameIndex();
     m_BRDFLut = Texture::CreateColorTexture2D(m_Context, 512, 512, vk::Format::eR16G16Sfloat, TextureUsageType::eSampledAndStorage, false, "BRDFLut");
-    vk::CommandBuffer cmdBuffer = m_Context->GetCommandPoolManager().BeginOrGetPrimaryFrameCommandBuffer(m_Context->GetCurrentFrameIndex());
+    vk::CommandBuffer cmdBuffer = m_Context->GetCommandPoolManager().BeginOrGetPrimaryFrameCommandBuffer(m_CurrentFrameInFlight);
     m_BRDFLut->TransitionLayout(cmdBuffer, vk::ImageLayout::eGeneral);
 
     ComputePipelineDesc desc{};
@@ -87,8 +91,8 @@ void Renderer::InitResources()
     desc.PathToShader = ApplicationBase::GetAssetsPath() + "Engine/Shaders/Compute/GenerateBRDFLut.comp";
     SafePtr brdfPipeline = lnnew ComputePipeline(m_Context, desc);
     SafePtr brdfProgram = lnnew ComputeProgram(brdfPipeline);
-    brdfProgram->SetProperty("uNumSamples", 1024);
-    brdfProgram->SetTexture("tBRDFLut", m_BRDFLut, true);
+    brdfProgram->SetProperty(cmdBuffer, "uNumSamples", 1024);
+    brdfProgram->SetTexture(cmdBuffer, "tBRDFLut", m_BRDFLut, true);
     Dispatch(cmdBuffer, brdfProgram, 512 / 32, 512 / 32, 1);
 
     m_BRDFLut->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
@@ -103,11 +107,6 @@ void Renderer::NukeResources()
     m_ShadersLibrary.clear();
     m_EffectsLibrary.clear();
     m_TechniquesLibrary.clear();
-}
-
-uint32_t Renderer::GetCurrentFrameIndex() const
-{
-    return m_Context->GetCurrentFrameIndex();
 }
 
 lne::SafePtr<class GfxContext> Renderer::GetGfxContext() const
@@ -132,46 +131,65 @@ void Renderer::PopLabel(vk::CommandBuffer cmdBuffer) const
 
 void Renderer::BeginFrame()
 {
-    LNE_PROFILE_FUNCTION_C(PROFILING_COL);
-    m_CurrentFrameInFlight = m_Context->GetCurrentFrameIndex();
-    m_Context->GetCommandPoolManager().ResetFrameCommands(m_Context->GetCurrentFrameIndex());
-    vk::CommandBuffer cmdBuffer = m_Context->GetPrimaryCommandBuffer();
-    auto currentImage = m_Swapchain->GetCurrentImage();
-    currentImage->TransitionLayout(cmdBuffer, vk::ImageLayout::eGeneral);
+    uint32_t frameIndex = m_Context->GetCurrentFrameIndex();
+    auto beginFrame = [this, frameIndex]()
+        {
+            LNE_PROFILE_FUNCTION_C(PROFILING_COL);
+            m_CurrentFrameInFlight = frameIndex;
+            m_Context->GetCommandPoolManager().ResetFrameCommands(frameIndex);
+            vk::CommandBuffer cmdBuffer = m_Context->GetPrimaryCommandBuffer();
+            auto currentImage = m_Swapchain->GetCurrentImage();
+            currentImage->TransitionLayout(cmdBuffer, vk::ImageLayout::eGeneral);
 
-    ProcessDirtyEffects(cmdBuffer);
-    ProcessDirtyMaterials(cmdBuffer);
-    CleanupDirtyEffects();
+            ProcessDirtyEffects(cmdBuffer);
+            ProcessDirtyMaterials(cmdBuffer);
+            CleanupDirtyEffects();
 
-    if (m_LoadAsync == false)
-        m_GfxLoader->Update();
-    UpdateTextures(cmdBuffer);
+            if (m_IsAsync == false)
+                m_GfxLoader->Update();
+            UpdateTextures(cmdBuffer);
 
-    // Do we need this???
-    auto viewport = m_Swapchain->GetViewport();
-    cmdBuffer.setScissor(0, viewport.GetScissor());
-    auto vp = viewport.GetViewport();
-    vp.y += vp.height;
-    vp.height *= -1;
-    cmdBuffer.setViewport(0, vp);
+            // Do we need this???
+            auto viewport = m_Swapchain->GetViewport();
+            cmdBuffer.setScissor(0, viewport.GetScissor());
+            auto vp = viewport.GetViewport();
+            vp.y += vp.height;
+            vp.height *= -1;
+            cmdBuffer.setViewport(0, vp);
 
-    m_FrameData[m_CurrentFrameInFlight].DescriptorAllocator->Clear();
+            m_FrameData[m_CurrentFrameInFlight].DescriptorAllocator->Clear();
+        };
+
+    if (m_IsAsync)
+        AddRenderTask(beginFrame);
+    else
+        beginFrame();
 }
 
 void Renderer::EndFrame()
 {
-    LNE_PROFILE_FUNCTION_C(PROFILING_COL)
-    m_LastUsedStaticMesh.Reset();
-    m_LastUsedPipeline.Reset();
-    auto currentImage = m_Swapchain->GetCurrentImage();
-    vk::CommandBuffer cb = m_Context->GetPrimaryCommandBuffer();
-    currentImage->TransitionLayout(cb, vk::ImageLayout::ePresentSrcKHR);
+    auto endFrame = [this]()
+        {
+            LNE_PROFILE_FUNCTION_C(PROFILING_COL)
+            m_LastUsedStaticMesh.Reset();
+            m_LastUsedPipeline.Reset();
+            auto currentImage = m_Swapchain->GetCurrentImage();
+            vk::CommandBuffer cb = m_Context->GetPrimaryCommandBuffer();
+            currentImage->TransitionLayout(cb, vk::ImageLayout::ePresentSrcKHR);
 
-    vk::PipelineStageFlags waitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
-    vk::SubmitInfo submitInfo = m_Swapchain->GetSubmitInfo(waitStages, m_Context->GetCurrentFrameIndex());
-    FrameCommands commands = m_Context->GetCommandPoolManager().EndFrame(m_Context->GetCurrentFrameIndex());
-    submitInfo.setCommandBuffers(commands.CommandBuffers);
-    m_Context->SubmitToQueue(EQueueFamilyType::Graphics, submitInfo, commands.Fence);
+            vk::PipelineStageFlags waitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
+            vk::SubmitInfo submitInfo = m_Swapchain->GetSubmitInfo(waitStages, m_CurrentFrameInFlight);
+            FrameCommands commands = m_Context->GetCommandPoolManager().EndFrame(m_CurrentFrameInFlight);
+            submitInfo.setCommandBuffers(commands.CommandBuffers);
+            m_Context->SubmitToQueue(EQueueFamilyType::Graphics, submitInfo, commands.Fence);
+        };
+    if (m_IsAsync)
+        AddRenderTask(endFrame);
+    else
+        endFrame();
+
+    RunRenderTasks();
+    WaitForRenderTasksToFinish();
 }
 
 void Renderer::PostFrame()
@@ -185,48 +203,68 @@ void Renderer::BeginScene(SafePtr<WorldRenderer> worldRenderer,
                           WorldData globalData,
                           SafePtr<class UniformBuffer> worldGlobalUniforms)
 {
-    LNE_PROFILE_FUNCTION_C(PROFILING_COL);
-    m_CurrentWorldRenderer = worldRenderer;
-    m_CurrentFrameGraph = frameGraph;
-    uint32_t imageIndex = m_Context->GetCurrentFrameIndex();
-    vk::CommandBuffer cmdBuffer = m_Context->GetPrimaryCommandBuffer();
-    FrameData& frameData = m_FrameData[imageIndex];
-    frameData.CurrentWorldDataUniforms = worldGlobalUniforms;
     globalData.BRDFLut = m_BRDFLut->GetBindlessTextureHandle();
-    frameData.CurrentWorldData = globalData;
-    frameData.CurrentWorldDataUniforms->CopyData(cmdBuffer, globalData);
+    auto beginScene = [this, worldRenderer, frameGraph, globalData, worldGlobalUniforms]()
+        {
+            LNE_PROFILE_FUNCTION_C(PROFILING_COL);
+            m_CurrentWorldRenderer = worldRenderer;
+            m_CurrentFrameGraph = frameGraph;
+            uint32_t imageIndex = m_CurrentFrameInFlight;
+            vk::CommandBuffer cmdBuffer = m_Context->GetPrimaryCommandBuffer();
+            FrameData& frameData = m_FrameData[imageIndex];
+            frameData.CurrentWorldDataUniforms = worldGlobalUniforms;
+            frameData.CurrentWorldData = globalData;
+            frameData.CurrentWorldDataUniforms->CopyData(cmdBuffer, globalData);
 
-    frameData.DescriptorSet = frameData.DescriptorAllocator->Allocate(frameData.DescriptorSetLayout);
+            frameData.DescriptorSet = frameData.DescriptorAllocator->Allocate(frameData.DescriptorSetLayout);
 
-    auto bufferInfo = worldGlobalUniforms->GetDescriptorInfo();
-    vk::WriteDescriptorSet writeDescriptorSet = vk::WriteDescriptorSet{
-            frameData.DescriptorSet,
-            0,
-            0,
-            1,
-            vk::DescriptorType::eUniformBuffer,
-            nullptr,
-            &bufferInfo,
-            nullptr
-    };
+            auto bufferInfo = worldGlobalUniforms->GetDescriptorInfo();
+            vk::WriteDescriptorSet writeDescriptorSet = vk::WriteDescriptorSet{
+                    frameData.DescriptorSet,
+                    0,
+                    0,
+                    1,
+                    vk::DescriptorType::eUniformBuffer,
+                    nullptr,
+                    &bufferInfo,
+                    nullptr
+            };
 
-    writeDescriptorSet.dstSet = frameData.DescriptorSet;
-    writeDescriptorSet.dstBinding = 0;
+            writeDescriptorSet.dstSet = frameData.DescriptorSet;
+            writeDescriptorSet.dstBinding = 0;
 
-    m_Context->GetDevice().updateDescriptorSets(writeDescriptorSet, nullptr);
+            m_Context->GetDevice().updateDescriptorSets(writeDescriptorSet, nullptr);
+        };
+    if (m_IsAsync)
+        AddRenderTask(beginScene);
+    else
+        beginScene();
 }
 
-void Renderer::BeginRenderPass(const Framebuffer& framebuffer) const
+void Renderer::BeginRenderPass(const Framebuffer& framebuffer)
 {
-    LNE_PROFILE_FUNCTION_C(PROFILING_COL);
-    framebuffer.Bind(m_Context->GetPrimaryCommandBuffer());
-
+    auto beginRenderPass = [this, framebuffer]()
+        {
+            LNE_PROFILE_FUNCTION_C(PROFILING_COL);
+            framebuffer.Bind(m_Context->GetPrimaryCommandBuffer());
+        };
+    if (m_IsAsync)
+        AddRenderTask(beginRenderPass);
+    else
+        beginRenderPass();
 }
 
-void Renderer::EndRenderPass(const Framebuffer& framebuffer) const
+void Renderer::EndRenderPass(const Framebuffer& framebuffer)
 {
-    LNE_PROFILE_FUNCTION_C(PROFILING_COL);
-    framebuffer.Unbind(m_Context->GetPrimaryCommandBuffer());
+    auto endRenderPass = [this, framebuffer]()
+        {
+            LNE_PROFILE_FUNCTION_C(PROFILING_COL);
+            framebuffer.Unbind(m_Context->GetPrimaryCommandBuffer());
+        };
+    if (m_IsAsync)
+        AddRenderTask(endRenderPass);
+    else
+        endRenderPass();
 }
 
 void Renderer::Draw(vk::CommandBuffer cmdBuffer,
@@ -548,6 +586,14 @@ std::filesystem::path Renderer::GetShaderCachePath() const
     return std::filesystem::path(ApplicationBase::GetAssetsPath()) / "Engine" / "Shaders" / "Cache";
 }
 
+void Renderer::AddRenderTask(RenderTaskFunction renderTaskFunc)
+{
+    RenderTask* renderTask = lnnew RenderTask(renderTaskFunc);
+    if (m_FrameRenderTasks.empty() == false)
+        renderTask->SetDependency(renderTask->m_Dependency, m_FrameRenderTasks.back());
+    m_FrameRenderTasks.emplace_back(renderTask);
+}
+
 void Renderer::InitFrameData(uint32_t index)
 {
     m_FrameData.emplace_back(
@@ -598,7 +644,7 @@ void Renderer::ProcessDirtyEffects(vk::CommandBuffer cmdBuffer)
     std::lock_guard<std::mutex> lock(m_DirtyEffectsMutex);
     if (m_DirtyEffects.empty())
         return;
-    uint32_t currentFrameInFlight = m_Context->GetCurrentFrameIndex();
+    uint32_t currentFrameInFlight = m_CurrentFrameInFlight;
     for (size_t i = m_DirtyEffects.size(); i-- > 0; )
     {
         auto effect = m_DirtyEffects[i];
@@ -625,11 +671,10 @@ void Renderer::ProcessDirtyMaterials(vk::CommandBuffer cmdBuffer)
     std::lock_guard<std::mutex> lock(m_DirtyMaterialsMutex);
     if (m_DirtyMaterials.empty())
         return;
-    uint32_t currentFrameInFlight = m_Context->GetCurrentFrameIndex();
     for (size_t i = m_DirtyMaterials.size(); i-- > 0; )
     {
         auto material = m_DirtyMaterials[i];
-        if (material->CopyPassDataToBuffers(cmdBuffer, currentFrameInFlight))
+        if (material->CopyPassDataToBuffers(cmdBuffer, m_CurrentFrameInFlight))
             --material->m_DirtyFrames;
         if (material->m_DirtyFrames == 0)
         {
@@ -637,6 +682,37 @@ void Renderer::ProcessDirtyMaterials(vk::CommandBuffer cmdBuffer)
             m_DirtyMaterials.pop_back();
         }
     }
+}
+
+void Renderer::RunRenderTasks()
+{
+    // 1) Create the dependencies between the tasks
+    if (m_FrameRenderTasks.empty())
+        return;
+    // 2) prepare the m_RenderTasksLauncher taskset
+    if (m_RenderTasksLauncher == nullptr)
+        m_RenderTasksLauncher = lnnew RenderTasksLauncher();
+    m_RenderTasksLauncher->m_pTaskToLaunch = m_FrameRenderTasks[0];
+    m_FrameRenderTasks.back()->SetDependency(m_FrameRenderTasks.back()->m_FinalTaskDependency, m_RenderTasksLauncher);
+    // 3) Add the m_RenderTasksLauncher to the task scheduler
+    m_TaskScheduler->AddTaskSetToPipe(m_RenderTasksLauncher); // will be executed on the render thread
+}
+
+void Renderer::WaitForRenderTasksToFinish()
+{
+    if (m_FrameRenderTasks.empty())
+        return;
+    m_TaskScheduler->WaitforTask(m_FrameRenderTasks.back());
+    for (auto& task : m_FrameRenderTasks)
+        delete task;
+    m_FrameRenderTasks.clear();
+    m_RenderTasksLauncher->m_pTaskToLaunch = nullptr;
+}
+
+void RenderTasksLauncher::ExecuteRange(enki::TaskSetPartition range, uint32_t threadnum)
+{
+    (void)range;
+    ApplicationBase::GetTaskScheduler()->AddPinnedTask(m_pTaskToLaunch);
 }
 
 }

@@ -129,7 +129,7 @@ void FrameGraph::Compile()
 void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRenderer)
 {
     LNE_PROFILE_FUNCTION_C(PROFILING_COL)
-     // traverse nodes in topological order
+        // traverse nodes in topological order
     for (FrameGraphNodeHandle nodeHandle : m_Nodes)
     {
         FrameGraphNode* node = m_NodeCache.GetPool().Access(nodeHandle);

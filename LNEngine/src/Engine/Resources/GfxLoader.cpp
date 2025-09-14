@@ -462,15 +462,15 @@ void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cmdB
     
     env->SkyboxTexture->TransitionLayout(singleUseBuffer, vk::ImageLayout::eGeneral);
 
-    m_HDRToCubemapProgram->SetTexture("tHDRTexture", hdrSource, false);
-    m_HDRToCubemapProgram->SetTexture("tCubemapTexture", env->SkyboxTexture, true);
+    m_HDRToCubemapProgram->SetTexture(singleUseBuffer, "tHDRTexture", hdrSource, false);
+    m_HDRToCubemapProgram->SetTexture(singleUseBuffer, "tCubemapTexture", env->SkyboxTexture, true);
     renderer.Dispatch(singleUseBuffer, m_HDRToCubemapProgram, env->SkyboxTexture->GetDimensions().width / 16, env->SkyboxTexture->GetDimensions().height / 16, 6);
 
     cpManager.EndSingleUseCommandBuffer(EQueueFamilyType::Compute);
     singleUseBuffer = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Compute);
 
     env->PrefilteredTexture->TransitionLayout(singleUseBuffer, vk::ImageLayout::eGeneral);
-    m_HDRToCubemapProgram->SetTexture("tCubemapTexture", env->PrefilteredTexture, true);
+    m_HDRToCubemapProgram->SetTexture(singleUseBuffer, "tCubemapTexture", env->PrefilteredTexture, true);
     renderer.Dispatch(singleUseBuffer, m_HDRToCubemapProgram, env->PrefilteredTexture->GetDimensions().width / 16, env->PrefilteredTexture->GetDimensions().height / 16, 6);
 
     cpManager.EndSingleUseCommandBuffer(EQueueFamilyType::Compute);
@@ -507,10 +507,10 @@ void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cmdB
     {
         float roughness = (float)i / (float)(numMips - 1);
         SafePtr program = lnnew ComputeProgram(m_PrefilterProgram->GetPipeline());
-        program->SetTexture("tRadianceCubemap", env->SkyboxTexture, false);
-        program->SetProperty("tPrefilteredCubemap", tempImageViews[i - 1].BindlessTextureHandle);
-        program->SetProperty("uRoughness", roughness);
-        program->SetProperty("uNumSamples", 1024u);
+        program->SetTexture(singleUseBuffer, "tRadianceCubemap", env->SkyboxTexture, false);
+        program->SetProperty(singleUseBuffer, "tPrefilteredCubemap", tempImageViews[i - 1].BindlessTextureHandle);
+        program->SetProperty(singleUseBuffer, "uRoughness", roughness);
+        program->SetProperty(singleUseBuffer, "uNumSamples", 1024u);
         uint32_t dim = env->PrefilteredTexture->GetDimensions().width >> i;
         uint32_t numGroups = (dim + 31) / 32;
         renderer.Dispatch(singleUseBuffer, program, numGroups, numGroups, 6);
@@ -533,10 +533,10 @@ void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cmdB
     for (uint32_t i = 0; i < numMips; ++i)
     {
         SafePtr program = lnnew ComputeProgram(m_IrradianceProgram->GetPipeline());
-        program->SetTexture("tRadianceCubemap", env->SkyboxTexture, false);
-        program->SetProperty("tIrradianceCubemap", tempImageViews2[i].BindlessTextureHandle);
-        program->SetProperty("uPhiDelta", 0.025f);
-        program->SetProperty("uThetaDelta", 0.025f);
+        program->SetTexture(singleUseBuffer, "tRadianceCubemap", env->SkyboxTexture, false);
+        program->SetProperty(singleUseBuffer, "tIrradianceCubemap", tempImageViews2[i].BindlessTextureHandle);
+        program->SetProperty(singleUseBuffer, "uPhiDelta", 0.025f);
+        program->SetProperty(singleUseBuffer, "uThetaDelta", 0.025f);
         uint32_t dim = env->IrradianceTexture->GetDimensions().width >> i;
         uint32_t numGroups = (dim + 31) / 32;
         renderer.Dispatch(singleUseBuffer, program, numGroups, numGroups, 6);

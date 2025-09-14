@@ -4,10 +4,12 @@
 #include "Engine/Resources/GfxLoader.h"
 #include "Engine/GlobalUtils.h"
 #include "Engine/Core/DataStructures/FlatHashClasses.h"
+#include "../../vendor/ENKITS/enkiTS/src/TaskScheduler.h"
 
 namespace enki
 {
 class TaskScheduler;
+class ICompletable;
 }
 
 namespace lne
@@ -28,6 +30,29 @@ class Framebuffer;
 class Swapchain;
 class WorldRenderer;
 class FrameGraph;
+class StandaloneStorageBuffer;
+
+constexpr uint32_t RENDER_THREAD_ID = 1;
+using RenderTaskFunction = enki::PinnedTaskFunction;
+
+class RenderTask : public enki::LambdaPinnedTask
+{
+public:
+    RenderTask(enki::PinnedTaskFunction renderTask)
+        : LambdaPinnedTask(RENDER_THREAD_ID, renderTask)
+    {}
+
+private:
+    friend class Renderer;
+    enki::Dependency m_Dependency;
+    enki::Dependency m_FinalTaskDependency;
+};
+
+struct RenderTasksLauncher : enki::ITaskSet
+{
+    RenderTask* m_pTaskToLaunch = NULL;
+    void ExecuteRange(enki::TaskSetPartition range, uint32_t threadnum) override;
+};
 
 class Renderer
 {
@@ -41,7 +66,8 @@ public:
     void                                            InitResources();
     void                                            NukeResources();
 
-    [[nodiscard]] uint32_t                          GetCurrentFrameIndex() const;
+    // Gets the current frame index on the render thread.
+    [[nodiscard]] uint32_t                          GetCurrentFrameIndex() const { return m_CurrentFrameInFlight; }
     [[nodiscard]] SafePtr<class GfxContext>         GetGfxContext() const;
     [[nodiscard]] SafePtr<class GfxLoader>          GetGfxLoader() const;
 
@@ -58,20 +84,8 @@ public:
                                                                WorldData globalData,
                                                                SafePtr<class UniformBuffer> worldGlobalUniforms);
 
-    void                                            BeginRenderPass(const class Framebuffer& framebuffer) const;
-    void                                            EndRenderPass(const class Framebuffer& framebuffer) const;
-
-
-    void                                            Draw(vk::CommandBuffer cmdBuffer, 
-                                                         const SafePtr<class StaticMesh>& mesh, 
-                                                         const SafePtr<class StandaloneStorageBuffer>& transformBuffer,
-                                                         uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount);
-
-    void                                            Draw(vk::CommandBuffer cmdBuffer, 
-                                                         const SafePtr<StaticMesh>& mesh, 
-                                                         const SafePtr<StandaloneStorageBuffer>& transformBuffer,
-                                                         SafePtr<Material> overrideMaterial, 
-                                                         uint32_t offset, uint32_t subMeshIndex, uint32_t instanceCount);
+    void                                            BeginRenderPass(const class Framebuffer& framebuffer);
+    void                                            EndRenderPass(const class Framebuffer& framebuffer);
 
     void                                            Draw(vk::CommandBuffer cmdBuffer,
                                                          const SafePtr<StaticMesh>& mesh,
@@ -79,10 +93,6 @@ public:
                                                          PassID passId,
                                                          uint32_t offset, uint32_t subMeshIndex,
                                                          uint32_t instanceCount);
-
-
-    void                                            DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, 
-                                                                       const SafePtr<class Material>& material);
 
     void                                            DrawFullscreenQuad(vk::CommandBuffer cmdBuffer,
                                                                         SafePtr<Material> material,
@@ -140,6 +150,15 @@ public:
     [[nodiscard]] SafePtr<Texture>                  GetWhiteTexture() const;
     [[nodiscard]] std::filesystem::path             GetShaderCachePath() const;
 
+
+    /**
+     * This method will add a render task to the renderer's task graph.
+     * If it returns true, the task will be executed on the render thread
+     * and the memory ownership of the task will be transferred to the renderer.
+     * @param renderTask The task to add to the renderer's task graph.
+     */
+    void                                            AddRenderTask(RenderTaskFunction renderTaskFunc);
+    bool                                            IsAsync() { return m_IsAsync; }
 private:
     SafePtr<GfxContext>                             m_Context;
     SafePtr<Swapchain>                              m_Swapchain;
@@ -149,9 +168,12 @@ private:
     std::mutex                                      m_TexturesToUpdateMutex{};
     std::vector<SafePtr<Effect>>                    m_DirtyEffects{};
     std::mutex                                      m_DirtyEffectsMutex{};
-    std::vector<SafePtr<Material>>                m_DirtyMaterials{};
+    std::vector<SafePtr<Material>>                  m_DirtyMaterials{};
     std::mutex                                      m_DirtyMaterialsMutex{};
-    uint32_t                                        m_CurrentFrameInFlight{ 0 };
+    std::atomic<uint32_t>                           m_CurrentFrameInFlight{ 0 };
+
+    std::vector<RenderTask*>                        m_FrameRenderTasks;
+    RenderTasksLauncher*                            m_RenderTasksLauncher{ nullptr };
 
     std::vector<FrameData>                          m_FrameData;
 
@@ -176,7 +198,7 @@ private:
     FlatHashMap<std::string, SafePtr<GfxTechnique>> m_TechniquesLibrary;
     std::mutex                                      m_TechniquesLibraryMutex;
 
-    bool m_LoadAsync{ true };
+    bool m_IsAsync{ true };
 
 private:
     void InitFrameData(uint32_t index);
@@ -189,5 +211,9 @@ private:
     // to update.
     void CleanupDirtyEffects();
     void ProcessDirtyMaterials(vk::CommandBuffer cmdBuffer);
+
+
+    void                                            RunRenderTasks();
+    void                                            WaitForRenderTasksToFinish();
 };
 }

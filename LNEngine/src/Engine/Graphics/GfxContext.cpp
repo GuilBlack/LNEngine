@@ -9,6 +9,7 @@
 #include <Graphics/Resources/StorageBuffer.h>
 
 #include "Resources/Shader.h"
+#include "Renderer.h"
 #include "Core/ApplicationBase.h"
 #include "Engine/Graphics/Resources/Texture.h"
 #include "CommandPoolManager.h"
@@ -545,7 +546,7 @@ vk::CommandPool GfxContext::CreateCommandPool(uint32_t queueFamilyIndex, vk::Com
 
 vk::CommandBuffer GfxContext::GetPrimaryCommandBuffer() const
 {
-    return m_CommandPoolManager->BeginOrGetPrimaryFrameCommandBuffer(m_CurrentFrameInFlight);
+    return m_CommandPoolManager->BeginOrGetPrimaryFrameCommandBuffer(ApplicationBase::GetRenderer().GetCurrentFrameIndex());
 }
 
 vk::ImageView GfxContext::CreateImageView(vk::Image image, vk::ImageViewType viewType, vk::Format format, uint32_t numMipLevels, uint32_t layers, vk::ImageAspectFlags aspectMask, const std::string& name)

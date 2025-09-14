@@ -132,6 +132,7 @@ bool Material::IsOfShaderElementType(TypeId typeId, ShaderElementType::Enum elem
 bool Material::CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, uint32_t frameIndex)
 {
     bool success = true;
+    std::lock_guard<std::mutex> lock(m_DataMutex);
     for (auto& [hash, passData] : m_PassData)
     {
         auto effect = m_Technique->GetPassEffect(hash.PassId);
@@ -214,13 +215,13 @@ ComputeProgram::~ComputeProgram()
     ApplicationBase::GetRenderer().GetGfxContext()->EnqueueResourceDeletion(resourceDeletion);
 }
 
-void ComputeProgram::SetTexture(const std::string& name, SafePtr<Texture> texture, bool isStorage)
+void ComputeProgram::SetTexture(vk::CommandBuffer cmdBuffer, const std::string& name, SafePtr<Texture> texture, bool isStorage)
 {
     bool success = false;
     if (isStorage)
-        success = SetProperty<uint32_t>(std::string(name), texture->GetBindlessStorageHandle());
+        success = SetProperty<uint32_t>(cmdBuffer, std::string(name), texture->GetBindlessStorageHandle());
     else
-        success = SetProperty<uint32_t>(std::string(name), texture->GetBindlessTextureHandle());
+        success = SetProperty<uint32_t>(cmdBuffer, std::string(name), texture->GetBindlessTextureHandle());
 
     if (!success)
     {
@@ -240,11 +241,11 @@ void ComputeProgram::Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32
 
 
 // TODO: make sure we use it just once instead of updating it for every single changes in the compute program
-void ComputeProgram::SetUniformBuffer(uint32_t binding, const void* data, uint32_t size, uint32_t offset)
+void ComputeProgram::SetUniformBuffer(vk::CommandBuffer cmdBuffer, uint32_t binding, const void* data, uint32_t size, uint32_t offset)
 {
     auto ub = m_UniformBuffers.at(binding);
     auto& renderer = ApplicationBase::GetRenderer();
-    ub->CopyData(ApplicationBase::GetRenderer().GetGfxContext()->GetPrimaryCommandBuffer(), data, size, offset);
+    ub->CopyData(cmdBuffer, data, size, offset);
 }
 
 }
