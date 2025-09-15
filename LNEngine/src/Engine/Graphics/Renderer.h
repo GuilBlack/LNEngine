@@ -68,6 +68,7 @@ public:
 
     // Gets the current frame index on the render thread.
     [[nodiscard]] uint32_t                          GetCurrentFrameIndex() const { return m_CurrentFrameInFlight; }
+    [[nodiscard]] uint32_t                          GetCurrentSwapchainImageIndex() const { return m_CurrentSwapchainImageIndex; }
     [[nodiscard]] SafePtr<class GfxContext>         GetGfxContext() const;
     [[nodiscard]] SafePtr<class GfxLoader>          GetGfxLoader() const;
 
@@ -171,6 +172,7 @@ private:
     std::vector<SafePtr<Material>>                  m_DirtyMaterials{};
     std::mutex                                      m_DirtyMaterialsMutex{};
     std::atomic<uint32_t>                           m_CurrentFrameInFlight{ 0 };
+    std::atomic<uint32_t>                           m_CurrentSwapchainImageIndex{ 0 };
 
     std::vector<RenderTask*>                        m_FrameRenderTasks;
     RenderTasksLauncher*                            m_RenderTasksLauncher{ nullptr };

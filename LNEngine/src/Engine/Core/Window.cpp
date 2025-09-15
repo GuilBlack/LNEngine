@@ -64,9 +64,9 @@ Window::~Window()
     glfwDestroyWindow(m_Handle);
 }
 
-Framebuffer& Window::GetCurrentFramebuffer() const
+lne::Framebuffer& Window::GetFramebuffer(uint32_t index) const
 {
-    return m_SwapChain->GetCurrentFramebuffer();
+    return m_SwapChain->GetFramebuffer(index);
 }
 
 void Window::PollEvents() const

@@ -50,10 +50,11 @@ public:
         vk::PipelineStageFlags* submitStageFlag, uint32_t frameInFlight
     ) const;
     [[nodiscard]] SafePtr<class Texture>            GetCurrentImage() const;
+    [[nodiscard]] SafePtr<class Texture>            GetImage(uint32_t index) const;
     [[nodiscard]] const Viewport&                   GetViewport() const { return m_Viewport; }
     [[nodiscard]] const vk::SurfaceFormatKHR&       GetSurfaceFormat() const { return m_SurfaceFormat; }
 
-    [[nodiscard]] class Framebuffer&                GetCurrentFramebuffer();
+    [[nodiscard]] class Framebuffer&                GetFramebuffer(uint32_t index);
     [[nodiscard]] std::vector<class Framebuffer>&   GetFramebuffers() { return m_Framebuffers; }
 
     void BeginFrame();

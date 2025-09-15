@@ -132,13 +132,15 @@ void Renderer::PopLabel(vk::CommandBuffer cmdBuffer) const
 void Renderer::BeginFrame()
 {
     uint32_t frameIndex = m_Context->GetCurrentFrameIndex();
-    auto beginFrame = [this, frameIndex]()
+    uint32_t currentImageIndex = m_Swapchain->GetCurrentFrameIndex();
+    auto beginFrame = [this, frameIndex, currentImageIndex]()
         {
             LNE_PROFILE_FUNCTION_C(PROFILING_COL);
             m_CurrentFrameInFlight = frameIndex;
             m_Context->GetCommandPoolManager().ResetFrameCommands(frameIndex);
             vk::CommandBuffer cmdBuffer = m_Context->GetPrimaryCommandBuffer();
-            auto currentImage = m_Swapchain->GetCurrentImage();
+            m_CurrentSwapchainImageIndex = currentImageIndex;
+            auto currentImage = m_Swapchain->GetImage(m_CurrentSwapchainImageIndex);
             currentImage->TransitionLayout(cmdBuffer, vk::ImageLayout::eGeneral);
 
             ProcessDirtyEffects(cmdBuffer);
@@ -173,7 +175,7 @@ void Renderer::EndFrame()
             LNE_PROFILE_FUNCTION_C(PROFILING_COL)
             m_LastUsedStaticMesh.Reset();
             m_LastUsedPipeline.Reset();
-            auto currentImage = m_Swapchain->GetCurrentImage();
+            auto currentImage = m_Swapchain->GetImage(m_CurrentSwapchainImageIndex);
             vk::CommandBuffer cb = m_Context->GetPrimaryCommandBuffer();
             currentImage->TransitionLayout(cb, vk::ImageLayout::ePresentSrcKHR);
 
@@ -288,7 +290,7 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer,
     vk::Device device = m_Context->GetDevice();
 
     bool hasPipelineChanged = false;
-    SafePtr descAllocator = m_FrameData[m_Context->GetCurrentFrameIndex()].DescriptorAllocator;
+    SafePtr descAllocator = m_FrameData[m_CurrentFrameInFlight].DescriptorAllocator;
     if (pipeline != m_LastUsedPipeline)
     {
         pipeline->Bind(cmdBuffer);
@@ -296,7 +298,7 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer,
         hasPipelineChanged = true;
 
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
-                                     { m_FrameData[m_Context->GetCurrentFrameIndex()].DescriptorSet, transformBuffer->GetDescSet() }, {});
+                                     { m_FrameData[m_CurrentFrameInFlight].DescriptorSet, transformBuffer->GetDescSet() }, {});
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 4,
                                      { m_Context->GetBindlessDescriptorSet() }, {});
     }
@@ -352,7 +354,7 @@ void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, SafePtr<Material>
         hasPipelineChanged = true;
 
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
-                                     { m_FrameData[m_Context->GetCurrentFrameIndex()].DescriptorSet }, {});
+                                     { m_FrameData[m_CurrentFrameInFlight].DescriptorSet }, {});
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 3,
                                      { m_Context->GetBindlessDescriptorSet() }, {});
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 1,
@@ -382,7 +384,7 @@ void Renderer::Dispatch(SafePtr<ComputeProgram> program, uint32_t x, uint32_t y,
     CommandPoolManager& cpManager = m_Context->GetCommandPoolManager();
 
     if (async == false)
-        cmdBuffer = cpManager.BeginOrGetPrimaryFrameCommandBuffer(m_Context->GetCurrentFrameIndex());
+        cmdBuffer = cpManager.BeginOrGetPrimaryFrameCommandBuffer(m_CurrentFrameInFlight);
     else
         cmdBuffer = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Compute);
 

@@ -14,7 +14,7 @@ void AppLayer::FinalPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRendere
 {
     m_OutputTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
-    lne::Framebuffer& swapchainFramebuffer = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
+    lne::Framebuffer& swapchainFramebuffer = lne::ApplicationBase::GetWindow().GetFramebuffer(renderer.GetCurrentSwapchainImageIndex());
     auto renderTexture = swapchainFramebuffer.GetColorAttachments()[0].Texture;
     lne::FrameGraphResource* colorResource = frameGraph->GetResource("ToneMappedScene");
     if (colorResource == nullptr)
@@ -490,10 +490,6 @@ void AppLayer::OnUpdate(float deltaTime)
     float cosTime = (float)cos(currentTime);
 
     // m_CubeEntity.GetComponent<lne::TransformComponent>().Position.y = sinTime * 0.5f;
-
-    lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
-
-    auto& fb = lne::ApplicationBase::GetWindow().GetCurrentFramebuffer();
 
     m_WorldRenderer->BeginScene(m_CameraEntity);
     m_WorldRenderer->Render(*m_Scene.GetPtr());

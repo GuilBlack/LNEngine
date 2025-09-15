@@ -26,7 +26,7 @@ public:
     [[nodiscard]] uint32_t GetHeight() const { return m_Settings.Height; }
     [[nodiscard]] const WindowSettings& GetSettings() const { return m_Settings; }
 
-    [[nodiscard]] Framebuffer& GetCurrentFramebuffer() const;
+    [[nodiscard]] Framebuffer& GetFramebuffer(uint32_t index) const;
 
     void PollEvents() const;
     void BeginFrame() const;

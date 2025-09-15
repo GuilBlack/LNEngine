@@ -52,9 +52,16 @@ SafePtr<class Texture> Swapchain::GetCurrentImage() const
     return m_ColorAttachments[m_CurrentImageIndex];
 }
 
-Framebuffer& Swapchain::GetCurrentFramebuffer()
+lne::SafePtr<class Texture> Swapchain::GetImage(uint32_t index) const
 {
-    return m_Framebuffers[m_CurrentImageIndex];
+    LNE_ASSERT(index < m_ColorAttachments.size(), "Index out of bounds");
+    return m_ColorAttachments[index];
+}
+
+class Framebuffer& Swapchain::GetFramebuffer(uint32_t index)
+{
+    LNE_ASSERT(index < m_Framebuffers.size(), "Index out of bounds");
+    return m_Framebuffers[index];
 }
 
 void Swapchain::BeginFrame()
