@@ -15,6 +15,23 @@ struct ImGuiVulkanFrameRenderBuffers
     VkBuffer            IndexBuffer;
 };
 
+struct DrawListCopy
+{
+    std::vector<ImDrawVert> Vtx{};
+    std::vector<ImDrawIdx>  Idx{};
+    std::vector<ImDrawCmd>  Cmds{};
+};
+
+struct DrawDataCopy
+{
+    ImVec2 DisplayPos{};
+    ImVec2 DisplaySize{};
+    ImVec2 FramebufferScale{};
+    int TotalVtxCount{};
+    int TotalIdxCount{};
+    std::vector<DrawListCopy> Lists{};
+};
+
 class ImGuiService
 {
 public:
@@ -39,15 +56,28 @@ private:
     uint32_t m_ImageCount{};
 
 private:
-    void InitVulkanBackend();
-    void NukeVulkanBackend();
-    void CreateDeviceObjects(); // copy paste from ImGUI but should use my own objects
-    void CreatePipeline();      // copy paste from ImGUI but should use my own objects
-    void CreateShaderModules(); // copy paste from ImGUI but should use my own objects
-    void CreateOrResizeBuffer(VkBuffer& buffer, VkDeviceMemory& buffer_memory, VkDeviceSize& buffer_size, size_t new_size, VkBufferUsageFlagBits usage);
-    uint32_t VulkanMemoryType(VkMemoryPropertyFlags properties, uint32_t type_bits);
-    void RenderDrawData(ImDrawData* draw_data, vk::CommandBuffer cmdBuffer);
-    void SetupRenderState(ImDrawData* draw_data, VkPipeline pipeline, VkCommandBuffer command_buffer, ImGuiVulkanFrameRenderBuffers* rb, int fb_width, int fb_height);
+    void                        InitVulkanBackend();
+    void                        NukeVulkanBackend();
+
+    void                        CreateDeviceObjects();
+    void                        CreatePipeline();
+    void                        CreateShaderModules();
+    void                        CreateOrResizeBuffer(VkBuffer& buffer, 
+                                                     VkDeviceMemory& buffer_memory, 
+                                                     VkDeviceSize& buffer_size,
+                                                     size_t new_size, 
+                                                     VkBufferUsageFlagBits usage);
+
+    uint32_t                    VulkanMemoryType(VkMemoryPropertyFlags properties, 
+                                                 uint32_t type_bits);
+
+    void                        RenderDrawData(const DrawDataCopy& draw_data,
+                                               vk::CommandBuffer cmdBuffer);
+
+    void                        SetupRenderState(const DrawDataCopy& draw_data,
+                                                 VkPipeline pipeline, 
+                                                 VkCommandBuffer command_buffer, 
+                                                 ImGuiVulkanFrameRenderBuffers* rb, int fb_width, int fb_height);
 };
 }
 

@@ -10,11 +10,12 @@
 #include "Engine/Resources/GfxLoader.h"
 #include "Core/Utils/Log.h"
 #include <Core/Utils/Profiling.h>
+#include "Core/Utils/_Defines.h"
 
 namespace lne
 {
 // A LOT OF THIS CODE IS COPIED FROM THE IMGUI DIRECTLY
-// I NEEDED TO DO A CUSTOM BACKEND SINCE IM USING BINSLESS TEXTURES
+// I NEEDED TO DO A CUSTOM BACKEND SINCE I'M USING BINSLESS TEXTURES
 
 // check the imgui.glsl file for the shaders
 static uint32_t g_GlslVertSpv[] = {
@@ -110,6 +111,11 @@ static uint32_t g_GlslFragSpv[] = {
 // [Please zero-clear before use!]
 // TODO: Create a more customized version of this struct using my own buffers
 
+#pragma region ImGui backend helpers
+//////////////////////////////////////////////////////////////////////////
+// ImGui Vulkan backend data /////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
 // Each viewport will hold 1 ImGui_ImplVulkanH_WindowRenderBuffers
 // [Please zero-clear before use!]
 struct ImGuiVulkanWindowRenderBuffers
@@ -158,6 +164,54 @@ struct ImGuiVulkanData
 static ImGuiVulkanData* ImGuiGetBackendData()
 {
     return ImGui::GetCurrentContext() ? (ImGuiVulkanData*)ImGui::GetIO().BackendRendererUserData : nullptr;
+}
+
+#pragma endregion
+
+DrawDataCopy CloneImGuiDrawData(const ImDrawData* src)
+{
+    DrawDataCopy out;
+    if (!src) return out;
+
+    out.DisplayPos = src->DisplayPos;
+    out.DisplaySize = src->DisplaySize;
+    out.FramebufferScale = src->FramebufferScale;
+
+    out.TotalIdxCount = src->TotalIdxCount;   // copy from ImGui
+    out.TotalVtxCount = src->TotalVtxCount;   // copy from ImGui
+
+    out.Lists.resize(src->CmdListsCount);
+
+    for (int i = 0; i < src->CmdListsCount; ++i)
+    {
+        const ImDrawList* s = src->CmdLists[i];
+        auto& d = out.Lists[i];
+
+        // (Optional) Reserve to avoid re-allocs
+        d.Vtx.reserve(s->VtxBuffer.Size);
+        d.Idx.reserve(s->IdxBuffer.Size);
+        d.Cmds.reserve(s->CmdBuffer.Size);
+
+        d.Vtx.assign(s->VtxBuffer.Data, s->VtxBuffer.Data + s->VtxBuffer.Size);
+        d.Idx.assign(s->IdxBuffer.Data, s->IdxBuffer.Data + s->IdxBuffer.Size);
+        d.Cmds.assign(s->CmdBuffer.Data, s->CmdBuffer.Data + s->CmdBuffer.Size);
+        // NOTE: If you use UserCallback, you’re copying the pointer; ensure callback+userdata stay valid/thread-safe.
+    }
+
+#ifdef LNE_DEBUG
+    // Small sanity check (useful during bring-up)
+    int sumIdx = 0, sumVtx = 0;
+    for (const auto& l : out.Lists)
+    {
+        sumIdx += static_cast<int>(l.Idx.size());
+        sumVtx += static_cast<int>(l.Vtx.size());
+    }
+    // If these trigger, something mutated src between counting and copying (shouldn't happen).
+    LNE_ASSERT(sumIdx == out.TotalIdxCount, "ImGui DrawData cloning error: Mismatched index count");
+    LNE_ASSERT(sumVtx == out.TotalVtxCount, "ImGui DrawData cloning error: Mismatched vertex count");
+#endif
+
+    return out;
 }
 
 static void ImGuiNukeFrameRenderBuffers(VkDevice device, ImGuiVulkanFrameRenderBuffers* rb)
@@ -306,31 +360,38 @@ void ImGuiService::BeginFrame()
 void ImGuiService::EndFrame()
 {
     ImGui::ShowDemoWindow();
+    {
+        LNE_PROFILE_SCOPE("ImGui Render");
+        ImGui::Render();
+    }
 
-    ImGui::Render();
+    {
+        LNE_PROFILE_SCOPE("ImGui Clone Data & Sumbit");
+        DrawDataCopy ddCopy = CloneImGuiDrawData(ImGui::GetDrawData());
 
-    uint32_t imageIndex = m_Swapchain->GetCurrentFrameIndex();
-    auto& renderer = ApplicationBase::GetRenderer();
+        uint32_t imageIndex = m_Swapchain->GetCurrentFrameIndex();
+        auto& renderer = ApplicationBase::GetRenderer();
 
-    auto imGuiRenderCommand = [this, imageIndex]()
-        {
-            LNE_PROFILE_FUNCTION();
-            auto& renderer = ApplicationBase::GetRenderer();
-            auto cmdBuffer = m_GraphicsContext->GetPrimaryCommandBuffer();
+        auto imGuiRenderCommand = [this, imageIndex, ddCopy = std::move(ddCopy)]()
+            {
+                LNE_PROFILE_SCOPE("ImGui Render");
+                auto& renderer = ApplicationBase::GetRenderer();
+                auto cmdBuffer = m_GraphicsContext->GetPrimaryCommandBuffer();
 
-            renderer.PushLabel(cmdBuffer, "ImGui");
-            m_Framebuffers[imageIndex].Bind(cmdBuffer);
+                renderer.PushLabel(cmdBuffer, "ImGui");
+                m_Framebuffers[imageIndex].Bind(cmdBuffer);
 
-            RenderDrawData(ImGui::GetDrawData(), cmdBuffer);
+                RenderDrawData(ddCopy, cmdBuffer);
 
-            m_Framebuffers[imageIndex].Unbind(cmdBuffer);
-            renderer.PopLabel(cmdBuffer);
-        };
+                m_Framebuffers[imageIndex].Unbind(cmdBuffer);
+                renderer.PopLabel(cmdBuffer);
+            };
 
-    if (renderer.IsAsync())
-        renderer.AddRenderTask(imGuiRenderCommand);
-    else
-        imGuiRenderCommand;
+        if (renderer.IsAsync())
+            renderer.AddRenderTask(imGuiRenderCommand);
+        else
+            imGuiRenderCommand;
+    }
 }
 
 void ImGuiService::CreateFontsTexture()
@@ -715,10 +776,10 @@ uint32_t ImGuiService::VulkanMemoryType(VkMemoryPropertyFlags properties, uint32
     return 0xFFFFFFFF; // Unable to find memoryType
 }
 
-void ImGuiService::RenderDrawData(ImDrawData* draw_data, vk::CommandBuffer cmdBuffer)
+void ImGuiService::RenderDrawData(const DrawDataCopy& draw_data, vk::CommandBuffer cmdBuffer)
 {
-    int fb_width = (int)(draw_data->DisplaySize.x * draw_data->FramebufferScale.x);
-    int fb_height = (int)(draw_data->DisplaySize.y * draw_data->FramebufferScale.y);
+    int fb_width = (int)(draw_data.DisplaySize.x * draw_data.FramebufferScale.x);
+    int fb_height = (int)(draw_data.DisplaySize.y * draw_data.FramebufferScale.y);
     if (fb_width <= 0 || fb_height <= 0)
         return;
 
@@ -751,11 +812,11 @@ void ImGuiService::RenderDrawData(ImDrawData* draw_data, vk::CommandBuffer cmdBu
 
     vk::Device device = m_GraphicsContext->GetDevice();
 
-    if (draw_data->TotalVtxCount > 0)
+    if (draw_data.TotalVtxCount > 0)
     {
         // Create or resize the vertex/index buffers
-        size_t vertex_size = AlignBufferSize(draw_data->TotalVtxCount * sizeof(ImDrawVert), bd->BufferMemoryAlignment);
-        size_t index_size = AlignBufferSize(draw_data->TotalIdxCount * sizeof(ImDrawIdx), bd->BufferMemoryAlignment);
+        size_t vertex_size = AlignBufferSize(draw_data.TotalVtxCount * sizeof(ImDrawVert), bd->BufferMemoryAlignment);
+        size_t index_size = AlignBufferSize(draw_data.TotalIdxCount * sizeof(ImDrawIdx), bd->BufferMemoryAlignment);
         if (rb->VertexBuffer == VK_NULL_HANDLE || rb->VertexBufferSize < vertex_size)
             CreateOrResizeBuffer(rb->VertexBuffer, rb->VertexBufferMemory, rb->VertexBufferSize, vertex_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
         if (rb->IndexBuffer == VK_NULL_HANDLE || rb->IndexBufferSize < index_size)
@@ -766,13 +827,13 @@ void ImGuiService::RenderDrawData(ImDrawData* draw_data, vk::CommandBuffer cmdBu
         ImDrawIdx* idx_dst = nullptr;
         VkResult err = vkMapMemory(device, rb->VertexBufferMemory, 0, vertex_size, 0, (void**)&vtx_dst);
         err = vkMapMemory(device, rb->IndexBufferMemory, 0, index_size, 0, (void**)&idx_dst);
-        for (int n = 0; n < draw_data->CmdListsCount; n++)
+        for (int n = 0; n < draw_data.Lists.size(); n++)
         {
-            const ImDrawList* cmd_list = draw_data->CmdLists[n];
-            memcpy(vtx_dst, cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.Size * sizeof(ImDrawVert));
-            memcpy(idx_dst, cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.Size * sizeof(ImDrawIdx));
-            vtx_dst += cmd_list->VtxBuffer.Size;
-            idx_dst += cmd_list->IdxBuffer.Size;
+            const DrawListCopy& cmd_list = draw_data.Lists[n];
+            memcpy(vtx_dst, cmd_list.Vtx.data(), cmd_list.Vtx.size() * sizeof(ImDrawVert));
+            memcpy(idx_dst, cmd_list.Idx.data(), cmd_list.Idx.size() * sizeof(ImDrawIdx));
+            vtx_dst += cmd_list.Vtx.size();
+            idx_dst += cmd_list.Idx.size();
         }
         VkMappedMemoryRange range[2] = {};
         range[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
@@ -790,18 +851,18 @@ void ImGuiService::RenderDrawData(ImDrawData* draw_data, vk::CommandBuffer cmdBu
     // Setup render state
     SetupRenderState(draw_data, bd->Pipeline, cmdBuffer, rb, fb_width, fb_height);
 
-    ImVec2 clip_off = draw_data->DisplayPos;
-    ImVec2 clip_scale = draw_data->FramebufferScale;
+    ImVec2 clip_off = draw_data.DisplayPos;
+    ImVec2 clip_scale = draw_data.FramebufferScale;
 
     int global_vtx_offset = 0;
     int global_idx_offset = 0;
 
-    for (int n = 0; n < draw_data->CmdListsCount; n++)
+    for (int n = 0; n < draw_data.Lists.size(); n++)
     {
-        const ImDrawList* cmd_list = draw_data->CmdLists[n];
-        for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
+        const DrawListCopy& cmd_list = draw_data.Lists[n];
+        for (int cmd_i = 0; cmd_i < cmd_list.Cmds.size(); cmd_i++)
         {
-            const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[cmd_i];
+            const ImDrawCmd* pcmd = &cmd_list.Cmds[cmd_i];
             if (pcmd->UserCallback != nullptr)
             {
                 // User callback, registered via ImDrawList::AddCallback()
@@ -809,7 +870,8 @@ void ImGuiService::RenderDrawData(ImDrawData* draw_data, vk::CommandBuffer cmdBu
                 if (pcmd->UserCallback == ImDrawCallback_ResetRenderState)
                     SetupRenderState(draw_data, bd->Pipeline, cmdBuffer, rb, fb_width, fb_height);
                 else
-                    pcmd->UserCallback(cmd_list, pcmd);
+                    LNE_ERROR("Custom user callbacks not supported in this ImGui implementation");
+                //    pcmd->UserCallback(cmd_list, pcmd);
             }
             else
             {
@@ -850,14 +912,14 @@ void ImGuiService::RenderDrawData(ImDrawData* draw_data, vk::CommandBuffer cmdBu
                 vkCmdDrawIndexed(cmdBuffer, pcmd->ElemCount, 1, pcmd->IdxOffset + global_idx_offset, pcmd->VtxOffset + global_vtx_offset, 0);
             }
         }
-        global_idx_offset += cmd_list->IdxBuffer.Size;
-        global_vtx_offset += cmd_list->VtxBuffer.Size;
+        global_idx_offset += (int)cmd_list.Idx.size();
+        global_vtx_offset += (int)cmd_list.Vtx.size();
     }
     VkRect2D scissor = { { 0, 0 }, { (uint32_t)fb_width, (uint32_t)fb_height } };
     vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 }
 
-void ImGuiService::SetupRenderState(ImDrawData* draw_data, VkPipeline pipeline, VkCommandBuffer cmdBuffer, ImGuiVulkanFrameRenderBuffers* rb, int fbWidth, int fbHeight)
+void ImGuiService::SetupRenderState(const DrawDataCopy& draw_data, VkPipeline pipeline, VkCommandBuffer cmdBuffer, ImGuiVulkanFrameRenderBuffers* rb, int fbWidth, int fbHeight)
 {
     ImGuiVulkanData* bd = ImGuiGetBackendData();
 
@@ -865,7 +927,7 @@ void ImGuiService::SetupRenderState(ImDrawData* draw_data, VkPipeline pipeline, 
     vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
     // Bind Vertex And Index Buffer:
-    if (draw_data->TotalVtxCount > 0)
+    if (draw_data.TotalVtxCount > 0)
     {
         VkBuffer vertex_buffers[1] = { rb->VertexBuffer };
         VkDeviceSize vertex_offset[1] = { 0 };
@@ -884,11 +946,11 @@ void ImGuiService::SetupRenderState(ImDrawData* draw_data, VkPipeline pipeline, 
     vkCmdSetViewport(cmdBuffer, 0, 1, &viewport);
 
     float scale[2];
-    scale[0] = 2.0f / draw_data->DisplaySize.x;
-    scale[1] = 2.0f / draw_data->DisplaySize.y;
+    scale[0] = 2.0f / draw_data.DisplaySize.x;
+    scale[1] = 2.0f / draw_data.DisplaySize.y;
     float translate[2];
-    translate[0] = -1.0f - draw_data->DisplayPos.x * scale[0];
-    translate[1] = -1.0f - draw_data->DisplayPos.y * scale[1];
+    translate[0] = -1.0f - draw_data.DisplayPos.x * scale[0];
+    translate[1] = -1.0f - draw_data.DisplayPos.y * scale[1];
     vkCmdPushConstants(cmdBuffer, bd->PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, sizeof(float) * 0, sizeof(float) * 2, scale);
     vkCmdPushConstants(cmdBuffer, bd->PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, sizeof(float) * 2, sizeof(float) * 2, translate);
 }

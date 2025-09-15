@@ -238,6 +238,7 @@ void FrameGraph::OnResize(WindowResizeEvent& e)
 
 void FrameGraph::RenderImGui()
 {
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL);
     ImGui::Begin("Frame Graph Render Passes");
 
     for (FrameGraphNodeHandle nodeHandle : m_Nodes)
