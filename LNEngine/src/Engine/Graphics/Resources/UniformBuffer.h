@@ -40,36 +40,4 @@ private:
     uint32_t m_Size{ 0 };
     bool m_IsNuked{ false };
 };
-
-class UniformBufferManager : public RefCountBase
-{
-public:
-    MOVABLE_ONLY(UniformBufferManager);
-    UniformBufferManager(SafePtr<class GfxContext> ctx, uint32_t size);
-    UniformBufferManager(UniformBufferManager&& other) noexcept;
-
-    ~UniformBufferManager();
-
-    template<typename T> requires std::is_trivially_copyable_v<T>
-    void CopyData(vk::CommandBuffer cb, const T& data, uint32_t byteOffset = 0)
-    {
-        m_Buffers[m_Context->GetCurrentFrameIndex()].CopyData(cb, data, byteOffset);
-    }
-    void CopyData(vk::CommandBuffer cb, const void* data, uint32_t size, uint32_t byteOffset)
-    {
-        m_Buffers[m_Context->GetCurrentFrameIndex()].CopyData(cb, data, size, byteOffset);
-    }
-
-    [[nodiscard]] UniformBuffer& GetCurrentBuffer() { return m_Buffers[m_Context->GetCurrentFrameIndex()]; };
-
-    [[nodiscard]] auto begin() { return m_Buffers.begin(); }
-    [[nodiscard]] auto end() { return m_Buffers.end(); }
-
-    [[nodiscard]] auto cbegin() const { return m_Buffers.cbegin(); }
-    [[nodiscard]] auto cend() const { return m_Buffers.cend(); }
-
-private:
-    SafePtr<class GfxContext> m_Context;
-    std::vector<UniformBuffer> m_Buffers;
-};
 }

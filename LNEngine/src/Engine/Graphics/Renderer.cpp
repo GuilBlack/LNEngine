@@ -56,7 +56,7 @@ void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskS
         .RendererParam = this,
         .Context = m_Context,
         .Scheduler = m_TaskScheduler,
-        .LoadAsync = false,
+        .LoadAsync = m_IsAsync,
         .RadianceTextureMaxSize = 512
     };
 
@@ -70,7 +70,6 @@ void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskS
 
 void Renderer::Nuke()
 {
-    WaitForRenderTasksToFinish();
     m_Context->WaitIdle();
     m_GfxLoader->Nuke();
     for (auto& frameData : m_FrameData)
@@ -80,6 +79,9 @@ void Renderer::Nuke()
 	}
     for (uint32_t i = 0; i < m_Context->GetMaxFramesInFlight(); ++i)
     {
+        for (auto& task : m_FrameRenderTasks[i])
+            delete task;
+        m_FrameRenderTasks[i].clear();
         delete m_RenderTasksLauncher[i];
     }
     m_FrameData.clear();
@@ -157,7 +159,8 @@ void Renderer::BeginFrame()
             ProcessDirtyMaterials(cmdBuffer);
             CleanupDirtyEffects();
 
-            m_GfxLoader->Update();
+            if (m_IsAsync == false)
+                m_GfxLoader->Update();
             UpdateTextures(cmdBuffer);
 
             // Do we need this???

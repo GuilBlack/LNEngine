@@ -29,6 +29,7 @@ WorldRenderer::WorldRenderer(const SafePtr<FrameGraph>& frameGraph)
     }
 
     m_TransformBuffers.resize(maxFramesInFlight);
+    m_Transfroms.resize(maxFramesInFlight);
     // 2 MB of transform data per frame since a mat4 is 64 bytes. 1024 * 32 = 32k transforms
     for (uint32_t i = 0; i < maxFramesInFlight; ++i)
     {
@@ -60,7 +61,8 @@ void WorldRenderer::BeginScene(Entity& cameraEntity)
         FrameGraphNode* node = m_FrameGraph->GetNode(nodeHandle);
         node->RenderPass->BeginFrame();
     }
-    m_Transfroms.clear();
+    uint32_t currentFrameIndex = ApplicationBase::GetRenderer().GetCurrentFrameIndexOnMainThread();
+    m_Transfroms[currentFrameIndex].clear();
     CameraComponent& cameraComponent = cameraEntity.GetComponent<CameraComponent>();
     m_GlobalData = WorldData{
         .ViewProj = cameraComponent.GetViewProj(),
@@ -72,15 +74,14 @@ void WorldRenderer::BeginScene(Entity& cameraEntity)
         .IrradianceMap = m_Environment->IrradianceTexture->GetBindlessTextureHandle(),
         .PrefilteredMap = m_Environment->PrefilteredTexture->GetBindlessTextureHandle()
     };
-    ApplicationBase::GetRenderer().BeginScene(this, m_FrameGraph, m_GlobalData, m_WorldGlobalUniforms[ApplicationBase::GetRenderer().GetCurrentFrameIndexOnMainThread()]);
+    ApplicationBase::GetRenderer().BeginScene(this, m_FrameGraph, m_GlobalData, m_WorldGlobalUniforms[currentFrameIndex]);
 }
 
 void WorldRenderer::Render(EntityRegistry& registry)
 {
     LNE_PROFILE_FUNCTION()
     auto& renderer = ApplicationBase::GetRenderer();
-    vk::CommandBuffer cmdBuffer = renderer.GetGfxContext()->GetPrimaryCommandBuffer();
-
+    uint32_t currentFrameIndex = renderer.GetCurrentFrameIndexOnMainThread();
     uint32_t totalSizeBytes;
     auto staticMeshView = registry.GetView<TransformComponent, StaticMeshComponent>();
     {
@@ -94,7 +95,7 @@ void WorldRenderer::Render(EntityRegistry& registry)
             if (drawStaticMeshesAdder)
                 drawStaticMeshesAdders.push_back(drawStaticMeshesAdder);
         }
-
+        auto& currTransforms = m_Transfroms[currentFrameIndex];
         for (auto& index : staticMeshView)
         {
             auto [transform, staticMesh] = staticMeshView.Get(index);
@@ -109,7 +110,7 @@ void WorldRenderer::Render(EntityRegistry& registry)
 
                 glm::mat4 model = transform.GetModelMatrix() * subMesh.WorldTransform;
                 StaticMeshHash hash{ (uint64_t)staticMesh.Mesh.GetPtr(), i };
-                m_Transfroms[hash].Transforms.emplace_back(model);
+                currTransforms[hash].Transforms.emplace_back(model);
 
                 for (auto& drawStaticMeshesAdder : drawStaticMeshesAdders)
                     drawStaticMeshesAdder->AddStaticMeshDrawCommand(hash, staticMesh.Mesh, i);
@@ -117,19 +118,18 @@ void WorldRenderer::Render(EntityRegistry& registry)
         }
 
         uint32_t offset = 0;
-        for (auto& [hash, subMeshArray] : m_Transfroms)
+        for (auto& [hash, subMeshArray] : currTransforms)
         {
             uint32_t size = (uint32_t)subMeshArray.Transforms.size();
             if (size == 0)
                 continue;
             subMeshArray.Offset = offset;
             // copy submesh transforms to the transform buffer
-            void* dst = m_TransformBuffers[ApplicationBase::GetRenderer().GetCurrentFrameIndexOnMainThread()].Data + offset;
+            void* dst = m_TransformBuffers[currentFrameIndex].Data + offset;
             std::memcpy(dst, subMeshArray.Transforms.data(), size * sizeof(glm::mat4));
             offset += size;
         }
         totalSizeBytes = offset * sizeof(glm::mat4);
-
     }
     auto renderTask = [this, totalSizeBytes]()
         {

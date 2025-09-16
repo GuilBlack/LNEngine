@@ -3,6 +3,8 @@
 #include "Graphics/Resources/Material.h"
 #include "Graphics/Resources/GfxTechnique.h"
 #include "../FrameGraph.h"
+#include "Core/ApplicationBase.h"
+#include "Graphics/Renderer.h"
 
 namespace lne
 {
@@ -26,9 +28,16 @@ lne::PassID MakePassID(std::string_view name)
     return hash;
 }
 
+IDrawStaticMeshes::IDrawStaticMeshes()
+{
+    uint32_t maxFrames = ApplicationBase::GetRenderer().GetGfxContext()->GetMaxFramesInFlight();
+    m_DrawCommands.resize(maxFrames);
+}
+
 void IDrawStaticMeshes::ClearDrawCommands()
 {
-    m_DrawCommands.clear();
+    uint32_t frameIndex = ApplicationBase::GetRenderer().GetCurrentFrameIndexOnMainThread();
+    m_DrawCommands[frameIndex].clear();
 }
 
 }

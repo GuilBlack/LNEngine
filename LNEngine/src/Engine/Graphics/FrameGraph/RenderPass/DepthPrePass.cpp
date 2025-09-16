@@ -26,11 +26,12 @@ void DepthPrePass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worl
     LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     using namespace lne;
     auto& renderer = ApplicationBase::GetRenderer();
-    for (auto& [hash, drawCommand] : m_DrawCommands)
+    uint32_t frameIndex = renderer.GetCurrentFrameIndex();
+    for (auto& [hash, drawCommand] : m_DrawCommands[frameIndex])
     {
         SafePtr<StaticMesh> mesh = drawCommand.Mesh;
-        SubMeshTransformArray& transforms = worldRenderer->GetTransforms(hash);
-        TransformBuffer& transformBuffer = worldRenderer->GetTransformBuffer(renderer.GetCurrentFrameIndex());
+        SubMeshTransformArray& transforms = worldRenderer->GetTransforms(frameIndex, hash);
+        TransformBuffer& transformBuffer = worldRenderer->GetTransformBuffer(frameIndex);
         renderer.Draw(cmdBuffer, drawCommand.Mesh, transformBuffer.Buffer, GetID(), transforms.Offset, drawCommand.SubMeshIndex, drawCommand.InstanceCount);
     }
 }
@@ -41,7 +42,8 @@ void DepthPrePass::AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<
     SafePtr material = mesh->GetMaterial(submesh.MaterialIndex);
     if (material->CanRenderToPass(GetID()) == false)
         return;
-    auto& drawCommands = m_DrawCommands[hash];
+    uint32_t frameIndex = ApplicationBase::GetRenderer().GetCurrentFrameIndexOnMainThread();
+    auto& drawCommands = m_DrawCommands[frameIndex][hash];
     drawCommands.Mesh = mesh;
     drawCommands.SubMeshIndex = subMeshIndex;
     drawCommands.InstanceCount++;

@@ -369,12 +369,12 @@ void ImGuiService::EndFrame()
         LNE_PROFILE_SCOPE("ImGui Clone Data & Sumbit");
         DrawDataCopy ddCopy = CloneImGuiDrawData(ImGui::GetDrawData());
 
-        uint32_t imageIndex = m_Swapchain->GetCurrentFrameIndex();
         auto& renderer = ApplicationBase::GetRenderer();
 
-        auto imGuiRenderCommand = [this, imageIndex, ddCopy = std::move(ddCopy)]()
+        auto imGuiRenderCommand = [this, ddCopy = std::move(ddCopy)]()
             {
                 LNE_PROFILE_SCOPE("ImGui Render");
+                uint32_t imageIndex = m_Swapchain->GetCurrentFrameIndex();
                 auto& renderer = ApplicationBase::GetRenderer();
                 auto cmdBuffer = m_GraphicsContext->GetPrimaryCommandBuffer();
 

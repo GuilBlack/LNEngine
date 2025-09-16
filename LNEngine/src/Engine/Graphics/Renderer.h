@@ -68,7 +68,7 @@ public:
 
     // Gets the current frame index on the render thread.
     [[nodiscard]] uint32_t                          GetCurrentFrameIndex() const { return m_CurrentFrameInFlight; }
-    [[nodiscard]] uint32_t                          GetCurrentFrameIndexOnMainThread() const { return m_CurrentFrameInFlight; }
+    [[nodiscard]] uint32_t                          GetCurrentFrameIndexOnMainThread() const { return m_CurrentFrameInFlightMain; }
     [[nodiscard]] uint32_t                          GetCurrentSwapchainImageIndex() const { return m_CurrentSwapchainImageIndex; }
     [[nodiscard]] SafePtr<class GfxContext>         GetGfxContext() const;
     [[nodiscard]] SafePtr<class GfxLoader>          GetGfxLoader() const;

@@ -148,21 +148,4 @@ void UniformBuffer::CopyData(vk::CommandBuffer cb, const void* data, uint32_t si
         //);
     }
 }
-UniformBufferManager::UniformBufferManager(SafePtr<class GfxContext> ctx, uint32_t size)
-    : m_Context(ctx)
-{
-    m_Buffers.reserve(ctx->GetMaxFramesInFlight());
-    for (uint32_t i = 0; i < ctx->GetMaxFramesInFlight(); i++)
-        m_Buffers.emplace_back(ctx, size);
-}
-UniformBufferManager::UniformBufferManager(UniformBufferManager&& other) noexcept
-{
-    m_Context = std::move(other.m_Context);
-    m_Buffers = std::move(other.m_Buffers);
-}
-UniformBufferManager::~UniformBufferManager()
-{
-    for (auto& buffer : m_Buffers)
-        buffer.Nuke();
-}
 }
