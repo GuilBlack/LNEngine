@@ -72,7 +72,7 @@ void WorldRenderer::BeginScene(Entity& cameraEntity)
         .IrradianceMap = m_Environment->IrradianceTexture->GetBindlessTextureHandle(),
         .PrefilteredMap = m_Environment->PrefilteredTexture->GetBindlessTextureHandle()
     };
-    ApplicationBase::GetRenderer().BeginScene(this, m_FrameGraph, m_GlobalData, m_WorldGlobalUniforms[ApplicationBase::GetRenderer().GetCurrentFrameIndex()]);
+    ApplicationBase::GetRenderer().BeginScene(this, m_FrameGraph, m_GlobalData, m_WorldGlobalUniforms[ApplicationBase::GetRenderer().GetCurrentFrameIndexOnMainThread()]);
 }
 
 void WorldRenderer::Render(EntityRegistry& registry)
@@ -124,7 +124,7 @@ void WorldRenderer::Render(EntityRegistry& registry)
                 continue;
             subMeshArray.Offset = offset;
             // copy submesh transforms to the transform buffer
-            void* dst = m_TransformBuffers[renderer.GetGfxContext()->GetCurrentFrameIndex()].Data + offset;
+            void* dst = m_TransformBuffers[ApplicationBase::GetRenderer().GetCurrentFrameIndexOnMainThread()].Data + offset;
             std::memcpy(dst, subMeshArray.Transforms.data(), size * sizeof(glm::mat4));
             offset += size;
         }

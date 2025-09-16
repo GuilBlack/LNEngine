@@ -76,7 +76,7 @@ void Window::PollEvents() const
 
 void Window::BeginFrame() const
 {
-    m_SwapChain->BeginFrame();
+    //m_SwapChain->BeginFrame();
 }
 
 void Window::Present()

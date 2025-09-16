@@ -4,6 +4,8 @@
 #include "Framebuffer.h"
 #include "Core/Utils/_Defines.h"
 #include "Core/Utils/Log.h"
+#include "Core/ApplicationBase.h"
+#include "Graphics/Renderer.h"
 
 namespace lne
 {
@@ -66,47 +68,56 @@ class Framebuffer& Swapchain::GetFramebuffer(uint32_t index)
 
 void Swapchain::BeginFrame()
 {
-    auto device = m_Context->GetDevice();
-    uint32_t currentFrameInFlight = m_Context->GetCurrentFrameIndex();
-    VK_CHECK(device.waitForFences(m_AcquireFences[currentFrameInFlight], VK_TRUE, UINT64_MAX));
-    device.resetFences(m_AcquireFences[currentFrameInFlight]);
-    auto result = device.acquireNextImageKHR(m_Swapchain, UINT64_MAX, m_Semaphores[currentFrameInFlight].ImageAvailable, m_AcquireFences[currentFrameInFlight]);
-    m_CurrentImageIndex = result.value;
+	auto device = m_Context->GetDevice();
+	uint32_t currentFrameInFlight = m_Context->GetCurrentFrameIndex();
+	VK_CHECK(device.waitForFences(m_AcquireFences[currentFrameInFlight], VK_TRUE, UINT64_MAX));
+	device.resetFences(m_AcquireFences[currentFrameInFlight]);
+	auto result = device.acquireNextImageKHR(m_Swapchain, UINT64_MAX, m_Semaphores[currentFrameInFlight].ImageAvailable, m_AcquireFences[currentFrameInFlight]);
+	m_CurrentImageIndex = result.value;
 
-    if (result.result == vk::Result::eErrorOutOfDateKHR)
-        CreateSwapchain();
-    else if (result.result != vk::Result::eSuccess && result.result != vk::Result::eSuboptimalKHR)
-        VK_CHECK(result.result);
+	if (result.result == vk::Result::eErrorOutOfDateKHR)
+		CreateSwapchain();
+	else if (result.result != vk::Result::eSuccess && result.result != vk::Result::eSuboptimalKHR)
+		VK_CHECK(result.result);
 }
 
 bool Swapchain::Present()
 {
-    auto presentQueue = m_Context->GetQueue(EQueueFamilyType::Present);
+    auto present = [this]() 
+        {
+            auto presentQueue = m_Context->GetQueue(EQueueFamilyType::Present);
 
-    const auto presentInfo = vk::PresentInfoKHR(
-        1,
-        &m_Semaphores[m_Context->GetCurrentFrameIndex()].RenderFinished,
-        1,
-        &m_Swapchain,
-        &m_CurrentImageIndex
-    );
-    vk::Result result;
+            const auto presentInfo = vk::PresentInfoKHR(
+                1,
+                &m_Semaphores[m_Context->GetCurrentFrameIndex()].RenderFinished,
+                1,
+                &m_Swapchain,
+                &m_CurrentImageIndex
+            );
+            vk::Result result;
 
-    try
-    {
-        m_Context->m_CurrentFrameInFlight = (m_Context->m_CurrentFrameInFlight + 1) % m_Context->m_MaxFramesInFlight;
-        result = presentQueue.presentKHR(presentInfo);
-        m_FrameIndex = (m_FrameIndex + 1) % m_ColorAttachments.size();
-        // TODO: this is a temporary solution, m_CurrentFrameIndex should be current frame in flight not just the current frame index
-        return true;
-    }
-    catch (vk::SystemError& error)
-    {
-        if (error.code() == vk::Result::eErrorOutOfDateKHR || error.code() == vk::Result::eSuboptimalKHR)
-            return false;
-        LNE_ASSERT(false, "Failed to present swapchain image: {}", error.what());
-        return false;
-    }
+            try
+            {
+                m_Context->m_CurrentFrameInFlight = (m_Context->m_CurrentFrameInFlight + 1) % m_Context->m_MaxFramesInFlight;
+                result = presentQueue.presentKHR(presentInfo);
+                m_FrameIndex = (m_FrameIndex + 1) % m_ColorAttachments.size();
+                // TODO: this is a temporary solution, m_CurrentFrameIndex should be current frame in flight not just the current frame index
+                return true;
+            }
+            catch (vk::SystemError& error)
+            {
+                if (error.code() == vk::Result::eErrorOutOfDateKHR || error.code() == vk::Result::eSuboptimalKHR)
+                    return false;
+                LNE_ASSERT(false, "Failed to present swapchain image: {}", error.what());
+                return false;
+            }
+        };
+    auto& renderer = ApplicationBase::GetRenderer();
+    if (renderer.IsAsync())
+        renderer.AddRenderTask(present);
+    else
+        present();
+    return true;
 }
 
 void Swapchain::CreateSwapchain()

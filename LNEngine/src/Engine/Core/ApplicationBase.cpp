@@ -120,6 +120,7 @@ void ApplicationBase::Run()
     vk::SubmitInfo submitInfo;
     submitInfo.setCommandBuffers(fc.CommandBuffers);
     graphicsContext->SubmitToQueue(EQueueFamilyType::Graphics, submitInfo, fc.Fence);
+    graphicsContext->GetDevice().waitForFences(fc.Fence, VK_TRUE, UINT64_MAX);
 
     m_Clock.Start();
 
@@ -144,6 +145,8 @@ void ApplicationBase::Run()
 
         m_Renderer->EndFrame();
         m_Window->Present();
+		m_Renderer->WaitForRenderTasksToFinish();
+		m_Renderer->RunRenderTasks();
         m_Renderer->PostFrame();
 
         auto appUpdatedEvent = AppUpdatedEvent();

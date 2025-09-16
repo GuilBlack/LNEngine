@@ -68,6 +68,7 @@ public:
 
     // Gets the current frame index on the render thread.
     [[nodiscard]] uint32_t                          GetCurrentFrameIndex() const { return m_CurrentFrameInFlight; }
+    [[nodiscard]] uint32_t                          GetCurrentFrameIndexOnMainThread() const { return m_CurrentFrameInFlight; }
     [[nodiscard]] uint32_t                          GetCurrentSwapchainImageIndex() const { return m_CurrentSwapchainImageIndex; }
     [[nodiscard]] SafePtr<class GfxContext>         GetGfxContext() const;
     [[nodiscard]] SafePtr<class GfxLoader>          GetGfxLoader() const;
@@ -159,7 +160,10 @@ public:
      * @param renderTask The task to add to the renderer's task graph.
      */
     void                                            AddRenderTask(RenderTaskFunction renderTaskFunc);
-    bool                                            IsAsync() { return m_IsAsync; }
+	bool                                            IsAsync() { return m_IsAsync; }
+	void                                            RunRenderTasks();
+	void WaitForRenderTasksToFinish();
+
 private:
     SafePtr<GfxContext>                             m_Context;
     SafePtr<Swapchain>                              m_Swapchain;
@@ -171,11 +175,13 @@ private:
     std::mutex                                      m_DirtyEffectsMutex{};
     std::vector<SafePtr<Material>>                  m_DirtyMaterials{};
     std::mutex                                      m_DirtyMaterialsMutex{};
+    uint32_t                                        m_PrevFrameInFlightMain{ 0 };
+    uint32_t                                        m_CurrentFrameInFlightMain{ 0 };
     std::atomic<uint32_t>                           m_CurrentFrameInFlight{ 0 };
     std::atomic<uint32_t>                           m_CurrentSwapchainImageIndex{ 0 };
 
-    std::vector<RenderTask*>                        m_FrameRenderTasks;
-    RenderTasksLauncher*                            m_RenderTasksLauncher{ nullptr };
+    std::vector<std::vector<RenderTask*>>           m_FrameRenderTasks;
+    std::vector<RenderTasksLauncher*>               m_RenderTasksLauncher;
 
     std::vector<FrameData>                          m_FrameData;
 
@@ -203,19 +209,15 @@ private:
     bool m_IsAsync{ true };
 
 private:
-    void InitFrameData(uint32_t index);
-    void UpdateTextures(vk::CommandBuffer cmdBuffer);
+    void                                            InitFrameData(uint32_t index);
+    void                                            UpdateTextures(vk::CommandBuffer cmdBuffer);
 
     // grows the material table bank for the effect
-    void ProcessDirtyEffects(vk::CommandBuffer cmdBuffer);
+    void                                            ProcessDirtyEffects(vk::CommandBuffer cmdBuffer);
 
     // used after processing dirty materials because the material must know when it's safe
     // to update.
-    void CleanupDirtyEffects();
-    void ProcessDirtyMaterials(vk::CommandBuffer cmdBuffer);
-
-
-    void                                            RunRenderTasks();
-    void                                            WaitForRenderTasksToFinish();
+    void                                            CleanupDirtyEffects();
+    void                                            ProcessDirtyMaterials(vk::CommandBuffer cmdBuffer);
 };
 }

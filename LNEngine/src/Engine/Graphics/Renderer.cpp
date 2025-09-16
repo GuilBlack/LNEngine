@@ -45,12 +45,18 @@ void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskS
     if (!std::filesystem::exists(shaderCachePath))
         std::filesystem::create_directories(shaderCachePath);
 
+    for (uint32_t i = 0; i < 2; ++i)
+    {
+        m_FrameRenderTasks.emplace_back(std::vector<RenderTask*>());
+        m_RenderTasksLauncher.emplace_back(lnnew RenderTasksLauncher());
+    }
+    m_PrevFrameInFlightMain = 1;
     m_GfxLoader = lnnew GfxLoader();
     GfxLoaderSettings gfxLoaderSettings{
         .RendererParam = this,
         .Context = m_Context,
         .Scheduler = m_TaskScheduler,
-        .LoadAsync = m_IsAsync,
+        .LoadAsync = false,
         .RadianceTextureMaxSize = 512
     };
 
@@ -71,8 +77,11 @@ void Renderer::Nuke()
     {
         frameData.DescriptorAllocator.Reset();
         m_Context->GetDevice().destroyDescriptorSetLayout(frameData.DescriptorSetLayout);
+	}
+    for (uint32_t i = 0; i < m_Context->GetMaxFramesInFlight(); ++i)
+    {
+        delete m_RenderTasksLauncher[i];
     }
-    delete m_RenderTasksLauncher;
     m_FrameData.clear();
     m_GfxLoader.Reset();
     m_Swapchain.Reset();
@@ -131,11 +140,12 @@ void Renderer::PopLabel(vk::CommandBuffer cmdBuffer) const
 
 void Renderer::BeginFrame()
 {
-    uint32_t frameIndex = m_Context->GetCurrentFrameIndex();
-    uint32_t currentImageIndex = m_Swapchain->GetCurrentFrameIndex();
-    auto beginFrame = [this, frameIndex, currentImageIndex]()
+    auto beginFrame = [this]()
         {
             LNE_PROFILE_FUNCTION_C(PROFILING_COL);
+            m_Swapchain->BeginFrame();
+			uint32_t currentImageIndex = m_Swapchain->GetCurrentFrameIndex();
+			uint32_t frameIndex = m_Context->GetCurrentFrameIndex();
             m_CurrentFrameInFlight = frameIndex;
             m_Context->GetCommandPoolManager().ResetFrameCommands(frameIndex);
             vk::CommandBuffer cmdBuffer = m_Context->GetPrimaryCommandBuffer();
@@ -147,8 +157,7 @@ void Renderer::BeginFrame()
             ProcessDirtyMaterials(cmdBuffer);
             CleanupDirtyEffects();
 
-            if (m_IsAsync == false)
-                m_GfxLoader->Update();
+            m_GfxLoader->Update();
             UpdateTextures(cmdBuffer);
 
             // Do we need this???
@@ -189,9 +198,6 @@ void Renderer::EndFrame()
         AddRenderTask(endFrame);
     else
         endFrame();
-
-    RunRenderTasks();
-    WaitForRenderTasksToFinish();
 }
 
 void Renderer::PostFrame()
@@ -591,9 +597,38 @@ std::filesystem::path Renderer::GetShaderCachePath() const
 void Renderer::AddRenderTask(RenderTaskFunction renderTaskFunc)
 {
     RenderTask* renderTask = lnnew RenderTask(renderTaskFunc);
-    if (m_FrameRenderTasks.empty() == false)
-        renderTask->SetDependency(renderTask->m_Dependency, m_FrameRenderTasks.back());
-    m_FrameRenderTasks.emplace_back(renderTask);
+    auto& tasks = m_FrameRenderTasks[m_CurrentFrameInFlightMain];
+    if (tasks.empty() == false)
+        renderTask->SetDependency(renderTask->m_Dependency, tasks.back());
+    tasks.emplace_back(renderTask);
+}
+
+void Renderer::RunRenderTasks()
+{
+	auto& tasks = m_FrameRenderTasks[m_CurrentFrameInFlightMain];
+    auto* taskLauncher = m_RenderTasksLauncher[m_CurrentFrameInFlightMain];
+	if (tasks.empty())
+		return;
+
+    taskLauncher->m_pTaskToLaunch = tasks[0];
+    tasks.back()->SetDependency(tasks.back()->m_FinalTaskDependency, taskLauncher);
+
+	m_TaskScheduler->AddTaskSetToPipe(taskLauncher); // will be executed on a random thread. but the tasks will be on the render thread.
+    m_PrevFrameInFlightMain = m_CurrentFrameInFlightMain;
+    m_CurrentFrameInFlightMain = (m_CurrentFrameInFlightMain + 1) % m_FrameRenderTasks.size();
+}
+
+void Renderer::WaitForRenderTasksToFinish()
+{
+	auto& tasks = m_FrameRenderTasks[m_PrevFrameInFlightMain];
+	auto* taskLauncher = m_RenderTasksLauncher[m_PrevFrameInFlightMain];
+	if (tasks.empty())
+		return;
+	m_TaskScheduler->WaitforTask(tasks.back());
+	for (auto& task : tasks)
+		delete task;
+    tasks.clear();
+    taskLauncher->m_pTaskToLaunch = nullptr;
 }
 
 void Renderer::InitFrameData(uint32_t index)
@@ -684,31 +719,6 @@ void Renderer::ProcessDirtyMaterials(vk::CommandBuffer cmdBuffer)
             m_DirtyMaterials.pop_back();
         }
     }
-}
-
-void Renderer::RunRenderTasks()
-{
-    // 1) Create the dependencies between the tasks
-    if (m_FrameRenderTasks.empty())
-        return;
-    // 2) prepare the m_RenderTasksLauncher taskset
-    if (m_RenderTasksLauncher == nullptr)
-        m_RenderTasksLauncher = lnnew RenderTasksLauncher();
-    m_RenderTasksLauncher->m_pTaskToLaunch = m_FrameRenderTasks[0];
-    m_FrameRenderTasks.back()->SetDependency(m_FrameRenderTasks.back()->m_FinalTaskDependency, m_RenderTasksLauncher);
-    // 3) Add the m_RenderTasksLauncher to the task scheduler
-    m_TaskScheduler->AddTaskSetToPipe(m_RenderTasksLauncher); // will be executed on the render thread
-}
-
-void Renderer::WaitForRenderTasksToFinish()
-{
-    if (m_FrameRenderTasks.empty())
-        return;
-    m_TaskScheduler->WaitforTask(m_FrameRenderTasks.back());
-    for (auto& task : m_FrameRenderTasks)
-        delete task;
-    m_FrameRenderTasks.clear();
-    m_RenderTasksLauncher->m_pTaskToLaunch = nullptr;
 }
 
 void RenderTasksLauncher::ExecuteRange(enki::TaskSetPartition range, uint32_t threadnum)
