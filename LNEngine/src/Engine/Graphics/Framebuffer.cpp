@@ -12,6 +12,9 @@ Framebuffer::Framebuffer(SafePtr<class GfxContext> ctx, std::vector<AttachmentDe
     , m_ColorAttachments{ attachments }
     , m_DepthAttachment{ depth }
 {
+    m_ColorFormats.reserve(m_ColorAttachments.size());
+    for (const auto& colorAttachment : m_ColorAttachments)
+        m_ColorFormats.push_back(colorAttachment.Texture->GetFormat());
     if (m_DepthAttachment.Texture != nullptr)
         m_HasDepth = true;
 }
@@ -19,9 +22,14 @@ Framebuffer::Framebuffer(SafePtr<class GfxContext> ctx, std::vector<AttachmentDe
 void Framebuffer::Init(SafePtr<class GfxContext> ctx, std::vector<AttachmentDesc> attachments, AttachmentDesc depth)
 {
     m_Context = ctx;
+
     m_ColorAttachments = attachments;
+    m_ColorFormats.clear();
+    m_ColorFormats.reserve(m_ColorAttachments.size());
+    for (const auto& colorAttachment : m_ColorAttachments)
+        m_ColorFormats.push_back(colorAttachment.Texture->GetFormat());
+
     m_DepthAttachment = depth;
-    LNE_ASSERT(m_ColorAttachments.size() > 0, "Framebuffer must have at least one color attachment");
     if (m_DepthAttachment.Texture != nullptr)
         m_HasDepth = true;
 }
@@ -85,7 +93,7 @@ void Framebuffer::Bind(vk::CommandBuffer cmdBuffer) const
 
     vk::Extent3D extent = GetExtent();
     vk::RenderingInfo renderingInfo = vk::RenderingInfo{
-        vk::RenderingFlags{},
+        vk::RenderingFlagBits::eContentsSecondaryCommandBuffers,
         vk::Rect2D{ {0,0}, {extent.width, extent.height} },
         GetLayerCount(),
         0,
@@ -108,6 +116,17 @@ void Framebuffer::Unbind(vk::CommandBuffer cmdBuffer) const
     if (m_HasDepth)
         m_DepthAttachment.Texture->TransitionLayout(cmdBuffer, m_DepthAttachment.FinalLayout);
 }
+
+vk::CommandBufferInheritanceRenderingInfo Framebuffer::GetInheritanceRenderingInfo() const
+{
+    vk::CommandBufferInheritanceRenderingInfo info{};
+    info.setColorAttachmentFormats(m_ColorFormats);
+    if (m_HasDepth)
+        info.setDepthAttachmentFormat(m_DepthAttachment.Texture->GetFormat());
+    info.setRasterizationSamples(vk::SampleCountFlagBits::e1);
+    return info;
+}
+
 vk::Extent3D Framebuffer::GetExtent() const
 {
     if (m_ColorAttachments.size() > 0)
@@ -117,6 +136,7 @@ vk::Extent3D Framebuffer::GetExtent() const
         return m_DepthAttachment.Texture->GetDimensions();
     return {};
 }
+
 uint32_t Framebuffer::GetLayerCount() const
 {
     if (m_ColorAttachments.size() > 0)

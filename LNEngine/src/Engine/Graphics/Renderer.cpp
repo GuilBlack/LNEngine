@@ -448,15 +448,17 @@ void Renderer::Blit(vk::CommandBuffer cmdBuffer, SafePtr<Texture> src, SafePtr<T
             vk::Offset3D{ (int)dstExtent.width, (int)dstExtent.height, 1 }
         }
     };
-    
+
     cmdBuffer.blitImage(
         src->m_Allocation.Image, vk::ImageLayout::eTransferSrcOptimal,
         dst->m_Allocation.Image, vk::ImageLayout::eTransferDstOptimal,
         1, &blit, vk::Filter::eLinear
     );
 
-    src->TransitionLayout(cmdBuffer, srcLayout);
-    dst->TransitionLayout(cmdBuffer, dstLayout);
+    if (srcLayout != vk::ImageLayout::eUndefined)
+        src->TransitionLayout(cmdBuffer, srcLayout);
+    if (dstLayout != vk::ImageLayout::eUndefined)
+        dst->TransitionLayout(cmdBuffer, dstLayout);
 }
 
 SafePtr<GfxPipeline> Renderer::CreateGraphicsPipeline(const GraphicsPipelineDesc& createInfo)
@@ -600,6 +602,7 @@ std::filesystem::path Renderer::GetShaderCachePath() const
 void Renderer::AddRenderTask(RenderTaskFunction renderTaskFunc)
 {
     RenderTask* renderTask = lnnew RenderTask(renderTaskFunc);
+    renderTask->m_Priority = enki::TASK_PRIORITY_LOW;
     auto& tasks = m_FrameRenderTasks[m_CurrentFrameInFlightMain];
     if (tasks.empty() == false)
         renderTask->SetDependency(renderTask->m_Dependency, tasks.back());
@@ -615,6 +618,7 @@ void Renderer::RunRenderTasks()
 
     taskLauncher->m_pTaskToLaunch = tasks[0];
     tasks.back()->SetDependency(tasks.back()->m_FinalTaskDependency, taskLauncher);
+    taskLauncher->m_Priority = enki::TASK_PRIORITY_LOW;
 
 	m_TaskScheduler->AddTaskSetToPipe(taskLauncher); // will be executed on a random thread. but the tasks will be on the render thread.
     m_PrevFrameInFlightMain = m_CurrentFrameInFlightMain;

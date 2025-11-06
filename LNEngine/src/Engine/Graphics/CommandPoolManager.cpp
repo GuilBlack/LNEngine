@@ -5,6 +5,7 @@
 #include "Core/Utils/_Defines.h"
 #include "Core/ApplicationBase.h"
 #include "Graphics/Resources/Texture.h"
+#include "Framebuffer.h"
 
 namespace lne
 {
@@ -40,11 +41,20 @@ vk::CommandBuffer CommandPoolManager::BeginOrGetPrimaryFrameCommandBuffer(uint32
             }
         );
         if (it != frameContext.AreUsed.end())
+        {
+            if (frameContext.ThreadContexts[it->Index].IsPrimaryCommandBufferUsed == false)
+            {
+                frameContext.ThreadContexts[it->Index].IsPrimaryCommandBufferUsed = true;
+                vk::CommandBuffer cb = frameContext.ThreadContexts[it->Index].PrimaryCommandBuffer;
+                cb.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+                return cb;
+            }
             return frameContext.ThreadContexts[it->Index].PrimaryCommandBuffer;
+        }
 
         index = frameContext.AreUnused.back();
         frameContext.AreUnused.pop_back();
-        frameContext.AreUsed.push_back({ std::this_thread::get_id(), index });
+        frameContext.AreUsed.emplace_back(ThreadIdIndex{ std::this_thread::get_id(), index });
     }
 
     vk::CommandBuffer cb = frameContext.ThreadContexts[index].PrimaryCommandBuffer;
@@ -54,9 +64,76 @@ vk::CommandBuffer CommandPoolManager::BeginOrGetPrimaryFrameCommandBuffer(uint32
     return cb;
 }
 
-vk::CommandBuffer CommandPoolManager::GetRenderPassCommandBuffer(uint32_t frameIndex)
+vk::CommandBuffer CommandPoolManager::BeginRenderPassCommandBuffer(uint32_t frameIndex,
+                                                                   Framebuffer* fb /*= nullptr*/)
 {
-    return vk::CommandBuffer();
+    FrameCommandContext& frameContext = m_GraphicsFrameContexts[frameIndex];
+    vk::CommandBuffer cb;
+    ThreadCommandContext* threadContext = nullptr;
+
+    {
+        std::lock_guard lock(frameContext.Mutex);
+
+        auto it = std::find_if(
+            frameContext.AreUsed.begin(), frameContext.AreUsed.end(),
+            [](const ThreadIdIndex& item)
+            {
+                return item.ThreadId == std::this_thread::get_id();
+            }
+        );
+
+        int32_t index;
+        if (it == frameContext.AreUsed.end())
+        {
+            index = frameContext.AreUnused.back();
+            frameContext.AreUnused.pop_back();
+            frameContext.AreUsed.emplace_back(ThreadIdIndex{ std::this_thread::get_id(), index });
+        }
+        else
+            index = it->Index;
+
+        threadContext = &frameContext.ThreadContexts[index];
+        if (threadContext->CurrentSecondaryIndex >= threadContext->SecondaryCommandBuffers.size())
+        {
+            vk::CommandBuffer newCb = AllocateCommandBuffer(
+                threadContext->CommandPool, vk::CommandBufferLevel::eSecondary);
+            threadContext->SecondaryCommandBuffers.emplace_back(newCb);
+        }
+
+        cb = threadContext->SecondaryCommandBuffers[threadContext->CurrentSecondaryIndex];
+        ++threadContext->CurrentSecondaryIndex;
+    }
+
+    vk::CommandBufferInheritanceRenderingInfo renderingInherit{};
+    vk::CommandBufferInheritanceInfo inheritanceInfo{};
+    vk::CommandBufferBeginInfo beginInfo{};
+
+    if (fb != nullptr)
+    {
+        renderingInherit = fb->GetInheritanceRenderingInfo();
+
+        vk::StructureChain<
+            vk::CommandBufferInheritanceInfo,
+            vk::CommandBufferInheritanceRenderingInfo> chain{
+                inheritanceInfo, 
+                renderingInherit
+        };
+
+        beginInfo.flags = vk::CommandBufferUsageFlagBits::eRenderPassContinue |
+            vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+        beginInfo.pInheritanceInfo = &chain.get<vk::CommandBufferInheritanceInfo>();
+
+        cb.begin(beginInfo);
+    }
+    else
+    {
+        // secondary outside render pass (compute / transfer / whatever)
+        beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+        beginInfo.pInheritanceInfo = &inheritanceInfo; // ok to be mostly empty
+        cb.begin(beginInfo);
+    }
+
+    return cb;
 }
 
 void CommandPoolManager::ResetFrameCommands(uint32_t frameIndex)
@@ -69,6 +146,8 @@ void CommandPoolManager::ResetFrameCommands(uint32_t frameIndex)
     {
         device.resetCommandPool(threadContext.CommandPool);
         threadContext.IsPrimaryCommandBufferUsed = false;
+        threadContext.CurrentSecondaryIndex = 0;
+        threadContext.SecondaryCommandBuffers.clear();
     }
     device.resetFences(frameContext.WaitFence);
 
@@ -88,6 +167,8 @@ FrameCommands CommandPoolManager::EndFrame(uint32_t frameIndex)
     FrameCommands fc{};
     for (ThreadIdIndex threadIdIndex : frameContext.AreUsed)
     {
+        if (!frameContext.ThreadContexts[threadIdIndex.Index].IsPrimaryCommandBufferUsed)
+            continue;
         ThreadCommandContext& threadContext = frameContext.ThreadContexts[threadIdIndex.Index];
         threadContext.PrimaryCommandBuffer.end();
         fc.CommandBuffers.emplace_back(threadContext.PrimaryCommandBuffer);
@@ -245,7 +326,6 @@ void CommandPoolManager::NukeFrameContext()
             auto& threadContext = frameContext.ThreadContexts[i];
             m_Context->GetDevice().destroyCommandPool(threadContext.CommandPool);
             threadContext.SecondaryCommandBuffers.clear();
-            threadContext.RenderPasses.clear();
         }
         m_Context->GetDevice().destroyFence(frameContext.WaitFence);
     }

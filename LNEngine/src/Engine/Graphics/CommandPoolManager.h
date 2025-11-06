@@ -5,6 +5,7 @@
 namespace lne
 {
 class GfxContext;
+class Framebuffer;
 struct FrameCommands
 {
     std::vector<vk::CommandBuffer>  CommandBuffers;
@@ -17,7 +18,16 @@ public:
     ~CommandPoolManager();
 
     vk::CommandBuffer           BeginOrGetPrimaryFrameCommandBuffer(uint32_t frameIndex);
-    vk::CommandBuffer           GetRenderPassCommandBuffer(uint32_t frameIndex);
+
+    /**
+     * Begins a render pass command buffer.
+     * The frame buffer can be nullptr if no graphics render pass is needed.
+     * You must manually end the command buffer after use.
+     * @param frameIndex The index of the current frame in flight.
+     * @param fb The framebuffer to use for the render pass.
+     */
+    vk::CommandBuffer           BeginRenderPassCommandBuffer(uint32_t frameIndex,
+                                                             Framebuffer* fb = nullptr);
     void                        ResetFrameCommands(uint32_t frameIndex);
 
     [[nodiscard]] FrameCommands EndFrame(uint32_t frameIndex);
@@ -36,7 +46,7 @@ private:
         vk::CommandBuffer               PrimaryCommandBuffer{};
         bool                            IsPrimaryCommandBufferUsed{ false };
         std::vector<vk::CommandBuffer>  SecondaryCommandBuffers{}; // associated with render passes
-        std::vector<uint64_t>           RenderPasses{}; // should clear it after each frame. 0 = no render pass
+        uint32_t                        CurrentSecondaryIndex{ 0 };
     };
 
     struct ThreadIdIndex

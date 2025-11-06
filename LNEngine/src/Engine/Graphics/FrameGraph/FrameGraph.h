@@ -4,6 +4,7 @@
 #include "Engine/Graphics/Enums.h"
 #include "Engine/Graphics/Framebuffer.h"
 #include "Engine/ECS/Types.h"
+#include "../../vendor/ENKITS/enkiTS/src/TaskScheduler.h"
 
 namespace lne
 {
@@ -205,6 +206,13 @@ public:
 
 private:
     FrameGraphNodeDesc m_Desc{};
+};
+
+class RenderPassTask : public enki::ITaskSet
+{
+public:
+    vk::CommandBuffer SecondaryCommandBuffer{}; // secondary command buffer that will be executed on the main command buffer
+    void ExecuteRange(enki::TaskSetPartition range, uint32_t threadnum) override;
 };
 
 class FrameGraph : public RefCountBase

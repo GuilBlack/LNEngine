@@ -120,7 +120,7 @@ void ApplicationBase::Run()
     vk::SubmitInfo submitInfo;
     submitInfo.setCommandBuffers(fc.CommandBuffers);
     graphicsContext->SubmitToQueue(EQueueFamilyType::Graphics, submitInfo, fc.Fence);
-    graphicsContext->GetDevice().waitForFences(fc.Fence, VK_TRUE, UINT64_MAX);
+    VK_CHECK(graphicsContext->GetDevice().waitForFences(fc.Fence, VK_TRUE, UINT64_MAX));
 
     m_Clock.Start();
 

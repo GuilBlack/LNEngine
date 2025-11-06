@@ -37,6 +37,7 @@ public:
 
     [[nodiscard]] const std::vector<AttachmentDesc>& GetColorAttachments() const { return m_ColorAttachments; }
     [[nodiscard]] const AttachmentDesc& GetDepthAttachment() const { return m_DepthAttachment; }
+    [[nodiscard]] vk::CommandBufferInheritanceRenderingInfo GetInheritanceRenderingInfo() const;
     [[nodiscard]] vk::Extent3D GetExtent() const;
     [[nodiscard]] uint32_t GetLayerCount() const;
     [[nodiscard]] bool HasDepth() const { return m_HasDepth; }
@@ -45,6 +46,7 @@ public:
 private:
     SafePtr<class GfxContext> m_Context;
     std::vector<AttachmentDesc> m_ColorAttachments;
+    std::vector<vk::Format> m_ColorFormats{};
     AttachmentDesc m_DepthAttachment;
     bool m_HasDepth = false;
 };

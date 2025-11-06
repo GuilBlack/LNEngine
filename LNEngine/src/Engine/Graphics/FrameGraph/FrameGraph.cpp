@@ -10,6 +10,7 @@
 #include "Scene/Components.h"
 #include "RenderPass/IRenderPass.h"
 #include "Core/Utils/Profiling.h"
+#include "../CommandPoolManager.h"
 
 namespace lne
 {
@@ -128,17 +129,56 @@ void FrameGraph::Compile()
 
 void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRenderer)
 {
-    LNE_PROFILE_FUNCTION_C(PROFILING_COL)
-        // traverse nodes in topological order
-    for (FrameGraphNodeHandle nodeHandle : m_Nodes)
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL);
+    // init the command buffers for each nodes
+    auto& renderer = ApplicationBase::GetRenderer();
+
+
+    std::vector<vk::CommandBuffer> secondaryCommandBuffers{};
+    secondaryCommandBuffers.resize(m_Nodes.size());
+
+    //enki::TaskSet set(
+    //    (uint32_t)m_Nodes.size(),
+    //    [this, &secondaryCommandBuffers, worldRenderer](enki::TaskSetPartition range, uint32_t threadnum)
+    //    {
+    //        uint32_t currentFrameIndex = ApplicationBase::GetRenderer().GetCurrentFrameIndex();
+    //        for (uint32_t i = range.start; i < range.end; ++i)
+    //        {
+    //            auto& commandPoolManager = m_Context->GetCommandPoolManager();
+    //            FrameGraphNode* node = m_NodeCache.GetPool().Access(m_Nodes[i]);
+
+    //            if (node->Enabled == false)
+    //                continue;
+
+    //            vk::CommandBuffer cmdBuffer{};
+    //            if (node->Type == RenderPassType::eGraphics)
+    //                cmdBuffer = commandPoolManager.BeginRenderPassCommandBuffer(currentFrameIndex, &node->Framebuffer);
+    //            else
+    //                cmdBuffer = commandPoolManager.BeginRenderPassCommandBuffer(currentFrameIndex);
+
+    //            // do render pass here
+    //            node->RenderPass->Execute(cmdBuffer, worldRenderer, this, node);
+
+    //            cmdBuffer.end();
+    //            secondaryCommandBuffers[i] = cmdBuffer;
+    //        }
+    //    }
+    //);
+
+    //set.m_Priority = enki::TASK_PRIORITY_MED;
+    //ApplicationBase::GetTaskScheduler()->AddTaskSetToPipe(&set);
+    //ApplicationBase::GetTaskScheduler()->WaitforTask(&set);
+
+    for (uint32_t i = 0; i < m_Nodes.size(); ++i)
     {
+        FrameGraphNodeHandle nodeHandle = m_Nodes[i];
         FrameGraphNode* node = m_NodeCache.GetPool().Access(nodeHandle);
 
         if (!node->Enabled)
             continue;
+
         const std::string scopeName = "Execute Render Pass: " + node->Name;
         LNE_PROFILE_SCOPE_STR_C(scopeName, PROFILING_COL)
-        auto& renderer = ApplicationBase::GetRenderer();
         renderer.PushLabel(commandBuffer, node->Name);
 
         for (FrameGraphResourceHandle inputResourceHandle : node->InputResources)
@@ -173,6 +213,8 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRe
         node->RenderPass->PreExecute(commandBuffer, this, node);
         if (node->Type == RenderPassType::eGraphics)
             node->Framebuffer.Bind(commandBuffer);
+
+        //commandBuffer.executeCommands(secondaryCommandBuffers[i]);
 
         node->RenderPass->Execute(commandBuffer, worldRenderer, this, node);
         
@@ -711,4 +753,12 @@ FrameGraphNodeDesc FrameGraphNodeDescBuilder::Build()
 
     return m_Desc;
 }
+
+void RenderPassTask::ExecuteRange(enki::TaskSetPartition range, uint32_t threadnum)
+{
+    for (uint32_t i = range.start; i < range.end; ++i)
+    {
+    }
+}
+
 }
