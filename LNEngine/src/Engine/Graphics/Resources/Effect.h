@@ -76,13 +76,13 @@ private:
 
     void                                GrowFreeSlots();
     void                                GrowBank(vk::CommandBuffer cmdBuffer, uint32_t currentFrameInFLight);
-    bool CopyMaterialDataToBuffer(vk::CommandBuffer cmdBuffer,
+    bool                                CopyMaterialDataToBuffer(vk::CommandBuffer cmdBuffer,
                                                                  uint32_t currentFrameInFlight,
                                                                  MaterialSlot matSlot,
                                                                  uint32_t binding,
                                                                  void* data);
 
-    inline PipelineHandle MakeHandle(const lne::GraphicsPipelineDescV2& d);
+    inline PipelineHandle               MakeHandle(const lne::GraphicsPipelineDescV2& d);
 };
 }
 

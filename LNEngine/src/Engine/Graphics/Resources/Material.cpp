@@ -37,6 +37,7 @@ Material::Material(SafePtr<GfxTechnique> technique)
                 .Binding = element.BindingIndex
             };
             byte* passData = new byte[element.ElementSize];
+            std::memset(passData, 0, element.ElementSize * sizeof(byte));
             m_PassData.emplace(hash, passData);
         }
 
@@ -53,6 +54,7 @@ Material::Material(SafePtr<GfxTechnique> technique)
         m_AllocatedSlots = technique->AllocateMaterialSlots();
     }
     m_MaterialType = m_Technique->GetPasses().begin()->second.PassEffect->GetShader()->GetShaderDomain();
+    InvalidateMaterial();
 }
 
 Material::~Material()
