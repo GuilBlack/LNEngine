@@ -74,8 +74,16 @@ void main()
 
     mat3 normalMatrix = transpose(inverse(mat3(model)));
     oNormal = normalize(normalMatrix * vertexBuffer.vertices[currentIndex].normal);
-    oTangent = normalize(normalMatrix * vertexBuffer.vertices[currentIndex].tangent.xyz);
-    oBitangent = vertexBuffer.vertices[currentIndex].tangent.w * cross(oNormal, oTangent); // tangent.w = normal space handedness
+    if (vertexBuffer.vertices[currentIndex].tangent.xyz == vec3(0.0))
+    {
+        oTangent = vec3(0.0);
+        oBitangent = vec3(0.0);
+    }
+    else
+    {
+        oTangent = normalize(normalMatrix * vertexBuffer.vertices[currentIndex].tangent.xyz);
+        oBitangent = vertexBuffer.vertices[currentIndex].tangent.w * cross(oNormal, oTangent); // tangent.w = normal space handedness
+    }
 }
 
 #endif
@@ -108,7 +116,7 @@ void main()
     oMetalnessRoughness = vec4(metalness, roughness, 0.0, 1.0);
 
     vec3 normal = normalize(iNormal);
-    if (mat.tNormal != 0)
+    if (mat.tNormal != 0 && iTangent != vec3(0.0))
     {
         vec3 tangent =   normalize(iTangent - normal * dot(normal, iTangent));
         vec3 bitangent = normalize(iBitangent);

@@ -374,6 +374,7 @@ SafePtr<StaticMesh> StaticMesh::GenerateUVSphere(float radius, uint32_t nLatitud
     uint32_t nIndices = 2 * 3 * nLongitude + 2 * 3 * (nLatitude - 1) * nLongitude;
 
     Vertex* vertices = lnnew Vertex[nVertices];
+    std::memset(vertices, 0, nVertices * sizeof(Vertex));
     uint32_t* indices = lnnew uint32_t[nIndices];
 
     // here, latitude points should be mapped between -90 and 90 degrees (or -PI/2 to PI/2).
