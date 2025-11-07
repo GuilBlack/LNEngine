@@ -71,13 +71,13 @@ private:
 
 struct SubMesh
 {
+    std::string Name;
     uint32_t BaseVertex;
     uint32_t BaseIndex;
     uint32_t VertexCount;
     uint32_t IndexCount;
     uint32_t MaterialIndex;
     AABB BoundingBox;
-    std::string Name;
 
     glm::mat4 WorldTransform = glm::mat4(1.0f);
 };

@@ -58,27 +58,50 @@ StaticMesh::StaticMesh(std::filesystem::path path, SafePtr<GfxTechnique> opaqueT
 void StaticMesh::InitSubmeshes(const aiScene* scene)
 {
     m_SubMeshes.reserve(scene->mNumMeshes);
-
+    std::vector<aiMesh*> meshes;
+    std::unordered_map<std::string, uint32_t> duplicatedMeshes;
     for (uint32_t i = 0; i < scene->mNumMeshes; ++i)
     {
-        const aiMesh* mesh = scene->mMeshes[i];
+        aiMesh* mesh = scene->mMeshes[i];
+        meshes.push_back(mesh);
         bool skip = !mesh->HasPositions() || !mesh->HasNormals();
-        SubMesh submesh{
-            .BaseVertex = m_TotalVertexCount,
-            .BaseIndex = m_TotalIndexCount,
-            .VertexCount = skip ? 0 : mesh->mNumVertices,
-            .IndexCount = skip ? 0 : mesh->mNumFaces * 3,
-            .MaterialIndex = mesh->mMaterialIndex,
-            .BoundingBox = AABB{
-                .Min = { mesh->mAABB.mMin.x, mesh->mAABB.mMin.y, mesh->mAABB.mMin.z },
-                .Max = { mesh->mAABB.mMax.x, mesh->mAABB.mMax.y, mesh->mAABB.mMax.z }
-            },
-            .Name = mesh->mName.C_Str()
-        };
-        m_SubMeshes.emplace_back(submesh);
+        if (skip)
+            LNE_WARN("Mesh '{}' skipped: missing positions or normals", mesh->mName.C_Str());
+        SubMesh submesh;
+        if (duplicatedMeshes.contains(mesh->mName.C_Str()))
+        {
+            auto& originalSubmesh = m_SubMeshes[duplicatedMeshes[mesh->mName.C_Str()]];
+            submesh = {
+                .Name = mesh->mName.C_Str(),
+                .BaseVertex = originalSubmesh.BaseVertex,
+                .BaseIndex = originalSubmesh.BaseIndex,
+                .VertexCount = originalSubmesh.VertexCount,
+                .IndexCount = originalSubmesh.IndexCount,
+                .MaterialIndex = mesh->mMaterialIndex,
+                .BoundingBox = originalSubmesh.BoundingBox,
+            };
+        }
+        else
+        {
+            submesh = {
+                .Name = mesh->mName.C_Str(),
+                .BaseVertex = m_TotalVertexCount,
+                .BaseIndex = m_TotalIndexCount,
+                .VertexCount = skip ? 0 : mesh->mNumVertices,
+                .IndexCount = skip ? 0 : mesh->mNumFaces * 3,
+                .MaterialIndex = mesh->mMaterialIndex,
+                .BoundingBox = AABB{
+                    .Min = { mesh->mAABB.mMin.x, mesh->mAABB.mMin.y, mesh->mAABB.mMin.z },
+                    .Max = { mesh->mAABB.mMax.x, mesh->mAABB.mMax.y, mesh->mAABB.mMax.z }
+                },
+            };
+            duplicatedMeshes[mesh->mName.C_Str()] = static_cast<uint32_t>(m_SubMeshes.size());
 
-        m_TotalVertexCount += mesh->mNumVertices;
-        m_TotalIndexCount += mesh->mNumFaces * 3;
+            m_TotalVertexCount += mesh->mNumVertices;
+            m_TotalIndexCount += mesh->mNumFaces * 3;
+        }
+
+        m_SubMeshes.emplace_back(submesh);
     }
 
     TraverseNodes(scene->mRootNode, glm::mat4(1.0f));
@@ -93,22 +116,31 @@ void StaticMesh::LoadData(const aiScene* scene)
 
     uint32_t indexIndex = 0;
     uint32_t vertexIndex = 0;
+    std::unordered_set<std::string> duplicatedMeshes;
     for (uint32_t m = 0; m < scene->mNumMeshes; ++m)
     {
         const aiMesh* mesh = scene->mMeshes[m];
-        if (!mesh->HasPositions() || !mesh->HasNormals() || !mesh->HasTangentsAndBitangents())
+        if (!mesh->HasPositions() || !mesh->HasNormals())
             continue;
-
+        if (duplicatedMeshes.contains(mesh->mName.C_Str()))
+            continue;
+        else
+            duplicatedMeshes.insert(mesh->mName.C_Str());
         for (uint32_t v = 0; v < mesh->mNumVertices; ++v)
         {
             Vertex vertex;
             vertex.Position = glm::vec3(m_SubMeshes[m].WorldTransform * glm::vec4(mesh->mVertices[v].x, mesh->mVertices[v].y, mesh->mVertices[v].z, 1.0f));
             vertex.Normal = { mesh->mNormals[v].x, mesh->mNormals[v].y, mesh->mNormals[v].z };
 
-            glm::vec3 tangent = { mesh->mTangents[v].x, mesh->mTangents[v].y, mesh->mTangents[v].z };
-            glm::vec3 bitangent = { mesh->mBitangents[v].x, mesh->mBitangents[v].y, mesh->mBitangents[v].z };
-            float handedness = (glm::dot(glm::cross(vertex.Normal, tangent), bitangent) < 0.0f) ? -1.0f : 1.0f;
-            vertex.Tangent = glm::vec4(tangent, handedness);
+            if (mesh->HasTangentsAndBitangents())
+            {
+                glm::vec3 tangent = { mesh->mTangents[v].x, mesh->mTangents[v].y, mesh->mTangents[v].z };
+                glm::vec3 bitangent = { mesh->mBitangents[v].x, mesh->mBitangents[v].y, mesh->mBitangents[v].z };
+                float handedness = (glm::dot(glm::cross(vertex.Normal, tangent), bitangent) < 0.0f) ? -1.0f : 1.0f;
+                vertex.Tangent = glm::vec4(tangent, handedness);
+            }
+            else
+                vertex.Tangent = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
 
             if (mesh->HasTextureCoords(0))
                 vertex.TexCoord = { mesh->mTextureCoords[0][v].x, mesh->mTextureCoords[0][v].y };
@@ -356,7 +388,7 @@ SafePtr<StaticMesh> StaticMesh::GenerateCube(uint32_t tesselationLevel)
 
     SafePtr<StaticMesh> mesh = lnnew StaticMesh();
     mesh->m_Geometry.reset(geometry);
-    mesh->m_SubMeshes = { { 0, 0, geometry->VertexCount, geometry->IndexCount, 0, AABB{.Min = {-1,-1,-1}, .Max = {1,1,1} }, "Cube" } };
+    mesh->m_SubMeshes = { { "Cube", 0, 0, geometry->VertexCount, geometry->IndexCount, 0, AABB{.Min = {-1,-1,-1}, .Max = {1,1,1} } } };
     return mesh;
 }
 
@@ -474,7 +506,7 @@ SafePtr<StaticMesh> StaticMesh::GenerateUVSphere(float radius, uint32_t nLatitud
     
     SafePtr<StaticMesh> mesh = lnnew StaticMesh();
     mesh->m_Geometry.reset(geometry);
-    mesh->m_SubMeshes = { { 0, 0, geometry->VertexCount, geometry->IndexCount, 0, AABB{.Min = {-radius,0,0}, .Max = {radius,0,0} }, "UVSphere" } };
+    mesh->m_SubMeshes = { { "UVSphere", 0, 0, geometry->VertexCount, geometry->IndexCount, 0, AABB{.Min = {-radius,0,0}, .Max = {radius,0,0} } } };
     return mesh;
 }
 

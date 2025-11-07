@@ -264,14 +264,17 @@ void AppLayer::OnAttach()
     TransformComponent& cameraTransform = m_CameraEntity.GetComponent<TransformComponent>();
 
     m_ModelEntity = m_Scene->CreateEntity();
+    m_ModelSpheres = m_Scene->CreateEntity();
     m_CubeEntity = m_Scene->CreateEntity();
     m_SphereEntity = m_Scene->CreateEntity();
     
     m_ModelEntity.EmplaceComponent<StaticMeshComponent>();
+    m_ModelSpheres.EmplaceComponent<StaticMeshComponent>();
     m_CubeEntity.EmplaceComponent<StaticMeshComponent>();
     m_SphereEntity.EmplaceComponent<StaticMeshComponent>();
 
     auto[modelTransform, modelMeshComponent] = m_ModelEntity.GetComponents<TransformComponent, StaticMeshComponent>();
+    auto[modelSphereTransform, modelSphereMeshComponent] = m_ModelSpheres.GetComponents<TransformComponent, StaticMeshComponent>();
     auto[cubeTransform, cubeMeshComponent] = m_CubeEntity.GetComponents<TransformComponent, StaticMeshComponent>();
     auto[sphereTransform, sphereMeshComponent] = m_SphereEntity.GetComponents<TransformComponent, StaticMeshComponent>();
 #pragma endregion
@@ -282,6 +285,7 @@ void AppLayer::OnAttach()
     SafePtr sphereMesh = StaticMesh::GenerateUVSphere(1.0f, 32, 32);
     sphereMesh->SetMaterial(m_BasicMaterial2, 0);
     modelMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Sponza\\glTF\\Sponza.gltf", m_OpaqueTechnique, m_TransparentTechnique);
+    modelSphereMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\SpecularTest\\glTF\\SpecularTest.gltf", m_OpaqueTechnique, m_TransparentTechnique);
 
     cubeMeshComponent.Mesh = cubeMesh;
     sphereMeshComponent.Mesh = sphereMesh;
@@ -296,6 +300,9 @@ void AppLayer::OnAttach()
 
     modelTransform.Position = { 0.0f, 0.0f, 0.0f };
     modelTransform.Scale = { 100.f, 100.f, 100.f };
+
+    modelSphereTransform.Position = { 0.0f, 10.0f, 0.0f };
+    modelSphereTransform.Scale = { 10.f, 10.f, 10.f };
 
 #pragma endregion
     //SafePtr<StaticMesh> purpleSphere = sphereMeshComponent.Mesh;

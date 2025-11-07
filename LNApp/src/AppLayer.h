@@ -110,6 +110,7 @@ private:
     lne::SafePtr<lne::HierarchicalScene> m_Scene{};
     lne::Entity m_CameraEntity;
     lne::Entity m_ModelEntity;
+    lne::Entity m_ModelSpheres;
     lne::Entity m_CubeEntity;
     lne::Entity m_SphereEntity;
 
