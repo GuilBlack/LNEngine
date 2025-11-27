@@ -51,17 +51,20 @@ jobs:
         run: .\LNTest.exe --gtest_color=yes --gtest_output="xml:${{ github.workspace }}/TestResults/test-results.xml"
 
       - name: Check if Report Exists
-        shell: cmd
-        run: if not exist "${{ github.workspace }}/TestResults/test-results.xml" echo "Report not found"
-        
+        shell: pwsh
+        run: |
+          if (-Not (Test-Path "$env:GITHUB_WORKSPACE/TestResults/test-results.xml")) {
+            Write-Host "Report not found"
+          }
 
       - name: Create Web Test Report
         uses: dorny/test-reporter@v2
         if: always()
         with:
           name: LNTest Results
-          path: ${{ github.workspace }}/TestResults/test-results.xml
+          path: TestResults/test-results.xml
           reporter: java-junit
+          path-replace-backslashes: true
 
 
   build-debug:
