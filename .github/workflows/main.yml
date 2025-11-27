@@ -42,9 +42,23 @@ jobs:
           /p:Configuration=${{ env.DEBUG_CONFIGURATION }} 
           ${{ env.SOLUTION_FILE_PATH }} /t:LNTest:Rebuild
 
+      - name: Make Test Results Folder
+        shell: cmd
+        run: mkdir ${{ github.workspace }}/TestResults
+
       - name: Run Tests
-        working-directory: ${{ github.workspace }}/bin/Debug/windows-x86_64/LNTest
-        run: .\LNTest.exe
+        working-directory: ${{ github.workspace }}/bin/${{ env.DEBUG_CONFIGURATION }}/windows-x86_64/LNTest
+        run: .\LNTest.exe --gtest_color=yes --gtest_output="xml:${{ github.workspace }}/TestResults/test-results.xml"
+
+      - name: Create Web Test Report
+        uses: dorny/test-reporter@v2
+        if: always()
+        with:
+          name: LNTest Results
+          path: ${{ github.workspace }}/TestResults/test-results.xml
+          reporter: java-junit
+          artifact: test-results
+
 
   build-debug:
     name: Build Debug Configuration
@@ -65,10 +79,13 @@ jobs:
       
       - name: Build Solution
         working-directory: ${{ github.workspace }}
-        run: msbuild /m /p:Configuration=${{ env.DEBUG_CONFIGURATION }} ${{ env.SOLUTION_FILE_PATH }}
+        run: >
+          msbuild /m 
+          /p:Configuration=${{ env.DEBUG_CONFIGURATION }} 
+          ${{ env.SOLUTION_FILE_PATH }}
 
-      # - name: Save Debug Build Artifacts
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: debug-build
-      #     path: bin/Debug/windows-x86_64
+      - name: Save Debug Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-build
+          path: bin/${{ env.DEBUG_CONFIGURATION }}/windows-x86_64/LNApp
