@@ -415,3 +415,4 @@ FodyWeavers.xsd
 
 # ignore engine assets
 LNApp/Assets/Engine/**
+LNTest/Assets/Engine/**
