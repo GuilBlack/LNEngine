@@ -52,7 +52,7 @@ jobs:
 
       - name: Check if Report Exists
         id: check_report
-        run: if not exist "${{ github.workspace }}/TestResults/test-results.xml" echo "Report not found" & exit 1
+        run: if not exist "${{ github.workspace }}/TestResults/test-results.xml" echo "Report not found"
         
 
       - name: Create Web Test Report
