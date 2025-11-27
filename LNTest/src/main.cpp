@@ -11,9 +11,9 @@ TEST(SampleTest, BasicAssertions)
 TEST(SampleTest, FailingAssertions)
 {
     // This assertion will fail.
-    EXPECT_NE(1 + 1, 2);
+    EXPECT_NE(1 + 1, 3);
     // This assertion will also fail.
-    EXPECT_STRNE("hello", "hello");
+    EXPECT_STRNE("hello", "hello world");
 }
 
 int main(int argc, char** argv)
