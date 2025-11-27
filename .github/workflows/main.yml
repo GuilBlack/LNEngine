@@ -18,9 +18,38 @@ env:
   DISTRIBUTION_CONFIGURATION: Dist
 
 jobs:
+  build-tests:
+    name: Build and Run Tests
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Run Premake Script
+        run: .\vendor\premake\Scripts\ProjectGenNoPause.bat
+
+      - name: Build Test Project
+        working-directory: ${{ github.workspace }}
+        # build only the test project in the solution
+        run: >
+          msbuild /m
+          /p:Configuration=${{ env.DEBUG_CONFIGURATION }} 
+          ${{ env.SOLUTION_FILE_PATH }} /t:LNTest:Rebuild
+
+      - name: Run Tests
+        working-directory: ${{ github.workspace }}/bin/Debug/windows-x86_64/LNTest
+        run: .\LNTest.exe
+
   build-debug:
     name: Build Debug Configuration
     runs-on: self-hosted
+    needs: build-tests
 
     steps:
       - name: Checkout Code
