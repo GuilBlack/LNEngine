@@ -52,12 +52,7 @@ jobs:
 
       - name: Check if Report Exists
         id: check_report
-        run: |
-          if [ -f "${{ github.workspace }}/TestResults/test-results.xml" ]; then
-            echo "report_exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "report_exists=false" >> $GITHUB_OUTPUT
-          fi
+        run: if not exist "${{ github.workspace }}/TestResults/test-results.xml" echo "Report not found" & exit 1
         
 
       - name: Create Web Test Report
