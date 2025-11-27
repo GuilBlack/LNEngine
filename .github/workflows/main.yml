@@ -48,14 +48,14 @@ jobs:
 
       - name: Run Tests
         working-directory: ${{ github.workspace }}/bin/${{ env.DEBUG_CONFIGURATION }}/windows-x86_64/LNTest
-        run: .\LNTest.exe --gtest_color=yes --gtest_output="xml:TestResults/test-results.xml"
+        run: .\LNTest.exe --gtest_color=yes --gtest_output="xml:${{ github.workspace }}/TestResults/test-results.xml"
 
       - name: Create Web Test Report
         uses: dorny/test-reporter@v2
         if: always()
         with:
           name: LNTest Results
-          path: TestResults/test-results.xml
+          path: ${{ github.workspace }}/TestResults/test-results.xml
           reporter: java-junit
 
 
