@@ -20,3 +20,6 @@
 [submodule "LNEngine/vendor/TRACY/tracy"]
 	path = LNEngine/vendor/TRACY/tracy
 	url = https://github.com/wolfpld/tracy.git
+[submodule "LNTest/vendor/GTEST/gtest"]
+	path = LNTest/vendor/GTEST/gtest
+	url = https://github.com/google/googletest.git
