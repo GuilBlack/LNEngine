@@ -44,18 +44,18 @@ jobs:
 
       - name: Make Test Results Folder
         shell: cmd
-        run: mkdir ${{ github.workspace }}/TestResults
+        run: mkdir TestResults
 
       - name: Run Tests
         working-directory: ${{ github.workspace }}/bin/${{ env.DEBUG_CONFIGURATION }}/windows-x86_64/LNTest
-        run: .\LNTest.exe --gtest_color=yes --gtest_output="xml:${{ github.workspace }}/TestResults/test-results.xml"
+        run: .\LNTest.exe --gtest_color=yes --gtest_output="xml:TestResults/test-results.xml"
 
       - name: Create Web Test Report
         uses: dorny/test-reporter@v2
         if: always()
         with:
           name: LNTest Results
-          path: ${{ github.workspace }}/TestResults/test-results.xml
+          path: TestResults/test-results.xml
           reporter: java-junit
           artifact: test-results
 
