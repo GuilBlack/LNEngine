@@ -107,6 +107,37 @@ void Renderer::InitResources()
     Dispatch(cmdBuffer, brdfProgram, 512 / 32, 512 / 32, 1);
 
     m_BRDFLut->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
+
+    SafePtr gbufferEffect = CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\GBuffer.glsl");
+    SafePtr forwardTransparentEffect = CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\ForwardTransparent.glsl");
+    SafePtr depthPrePassEffect = CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\DepthPrePass.glsl");
+
+    GfxTechniqueDesc techDesc{};
+    techDesc.Name = "DefaultMeshOpaque";
+    techDesc.TechniqueState.Cull = ECullMode::Back;
+    techDesc.TechniqueState.Fill = EFillMode::Solid;
+    techDesc.TechniqueState.Transparency = TransparencyMode::eOpaque;
+    techDesc.TechniqueState.DepthMode = DepthMode::eReadWrite;
+
+    PassBindingDesc passDesc{};
+    passDesc.PassName = "GBufferPass";
+    passDesc.PassEffect = gbufferEffect;
+    techDesc.Passes.push_back(passDesc);
+    passDesc.PassName = "DepthPrePass";
+    passDesc.PassEffect = depthPrePassEffect;
+    techDesc.Passes.push_back(passDesc);
+    CreateOrGetTechnique(techDesc);
+
+    techDesc.Name = "DefaultMeshTransparent";
+    techDesc.TechniqueState.Cull = ECullMode::Back;
+    techDesc.TechniqueState.Fill = EFillMode::Solid;
+    techDesc.TechniqueState.Transparency = TransparencyMode::eTransparent;
+    techDesc.TechniqueState.DepthMode = DepthMode::eReadOnly;
+    techDesc.Passes.clear();
+    passDesc.PassName = "TransparentForwardPass";
+    passDesc.PassEffect = forwardTransparentEffect;
+    techDesc.Passes.push_back(passDesc);
+    CreateOrGetTechnique(techDesc);
 }
 
 void Renderer::NukeResources()
@@ -558,6 +589,9 @@ SafePtr<GfxTechnique> Renderer::CreateOrGetTechnique(const GfxTechniqueDesc& tec
 
 lne::SafePtr<lne::GfxTechnique> Renderer::GetTechnique(const std::string& name)
 {
+    std::lock_guard<std::mutex> lock(m_TechniquesLibraryMutex);
+    if (m_TechniquesLibrary.contains(name))
+        return m_TechniquesLibrary[name];
     return {};
 }
 

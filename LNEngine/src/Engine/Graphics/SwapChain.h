@@ -19,12 +19,18 @@ struct Viewport
         m_Viewport = vk::Viewport(0.0f, 0.0f, static_cast<float>(extent.width), static_cast<float>(extent.height), 0.0f, 1.0f); return *this;
     }
 
-    vk::Extent2D GetExtent() const { return vk::Extent2D(static_cast<uint32_t>(m_Viewport.width), static_cast<uint32_t>(m_Viewport.height)); }
+    vk::Extent2D                                    GetExtent() const
+    { return { static_cast<uint32_t>(m_Viewport.width), static_cast<uint32_t>(m_Viewport.height) }; }
 
-    vk::Viewport& GetViewport() { return m_Viewport; }
-    const vk::Viewport& GetViewport() const { return m_Viewport; }
-    const vk::Rect2D GetScissor() const { return vk::Rect2D({ 0, 0 }, GetExtent()); }
-    
+    vk::Viewport&                                   GetViewport()
+    { return m_Viewport; }
+
+    const vk::Viewport&                             GetViewport() const
+    { return m_Viewport; }
+
+    const vk::Rect2D                                GetScissor() const
+    { return vk::Rect2D({ 0, 0 }, GetExtent()); }
+
 private:
     vk::Viewport m_Viewport;
 };
@@ -39,7 +45,7 @@ public:
     Swapchain(SafePtr<class GfxContext> ctx, vk::SurfaceKHR surface);
     virtual ~Swapchain();
 
-    void CreateSwapchain();
+    void                                            CreateSwapchain();
 
     [[nodiscard]] uint32_t                          GetImageCount() const
     { 
@@ -57,8 +63,8 @@ public:
     [[nodiscard]] class Framebuffer&                GetFramebuffer(uint32_t index);
     [[nodiscard]] std::vector<class Framebuffer>&   GetFramebuffers() { return m_Framebuffers; }
 
-    void BeginFrame();
-    [[nodiscard]] bool Present();
+    void                                            BeginFrame();
+    [[nodiscard]] bool                              Present();
 
 private:
     SafePtr<class GfxContext>               m_Context;
@@ -80,7 +86,6 @@ private:
     std::vector<vk::Fence>                  m_AcquireFences;
 
     uint32_t                                m_CurrentImageIndex{ 0 };
-    uint32_t                                m_FrameIndex{ 0 };
 private:
     void                            CreateSyncObjects();
 
