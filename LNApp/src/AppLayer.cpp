@@ -219,36 +219,8 @@ void AppLayer::OnAttach()
 
     SafePtr uvChecker = renderer.CreateTexture(lne::ApplicationBase::GetAssetsPath() + "Textures\\UVChecker.png");
 
-    SafePtr gbufferEffect = renderer.CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\GBuffer.glsl");
-    SafePtr forwardTransparentEffect = renderer.CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\ForwardTransparent.glsl");
-    SafePtr depthPrePassEffect = renderer.CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\DepthPrePass.glsl");
-
-    GfxTechniqueDesc techDesc{};
-    techDesc.Name = "DefaultMeshOpaque";
-    techDesc.TechniqueState.Cull = ECullMode::Back;
-    techDesc.TechniqueState.Fill = EFillMode::Solid;
-    techDesc.TechniqueState.Transparency = TransparencyMode::eOpaque;
-    techDesc.TechniqueState.DepthMode = DepthMode::eReadWrite;
-
-    PassBindingDesc passDesc{};
-    passDesc.PassName = "GBufferPass";
-    passDesc.PassEffect = gbufferEffect;
-    techDesc.Passes.push_back(passDesc);
-    passDesc.PassName = "DepthPrePass";
-    passDesc.PassEffect = depthPrePassEffect;
-    techDesc.Passes.push_back(passDesc);
-    m_OpaqueTechnique = renderer.CreateOrGetTechnique(techDesc);
-
-    techDesc.Name = "DefaultMeshTransparent";
-    techDesc.TechniqueState.Cull = ECullMode::Back;
-    techDesc.TechniqueState.Fill = EFillMode::Solid;
-    techDesc.TechniqueState.Transparency = TransparencyMode::eTransparent;
-    techDesc.TechniqueState.DepthMode = DepthMode::eReadOnly;
-    techDesc.Passes.clear();
-    passDesc.PassName = "TransparentForwardPass";
-    passDesc.PassEffect = forwardTransparentEffect;
-    techDesc.Passes.push_back(passDesc);
-    m_TransparentTechnique = renderer.CreateOrGetTechnique(techDesc);
+    m_OpaqueTechnique = renderer.GetTechnique("DefaultMeshOpaque");
+    m_TransparentTechnique = renderer.GetTechnique("DefaultMeshTransparent");
 
     m_BasicMaterial = lnnew Material(m_OpaqueTechnique);
     m_BasicMaterial2 = lnnew Material(m_OpaqueTechnique);
@@ -285,7 +257,7 @@ void AppLayer::OnAttach()
     SafePtr sphereMesh = StaticMesh::GenerateUVSphere(1.0f, 32, 32);
     sphereMesh->SetMaterial(m_BasicMaterial2, 0);
     modelMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Sponza\\glTF\\Sponza.gltf", m_OpaqueTechnique, m_TransparentTechnique);
-    modelSphereMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\SpecularTest\\glTF\\SpecularTest.gltf", m_OpaqueTechnique, m_TransparentTechnique);
+    modelSphereMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\MetalRoughSpheres\\glTF\\MetalRoughSpheres.gltf", m_OpaqueTechnique, m_TransparentTechnique);
 
     cubeMeshComponent.Mesh = cubeMesh;
     sphereMeshComponent.Mesh = sphereMesh;
@@ -334,7 +306,7 @@ void AppLayer::OnAttach()
     m_CameraTarget.Rotation = cameraTransform.EulerAngles;
     cameraComponent.UpdateView(cameraTransform);
 
-    m_WorldRenderer->SetEnvironmentMap(ApplicationBase::GetAssetsPath() + "Textures\\HDRIs\\OvercastIndustrialCourtyard.hdr");
+    m_WorldRenderer->SetEnvironmentMap(ApplicationBase::GetAssetsPath() + "Textures\\HDRIs\\pisa.hdr");
     m_WorldRenderer->SetSunLightDirection(m_LightDirection);
     m_WorldRenderer->SetAmbientLight(m_AmbientLight);
 }

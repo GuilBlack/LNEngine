@@ -289,15 +289,37 @@ void GfxLoader::ProcessUploadRequests()
     if (m_UploadRequests.empty())
         return;
 
-    auto& cpManager = m_GraphicsContext->GetCommandPoolManager();
-    vk::CommandBuffer cb = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Transfer);
-
     UploadRequest request = {};
     {
         std::lock_guard<std::mutex> lock(m_UploadRequestsMutex);
         request = m_UploadRequests.back();
         m_UploadRequests.pop_back();
     }
+
+    BufferAllocation stagingBuffer = m_StagingBuffer; 
+    bool tempStagingBufferUsed = false;
+    if (m_StagingBuffer.AllocationInfo.size < request.Size)
+    {
+        // create temporary staging buffer if the common one is not enough
+        tempStagingBufferUsed = true;
+        vk::BufferCreateInfo bufferCI{
+            {},
+            request.Size,
+            vk::BufferUsageFlagBits::eTransferSrc,
+            vk::SharingMode::eExclusive,
+        };
+        VmaAllocationCreateInfo allocCI{
+            .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+                        VMA_ALLOCATION_CREATE_MAPPED_BIT,
+            .usage = VMA_MEMORY_USAGE_AUTO,
+        };
+        BufferAllocation tempStagingBuffer;
+        m_GraphicsContext->AllocateBuffer(tempStagingBuffer, bufferCI, allocCI);
+        m_StagingBuffer = tempStagingBuffer;
+    }
+
+    auto& cpManager = m_GraphicsContext->GetCommandPoolManager();
+    vk::CommandBuffer cb = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Transfer);
 
     switch (request.Type)
     {
@@ -322,6 +344,12 @@ void GfxLoader::ProcessUploadRequests()
     vk::PipelineStageFlags waitDst = vk::PipelineStageFlagBits::eTransfer;
     vk::SubmitInfo submitInfo{};
     cpManager.EndSingleUseCommandBuffer(EQueueFamilyType::Transfer, &waitDst, &m_TransferSemaphore);
+
+    if (tempStagingBufferUsed)
+    {
+        m_GraphicsContext->FreeBufferAllocation(m_StagingBuffer);
+        m_StagingBuffer = stagingBuffer;
+    }
 }
 
 void GfxLoader::ProcessLoadRequests()
