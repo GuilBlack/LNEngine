@@ -24,12 +24,9 @@ StaticMesh::StaticMesh()
     m_Materials.resize(1);
 }
 
-StaticMesh::StaticMesh(std::filesystem::path path, SafePtr<GfxTechnique> opaqueTechnique, SafePtr<GfxTechnique> transparentTechnique)
+StaticMesh::StaticMesh(std::filesystem::path path)
     : m_Path(path),
     m_Geometry{ nullptr },
-    m_Materials{},
-    m_OpaqueTechnique(opaqueTechnique),
-    m_TransparentTechnique(transparentTechnique),
     m_Textures{}
 {
     Assimp::Importer importer;
@@ -204,7 +201,6 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
             {
                 int x, y, comp;
                 stbi_info(texPath.string().c_str(), &x, &y, &comp);
-                isTransparent = (comp == 4);
             }
         }
 
@@ -212,9 +208,9 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
 
         SafePtr<Material> material{};
         if (isTransparent)
-            material = lnnew Material(m_TransparentTechnique);
+            material = lnnew Material(renderer.GetTechnique("DefaultMeshTransparent"));
         else
-            material = lnnew Material(m_OpaqueTechnique);
+            material = lnnew Material(renderer.GetTechnique("DefaultMeshOpaque"));
         m_Materials.push_back(material);
 
         aiColor3D aiColor(1.0f);

@@ -219,11 +219,10 @@ void AppLayer::OnAttach()
 
     SafePtr uvChecker = renderer.CreateTexture(lne::ApplicationBase::GetAssetsPath() + "Textures\\UVChecker.png");
 
-    m_OpaqueTechnique = renderer.GetTechnique("DefaultMeshOpaque");
-    m_TransparentTechnique = renderer.GetTechnique("DefaultMeshTransparent");
+    SafePtr opaqueTechnique = renderer.GetTechnique("DefaultMeshOpaque");
 
-    m_BasicMaterial = lnnew Material(m_OpaqueTechnique);
-    m_BasicMaterial2 = lnnew Material(m_OpaqueTechnique);
+    m_BasicMaterial = lnnew Material(opaqueTechnique);
+    m_BasicMaterial2 = lnnew Material(opaqueTechnique);
 
     m_BasicMaterial->SetProperty("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
     m_BasicMaterial->SetTexture("tAlbedo", uvChecker);
@@ -256,8 +255,8 @@ void AppLayer::OnAttach()
     cubeMesh->SetMaterial(m_BasicMaterial, 0);
     SafePtr sphereMesh = StaticMesh::GenerateUVSphere(1.0f, 32, 32);
     sphereMesh->SetMaterial(m_BasicMaterial2, 0);
-    modelMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Sponza\\glTF\\Sponza.gltf", m_OpaqueTechnique, m_TransparentTechnique);
-    modelSphereMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\MetalRoughSpheres\\glTF\\MetalRoughSpheres.gltf", m_OpaqueTechnique, m_TransparentTechnique);
+    modelMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Sponza\\glTF\\Sponza.gltf");
+    modelSphereMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\MetalRoughSpheres\\glTF\\MetalRoughSpheres.gltf");
 
     cubeMeshComponent.Mesh = cubeMesh;
     sphereMeshComponent.Mesh = sphereMesh;
