@@ -3,6 +3,11 @@
 #include <assimp/Importer.hpp>
 
 #include "Core/Utils/Log.h"
+#include "Core/ApplicationBase.h"
+#include "Core/Utils/Profiling.h"
+
+#include <Graphics/Resources/Pipeline.h>
+#include "Graphics/Resources/Material.h"
 #include "Graphics/Resources/Texture.h"
 #include "Graphics/Resources/StorageBuffer.h"
 #include "Graphics/GfxContext.h"
@@ -12,9 +17,6 @@
 #include "Graphics/WorldEnvironment.h"
 
 #include "GfxLoader.h"
-#include "Core/ApplicationBase.h"
-#include <Graphics/Resources/Pipeline.h>
-#include "Graphics/Resources/Material.h"
 
 namespace lne
 {
@@ -36,7 +38,7 @@ std::string_view ToString(Enum type)
 
 void GfxLoaderTask::Execute()
 {
-    tracy::SetThreadName("Graphics Loader");
+    SET_PROFILING_THREAD_NAME("Graphics Loader");
     while (TaskScheduler.lock()->GetIsShutdownRequested() == false)
         Loader->Update();
 }
