@@ -122,7 +122,8 @@ project "LNApp"
         }
 
     filter "configurations:Dist"
+        kind "WindowedApp"
         runtime "Release"
         symbols "Off"
         optimize "On"
-        defines "NDEBUG"    
+        defines "NDEBUG"
