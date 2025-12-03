@@ -47,7 +47,7 @@ void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNo
     techDesc.Passes.push_back(passDesc);
     SafePtr technique = renderer.CreateOrGetTechnique(techDesc);
 
-    m_MaterialV2 = lnnew Material(technique);
+    m_Material = lnnew Material(technique);
 
     for (FrameGraphResourceHandle resourceHandle : node->InputResources)
     {
@@ -72,11 +72,11 @@ void AppLayer::SkyboxPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRender
     if (m_Texture != worldRenderer->GetEnvironment()->SkyboxTexture)
     {
         m_Texture = worldRenderer->GetEnvironment()->SkyboxTexture;
-        m_MaterialV2->SetTexture("tCubeAlbedo", m_Texture);
+        m_Material->SetTexture("tCubeAlbedo", m_Texture);
     }
 
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
-    renderer.DrawFullscreenQuad(cmdBuffer, m_MaterialV2, GetID());
+    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, GetID());
 }
 
 void AppLayer::SkyboxPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
@@ -135,7 +135,7 @@ void AppLayer::ToneMappingPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGr
     techDesc.Passes.push_back(passDesc);
     SafePtr technique = renderer.CreateOrGetTechnique(techDesc);
 
-    SafePtr<Material> mat = lnnew Material(technique);
+    m_Material = lnnew Material(technique);
 
     for (FrameGraphResourceHandle resourceHandle : node->OutputResources)
     {
@@ -154,9 +154,18 @@ void AppLayer::ToneMappingPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGr
     {
         lne::FrameGraphResource* resource = frameGraph->GetResource(handle);
         lne::SafePtr<lne::Texture> sceneTexture = resource->Resource.GetAs<lne::Texture>();
-        mat->SetTexture("tSceneTexture", sceneTexture);
+        m_Material->SetTexture("tSceneTexture", sceneTexture);
     }
-    m_MaterialV2 = mat;
+}
+
+void AppLayer::ToneMappingPass::OnResize(lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
+{
+    for (lne::FrameGraphResourceHandle handle : node->InputResources)
+    {
+        lne::FrameGraphResource* resource = frameGraph->GetResource(handle);
+        lne::SafePtr<lne::Texture> sceneTexture = resource->Resource.GetAs<lne::Texture>();
+        m_Material->SetTexture("tSceneTexture", sceneTexture);
+    }
 }
 
 void AppLayer::ToneMappingPass::Execute(vk::CommandBuffer cmdBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
@@ -168,7 +177,7 @@ void AppLayer::ToneMappingPass::Execute(vk::CommandBuffer cmdBuffer, class lne::
         lne::FrameGraphResource* resource = frameGraph->GetResource(handle);
         lne::SafePtr<lne::Texture> sceneTexture = resource->Resource.GetAs<lne::Texture>();
     }
-    renderer.DrawFullscreenQuad(cmdBuffer, m_MaterialV2, GetID());
+    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, GetID());
 }
 
 void AppLayer::ToneMappingPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)

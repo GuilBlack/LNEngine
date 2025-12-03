@@ -21,20 +21,20 @@ void LightingPass::OnBind(FrameGraph* frameGraph, FrameGraphNode* node)
     SafePtr skyboxEffect = renderer.CreateOrGetEffect(ApplicationBase::GetAssetsPath()
                                                       + "Engine\\Shaders\\Lighting.glsl");
 
-	GfxTechniqueDesc techDesc{};
-	techDesc.Name = "LightingTechnique";
-	techDesc.TechniqueState.Cull = ECullMode::None;
-	techDesc.TechniqueState.Fill = EFillMode::Solid;
-	techDesc.TechniqueState.Transparency = TransparencyMode::eOpaque;
-	techDesc.TechniqueState.DepthMode = DepthMode::eNone;
+    GfxTechniqueDesc techDesc{};
+    techDesc.Name = "LightingTechnique";
+    techDesc.TechniqueState.Cull = ECullMode::None;
+    techDesc.TechniqueState.Fill = EFillMode::Solid;
+    techDesc.TechniqueState.Transparency = TransparencyMode::eOpaque;
+    techDesc.TechniqueState.DepthMode = DepthMode::eNone;
 
-	PassBindingDesc passDesc{};
-	passDesc.PassName = "LightingPass";
-	passDesc.PassEffect = skyboxEffect;
-	techDesc.Passes.push_back(passDesc);
+    PassBindingDesc passDesc{};
+    passDesc.PassName = "LightingPass";
+    passDesc.PassEffect = skyboxEffect;
+    techDesc.Passes.push_back(passDesc);
     SafePtr technique = renderer.CreateOrGetTechnique(techDesc);
 
-	m_Material = lnnew Material(technique);
+    m_Material = lnnew Material(technique);
     
     for (FrameGraphResourceHandle resourceHandle : node->OutputResources)
     {
@@ -47,18 +47,18 @@ void LightingPass::OnBind(FrameGraph* frameGraph, FrameGraphNode* node)
                 texture->GetDimensions().width / 2, texture->GetDimensions().height / 2, texture->GetFormat(), TextureUsageType::eSampled, false, texture->GetName() + "ImGUI Debug");
             m_DebugTexture = debugTexture;
         }
-	}
-	for (FrameGraphResourceHandle handle : node->InputResources)
-	{
-		FrameGraphResource* resource = frameGraph->GetResource(handle);
-		if (resource->Name == "GBufferPosition")
-		{
-			SafePtr<Texture> positionTexture = resource->Resource.GetAs<Texture>();
+    }
+    for (FrameGraphResourceHandle handle : node->InputResources)
+    {
+        FrameGraphResource* resource = frameGraph->GetResource(handle);
+        if (resource->Name == "GBufferPosition")
+        {
+            SafePtr<Texture> positionTexture = resource->Resource.GetAs<Texture>();
             m_Material->SetTexture("tPosition", positionTexture);
-		}
-		if (resource->Name == "GBufferNormal")
-		{
-			SafePtr<Texture> normalTexture = resource->Resource.GetAs<Texture>();
+        }
+        if (resource->Name == "GBufferNormal")
+        {
+            SafePtr<Texture> normalTexture = resource->Resource.GetAs<Texture>();
             m_Material->SetTexture("tNormal", normalTexture);
         }
         if (resource->Name == "GBufferColor")
@@ -70,8 +70,36 @@ void LightingPass::OnBind(FrameGraph* frameGraph, FrameGraphNode* node)
         {
             SafePtr<Texture> colorTexture = resource->Resource.GetAs<Texture>();
             m_Material->SetTexture("tMetalnessRoughness", colorTexture);
-		}
-	}
+        }
+    }
+}
+
+void LightingPass::OnResize(FrameGraph* frameGraph, FrameGraphNode* node)
+{
+    for (FrameGraphResourceHandle handle : node->InputResources)
+    {
+        FrameGraphResource* resource = frameGraph->GetResource(handle);
+        if (resource->Name == "GBufferPosition")
+        {
+            SafePtr<Texture> positionTexture = resource->Resource.GetAs<Texture>();
+            m_Material->SetTexture("tPosition", positionTexture);
+        }
+        if (resource->Name == "GBufferNormal")
+        {
+            SafePtr<Texture> normalTexture = resource->Resource.GetAs<Texture>();
+            m_Material->SetTexture("tNormal", normalTexture);
+        }
+        if (resource->Name == "GBufferColor")
+        {
+            SafePtr<Texture> colorTexture = resource->Resource.GetAs<Texture>();
+            m_Material->SetTexture("tAlbedo", colorTexture);
+        }
+        if (resource->Name == "GBufferMetalRough")
+        {
+            SafePtr<Texture> colorTexture = resource->Resource.GetAs<Texture>();
+            m_Material->SetTexture("tMetalnessRoughness", colorTexture);
+        }
+    }
 }
 
 void LightingPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
