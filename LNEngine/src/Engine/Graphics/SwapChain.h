@@ -63,8 +63,11 @@ public:
     [[nodiscard]] class Framebuffer&                GetFramebuffer(uint32_t index);
     [[nodiscard]] std::vector<class Framebuffer>&   GetFramebuffers() { return m_Framebuffers; }
 
+    [[nodiscard]] bool                              IsDirty() const { return m_IsDirty.load(std::memory_order_acquire); }
+    void                                            ResetDirty() { m_IsDirty.store(false, std::memory_order_release); }
+
     void                                            BeginFrame();
-    [[nodiscard]] bool                              Present();
+    void                                            Present();
 
 private:
     SafePtr<class GfxContext>               m_Context;
@@ -86,10 +89,11 @@ private:
     std::vector<vk::Fence>                  m_AcquireFences;
 
     uint32_t                                m_CurrentImageIndex{ 0 };
+    std::atomic<bool>                       m_IsDirty{ false };
 private:
-    void                            CreateSyncObjects();
+    void                                            CreateSyncObjects();
 
-    vk::SurfaceFormatKHR            PickSwapchainSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
-    vk::PresentModeKHR              PickSwapchainPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes);
+    vk::SurfaceFormatKHR                            PickSwapchainSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
+    vk::PresentModeKHR                              PickSwapchainPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes);
 };
 }

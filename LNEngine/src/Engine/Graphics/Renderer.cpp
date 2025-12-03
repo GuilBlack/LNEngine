@@ -177,8 +177,8 @@ void Renderer::BeginFrame()
         {
             LNE_PROFILE_FUNCTION_C(PROFILING_COL);
             m_Swapchain->BeginFrame();
-			uint32_t currentImageIndex = m_Swapchain->GetCurrentFrameIndex();
-			uint32_t frameIndex = m_Context->GetCurrentFrameIndex();
+            uint32_t currentImageIndex = m_Swapchain->GetCurrentFrameIndex();
+            uint32_t frameIndex = m_Context->GetCurrentFrameIndex();
             m_CurrentFrameInFlight = frameIndex;
             m_Context->GetCommandPoolManager().ResetFrameCommands(frameIndex);
             vk::CommandBuffer cmdBuffer = m_Context->GetPrimaryCommandBuffer();
@@ -193,14 +193,6 @@ void Renderer::BeginFrame()
             if (m_IsAsync == false)
                 m_GfxLoader->Update();
             UpdateTextures(cmdBuffer);
-
-            // Do we need this???
-            auto viewport = m_Swapchain->GetViewport();
-            cmdBuffer.setScissor(0, viewport.GetScissor());
-            auto vp = viewport.GetViewport();
-            vp.y += vp.height;
-            vp.height *= -1;
-            cmdBuffer.setViewport(0, vp);
 
             m_FrameData[m_CurrentFrameInFlight].DescriptorAllocator->Clear();
         };
@@ -645,6 +637,7 @@ void Renderer::AddRenderTask(RenderTaskFunction renderTaskFunc)
 
 void Renderer::RunRenderTasks()
 {
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL);
 	auto& tasks = m_FrameRenderTasks[m_CurrentFrameInFlightMain];
     auto* taskLauncher = m_RenderTasksLauncher[m_CurrentFrameInFlightMain];
 	if (tasks.empty())
@@ -661,11 +654,15 @@ void Renderer::RunRenderTasks()
 
 void Renderer::WaitForRenderTasksToFinish()
 {
+    LNE_PROFILE_FUNCTION_C(PROFILING_COL);
 	auto& tasks = m_FrameRenderTasks[m_PrevFrameInFlightMain];
 	auto* taskLauncher = m_RenderTasksLauncher[m_PrevFrameInFlightMain];
 	if (tasks.empty())
 		return;
-	m_TaskScheduler->WaitforTask(tasks.back());
+    {
+        LNE_PROFILE_SCOPE_C("Wait for Render Tasks", PROFILING_COL)
+	    m_TaskScheduler->WaitforTask(tasks.back());
+    }
 	for (auto& task : tasks)
 		delete task;
     tasks.clear();
