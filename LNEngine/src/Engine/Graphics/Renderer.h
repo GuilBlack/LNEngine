@@ -124,9 +124,9 @@ public:
     [[nodiscard]] SafePtr<class WorldEnvironment>   CreateEnvironmentMap(std::string_view pathToEnvMap, 
                                                                          uint32_t dimensions = 1024);
 
-    [[nodiscard]] SafePtr<Shader>                   CreateOrGetShader(const std::string& path);
-    [[nodiscard]] SafePtr<Effect>                   CreateOrGetEffect(const std::string& path);
-    [[nodiscard]] SafePtr<GfxTechnique>             CreateOrGetTechnique(const GfxTechniqueDesc& techniqueDesc);
+    SafePtr<Shader>                                 CreateOrGetShader(const std::string& path);
+    SafePtr<Effect>                                 CreateOrGetEffect(const std::string& path);
+    SafePtr<GfxTechnique>                           CreateOrGetTechnique(const GfxTechniqueDesc& techniqueDesc);
     [[nodiscard]] SafePtr<GfxTechnique>             GetTechnique(const std::string& name);
 
     void                                            AddTextureToUpdate(SafePtr<class Texture> texture);

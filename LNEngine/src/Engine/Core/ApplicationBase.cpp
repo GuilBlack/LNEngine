@@ -129,7 +129,6 @@ void ApplicationBase::Run()
         LNE_PROFILE_SCOPE("Frame")
         m_Clock.Tick();
 
-        m_Window->BeginFrame();
         m_Renderer->BeginFrame();
         
         for (auto layer : m_LayerStack)

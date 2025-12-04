@@ -47,7 +47,7 @@ void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNo
     techDesc.Passes.push_back(passDesc);
     SafePtr technique = renderer.CreateOrGetTechnique(techDesc);
 
-    m_MaterialV2 = lnnew Material(technique);
+    m_Material = lnnew Material(technique);
 
     for (FrameGraphResourceHandle resourceHandle : node->InputResources)
     {
@@ -72,11 +72,11 @@ void AppLayer::SkyboxPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRender
     if (m_Texture != worldRenderer->GetEnvironment()->SkyboxTexture)
     {
         m_Texture = worldRenderer->GetEnvironment()->SkyboxTexture;
-        m_MaterialV2->SetTexture("tCubeAlbedo", m_Texture);
+        m_Material->SetTexture("tCubeAlbedo", m_Texture);
     }
 
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
-    renderer.DrawFullscreenQuad(cmdBuffer, m_MaterialV2, GetID());
+    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, GetID());
 }
 
 void AppLayer::SkyboxPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
@@ -135,7 +135,7 @@ void AppLayer::ToneMappingPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGr
     techDesc.Passes.push_back(passDesc);
     SafePtr technique = renderer.CreateOrGetTechnique(techDesc);
 
-    SafePtr<Material> mat = lnnew Material(technique);
+    m_Material = lnnew Material(technique);
 
     for (FrameGraphResourceHandle resourceHandle : node->OutputResources)
     {
@@ -154,9 +154,18 @@ void AppLayer::ToneMappingPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGr
     {
         lne::FrameGraphResource* resource = frameGraph->GetResource(handle);
         lne::SafePtr<lne::Texture> sceneTexture = resource->Resource.GetAs<lne::Texture>();
-        mat->SetTexture("tSceneTexture", sceneTexture);
+        m_Material->SetTexture("tSceneTexture", sceneTexture);
     }
-    m_MaterialV2 = mat;
+}
+
+void AppLayer::ToneMappingPass::OnResize(lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
+{
+    for (lne::FrameGraphResourceHandle handle : node->InputResources)
+    {
+        lne::FrameGraphResource* resource = frameGraph->GetResource(handle);
+        lne::SafePtr<lne::Texture> sceneTexture = resource->Resource.GetAs<lne::Texture>();
+        m_Material->SetTexture("tSceneTexture", sceneTexture);
+    }
 }
 
 void AppLayer::ToneMappingPass::Execute(vk::CommandBuffer cmdBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
@@ -168,7 +177,7 @@ void AppLayer::ToneMappingPass::Execute(vk::CommandBuffer cmdBuffer, class lne::
         lne::FrameGraphResource* resource = frameGraph->GetResource(handle);
         lne::SafePtr<lne::Texture> sceneTexture = resource->Resource.GetAs<lne::Texture>();
     }
-    renderer.DrawFullscreenQuad(cmdBuffer, m_MaterialV2, GetID());
+    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, GetID());
 }
 
 void AppLayer::ToneMappingPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
@@ -219,39 +228,10 @@ void AppLayer::OnAttach()
 
     SafePtr uvChecker = renderer.CreateTexture(lne::ApplicationBase::GetAssetsPath() + "Textures\\UVChecker.png");
 
-    SafePtr gbufferEffect = renderer.CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\GBuffer.glsl");
-    SafePtr forwardTransparentEffect = renderer.CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\ForwardTransparent.glsl");
-    SafePtr depthPrePassEffect = renderer.CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\DepthPrePass.glsl");
+    SafePtr opaqueTechnique = renderer.GetTechnique("DefaultMeshOpaque");
 
-    GfxTechniqueDesc techDesc{};
-    techDesc.Name = "DefaultMeshOpaque";
-    techDesc.TechniqueState.Cull = ECullMode::Back;
-    techDesc.TechniqueState.Fill = EFillMode::Solid;
-    techDesc.TechniqueState.Transparency = TransparencyMode::eOpaque;
-    techDesc.TechniqueState.DepthMode = DepthMode::eReadWrite;
-
-    PassBindingDesc passDesc{};
-    passDesc.PassName = "GBufferPass";
-    passDesc.PassEffect = gbufferEffect;
-    techDesc.Passes.push_back(passDesc);
-    passDesc.PassName = "DepthPrePass";
-    passDesc.PassEffect = depthPrePassEffect;
-    techDesc.Passes.push_back(passDesc);
-    m_OpaqueTechnique = renderer.CreateOrGetTechnique(techDesc);
-
-    techDesc.Name = "DefaultMeshTransparent";
-    techDesc.TechniqueState.Cull = ECullMode::Back;
-    techDesc.TechniqueState.Fill = EFillMode::Solid;
-    techDesc.TechniqueState.Transparency = TransparencyMode::eTransparent;
-    techDesc.TechniqueState.DepthMode = DepthMode::eReadOnly;
-    techDesc.Passes.clear();
-    passDesc.PassName = "TransparentForwardPass";
-    passDesc.PassEffect = forwardTransparentEffect;
-    techDesc.Passes.push_back(passDesc);
-    m_TransparentTechnique = renderer.CreateOrGetTechnique(techDesc);
-
-    m_BasicMaterial = lnnew Material(m_OpaqueTechnique);
-    m_BasicMaterial2 = lnnew Material(m_OpaqueTechnique);
+    m_BasicMaterial = lnnew Material(opaqueTechnique);
+    m_BasicMaterial2 = lnnew Material(opaqueTechnique);
 
     m_BasicMaterial->SetProperty("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
     m_BasicMaterial->SetTexture("tAlbedo", uvChecker);
@@ -284,8 +264,8 @@ void AppLayer::OnAttach()
     cubeMesh->SetMaterial(m_BasicMaterial, 0);
     SafePtr sphereMesh = StaticMesh::GenerateUVSphere(1.0f, 32, 32);
     sphereMesh->SetMaterial(m_BasicMaterial2, 0);
-    modelMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Sponza\\glTF\\Sponza.gltf", m_OpaqueTechnique, m_TransparentTechnique);
-    modelSphereMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\SpecularTest\\glTF\\SpecularTest.gltf", m_OpaqueTechnique, m_TransparentTechnique);
+    modelMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Sponza\\glTF\\Sponza.gltf");
+    modelSphereMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\MetalRoughSpheres\\glTF\\MetalRoughSpheres.gltf");
 
     cubeMeshComponent.Mesh = cubeMesh;
     sphereMeshComponent.Mesh = sphereMesh;
@@ -334,7 +314,7 @@ void AppLayer::OnAttach()
     m_CameraTarget.Rotation = cameraTransform.EulerAngles;
     cameraComponent.UpdateView(cameraTransform);
 
-    m_WorldRenderer->SetEnvironmentMap(ApplicationBase::GetAssetsPath() + "Textures\\HDRIs\\OvercastIndustrialCourtyard.hdr");
+    m_WorldRenderer->SetEnvironmentMap(ApplicationBase::GetAssetsPath() + "Textures\\HDRIs\\pisa.hdr");
     m_WorldRenderer->SetSunLightDirection(m_LightDirection);
     m_WorldRenderer->SetAmbientLight(m_AmbientLight);
 }

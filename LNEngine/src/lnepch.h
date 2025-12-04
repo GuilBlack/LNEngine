@@ -31,6 +31,12 @@
 #   include <Windows.h>
 #endif // LNE_PLATFORM_WINDOWS
 
+#ifdef _MSC_VER
+#   pragma warning(disable : 4390)
+#   pragma warning(disable : 4552)
+#   pragma warning(disable : 4553)
+#endif
+
 // Third Party
 // Math
 #define GLM_FORCE_RADIANS

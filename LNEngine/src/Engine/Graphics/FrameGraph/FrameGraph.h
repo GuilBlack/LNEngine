@@ -51,6 +51,7 @@ struct FrameGraphResourceInfo
 struct FrameGraphResource
 {
     FrameGraphResourceType::Enum Type{};
+    // TODO: This ref count does not work on resize.
     uint32_t RefCount{ 0 };
     FrameGraphResourceInfo Info{};
     SafePtr<RefCountBase> Resource{}; // Texture, Buffer, etc.

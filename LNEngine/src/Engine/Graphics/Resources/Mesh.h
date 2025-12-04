@@ -86,14 +86,12 @@ class StaticMesh : public RefCountBase
 {
 public:
     // TODO: probably make a mesh importer class or something
-    StaticMesh(std::filesystem::path path,
-               SafePtr<GfxTechnique> opaqueTechnique,
-               SafePtr<GfxTechnique> transparentTechnique);
+    StaticMesh(std::filesystem::path path);
 
     std::vector<SubMesh>&               GetSubMeshes() { return m_SubMeshes; }
     const Geometry&                     GetGeometry() const { return *m_Geometry.get(); }
 
-    [[nodiscard]] SafePtr<Material>   GetMaterial(uint32_t index)
+    [[nodiscard]] SafePtr<Material>     GetMaterial(uint32_t index)
     {
         return m_Materials[index];
     }
@@ -123,11 +121,7 @@ private:
     uint32_t                                m_TotalIndexCount{};
 
     // TODO: move to a resource manager
-    std::vector<SafePtr<Material>>        m_Materials;
-    SafePtr<GfxPipeline>                    m_Pipeline;
-    SafePtr<GfxPipeline>                    m_TransparentPipeline;
-    SafePtr<GfxTechnique>                   m_OpaqueTechnique;
-    SafePtr<GfxTechnique>                   m_TransparentTechnique;
+    std::vector<SafePtr<Material>>          m_Materials;
     std::vector<SafePtr<Texture>>           m_Textures;
 private:
     StaticMesh();
