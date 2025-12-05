@@ -265,7 +265,6 @@ void AppLayer::OnAttach()
     SafePtr sphereMesh = StaticMesh::GenerateUVSphere(1.0f, 32, 32);
     sphereMesh->SetMaterial(m_BasicMaterial2, 0);
     modelMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Sponza\\glTF\\Sponza.gltf");
-    modelSphereMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\MetalRoughSpheres\\glTF\\MetalRoughSpheres.gltf");
 
     cubeMeshComponent.Mesh = cubeMesh;
     sphereMeshComponent.Mesh = sphereMesh;
@@ -275,34 +274,53 @@ void AppLayer::OnAttach()
     cubeTransform.Position =  { -0.5f, 0.0f, -30.0f };
     cubeTransform.Scale =     { 0.25f, 0.25f, 0.25f };
 
-    sphereTransform.Position = { 0.5f, 0.0f, 0.0f };
+    sphereTransform.Position = { 0.f, 1.0f, 0.0f };
     sphereTransform.Scale = { 0.25f, 0.25f, 0.25f };
 
     modelTransform.Position = { 0.0f, 0.0f, 0.0f };
     modelTransform.Scale = { 100.f, 100.f, 100.f };
 
     modelSphereTransform.Position = { 0.0f, 10.0f, 0.0f };
+    modelSphereTransform.SetEulerAngles({ 90.0f, 0.0f, 0.0f });
     modelSphereTransform.Scale = { 10.f, 10.f, 10.f };
 
 #pragma endregion
-    //SafePtr<StaticMesh> purpleSphere = sphereMeshComponent.Mesh;
-    //SafePtr<StaticMesh> uvSphere = lnnew StaticMesh(sphereGeo, m_BasicMaterial, { uvChecker }, m_BasePipeline);
 
-    //for (int i = 0; i < 32000; i++)
-    //{
-    //    Entity temp = m_Scene->CreateEntity();
-    //    temp.EmplaceComponent<StaticMeshComponent>();
+    glm::vec3 color{};
 
-    //    auto [tempTransform, tempMeshComp] =
-    //        temp.GetComponents<TransformComponent, StaticMeshComponent>();
+    for (int sic = 0; sic < 2; ++sic)
+    {
+        if (sic == 0)
+            color = 0.8f * glm::vec3(1.0f, 1.0f, 1.0f);
+        else
+            color = glm::vec3(0.8, 0.6941176470588235f, 0.11372549019607843f);
 
-    //    float xRand = (rand() / (float)RAND_MAX) * 60;
-    //    float yRand = (rand() / (float)RAND_MAX) * 60;
-    //    float zRand = (rand() / (float)RAND_MAX) * 60;
-    //    tempTransform.Position = { xRand, yRand, -zRand };
-    //    tempTransform.Scale = { 0.25f, 0.25f, 0.25f };
-    //        tempMeshComp.Mesh = sphereMesh;
-    //}
+        for (int sim = 0; sim < 5; ++sim)
+        {
+            float metalness = sim / 4.0f;
+            for (int sir = 0; sir < 5; ++sir)
+            {
+                float roughness = sir / 4.0f;
+                lne::Entity entity = m_Scene->CreateEntity();
+                entity.EmplaceComponent<lne::StaticMeshComponent>();
+
+                SafePtr metalRoughSphereMesh = sphereMesh->Clone();
+                SafePtr grayMaterial = lnnew Material(opaqueTechnique);
+                grayMaterial->SetProperty("uColor", glm::vec4(color, 1.0f));
+                grayMaterial->SetProperty("uMetalness", metalness);
+                grayMaterial->SetProperty("uRoughness", roughness);
+                metalRoughSphereMesh->SetMaterial(grayMaterial, 0);
+                auto[transform, meshComponent] = entity.GetComponents<lne::TransformComponent, lne::StaticMeshComponent>();
+                meshComponent.Mesh = metalRoughSphereMesh;
+
+                transform.Position = glm::vec3(
+                    (sim * 2.0f - 1.0f) * 5.0f,
+                    (sir * 2.0f - 1.0f) * 5.0f,
+                    10.0f * (sic + 1)
+                );
+            }
+        }
+    }
 
     cameraTransform.Position = { -2.0f, 4.0f, 0.0f };
     cameraTransform.LookAt({ 0.0f, 0.0f, 0.0f });
