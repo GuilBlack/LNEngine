@@ -38,16 +38,21 @@ void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskS
     m_Context = window->GetGfxContext();
     m_Swapchain = window->GetSwapchain();
     m_TaskScheduler = taskScheduler;
-    //m_FrameRenderTasks.resize(m_Context->GetMaxFramesInFlight());
+
     m_IsAsync = true;
     AddShaderIncludeDir(ApplicationBase::GetAssetsPath() + "Engine/Shaders/Includes");
     std::filesystem::path shaderCachePath = GetShaderCachePath();
     if (!std::filesystem::exists(shaderCachePath))
         std::filesystem::create_directories(shaderCachePath);
 
-    for (uint32_t i = 0; i < 2; ++i)
+    for (uint32_t i = 0; i < m_Context->GetMaxFramesInFlight(); ++i)
     {
-        m_FrameRenderTasks.emplace_back(std::vector<RenderTask*>());
+        // 10 MB per frame should be MORE than enough
+        uint8_t* allocation = lnnew uint8_t[10 * 1024 * 1024];
+        std::memset(allocation, 0, 10 * 1024 * 1024);
+        m_FrameRenderTasksAllocation.emplace_back(allocation);
+        m_FrameRenderTasksAllocationOffsets.emplace_back(0);
+
         m_RenderTasksLauncher.emplace_back(lnnew RenderTasksLauncher());
     }
     m_PrevFrameInFlightMain = 1;
@@ -76,13 +81,11 @@ void Renderer::Nuke()
     {
         frameData.DescriptorAllocator.Reset();
         m_Context->GetDevice().destroyDescriptorSetLayout(frameData.DescriptorSetLayout);
-	}
+    }
     for (uint32_t i = 0; i < m_Context->GetMaxFramesInFlight(); ++i)
     {
-        for (auto& task : m_FrameRenderTasks[i])
-            delete task;
-        m_FrameRenderTasks[i].clear();
         delete m_RenderTasksLauncher[i];
+        delete[] m_FrameRenderTasksAllocation[i];
     }
     m_FrameData.clear();
     m_GfxLoader.Reset();
@@ -625,48 +628,38 @@ std::filesystem::path Renderer::GetShaderCachePath() const
     return std::filesystem::path(ApplicationBase::GetAssetsPath()) / "Engine" / "Shaders" / "Cache";
 }
 
-void Renderer::AddRenderTask(RenderTaskFunction renderTaskFunc)
-{
-    RenderTask* renderTask = lnnew RenderTask(renderTaskFunc);
-    renderTask->m_Priority = enki::TASK_PRIORITY_LOW;
-    auto& tasks = m_FrameRenderTasks[m_CurrentFrameInFlightMain];
-    if (tasks.empty() == false)
-        renderTask->SetDependency(renderTask->m_Dependency, tasks.back());
-    tasks.emplace_back(renderTask);
-}
-
 void Renderer::RunRenderTasks()
 {
     LNE_PROFILE_FUNCTION_C(PROFILING_COL);
-	auto& tasks = m_FrameRenderTasks[m_CurrentFrameInFlightMain];
+    auto& tasksAlloc = m_FrameRenderTasksAllocation[m_CurrentFrameInFlightMain];
+    uint64_t taskAllocOffset = m_FrameRenderTasksAllocationOffsets[m_CurrentFrameInFlightMain];
     auto* taskLauncher = m_RenderTasksLauncher[m_CurrentFrameInFlightMain];
-	if (tasks.empty())
-		return;
+    if (taskAllocOffset == 0)
+        return;
 
-    taskLauncher->m_pTaskToLaunch = tasks[0];
-    tasks.back()->SetDependency(tasks.back()->m_FinalTaskDependency, taskLauncher);
-    taskLauncher->m_Priority = enki::TASK_PRIORITY_LOW;
+    //taskLauncher->m_pTaskToLaunch = tasks[0];
+    //tasks.back()->SetDependency(tasks.back()->m_FinalTaskDependency, taskLauncher);
+    taskLauncher->m_Priority = enki::TASK_PRIORITY_HIGH;
+    taskLauncher->m_RenderTasksAllocation = tasksAlloc;
+    taskLauncher->m_RenderTasksAllocationOffset = taskAllocOffset;
 
-	m_TaskScheduler->AddTaskSetToPipe(taskLauncher); // will be executed on a random thread. but the tasks will be on the render thread.
+    m_TaskScheduler->AddTaskSetToPipe(taskLauncher); // will be executed on a random thread. but the tasks will be on the render thread.
     m_PrevFrameInFlightMain = m_CurrentFrameInFlightMain;
-    m_CurrentFrameInFlightMain = (m_CurrentFrameInFlightMain + 1) % m_FrameRenderTasks.size();
+    m_CurrentFrameInFlightMain = (m_CurrentFrameInFlightMain + 1) % m_Context->GetMaxFramesInFlight();
 }
 
 void Renderer::WaitForRenderTasksToFinish()
 {
     LNE_PROFILE_FUNCTION_C(PROFILING_COL);
-	auto& tasks = m_FrameRenderTasks[m_PrevFrameInFlightMain];
-	auto* taskLauncher = m_RenderTasksLauncher[m_PrevFrameInFlightMain];
-	if (tasks.empty())
-		return;
+    auto& tasksAllocOffset = m_FrameRenderTasksAllocationOffsets[m_PrevFrameInFlightMain];
+    auto* taskLauncher = m_RenderTasksLauncher[m_PrevFrameInFlightMain];
+    if (tasksAllocOffset == 0)
+        return;
     {
         LNE_PROFILE_SCOPE_C("Wait for Render Tasks", PROFILING_COL)
-	    m_TaskScheduler->WaitforTask(tasks.back());
+        m_TaskScheduler->WaitforTask(taskLauncher);
     }
-	for (auto& task : tasks)
-		delete task;
-    tasks.clear();
-    taskLauncher->m_pTaskToLaunch = nullptr;
+    tasksAllocOffset = 0;
 }
 
 void Renderer::InitFrameData(uint32_t index)
@@ -759,10 +752,32 @@ void Renderer::ProcessDirtyMaterials(vk::CommandBuffer cmdBuffer)
     }
 }
 
+void* Renderer::AllocateRenderTask(RenderTask&& renderTask, uint32_t size)
+{
+    auto& currentAllocationOffset = m_FrameRenderTasksAllocationOffsets[m_CurrentFrameInFlightMain];
+    auto currentAllocation = m_FrameRenderTasksAllocation[m_CurrentFrameInFlightMain];
+    
+    new (currentAllocation + currentAllocationOffset) RenderTask(renderTask);
+    currentAllocationOffset += sizeof(RenderTask);
+    
+    void* allocatedMemory = currentAllocation + currentAllocationOffset;
+    currentAllocationOffset += size;
+    
+    return allocatedMemory;
+}
+
 void RenderTasksLauncher::ExecuteRange(enki::TaskSetPartition range, uint32_t threadnum)
 {
     (void)range;
-    ApplicationBase::GetTaskScheduler()->AddPinnedTask(m_pTaskToLaunch);
+
+    uint64_t offset = 0;
+    while (offset < m_RenderTasksAllocationOffset)
+    {
+        auto& task = *reinterpret_cast<RenderTask*>(m_RenderTasksAllocation + offset);
+        offset += sizeof(RenderTask);
+        task.Invoke(m_RenderTasksAllocation + offset);
+        offset += task.Size;
+    }
 }
 
 }

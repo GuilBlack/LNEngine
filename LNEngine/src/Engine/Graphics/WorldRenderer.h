@@ -30,17 +30,17 @@ public:
     WorldRenderer(const SafePtr<FrameGraph>& frameGraph);
     ~WorldRenderer();
 
-    void SetEnvironmentMap(std::string_view pathToEnvMap);
-    void SetSunLightDirection(const glm::vec3& direction) { m_Environment->SunDirection = direction; }
-    void SetAmbientLight(float ambientLight) { m_Environment->AmbientLight = ambientLight; }
-    SafePtr<WorldEnvironment> GetEnvironment() const { return m_Environment; }
+    void                            SetEnvironmentMap(std::string_view pathToEnvMap);
+    void                            SetSunLightDirection(const glm::vec3& direction) { m_Environment->SunDirection = direction; }
+    void                            SetAmbientLight(float ambientLight) { m_Environment->AmbientLight = ambientLight; }
+    SafePtr<WorldEnvironment>       GetEnvironment() const { return m_Environment; }
 
-    TransformBuffer& GetTransformBuffer(uint32_t frameIndex) { return m_TransformBuffers[frameIndex]; }
-    SubMeshTransformArray& GetTransforms(uint32_t frameIndex, StaticMeshHash hash) { return m_Transfroms[frameIndex][hash]; }
+    TransformBuffer&                GetTransformBuffer(uint32_t frameIndex) { return m_TransformBuffers[frameIndex]; }
+    SubMeshTransformArray&          GetTransforms(uint32_t frameIndex, StaticMeshHash hash) { return m_Transfroms[frameIndex][hash]; }
 
-    void BeginScene(class Entity& cameraEntity);
-    void Render(class EntityRegistry& registry);
-    void EndFrame();
+    void                            BeginScene(class Entity& cameraEntity);
+    void                            Render(class EntityRegistry& registry);
+    void                            EndFrame();
 
 private:
     friend class Renderer;
