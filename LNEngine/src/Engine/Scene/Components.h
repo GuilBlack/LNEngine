@@ -5,6 +5,11 @@
 
 namespace lne
 {
+struct NameComponent
+{
+    std::string Name;
+};
+
 struct TransformComponent
 {
     glm::vec3 Position{};
