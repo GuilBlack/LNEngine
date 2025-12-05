@@ -107,22 +107,25 @@ public:
         m_Materials[index] = mat;
     }
 
+
+
     [[nodiscard]] static SafePtr<StaticMesh> GenerateCube(uint32_t tesselationLevel);
     [[nodiscard]] static SafePtr<StaticMesh> GenerateUVSphere(float radius = 1.f,
                                                               uint32_t nLatitude = 32,
                                                               uint32_t nLongitude = 32);
 
+    SafePtr<StaticMesh> Clone() const;
+
 private:
     std::filesystem::path                   m_Path{};
 
     std::vector<SubMesh>                    m_SubMeshes{};
-    std::unique_ptr<Geometry>               m_Geometry;
+    std::shared_ptr<Geometry>               m_Geometry;
     uint32_t                                m_TotalVertexCount{};
     uint32_t                                m_TotalIndexCount{};
 
     // TODO: move to a resource manager
     std::vector<SafePtr<Material>>          m_Materials;
-    std::vector<SafePtr<Texture>>           m_Textures;
 private:
     StaticMesh();
 
