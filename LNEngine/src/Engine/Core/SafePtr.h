@@ -11,7 +11,7 @@ public:
 ;
 #else
     {
-        m_Count.fetch_add(1, std::memory_order_acq_rel);;
+        m_Count.fetch_add(1, std::memory_order_acq_rel);
     }
 #endif // LNE_DEBUG
 
@@ -20,7 +20,7 @@ public:
 ;
 #else
     {
-        return m_Count.fetch_sub(1, std::memory_order_acq_rel);
+        return m_Count.fetch_sub(1, std::memory_order_acq_rel) - 1;
     }
 #endif // LNE_DEBUG
     uint32_t GetCount() const
