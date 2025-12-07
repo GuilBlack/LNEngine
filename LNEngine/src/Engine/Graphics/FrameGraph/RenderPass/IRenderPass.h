@@ -58,7 +58,7 @@ public:
      */
     virtual void EndFrame() {}
     
-    virtual void OnResize(glm::vec2 dimension) {}
+    virtual void OnResize(FrameGraph* frameGraph, FrameGraphNode* node) {}
 
     /**
      * This is called on the main thread to render any ImGui widgets for this render pass.

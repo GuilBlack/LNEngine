@@ -105,6 +105,7 @@ vk::DescriptorSet DynamicDescriptorAllocator::Allocate(vk::DescriptorSetLayout l
     }
     catch (std::exception& e)
     {
+        (void)e;
         LNE_WARN("DynamicDescriptorAllocator: {} \n Exception: {}", m_DebugName, e.what());
         AllocateNewPool();
         poolIdx = m_FreePoolIndices.back();
@@ -146,6 +147,7 @@ vk::DescriptorSet DynamicDescriptorAllocator::Allocate(vk::DescriptorSetLayout l
     }
     catch (std::exception& e)
     {
+        (void)e;
         LNE_WARN("DynamicDescriptorAllocator: {} \n Exception: {}", m_DebugName, e.what());
         AllocateNewPool();
         poolIdx = m_FreePoolIndices.back();

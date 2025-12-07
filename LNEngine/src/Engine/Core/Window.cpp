@@ -3,6 +3,7 @@
 #include "ApplicationBase.h"
 #include "Utils/_Defines.h"
 #include "Utils/Log.h"
+#include "Utils/Profiling.h"
 #include "Events/WindowEvents.h"
 #include "Events/KeyboardEvents.h"
 #include "Events/MouseEvents.h"
@@ -13,10 +14,8 @@
 
 namespace lne
 {
-/**
- * \brief Creates a window with the specified settings
- * \param settings specifies the window settings
- */
+#define PROFILING_COLOR 0x7171AB
+
 Window::Window(WindowSettings&& settings)
     : m_Settings{std::move(settings)}
 {
@@ -52,7 +51,7 @@ Window::Window(WindowSettings&& settings)
     m_GfxContext.Reset(lnnew GfxContext(surface));
     m_GfxContext->InitDefaultResources();
 
-    m_SwapChain.Reset(lnnew Swapchain(m_GfxContext, surface));
+    m_Swapchain.Reset(lnnew Swapchain(m_GfxContext, surface));
 
     ApplicationBase::GetEventHub().RegisterListener<WindowResizeEvent>(this, &Window::OnWindowResize);
 }
@@ -66,23 +65,20 @@ Window::~Window()
 
 lne::Framebuffer& Window::GetFramebuffer(uint32_t index) const
 {
-    return m_SwapChain->GetFramebuffer(index);
+    return m_Swapchain->GetFramebuffer(index);
 }
 
 void Window::PollEvents() const
 {
+    LNE_PROFILE_FUNCTION_C(PROFILING_COLOR);
     glfwPollEvents();
-}
-
-void Window::BeginFrame() const
-{
-    //m_SwapChain->BeginFrame();
 }
 
 void Window::Present()
 {
-    bool hasPresented = m_SwapChain->Present();
-    if (hasPresented == false || m_IsDirty == true)
+    LNE_PROFILE_FUNCTION_C(PROFILING_COLOR);
+    m_Swapchain->Present();
+    if (m_IsDirty == true || m_Swapchain->IsDirty())
     {
         while (m_Settings.Width == 0 || m_Settings.Height == 0)
         {
@@ -90,7 +86,8 @@ void Window::Present()
             glfwWaitEvents();
         }
         LNE_INFO("Recreating swapchain");
-        m_SwapChain->CreateSwapchain();
+        m_Swapchain->CreateSwapchain();
+        m_Swapchain->ResetDirty();
 
         for (auto&[_, callback] : m_SwapchainRecreateCallback)
             callback();

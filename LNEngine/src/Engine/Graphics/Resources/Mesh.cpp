@@ -24,13 +24,9 @@ StaticMesh::StaticMesh()
     m_Materials.resize(1);
 }
 
-StaticMesh::StaticMesh(std::filesystem::path path, SafePtr<GfxTechnique> opaqueTechnique, SafePtr<GfxTechnique> transparentTechnique)
+StaticMesh::StaticMesh(std::filesystem::path path)
     : m_Path(path),
-    m_Geometry{ nullptr },
-    m_Materials{},
-    m_OpaqueTechnique(opaqueTechnique),
-    m_TransparentTechnique(transparentTechnique),
-    m_Textures{}
+    m_Geometry{ nullptr }
 {
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(path.string(), aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_CalcTangentSpace);
@@ -204,7 +200,6 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
             {
                 int x, y, comp;
                 stbi_info(texPath.string().c_str(), &x, &y, &comp);
-                isTransparent = (comp == 4);
             }
         }
 
@@ -212,9 +207,9 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
 
         SafePtr<Material> material{};
         if (isTransparent)
-            material = lnnew Material(m_TransparentTechnique);
+            material = lnnew Material(renderer.GetTechnique("DefaultMeshTransparent"));
         else
-            material = lnnew Material(m_OpaqueTechnique);
+            material = lnnew Material(renderer.GetTechnique("DefaultMeshOpaque"));
         m_Materials.push_back(material);
 
         aiColor3D aiColor(1.0f);
@@ -243,11 +238,11 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
             {
                 SafePtr<Texture> texture = renderer.CreateTexture(texPath.string());
                 material->SetTexture("tAlbedo", texture);
-                m_Textures.push_back(texture);
             }
         }
 
         aiString metalTex{};
+        SafePtr<Texture> metalTexture = nullptr;
         bool hasMetTex = aiMat->GetTexture(AI_MATKEY_METALLIC_TEXTURE, &metalTex) == AI_SUCCESS;
         if (hasMetTex)
         {
@@ -256,9 +251,8 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
                 LNE_WARN("Metalness texture not found for mat: {0}", aiMat->GetName().C_Str());
             else
             {
-                SafePtr<Texture> texture = renderer.CreateTexture(texPath.string(), vk::Format::eR8G8B8A8Unorm);
-                material->SetTexture("tMetalness", texture);
-                m_Textures.push_back(texture);
+                metalTexture = renderer.CreateTexture(texPath.string(), vk::Format::eR8G8B8A8Unorm);
+                material->SetTexture("tMetalness", metalTexture);
             }
         }
 
@@ -276,10 +270,9 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
                 {
                     SafePtr<Texture> texture = renderer.CreateTexture(texPath.string(), vk::Format::eR8G8B8A8Unorm);
                     material->SetTexture("tRoughness", texture);
-                    m_Textures.push_back(texture);
                 }
                 else
-                    material->SetTexture("tRoughness", m_Textures.back());
+                    material->SetTexture("tRoughness", metalTexture);
             }
         }
 
@@ -302,7 +295,6 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
             {
                 SafePtr<Texture> texture = renderer.CreateTexture(texPath.string(), vk::Format::eR8G8B8A8Unorm);
                 material->SetTexture("tNormal", texture);
-                m_Textures.push_back(texture);
             }
         }
     }
@@ -508,6 +500,20 @@ SafePtr<StaticMesh> StaticMesh::GenerateUVSphere(float radius, uint32_t nLatitud
     mesh->m_Geometry.reset(geometry);
     mesh->m_SubMeshes = { { "UVSphere", 0, 0, geometry->VertexCount, geometry->IndexCount, 0, AABB{.Min = {-radius,0,0}, .Max = {radius,0,0} } } };
     return mesh;
+}
+
+lne::SafePtr<lne::StaticMesh> StaticMesh::Clone() const
+{
+    SafePtr<StaticMesh> clone = lnnew StaticMesh();
+    clone->m_Path = m_Path;
+
+    clone->m_SubMeshes = m_SubMeshes;
+    clone->m_Geometry = m_Geometry;
+    clone->m_TotalVertexCount = m_TotalVertexCount;
+    clone->m_TotalIndexCount = m_TotalIndexCount;
+
+    clone->m_Materials = m_Materials;
+    return clone;
 }
 
 Geometry::Geometry(GfxContext* ctx, SafePtr<StorageBuffer> vertexGPUBuffer, SafePtr<StorageBuffer> indexGPUBuffer, void* vertices, void* indices, uint32_t vertexCount, uint32_t indexCount)

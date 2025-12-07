@@ -184,6 +184,7 @@ void StorageBuffer::Grow(vk::CommandBuffer cb, uint64_t newSize)
         m_HasStagingBuffer = false;
     }
 
+    cb.fillBuffer(newAllocation.Buffer, oldSize, newSize - oldSize, 0);
     // 2. Copy old data to new buffer
     CopyBufferToBuffer(cb, m_Allocation, newAllocation, oldSize);
 

@@ -228,7 +228,8 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRe
 
 void FrameGraph::OnResize(WindowResizeEvent& e)
 {
-    // TODO: resize framebuffers
+    std::list<SafePtr<Texture>> freeTextures;
+
     for (FrameGraphNodeHandle nodeHandle : m_Nodes)
     {
         FrameGraphNode& node = *m_NodeCache.GetPool().Access(nodeHandle);
@@ -249,7 +250,9 @@ void FrameGraph::OnResize(WindowResizeEvent& e)
                     || imageInfo.Format == vk::Format::eD16UnormS8Uint
                     || imageInfo.Format == vk::Format::eD24UnormS8Uint
                     || imageInfo.Format == vk::Format::eD32SfloatS8Uint);
-                
+
+                imageInfo.Extent.width = e.GetWidth();
+                imageInfo.Extent.height = e.GetHeight();
 
                 if (isDepth)
                 {
@@ -270,11 +273,53 @@ void FrameGraph::OnResize(WindowResizeEvent& e)
             }
             }
         }
+
+        for (FrameGraphResourceHandle inputResourceHandle : node.InputResources)
+        {
+            FrameGraphResource& inputResource = *m_ResourceCache.GetPool().Access(inputResourceHandle);
+            FrameGraphResource* associatedOutputResource = m_ResourceCache.Access(inputResource.Name);
+
+            LNE_ASSERT(associatedOutputResource != nullptr, "Input resource has no associated output resource");
+
+            if (associatedOutputResource->Type == FrameGraphResourceType::eProxy)
+                associatedOutputResource = GetProxyRealResource(associatedOutputResource);
+
+            --associatedOutputResource->RefCount;
+
+            switch (associatedOutputResource->Type)
+            {
+            case FrameGraphResourceType::eAttachment:
+            case FrameGraphResourceType::eTexture:
+            {
+                const auto& outputImageInfo = std::get<FrameGraphResourceImageInfo>(associatedOutputResource->Info.Variant);
+                auto& imageInfo = std::get<FrameGraphResourceImageInfo>(inputResource.Info.Variant);
+                imageInfo.Extent.width = e.GetWidth();
+                imageInfo.Extent.height = e.GetHeight();
+
+                if (associatedOutputResource->RefCount != 0 || associatedOutputResource->Info.External)
+                    continue;
+
+                freeTextures.push_back(associatedOutputResource->Resource.GetAs<Texture>());
+                break;
+            }
+            case FrameGraphResourceType::eBuffer:
+            {
+                LNE_ASSERT(false, "Buffer resource not implemented yet");
+                if (associatedOutputResource->RefCount != 0 || associatedOutputResource->Info.External)
+                    continue;
+                break;
+            }
+            }
+        }
     }
 
     for (FrameGraphNodeHandle nodeHandle : m_Nodes)
-    {
         CreateFramebuffers(nodeHandle);
+
+    for (FrameGraphNodeHandle nodeHandle : m_Nodes)
+    {
+        FrameGraphNode* node = m_NodeCache.GetPool().Access(nodeHandle);
+        node->RenderPass->OnResize(this, node);
     }
 }
 

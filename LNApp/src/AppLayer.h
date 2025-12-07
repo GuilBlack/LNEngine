@@ -51,7 +51,7 @@ class AppLayer final : public lne::Layer
         void PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
         void OnImGuiRender() override;
     private:
-        lne::SafePtr<lne::Material> m_MaterialV2{};
+        lne::SafePtr<lne::Material> m_Material{};
 
         lne::SafePtr<lne::Texture> m_Texture{};
 
@@ -67,11 +67,12 @@ class AppLayer final : public lne::Layer
             m_Name = "ToneMappingPass";
         }
         void OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
+        void OnResize(lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
         void Execute(vk::CommandBuffer cmdBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
         void PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
         void OnImGuiRender() override;
     private:
-        lne::SafePtr<lne::Material> m_MaterialV2{};
+        lne::SafePtr<lne::Material> m_Material{};
         lne::SafePtr<lne::Texture> m_DebugTexture{};
         bool m_IsDebugOpen{ false };
     };
@@ -97,9 +98,6 @@ public:
 private:
     lne::SafePtr<lne::Material> m_BasicMaterial{};
     lne::SafePtr<lne::Material> m_BasicMaterial2{};
-
-    lne::SafePtr<lne::GfxTechnique> m_OpaqueTechnique{};
-    lne::SafePtr<lne::GfxTechnique> m_TransparentTechnique{};
 
     struct CameraTarget
     {

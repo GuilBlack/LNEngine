@@ -13,11 +13,15 @@ class HierarchicalScene : public RefCountBase
 public:
     HierarchicalScene();
 
-    Entity CreateEntity(std::string name = "Entity")
+    Entity CreateEntity(std::string name = "")
     {
         Entity entity{ m_EntityRegistry.CreateEntity(), &m_EntityRegistry };
         entity.EmplaceComponent<TransformComponent>();
         m_EntityIDMap[entity.GetID()] = entity;
+
+        if (!name.empty())
+            entity.EmplaceComponent<NameComponent>().Name = name;
+
         return entity;
     }
 

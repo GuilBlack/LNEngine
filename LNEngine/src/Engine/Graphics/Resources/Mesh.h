@@ -86,14 +86,12 @@ class StaticMesh : public RefCountBase
 {
 public:
     // TODO: probably make a mesh importer class or something
-    StaticMesh(std::filesystem::path path,
-               SafePtr<GfxTechnique> opaqueTechnique,
-               SafePtr<GfxTechnique> transparentTechnique);
+    StaticMesh(std::filesystem::path path);
 
     std::vector<SubMesh>&               GetSubMeshes() { return m_SubMeshes; }
     const Geometry&                     GetGeometry() const { return *m_Geometry.get(); }
 
-    [[nodiscard]] SafePtr<Material>   GetMaterial(uint32_t index)
+    [[nodiscard]] SafePtr<Material>     GetMaterial(uint32_t index)
     {
         return m_Materials[index];
     }
@@ -109,26 +107,25 @@ public:
         m_Materials[index] = mat;
     }
 
+
+
     [[nodiscard]] static SafePtr<StaticMesh> GenerateCube(uint32_t tesselationLevel);
     [[nodiscard]] static SafePtr<StaticMesh> GenerateUVSphere(float radius = 1.f,
                                                               uint32_t nLatitude = 32,
                                                               uint32_t nLongitude = 32);
 
+    SafePtr<StaticMesh> Clone() const;
+
 private:
     std::filesystem::path                   m_Path{};
 
     std::vector<SubMesh>                    m_SubMeshes{};
-    std::unique_ptr<Geometry>               m_Geometry;
+    std::shared_ptr<Geometry>               m_Geometry;
     uint32_t                                m_TotalVertexCount{};
     uint32_t                                m_TotalIndexCount{};
 
     // TODO: move to a resource manager
-    std::vector<SafePtr<Material>>        m_Materials;
-    SafePtr<GfxPipeline>                    m_Pipeline;
-    SafePtr<GfxPipeline>                    m_TransparentPipeline;
-    SafePtr<GfxTechnique>                   m_OpaqueTechnique;
-    SafePtr<GfxTechnique>                   m_TransparentTechnique;
-    std::vector<SafePtr<Texture>>           m_Textures;
+    std::vector<SafePtr<Material>>          m_Materials;
 private:
     StaticMesh();
 

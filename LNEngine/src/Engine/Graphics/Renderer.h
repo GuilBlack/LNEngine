@@ -35,23 +35,22 @@ class StandaloneStorageBuffer;
 constexpr uint32_t RENDER_THREAD_ID = 1;
 using RenderTaskFunction = enki::PinnedTaskFunction;
 
-class RenderTask : public enki::LambdaPinnedTask
+struct RenderTask
 {
-public:
-    RenderTask(enki::PinnedTaskFunction renderTask)
-        : LambdaPinnedTask(RENDER_THREAD_ID, renderTask)
-    {}
+    using InvokeFunc = void(*)(void*);
 
-private:
-    friend class Renderer;
-    enki::Dependency m_Dependency;
-    enki::Dependency m_FinalTaskDependency;
+    InvokeFunc                                      Invoke;
+    uint32_t                                        Size;
 };
 
 struct RenderTasksLauncher : enki::ITaskSet
 {
-    RenderTask* m_pTaskToLaunch = NULL;
-    void ExecuteRange(enki::TaskSetPartition range, uint32_t threadnum) override;
+    //std::vector<RenderTaskFunction>*                m_pRenderTaskFuncs = nullptr;
+    uint8_t*                                        m_RenderTasksAllocation{};
+    uint64_t                                        m_RenderTasksAllocationOffset{};
+
+    void                                            ExecuteRange(enki::TaskSetPartition range,
+                                                                 uint32_t threadnum) override;
 };
 
 class Renderer
@@ -124,9 +123,9 @@ public:
     [[nodiscard]] SafePtr<class WorldEnvironment>   CreateEnvironmentMap(std::string_view pathToEnvMap, 
                                                                          uint32_t dimensions = 1024);
 
-    [[nodiscard]] SafePtr<Shader>                   CreateOrGetShader(const std::string& path);
-    [[nodiscard]] SafePtr<Effect>                   CreateOrGetEffect(const std::string& path);
-    [[nodiscard]] SafePtr<GfxTechnique>             CreateOrGetTechnique(const GfxTechniqueDesc& techniqueDesc);
+    SafePtr<Shader>                                 CreateOrGetShader(const std::string& path);
+    SafePtr<Effect>                                 CreateOrGetEffect(const std::string& path);
+    SafePtr<GfxTechnique>                           CreateOrGetTechnique(const GfxTechniqueDesc& techniqueDesc);
     [[nodiscard]] SafePtr<GfxTechnique>             GetTechnique(const std::string& name);
 
     void                                            AddTextureToUpdate(SafePtr<class Texture> texture);
@@ -152,17 +151,12 @@ public:
     [[nodiscard]] SafePtr<Texture>                  GetWhiteTexture() const;
     [[nodiscard]] std::filesystem::path             GetShaderCachePath() const;
 
+    template<typename RenderTaskLambda>
+    void                                            AddRenderTask(RenderTaskLambda&& renderTaskLambda);
 
-    /**
-     * This method will add a render task to the renderer's task graph.
-     * If it returns true, the task will be executed on the render thread
-     * and the memory ownership of the task will be transferred to the renderer.
-     * @param renderTask The task to add to the renderer's task graph.
-     */
-    void                                            AddRenderTask(RenderTaskFunction renderTaskFunc);
-	bool                                            IsAsync() { return m_IsAsync; }
-	void                                            RunRenderTasks();
-	void WaitForRenderTasksToFinish();
+    bool                                            IsAsync() { return m_IsAsync; }
+    void                                            RunRenderTasks();
+    void WaitForRenderTasksToFinish();
 
 private:
     SafePtr<GfxContext>                             m_Context;
@@ -180,7 +174,8 @@ private:
     std::atomic<uint32_t>                           m_CurrentFrameInFlight{ 0 };
     std::atomic<uint32_t>                           m_CurrentSwapchainImageIndex{ 0 };
 
-    std::vector<std::vector<RenderTask*>>           m_FrameRenderTasks;
+    std::vector<uint8_t*>                           m_FrameRenderTasksAllocation;
+    std::vector<uint64_t>                           m_FrameRenderTasksAllocationOffsets;
     std::vector<RenderTasksLauncher*>               m_RenderTasksLauncher;
 
     std::vector<FrameData>                          m_FrameData;
@@ -219,5 +214,24 @@ private:
     // to update.
     void                                            CleanupDirtyEffects();
     void                                            ProcessDirtyMaterials(vk::CommandBuffer cmdBuffer);
+
+    void*                                           AllocateRenderTask(RenderTask&& renderTask, uint32_t size);
 };
+
+template<typename RenderTaskLambda>
+void Renderer::AddRenderTask(RenderTaskLambda&& renderTask)
+{
+    using StoredT = std::decay_t<RenderTaskLambda>;
+    void* allocation = AllocateRenderTask(RenderTask{
+        .Invoke = [](void* data)
+        {
+            auto& rt = *static_cast<StoredT*>(data);
+            rt();
+            if constexpr (!std::is_trivially_destructible_v<StoredT>)
+                rt.~StoredT();
+        },
+        .Size = sizeof(StoredT)
+    }, sizeof(StoredT));
+    new (allocation) StoredT(std::forward<RenderTaskLambda>(renderTask));
+}
 }

@@ -104,15 +104,12 @@ layout(location = 3) out vec4 oMetalnessRoughness;
 void main()
 {
     MaterialData mat = mb.materials[matPC.id];
-    oAlbedo = texture(globalTextures[nonuniformEXT(mat.tAlbedo)], iUV);
+
+    oAlbedo = mat.tAlbedo == 0 ? mat.uColor : texture(globalTextures[nonuniformEXT(mat.tAlbedo)], iUV);
     oPosition = vec4(iWorldPos, 1.0);
 
-    float metalness = mat.uMetalness;
-    if (mat.tMetalness != 0)
-        metalness = texture(globalTextures[nonuniformEXT(mat.tMetalness)], iUV).z;
-    float roughness = mat.uRoughness;
-    if (mat.tRoughness != 0)
-        roughness = texture(globalTextures[nonuniformEXT(mat.tRoughness)], iUV).y;
+    float metalness = mat.tMetalness == 0 ? mat.uMetalness : texture(globalTextures[nonuniformEXT(mat.tMetalness)], iUV).z;
+    float roughness = mat.tRoughness == 0 ? mat.uRoughness : texture(globalTextures[nonuniformEXT(mat.tRoughness)], iUV).y;
     oMetalnessRoughness = vec4(metalness, roughness, 0.0, 1.0);
 
     vec3 normal = normalize(iNormal);
