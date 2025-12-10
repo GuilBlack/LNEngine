@@ -23,3 +23,6 @@
 [submodule "LNTest/vendor/GTEST/gtest"]
 	path = LNTest/vendor/GTEST/gtest
 	url = https://github.com/google/googletest.git
+[submodule "LNEngine/vendor/MESHOPT/meshopt"]
+	path = LNEngine/vendor/MESHOPT/meshopt
+	url = https://github.com/zeux/meshoptimizer.git

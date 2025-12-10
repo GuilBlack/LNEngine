@@ -23,6 +23,7 @@ IncludeDir["Assimp"] = "%{wks.location}/LNEngine/vendor/ASSIMP/include"
 IncludeDir["Tracy"] = "%{wks.location}/LNEngine/vendor/TRACY/tracy/public"
 IncludeDir["Boost"] = "%{wks.location}/LNEngine/vendor/BOOST/include"
 IncludeDir["GoogleTest"] = "%{wks.location}/LNTest/vendor/GTEST/gtest/googletest/include"
+IncludeDir["MeshOptimizer"] = "%{wks.location}/LNEngine/vendor/MESHOPT"
 
 LibDir = {}
 LibDir["Assimp"] = "%{wks.location}/LNEngine/vendor/ASSIMP/bin/%{cfg.buildcfg}"
@@ -47,6 +48,7 @@ group "Vendors"
     include "LNEngine/vendor/STB/stb.lua"
     include "LNEngine/vendor/ENKITS/enkiTS.lua"
     include "LNTest/vendor/GTEST/gtest.lua"
+    include "LNEngine/vendor/MESHOPT/meshopt.lua"
 group""
 
 include "LNEngine"
