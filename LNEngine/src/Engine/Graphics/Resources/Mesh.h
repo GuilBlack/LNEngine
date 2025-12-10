@@ -54,13 +54,15 @@ public:
     [[nodiscard]] void*             GetVertices() const { return m_Vertices; }
     [[nodiscard]] void*             GetIndices() const { return m_Indices; }
     [[nodiscard]] vk::DescriptorSet GetDescSet() const { return m_DescSet; }
+
+    // abstract it as an interface instead of using enum checks?
     [[nodiscard]] GeometryType::Enum GetType() const
     {
         return GeometryType::eClassic;
     }
 
 private:
-    GeometryType::Enum      m_Type{};
+    GeometryType::Enum      m_Type{ GeometryType::eClassic };
     SafePtr<StorageBuffer>  m_VertexGPUBuffer{};
     SafePtr<StorageBuffer>  m_IndexGPUBuffer{};
     void*                   m_Vertices{};

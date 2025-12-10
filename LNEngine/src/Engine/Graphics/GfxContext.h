@@ -74,7 +74,7 @@ public:
     [[nodiscard]] vk::DescriptorSetLayout   GetStorageOnlyDescriptorSetLayout(uint32_t numBindings) const
     { 
         LNE_ASSERT(numBindings >= 1 && numBindings <= s_MaxSSBOsPerSet, std::format("numBindings must be in range [1, {0}]", s_MaxSSBOsPerSet));
-        return m_StorageOnlyDescriptorSetLayouts[numBindings];
+        return m_StorageOnlyDescriptorSetLayouts[numBindings - 1];
     }
 
 #pragma region PhysicalDevice
