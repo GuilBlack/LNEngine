@@ -34,7 +34,7 @@ struct QueueFamilyIndices
 class GfxContext : public RefCountBase
 {
 public:
-    static constexpr uint32_t   s_MaxSSBOsPerSet = 4;
+    static constexpr uint32_t   s_MaxSSBOsPerSet = 15;
 
 public:
     GfxContext(vk::SurfaceKHR surface);
@@ -73,8 +73,8 @@ public:
     // numBindings MUST be in range [1, 4]
     [[nodiscard]] vk::DescriptorSetLayout   GetStorageOnlyDescriptorSetLayout(uint32_t numBindings) const
     { 
-        LNE_ASSERT(numBindings >= 1 && numBindings <= s_MaxSSBOsPerSet, "numBindings must be in range [1, 4]");
-        return m_StorageOnlyDescriptorSetLayouts[(numBindings) > s_MaxSSBOsPerSet ? s_MaxSSBOsPerSet - 1 : numBindings - 1];
+        LNE_ASSERT(numBindings >= 1 && numBindings <= s_MaxSSBOsPerSet, std::format("numBindings must be in range [1, {0}]", s_MaxSSBOsPerSet));
+        return m_StorageOnlyDescriptorSetLayouts[numBindings];
     }
 
 #pragma region PhysicalDevice

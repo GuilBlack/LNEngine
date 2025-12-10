@@ -151,6 +151,15 @@ enum Enum : byte
 };
 }
 
+namespace GeometryType
+{
+enum Enum : byte
+{
+    eClassic = 0, // traditional vertex/index buffer
+    eMeshlet
+};
+}
+
 namespace RenderPassType
 {
 enum Enum : byte

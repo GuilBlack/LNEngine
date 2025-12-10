@@ -335,6 +335,8 @@ void AppLayer::OnAttach()
     m_WorldRenderer->SetEnvironmentMap(ApplicationBase::GetAssetsPath() + "Textures\\HDRIs\\pisa.hdr");
     m_WorldRenderer->SetSunLightDirection(m_LightDirection);
     m_WorldRenderer->SetAmbientLight(m_AmbientLight);
+
+    StaticMesh::GenerateUVSphereMeshlets(1.0f, 128, 128);
 }
 
 void AppLayer::InitFrameGraph()

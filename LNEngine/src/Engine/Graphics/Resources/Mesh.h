@@ -33,29 +33,48 @@ public:
              void* vertices, void* indices,
              uint32_t vertexCount, uint32_t indexCount);
 
+
+    Geometry(GfxContext* ctx,
+             SafePtr<StorageBuffer> vertexGPUBuffer,
+             SafePtr<StorageBuffer> indexGPUBuffer,
+             SafePtr<StorageBuffer> meshletGPUBuffer,
+             SafePtr<StorageBuffer> meshletVertexIndicesGPUBuffer,
+             SafePtr<StorageBuffer> meshletTriangleIndicesGPUBuffer,
+             void* vertices, uint32_t vertexCount, uint32_t meshletCount);
+
     ~Geometry();
 
     Geometry(Geometry&& other) noexcept;
     Geometry& operator=(Geometry&& other) noexcept;
 
-    [[nodiscard]] uint32_t          GetVertexCount() const { return VertexCount; }
-    [[nodiscard]] uint32_t          GetIndexCount() const { return IndexCount; }
-    [[nodiscard]] SafePtr<StorageBuffer> GetVertexBuffer() const { return VertexGPUBuffer; }
-    [[nodiscard]] SafePtr<StorageBuffer> GetIndexBuffer() const { return IndexGPUBuffer; }
-    [[nodiscard]] void*             GetVertices() const { return Vertices; }
-    [[nodiscard]] void*             GetIndices() const { return Indices; }
-    [[nodiscard]] vk::DescriptorSet GetDescSet() const { return DescSet; }
+    [[nodiscard]] uint32_t          GetVertexCount() const { return m_VertexCount; }
+    [[nodiscard]] uint32_t          GetIndexCount() const { return m_IndexCount; }
+    [[nodiscard]] SafePtr<StorageBuffer> GetVertexBuffer() const { return m_VertexGPUBuffer; }
+    [[nodiscard]] SafePtr<StorageBuffer> GetIndexBuffer() const { return m_IndexGPUBuffer; }
+    [[nodiscard]] void*             GetVertices() const { return m_Vertices; }
+    [[nodiscard]] void*             GetIndices() const { return m_Indices; }
+    [[nodiscard]] vk::DescriptorSet GetDescSet() const { return m_DescSet; }
+    [[nodiscard]] GeometryType::Enum GetType() const
+    {
+        return GeometryType::eClassic;
+    }
 
 private:
-    SafePtr<StorageBuffer>  VertexGPUBuffer{};
-    SafePtr<StorageBuffer>  IndexGPUBuffer{};
-    void*                   Vertices{};
-    void*                   Indices{};
+    GeometryType::Enum      m_Type{};
+    SafePtr<StorageBuffer>  m_VertexGPUBuffer{};
+    SafePtr<StorageBuffer>  m_IndexGPUBuffer{};
+    void*                   m_Vertices{};
+    void*                   m_Indices{};
 
-    uint32_t                VertexCount{};
-    uint32_t                IndexCount{};
+    SafePtr<StorageBuffer>  m_MeshletGPUBuffer{};
+    SafePtr<StorageBuffer>  m_MeshletVertexIndicesGPUBuffer{};
+    SafePtr<StorageBuffer>  m_MeshletTriangleIndicesGPUBuffer{};
 
-    vk::DescriptorSet       DescSet{};
+    uint32_t                m_VertexCount{};
+    uint32_t                m_IndexCount{};
+    uint32_t                m_MeshletCount{};
+
+    vk::DescriptorSet       m_DescSet{};
 private:
     friend class StaticMesh;
 
@@ -114,7 +133,11 @@ public:
                                                               uint32_t nLatitude = 32,
                                                               uint32_t nLongitude = 32);
 
-    SafePtr<StaticMesh> Clone() const;
+    static void                         GenerateUVSphereMeshlets(float radius = 1.f,
+                                                                 uint32_t nLatitude = 32,
+                                                                 uint32_t nLongitude = 32);
+
+    SafePtr<StaticMesh>                 Clone() const;
 
 private:
     std::filesystem::path                   m_Path{};
@@ -129,10 +152,15 @@ private:
 private:
     StaticMesh();
 
-    void InitSubmeshes(const struct aiScene* scene);
-    void LoadData(const struct aiScene* scene);
-    void LoadMaterials(const struct aiScene* scene);
-    void TraverseNodes(const struct aiNode* node, const glm::mat4& parentTransform);
+    void                                InitSubmeshes(const struct aiScene* scene);
+    void                                LoadData(const struct aiScene* scene);
+    void                                LoadMaterials(const struct aiScene* scene);
+    void                                TraverseNodes(const struct aiNode* node, const glm::mat4& parentTransform);
+
+    static void                         GenerateUVSphereData(uint32_t nLatitude, uint32_t nLongitude,
+                                                             float radius,
+                                                             Vertex* oVertices, uint32_t* oIndices,
+                                                             uint32_t nVertices);
 };
 
 }
