@@ -127,6 +127,7 @@ public:
     constexpr static std::array<MatTypeInfo, ShaderDomain::NUM_MATERIAL_TYPES> MatTypeInfos = {
         MatTypeInfo{ {  0,  3,  4,  2,  1 } }, // eMesh
         MatTypeInfo{ {  0,  2,  3,  1, -1 } }, // ePostProcess
+        MatTypeInfo{ {  0,  3,  4,  2,  1 } }  // eMeshlet
     };
 
 private:

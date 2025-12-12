@@ -10,6 +10,13 @@ namespace lne
 GfxTechnique::GfxTechnique(const GfxTechniqueDesc& desc)
     : m_Name(desc.Name), m_State(desc.TechniqueState)
 {
+    if (!desc.IsValid())
+    {
+        LNE_ASSERT("Invalid GfxTechniqueDesc passed to GfxTechnique constructor for technique '{}'", desc.Name);
+        return;
+    }
+    m_ShaderDomain = desc.GetShaderDomain();
+
     for (const PassBindingDesc& passDesc : desc.Passes)
     {
         PassBinding binding{
@@ -79,4 +86,27 @@ FlatHashMap<PassID, MaterialPassSlot> GfxTechnique::AllocateMaterialSlots()
     }
     return slots;
 }
+
+bool GfxTechniqueDesc::IsValid() const
+{
+    if (Passes.empty())
+        return false;
+    ShaderDomain::Enum domain = Passes[0].PassEffect->GetShader()->GetShaderDomain();
+    for (const PassBindingDesc& passDesc : Passes)
+    {
+        if (!passDesc.PassEffect)
+            return false;
+        if (passDesc.PassEffect->GetShader()->GetShaderDomain() != domain)
+            return false;
+    }
+    return true;
+}
+
+lne::ShaderDomain::Enum GfxTechniqueDesc::GetShaderDomain() const
+{
+    if (IsValid() == false)
+        return ShaderDomain::eUnknown;
+    return Passes[0].PassEffect->GetShader()->GetShaderDomain();
+}
+
 }

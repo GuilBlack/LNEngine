@@ -12,7 +12,9 @@ enum Enum : byte
     eGeometry = 3,
     eFragment = 4,
     eCompute = 5,
-    eUnknown = 6
+    eMesh = 6,
+    eTask = 7,
+    eUnknown = 255
 };
 
 enum Mask
@@ -82,9 +84,10 @@ enum Enum : char
     eUnknown =      -1,
     eMesh =         0,
     ePostProcess =  1,
+    eMeshlet =      2,
 };
 
-constexpr uint32_t NUM_MATERIAL_TYPES = 2;
+constexpr uint32_t NUM_MATERIAL_TYPES = 3;
 }
 
 namespace ShaderSetIndexType

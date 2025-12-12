@@ -27,6 +27,8 @@ shaderc_shader_kind ShaderStageToShaderc(ShaderStage::Enum stage)
     case ShaderStage::eGeometry: return shaderc_glsl_geometry_shader;
     case ShaderStage::eFragment: return shaderc_glsl_fragment_shader;
     case ShaderStage::eCompute: return shaderc_glsl_compute_shader;
+    case ShaderStage::eMesh: return shaderc_glsl_mesh_shader;
+    case ShaderStage::eTask: return shaderc_glsl_task_shader;
     default: LNE_ASSERT(false, "This isn't a stage");
     }
     return shaderc_glsl_vertex_shader;
@@ -42,6 +44,8 @@ vk::ShaderStageFlagBits ShaderStageToVk(ShaderStage::Enum stage)
     case ShaderStage::eGeometry: return vk::ShaderStageFlagBits::eGeometry;
     case ShaderStage::eFragment: return vk::ShaderStageFlagBits::eFragment;
     case ShaderStage::eCompute: return vk::ShaderStageFlagBits::eCompute;
+    case ShaderStage::eMesh: return vk::ShaderStageFlagBits::eMeshEXT;
+    case ShaderStage::eTask: return vk::ShaderStageFlagBits::eTaskEXT;
     default: LNE_ASSERT(false, "This isn't a stage");
     }
     return vk::ShaderStageFlagBits::eVertex;
@@ -49,24 +53,19 @@ vk::ShaderStageFlagBits ShaderStageToVk(ShaderStage::Enum stage)
 
 std::string ShaderStageToDefine(ShaderStage::Enum stage)
 {
-    static const std::string Vertex("VERT");
-    static const std::string TessellationControl("TESC");
-    static const std::string TessellationEvaluation("TESE");
-    static const std::string Geometry("GEOM");
-    static const std::string Fragment("FRAG");
-    static const std::string Compute("COMP");
-
     switch (stage)
     {
-    case ShaderStage::eVertex: return Vertex;
-    case ShaderStage::eTessellationControl: return TessellationControl;
-    case ShaderStage::eTessellationEvaluation: return TessellationEvaluation;
-    case ShaderStage::eGeometry: return Geometry;
-    case ShaderStage::eFragment: return Fragment;
-    case ShaderStage::eCompute: return Compute;
+    case ShaderStage::eVertex: return "VERT";
+    case ShaderStage::eTessellationControl: return "TESC";
+    case ShaderStage::eTessellationEvaluation: return "TESE";
+    case ShaderStage::eGeometry: return "GEOM";
+    case ShaderStage::eFragment: return "FRAG";
+    case ShaderStage::eCompute: return "COMP";
+    case ShaderStage::eMesh: return "MESH";
+    case ShaderStage::eTask: return "TASK";
     default: LNE_ASSERT(false, "This isn't a stage");
     }
-    return Vertex;
+    return "VERT";
 }
 
 ShaderElementType::Enum SpirvTypeToUniformElementType(spirv_cross::SPIRType type)
@@ -138,28 +137,32 @@ ShaderStage::Enum MapShaderToken(std::string_view token)
 {
     if (token == "Vt")
         return ShaderStage::eVertex;
-    else if (token == "Fg")
+    if (token == "Fg")
         return ShaderStage::eFragment;
-    else if (token == "Gm")
+    if (token == "Gm")
         return ShaderStage::eGeometry;
-    else if (token == "Tc")
+    if (token == "Tc")
         return ShaderStage::eTessellationControl;
-    else if (token == "Te")
+    if (token == "Te")
         return ShaderStage::eTessellationEvaluation;
-    else if (token == "Cp")
+    if (token == "Cp")
         return ShaderStage::eCompute;
-    else
-        return ShaderStage::eUnknown;
+    if (token == "Ms")
+        return ShaderStage::eMesh;
+    if (token == "Ts")
+        return ShaderStage::eTask;
+    return ShaderStage::eUnknown;
 }
 
 ShaderDomain::Enum MapMaterialTypeToken(std::string_view token)
 {
     if (token == "Mesh")
         return ShaderDomain::eMesh;
-    else if (token == "PostProcess")
+    if (token == "PostProcess")
         return ShaderDomain::ePostProcess;
-    else
-        return ShaderDomain::eUnknown;
+    if (token == "Meshlet")
+        return ShaderDomain::eMeshlet;
+    return ShaderDomain::eUnknown;
 }
 
 #pragma endregion
@@ -929,7 +932,10 @@ void Shader::CreateDescriptorSetLayouts()
     {
         if (setIndex == matTypeInfo.SetIndices[ShaderSetIndexType::eVertex])
         {
-            m_DescriptorSetLayouts[layoutIndex] = m_Context->GetStorageOnlyDescriptorSetLayout(2);
+            if (m_Header.ShaderDomain == ShaderDomain::eMeshlet)
+                m_DescriptorSetLayouts[layoutIndex] = m_Context->GetStorageOnlyDescriptorSetLayout(4);
+            else
+                m_DescriptorSetLayouts[layoutIndex] = m_Context->GetStorageOnlyDescriptorSetLayout(2);
             layoutIndex++;
             continue;
         }
@@ -993,6 +999,8 @@ vk::ShaderStageFlagBits lne::vkut::ShaderStageToVk(ShaderStage::Enum stage)
     case ShaderStage::eGeometry: return vk::ShaderStageFlagBits::eGeometry;
     case ShaderStage::eFragment: return vk::ShaderStageFlagBits::eFragment;
     case ShaderStage::eCompute: return vk::ShaderStageFlagBits::eCompute;
+    case ShaderStage::eTask: return vk::ShaderStageFlagBits::eTaskEXT;
+    case ShaderStage::eMesh: return vk::ShaderStageFlagBits::eMeshEXT;
     default: return vk::ShaderStageFlagBits::eVertex;
     }
 }

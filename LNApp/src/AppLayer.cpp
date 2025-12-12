@@ -247,16 +247,16 @@ void AppLayer::OnAttach()
     m_ModelSpheres = m_Scene->CreateEntity();
     m_CubeEntity = m_Scene->CreateEntity();
     m_SphereEntity = m_Scene->CreateEntity();
-    
+
     m_ModelEntity.EmplaceComponent<StaticMeshComponent>();
     m_ModelSpheres.EmplaceComponent<StaticMeshComponent>();
     m_CubeEntity.EmplaceComponent<StaticMeshComponent>();
     m_SphereEntity.EmplaceComponent<StaticMeshComponent>();
 
-    auto[modelTransform, modelMeshComponent] = m_ModelEntity.GetComponents<TransformComponent, StaticMeshComponent>();
-    auto[modelSphereTransform, modelSphereMeshComponent] = m_ModelSpheres.GetComponents<TransformComponent, StaticMeshComponent>();
-    auto[cubeTransform, cubeMeshComponent] = m_CubeEntity.GetComponents<TransformComponent, StaticMeshComponent>();
-    auto[sphereTransform, sphereMeshComponent] = m_SphereEntity.GetComponents<TransformComponent, StaticMeshComponent>();
+    auto [modelTransform, modelMeshComponent] = m_ModelEntity.GetComponents<TransformComponent, StaticMeshComponent>();
+    auto [modelSphereTransform, modelSphereMeshComponent] = m_ModelSpheres.GetComponents<TransformComponent, StaticMeshComponent>();
+    auto [cubeTransform, cubeMeshComponent] = m_CubeEntity.GetComponents<TransformComponent, StaticMeshComponent>();
+    auto [sphereTransform, sphereMeshComponent] = m_SphereEntity.GetComponents<TransformComponent, StaticMeshComponent>();
 #pragma endregion
 
 #pragma region LoadModels
@@ -336,7 +336,21 @@ void AppLayer::OnAttach()
     m_WorldRenderer->SetSunLightDirection(m_LightDirection);
     m_WorldRenderer->SetAmbientLight(m_AmbientLight);
 
-    StaticMesh::GenerateUVSphereMeshlets(1.0f, 128, 128);
+    SafePtr meshletSphereMesh = StaticMesh::GenerateUVSphereMeshlets(3.0f, 128, 128);
+
+    SafePtr meshletTech = renderer.GetTechnique("DefaultMeshletOpaque");
+    if (meshletTech)
+    {
+        PipelineHandle pipeline = meshletTech->CreateOrGetPipeline(lne::MakePassID("GBufferPass"), m_FrameGraph);
+    }
+    m_MeshletMaterial = lnnew Material(meshletTech);
+    meshletSphereMesh->SetMaterial(m_MeshletMaterial, 0);
+    lne::Entity meshletSphereEntity = m_Scene->CreateEntity();
+    meshletSphereEntity.EmplaceComponent<lne::StaticMeshComponent>();
+
+    auto [meshletTransform, meshletMeshComponent] = meshletSphereEntity.GetComponents<lne::TransformComponent, lne::StaticMeshComponent>();
+
+    meshletMeshComponent.Mesh = meshletSphereMesh;
 }
 
 void AppLayer::InitFrameGraph()

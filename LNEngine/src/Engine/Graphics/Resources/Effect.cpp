@@ -52,7 +52,8 @@ Effect::Effect(SafePtr<GfxContext> context, const std::string& shaderPath)
     switch (m_Shader->GetShaderDomain())
     {
     case ShaderDomain::eMesh:
-        initialCapacity = 256;
+    case ShaderDomain::eMeshlet:
+        initialCapacity = 128;
         break;
     case ShaderDomain::ePostProcess:
         initialCapacity = 1;

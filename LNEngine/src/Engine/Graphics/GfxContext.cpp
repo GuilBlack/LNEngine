@@ -404,10 +404,12 @@ vkb::PhysicalDevice GfxContext::VkbSelectPhysicalDevice(const vkb::Instance& ins
         .geometryShader = vk::True, // for im3d
         .logicOp = vk::True,
         .depthClamp = vk::True,
-        .samplerAnisotropy = vk::True,
+        .samplerAnisotropy = vk::True
     };
 
     auto features12 = VkPhysicalDeviceVulkan12Features{
+        .storageBuffer8BitAccess = vk::True,
+        .shaderInt8 = vk::True,
         .descriptorIndexing = vk::True,
         .shaderSampledImageArrayNonUniformIndexing = vk::True,
         .descriptorBindingSampledImageUpdateAfterBind = vk::True,
@@ -419,16 +421,24 @@ vkb::PhysicalDevice GfxContext::VkbSelectPhysicalDevice(const vkb::Instance& ins
     };
 
     auto features13 = VkPhysicalDeviceVulkan13Features{
-        .synchronization2 = true,
-        .dynamicRendering = true,
+        .synchronization2 = vk::True,
+        .dynamicRendering = vk::True,
+        .maintenance4 = vk::True,
     };
+
+    auto meshShaderFeatures = vk::PhysicalDeviceMeshShaderFeaturesEXT{};
+    meshShaderFeatures.meshShader = vk::True;
+    meshShaderFeatures.taskShader = vk::True;
 
     physDeviceSelect.set_surface(surface)
         .set_minimum_version(1, 3)
         .set_required_features(deviceFeatures)
         .set_required_features_12(features12)
         .set_required_features_13(features13)
-        .add_required_extension(VK_KHR_MAINTENANCE1_EXTENSION_NAME);
+        .add_required_extension_features((VkPhysicalDeviceMeshShaderFeaturesEXT)meshShaderFeatures)
+        .add_required_extension(VK_KHR_MAINTENANCE1_EXTENSION_NAME)
+        .add_required_extension(VK_EXT_MESH_SHADER_EXTENSION_NAME)
+        .add_required_extension(VK_KHR_8BIT_STORAGE_EXTENSION_NAME);
 
     vkb::Result<vkb::PhysicalDevice> selectedDevice = physDeviceSelect.select();
 

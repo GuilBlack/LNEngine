@@ -70,7 +70,7 @@ public:
     [[nodiscard]] SafePtr<Texture>          GetWhiteTexture() const;
     [[nodiscard]] vk::Sampler               GetDefaultSampler() const { return m_DefaultSampler; }
 
-    // numBindings MUST be in range [1, 4]
+    // numBindings MUST be in range [1, s_MaxSSBOsPerSet]
     [[nodiscard]] vk::DescriptorSetLayout   GetStorageOnlyDescriptorSetLayout(uint32_t numBindings) const
     { 
         LNE_ASSERT(numBindings >= 1 && numBindings <= s_MaxSSBOsPerSet, std::format("numBindings must be in range [1, {0}]", s_MaxSSBOsPerSet));

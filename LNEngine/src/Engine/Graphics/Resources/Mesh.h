@@ -33,13 +33,13 @@ public:
              void* vertices, void* indices,
              uint32_t vertexCount, uint32_t indexCount);
 
-
     Geometry(GfxContext* ctx,
              SafePtr<StorageBuffer> vertexGPUBuffer,
              SafePtr<StorageBuffer> indexGPUBuffer,
              SafePtr<StorageBuffer> meshletGPUBuffer,
              SafePtr<StorageBuffer> meshletVertexIndicesGPUBuffer,
              SafePtr<StorageBuffer> meshletTriangleIndicesGPUBuffer,
+             void* meshlets, void* meshletVertexIndices, void* meshletTriangleIndices,
              void* vertices, uint32_t vertexCount, uint32_t meshletCount);
 
     ~Geometry();
@@ -54,11 +54,12 @@ public:
     [[nodiscard]] void*             GetVertices() const { return m_Vertices; }
     [[nodiscard]] void*             GetIndices() const { return m_Indices; }
     [[nodiscard]] vk::DescriptorSet GetDescSet() const { return m_DescSet; }
+    [[nodiscard]] uint32_t          GetMeshletCount() const { return m_MeshletCount; }
 
     // abstract it as an interface instead of using enum checks?
     [[nodiscard]] GeometryType::Enum GetType() const
     {
-        return GeometryType::eClassic;
+        return m_Type;
     }
 
 private:
@@ -71,6 +72,9 @@ private:
     SafePtr<StorageBuffer>  m_MeshletGPUBuffer{};
     SafePtr<StorageBuffer>  m_MeshletVertexIndicesGPUBuffer{};
     SafePtr<StorageBuffer>  m_MeshletTriangleIndicesGPUBuffer{};
+    void*                   m_Meshlets{};
+    void*                   m_MeshletVertexIndices{};
+    void*                   m_MeshletTriangleIndices{};
 
     uint32_t                m_VertexCount{};
     uint32_t                m_IndexCount{};
@@ -117,25 +121,15 @@ public:
         return m_Materials[index];
     }
 
-    void                                SetMaterial(SafePtr<Material> mat, 
-                                                      uint32_t index)
-    {
-        if (index >= m_Materials.size())
-        {
-            LNE_WARN("Material index out of bounds");
-            return;
-        }
-        m_Materials[index] = mat;
-    }
-
-
+    void                                SetMaterial(SafePtr<Material> mat,
+                                                    uint32_t index);
 
     [[nodiscard]] static SafePtr<StaticMesh> GenerateCube(uint32_t tesselationLevel);
     [[nodiscard]] static SafePtr<StaticMesh> GenerateUVSphere(float radius = 1.f,
                                                               uint32_t nLatitude = 32,
                                                               uint32_t nLongitude = 32);
 
-    static void                         GenerateUVSphereMeshlets(float radius = 1.f,
+    static SafePtr<StaticMesh> GenerateUVSphereMeshlets(float radius = 1.f,
                                                                  uint32_t nLatitude = 32,
                                                                  uint32_t nLongitude = 32);
 

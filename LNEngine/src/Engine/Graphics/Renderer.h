@@ -16,13 +16,13 @@ namespace lne
 {
 class StorageBuffer;
 class StaticMesh;
+struct SubMesh;
 class GfxContext;
 class Shader;
 class Effect;
 class GfxTechnique;
 struct GfxTechniqueDesc;
 class GfxPipeline;
-class Material;
 class Material;
 class Texture;
 class ComputeProgram;
@@ -94,6 +94,21 @@ public:
                                                          PassID passId,
                                                          uint32_t offset, uint32_t subMeshIndex,
                                                          uint32_t instanceCount);
+
+    void                                            DrawClassicMesh(vk::CommandBuffer cmdBuffer,
+                                                                    const SafePtr<StaticMesh>& mesh, const SubMesh& subMesh,
+                                                                    SafePtr<Material> material,
+                                                                    SafePtr<Effect> effect, SafePtr<GfxPipeline> pipeline,
+                                                                    const SafePtr<StandaloneStorageBuffer>& transformBuffer,
+                                                                    uint32_t offset, uint32_t instanceCount,
+                                                                    PassID passId);
+    void                                            DrawMeshlets(vk::CommandBuffer cmdBuffer,
+                                                                 const SafePtr<StaticMesh>& mesh, const SubMesh& subMesh,
+                                                                 SafePtr<Material> material,
+                                                                 SafePtr<Effect> effect, SafePtr<GfxPipeline> pipeline,
+                                                                 const SafePtr<StandaloneStorageBuffer>& transformBuffer,
+                                                                 uint32_t offset, uint32_t instanceCount,
+                                                                 PassID passId);
 
     void                                            DrawFullscreenQuad(vk::CommandBuffer cmdBuffer,
                                                                         SafePtr<Material> material,

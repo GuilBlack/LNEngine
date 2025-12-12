@@ -53,6 +53,7 @@ Material::Material(SafePtr<GfxTechnique> technique)
 
         m_AllocatedSlots = technique->AllocateMaterialSlots();
     }
+    LNE_ASSERT(!technique->GetPasses().empty(), "Technique has no passes");
     m_MaterialType = m_Technique->GetPasses().begin()->second.PassEffect->GetShader()->GetShaderDomain();
     InvalidateMaterial();
 }

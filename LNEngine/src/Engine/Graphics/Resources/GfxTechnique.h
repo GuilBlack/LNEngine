@@ -36,6 +36,9 @@ struct GfxTechniqueDesc
     std::string                     Name;
     GfxTechniqueState               TechniqueState{};
     std::vector<PassBindingDesc>    Passes{};
+
+    bool IsValid() const;
+    ShaderDomain::Enum GetShaderDomain() const;
 };
 
 class GfxTechnique :
@@ -54,12 +57,15 @@ public:
     [[nodiscard]] const FlatHashMap<PassID, PassBinding>&       GetPasses() const { return m_Passes; }
     [[nodiscard]] FlatHashMap<PassID, MaterialPassSlot>         AllocateMaterialSlots();
 
+    [[nodiscard]] ShaderDomain::Enum                           GetShaderDomain() const { return m_ShaderDomain; }
+
 private:
     friend class Renderer;
     std::string                         m_Name;
     std::mutex                          m_PipelineMutex;
     FlatHashMap<PassID, PassBinding>    m_Passes;
     GfxTechniqueState                   m_State;
+    ShaderDomain::Enum                  m_ShaderDomain { ShaderDomain::eUnknown };
 
 private:
     GfxTechnique(const GfxTechniqueDesc& desc);

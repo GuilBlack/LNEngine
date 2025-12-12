@@ -400,6 +400,20 @@ void StaticMesh::GenerateUVSphereData(uint32_t nLatitude, uint32_t nLongitude, f
     }
 }
 
+void StaticMesh::SetMaterial(SafePtr<Material> mat, uint32_t index)
+{
+    bool isMeshlet = mat->GetTechnique()->GetShaderDomain() == ShaderDomain::eMeshlet && m_Geometry->GetType() == GeometryType::eMeshlet;
+    bool isClassic = mat->GetTechnique()->GetShaderDomain() == ShaderDomain::eMesh && m_Geometry->GetType() == GeometryType::eClassic;
+    LNE_ASSERT(
+        isMeshlet || isClassic, "Invalid material/geometry combination");
+    if (index >= m_Materials.size())
+    {
+        LNE_WARN("Material index out of bounds");
+        return;
+    }
+    m_Materials[index] = mat;
+}
+
 SafePtr<StaticMesh> StaticMesh::GenerateCube(uint32_t tesselationLevel)
 {
     float step = 2.0f / tesselationLevel;
@@ -505,16 +519,18 @@ SafePtr<StaticMesh> StaticMesh::GenerateUVSphere(float radius, uint32_t nLatitud
     
     SafePtr<StaticMesh> mesh = lnnew StaticMesh();
     mesh->m_Geometry.reset(geometry);
-    mesh->m_SubMeshes = { { "UVSphere", 0, 0, geometry->m_VertexCount, geometry->m_IndexCount, 0, AABB{.Min = {-radius,0,0}, .Max = {radius,0,0} } } };
+    mesh->m_SubMeshes = { { "UVSphere", 0, 0, geometry->m_VertexCount, geometry->m_IndexCount, 0, AABB{.Min = {-radius,-radius,-radius}, .Max = {radius,radius,radius} } } };
     return mesh;
 }
 
-void StaticMesh::GenerateUVSphereMeshlets(float radius, uint32_t nLatitude, uint32_t nLongitude)
+lne::SafePtr<StaticMesh> StaticMesh::GenerateUVSphereMeshlets(float radius /*= 1.f*/, uint32_t nLatitude /*= 32*/, uint32_t nLongitude /*= 32*/)
 {
     if (nLatitude < 1)
         nLatitude = 1;
     if (nLongitude < 3)
         nLongitude = 3;
+
+    SafePtr<StaticMesh> mesh = lnnew StaticMesh();
 
     uint32_t nVertices = nLatitude * (nLongitude + 1) + (nLongitude * 2);
     uint32_t nIndices = 2 * 3 * nLongitude + 2 * 3 * (nLatitude - 1) * nLongitude;
@@ -543,27 +559,42 @@ void StaticMesh::GenerateUVSphereMeshlets(float radius, uint32_t nLatitude, uint
     meshopt_Meshlet& lastMeshlet = meshlets[meshletCount - 1];
     meshletVertices.resize(lastMeshlet.vertex_offset + lastMeshlet.vertex_count);
     meshletTriangles.resize(lastMeshlet.triangle_offset + lastMeshlet.triangle_count * 3);
-    meshlets.resize(meshletCount);
 
     // could use meshopt_optimizeMeshlet later but for now, we test.
     Renderer& renderer = ApplicationBase::GetRenderer();
     SafePtr vertexBuffer = renderer.CreateGeometryBuffer(vertices, nVertices * sizeof(Vertex));
-    SafePtr meshletBuffer = renderer.CreateGeometryBuffer(meshlets.data(), meshlets.size() * sizeof(meshopt_Meshlet));
-    SafePtr meshletVertexIndicesBuffer = renderer.CreateGeometryBuffer(meshletVertices.data(), meshletVertices.size() * sizeof(uint32_t));
-    SafePtr meshletTriangleIndicesBuffer = renderer.CreateGeometryBuffer(meshletTriangles.data(), meshletTriangles.size() * sizeof(uint8_t));
-    std::shared_ptr<Geometry> geometry;
 
-    geometry.reset(lnnew Geometry(
+    void* meshletsData = new meshopt_Meshlet[meshletCount];
+    std::memcpy(meshletsData, meshlets.data(), meshletCount * sizeof(meshopt_Meshlet));
+    SafePtr meshletBuffer = renderer.CreateGeometryBuffer(meshletsData, meshletCount * sizeof(meshopt_Meshlet));
+
+    void* meshletVerticesData = new uint32_t[meshletVertices.size()];
+    std::memcpy(meshletVerticesData, meshletVertices.data(), meshletVertices.size() * sizeof(uint32_t));
+    SafePtr meshletVertexIndicesBuffer = renderer.CreateGeometryBuffer(meshletVerticesData, meshletVertices.size() * sizeof(uint32_t));
+
+    void* meshletTrianglesData = new uint8_t[meshletTriangles.size()];
+    std::memcpy(meshletTrianglesData, meshletTriangles.data(), meshletTriangles.size() * sizeof(uint8_t));
+    SafePtr meshletTriangleIndicesBuffer = renderer.CreateGeometryBuffer(meshletTrianglesData, meshletTriangles.size() * sizeof(uint8_t));
+    Geometry* geometry;
+
+    geometry = lnnew Geometry(
         renderer.GetGfxContext().GetPtr(),
         vertexBuffer,
         nullptr,
         meshletBuffer,
         meshletVertexIndicesBuffer,
         meshletTriangleIndicesBuffer,
+        meshletsData,
+        meshletVerticesData,
+        meshletTrianglesData,
         vertices,
         nVertices,
         static_cast<uint32_t>(meshletCount)
-    ));
+    );
+
+    mesh->m_Geometry.reset(geometry);
+    mesh->m_SubMeshes = { { "UVSphere_Meshlets", 0, 0, geometry->m_VertexCount, geometry->m_IndexCount, 0, AABB{.Min = {-radius,-radius,-radius}, .Max = {radius,radius,radius} } } };
+    return mesh;
 }
 
 lne::SafePtr<lne::StaticMesh> StaticMesh::Clone() const
@@ -604,13 +635,20 @@ Geometry::Geometry(Geometry&& other) noexcept
     other.m_DescSet = nullptr;
 }
 
-Geometry::Geometry(GfxContext* ctx, SafePtr<StorageBuffer> vertexGPUBuffer, SafePtr<StorageBuffer> indexGPUBuffer, SafePtr<StorageBuffer> meshletGPUBuffer, SafePtr<StorageBuffer> meshletVertexIndicesGPUBuffer, SafePtr<StorageBuffer> meshletTriangleIndicesGPUBuffer, void* vertices, uint32_t vertexCount, uint32_t meshletCount)
+Geometry::Geometry(GfxContext* ctx, 
+                   SafePtr<StorageBuffer> vertexGPUBuffer, SafePtr<StorageBuffer> indexGPUBuffer, 
+                   SafePtr<StorageBuffer> meshletGPUBuffer, 
+                   SafePtr<StorageBuffer> meshletVertexIndicesGPUBuffer, 
+                   SafePtr<StorageBuffer> meshletTriangleIndicesGPUBuffer, 
+                   void* meshlets, void* meshletVertexIndices, void* meshletTriangleIndices,
+                   void* vertices, uint32_t vertexCount, uint32_t meshletCount)
     : m_Type(GeometryType::eMeshlet), m_VertexGPUBuffer(vertexGPUBuffer), m_IndexGPUBuffer(indexGPUBuffer),
       m_MeshletGPUBuffer(meshletGPUBuffer), m_MeshletVertexIndicesGPUBuffer(meshletVertexIndicesGPUBuffer),
       m_MeshletTriangleIndicesGPUBuffer(meshletTriangleIndicesGPUBuffer),
+      m_Meshlets(meshlets), m_MeshletVertexIndices(meshletVertexIndices), m_MeshletTriangleIndices(meshletTriangleIndices),
       m_Vertices(vertices), m_VertexCount(vertexCount), m_MeshletCount(meshletCount)
 {
-    InitDescSet(ctx, ctx->GetStorageOnlyDescriptorSetLayout(5));
+    InitDescSet(ctx, ctx->GetStorageOnlyDescriptorSetLayout(4));
 }
 
 Geometry& Geometry::operator=(Geometry&& other) noexcept
@@ -633,7 +671,16 @@ Geometry& Geometry::operator=(Geometry&& other) noexcept
 Geometry::~Geometry()
 {
     delete[] m_Vertices;
-    delete[] m_Indices;
+
+    if (m_Type == GeometryType::eClassic)
+        delete[] m_Indices;
+    else if (m_Type == GeometryType::eMeshlet)
+    {
+        delete[] m_Meshlets;
+        delete[] m_MeshletVertexIndices;
+        delete[] m_MeshletTriangleIndices;
+    }
+
     m_VertexGPUBuffer.Reset();
     m_IndexGPUBuffer.Reset();
     if (m_DescSet)

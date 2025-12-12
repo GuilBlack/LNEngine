@@ -98,6 +98,7 @@ public:
 private:
     lne::SafePtr<lne::Material> m_BasicMaterial{};
     lne::SafePtr<lne::Material> m_BasicMaterial2{};
+    lne::SafePtr<lne::Material> m_MeshletMaterial{};
 
     struct CameraTarget
     {
