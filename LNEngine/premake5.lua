@@ -20,6 +20,7 @@ project "LNEngine"
         "Assets/**.glsl",
         "vendor/VMA/**.h",
         "vendor/BOOST/**.hpp",
+        "**.natvis",
     }
 
     includedirs
