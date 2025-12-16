@@ -76,9 +76,11 @@ FlatHashMap<PassID, MaterialPassSlot> GfxTechnique::AllocateMaterialSlots()
     for (const auto&[passId, passBinding] : m_Passes)
     {
         MaterialSlot slot = passBinding.PassEffect->AllocateMaterialSlot();
-        auto it = passBinding.PassEffect->GetShader()->GetReflectedData().PushConstants.find("matPC");
-        vk::ShaderStageFlags stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        if (it == passBinding.PassEffect->GetShader()->GetReflectedData().PushConstants.end())
+
+        // should always have only one push constant block
+        auto it = passBinding.PassEffect->GetShader()->GetReflectedData().PushConstants.cbegin();
+        vk::ShaderStageFlags stageFlags;
+        if (it == passBinding.PassEffect->GetShader()->GetReflectedData().PushConstants.cend())
             LNE_ERROR("Shader used in technique {} pass '{}' does not have 'matPC' push constant", m_Name, passId);
 
         stageFlags = it->second.Stages;

@@ -442,7 +442,7 @@ void Renderer::DrawMeshlets(vk::CommandBuffer cmdBuffer, const SafePtr<StaticMes
         m_LastUsedEffect = effect;
     }
     auto matSlot = material->GetMaterialPassSlot(passId);
-    cmdBuffer.pushConstants<MaterialSlot>(pipeline->GetLayout(), matSlot.Stages, 0, { matSlot.Slot });
+    cmdBuffer.pushConstants<MeshletPushConstants>(pipeline->GetLayout(), matSlot.Stages, 0, { {matSlot.Slot, offset} });
     cmdBuffer.drawMeshTasksEXT(mesh->GetGeometry().GetVertexCount() / 32, 1, 1);
 }
 

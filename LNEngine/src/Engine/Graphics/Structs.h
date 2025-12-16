@@ -108,8 +108,8 @@ struct MaterialPassSlot
 
 struct PipelineHandle
 {
-    uint64_t H1 = 0; // used for indexing
-    uint64_t H2 = 0; // verification tag
+    uint64_t                                H1 = 0; // used for indexing
+    uint64_t                                H2 = 0; // verification tag
     bool operator==(const PipelineHandle& o) const { return H1 == o.H1 && H2 == o.H2; }
     bool operator!=(const PipelineHandle& o) const { return !(*this == o); }
 };
@@ -117,8 +117,8 @@ struct PipelineHandle
 // find a better name for this.
 struct MaterialPipelineHash
 {
-    PassID     PassId;
-    uint64_t   FrameGraphHash;
+    PassID                                  PassId;
+    uint64_t                                FrameGraphHash;
 
     bool operator==(const MaterialPipelineHash& other) const
     {
@@ -128,5 +128,11 @@ struct MaterialPipelineHash
     {
         return !(*this == o);
     }
+};
+
+struct MeshletPushConstants
+{
+    MaterialSlot                            MatId;
+    uint32_t                                InstanceOffset;
 };
 }

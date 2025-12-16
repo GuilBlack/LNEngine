@@ -12,7 +12,7 @@
 
 layout(scalar, set = TRANSFORM_SET, binding = 0) readonly buffer TransformBuffer {
     mat4 transforms[];
-} transformBuffer;
+};
 
 struct MaterialData
 {
@@ -27,10 +27,11 @@ struct MaterialData
     uint tNormal;
 };
 
-layout(scalar, push_constant) uniform MatPC
+layout(scalar, push_constant) uniform PushConstants
 {
-    uint id;
-} matPC;
+    uint matId;
+    uint instancesOffset;
+};
 
 layout(scalar, set = MAT_SET, binding = 0) readonly buffer MaterialBuffer {
     MaterialData materials[]; // MaterialData
@@ -132,7 +133,7 @@ void main()
         vertexIndex = vertexIndicesBuffer.vertexIndices[vertexIndex];
         oMeshlet[gl_LocalInvocationIndex].worldPos = vec3(vertexBuffer.vertices[vertexIndex].position);
         oMeshlet[gl_LocalInvocationIndex].normal = vertexBuffer.vertices[vertexIndex].normal;
-        gl_MeshVerticesEXT[gl_LocalInvocationIndex].gl_Position = uViewProj * vec4(vertexBuffer.vertices[vertexIndex].position, 1.0);
+        gl_MeshVerticesEXT[gl_LocalInvocationIndex].gl_Position = uViewProj * transforms[instancesOffset] * vec4(vertexBuffer.vertices[vertexIndex].position, 1.0);
         oMeshlet[gl_LocalInvocationIndex].color = vec3(float(meshletIndex & 1), float(meshletIndex & 3) / 4.0, float(meshletIndex & 7) / 8.0);
     }
 }
@@ -155,7 +156,7 @@ layout(location = 3) out vec4 oMetalnessRoughness;
 
 void main()
 {
-    MaterialData mat = mb.materials[matPC.id];
+    MaterialData mat = mb.materials[matId];
     oAlbedo = vec4(iMeshlet.color, 1.0);
     oPosition = vec4(iMeshlet.worldPos, 1.0);
     oNormal = vec4(normalize(iMeshlet.normal), 1.0);

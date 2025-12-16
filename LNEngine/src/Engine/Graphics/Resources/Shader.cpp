@@ -719,10 +719,8 @@ void Shader::ReflectOnSpirv(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>
             spirv_cross::SPIRType type = compiler.get_type(res.base_type_id);
             const uint32_t declaredSize = static_cast<uint32_t>(compiler.get_declared_struct_size(type));
 
-            // SPIRV-Cross can report per-stage active ranges for this push block.
             const auto ranges = compiler.get_active_buffer_ranges(res.id);
 
-            // Compute the minimal active [minOffset, maxEnd) for THIS stage.
             uint32_t stageMin = UINT32_MAX;
             uint32_t stageMax = 0;
             for (const auto& r : ranges)
@@ -732,7 +730,6 @@ void Shader::ReflectOnSpirv(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>
             }
             if (ranges.empty())
             {
-                // Fallback: if active ranges not reported, use the declared size from 0.
                 stageMin = 0;
                 stageMax = declaredSize;
             }
@@ -740,13 +737,11 @@ void Shader::ReflectOnSpirv(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>
             auto& block = m_ReflectedData.PushConstants[res.name];
             if (block.Size == 0 && block.Stages == vk::ShaderStageFlags{})
             {
-                // First time we see it
                 block.Offset = stageMin;
                 block.Size = (stageMax - stageMin);
             }
             else
             {
-                // Merge across stages
                 const uint32_t curEnd = block.Offset + block.Size;
                 const uint32_t newMin = std::min(block.Offset, stageMin);
                 const uint32_t newMax = std::max(curEnd, stageMax);
@@ -759,7 +754,6 @@ void Shader::ReflectOnSpirv(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>
             LNE_INFO("    PUSH Name: {}, Stage: {}, DeclaredSize: {}, ActiveRange: [{}..{}), Merged: offset {}, size {}",
                      res.name, ShaderStageToDefine(stage), declaredSize, stageMin, stageMax, block.Offset, block.Size);
 
-            // Reflect members of the push-constant struct
             for (uint32_t i = 0; i < type.member_types.size(); ++i)
             {
                 const std::string memberName = compiler.get_member_name(res.base_type_id, i);
@@ -973,6 +967,7 @@ void Shader::CreateDescriptorSetLayouts()
 
 void Shader::MakePushConstantRange()
 {
+    LNE_ASSERT(m_ReflectedData.PushConstants.size() <= 1, "Currently only one push constant block is supported per shader");
     m_PushConstantRanges.reserve(m_ReflectedData.PushConstants.size());
     for (const auto& [name, pc] : m_ReflectedData.PushConstants)
     {

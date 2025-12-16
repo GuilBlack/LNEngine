@@ -351,6 +351,7 @@ void AppLayer::OnAttach()
     auto [meshletTransform, meshletMeshComponent] = meshletSphereEntity.GetComponents<lne::TransformComponent, lne::StaticMeshComponent>();
 
     meshletMeshComponent.Mesh = meshletSphereMesh;
+    meshletTransform.Position = { 0.0f, 15.0f, 0.0f };
 }
 
 void AppLayer::InitFrameGraph()
