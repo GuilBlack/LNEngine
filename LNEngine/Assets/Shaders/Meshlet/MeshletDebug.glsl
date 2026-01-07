@@ -6,6 +6,8 @@
 #extension GL_EXT_mesh_shader : require
 #extension GL_EXT_shader_8bit_storage: require
 #extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_ballot : require
 
 #include "Common.glslh"
 #include "CommonMeshlet.glslh"
