@@ -286,42 +286,6 @@ void AppLayer::OnAttach()
 
 #pragma endregion
 
-    glm::vec3 color{};
-
-    for (int sic = 0; sic < 2; ++sic)
-    {
-        if (sic == 0)
-            color = 0.8f * glm::vec3(1.0f, 1.0f, 1.0f);
-        else
-            color = glm::vec3(0.8, 0.6941176470588235f, 0.11372549019607843f);
-
-        for (int sim = 0; sim < 5; ++sim)
-        {
-            float metalness = sim / 4.0f;
-            for (int sir = 0; sir < 5; ++sir)
-            {
-                float roughness = sir / 4.0f;
-                lne::Entity entity = m_Scene->CreateEntity();
-                entity.EmplaceComponent<lne::StaticMeshComponent>();
-
-                SafePtr metalRoughSphereMesh = sphereMesh->Clone();
-                SafePtr grayMaterial = lnnew Material(opaqueTechnique);
-                grayMaterial->SetProperty("uColor", glm::vec4(color, 1.0f));
-                grayMaterial->SetProperty("uMetalness", metalness);
-                grayMaterial->SetProperty("uRoughness", roughness);
-                metalRoughSphereMesh->SetMaterial(grayMaterial, 0);
-                auto[transform, meshComponent] = entity.GetComponents<lne::TransformComponent, lne::StaticMeshComponent>();
-                meshComponent.Mesh = metalRoughSphereMesh;
-
-                transform.Position = glm::vec3(
-                    (sim * 2.0f - 1.0f) * 5.0f,
-                    (sir * 2.0f - 1.0f) * 5.0f,
-                    10.0f * (sic + 1)
-                );
-            }
-        }
-    }
-
     cameraTransform.Position = { -2.0f, 4.0f, 0.0f };
     cameraTransform.LookAt({ 0.0f, 0.0f, 0.0f });
 
@@ -344,6 +308,7 @@ void AppLayer::OnAttach()
         PipelineHandle pipeline = meshletTech->CreateOrGetPipeline(lne::MakePassID("GBufferPass"), m_FrameGraph);
     }
     m_MeshletMaterial = lnnew Material(meshletTech);
+    m_MeshletMaterial->SetProperty("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
     meshletSphereMesh->SetMaterial(m_MeshletMaterial, 0);
     lne::Entity meshletSphereEntity = m_Scene->CreateEntity();
     meshletSphereEntity.EmplaceComponent<lne::StaticMeshComponent>();
@@ -352,6 +317,42 @@ void AppLayer::OnAttach()
 
     meshletMeshComponent.Mesh = meshletSphereMesh;
     meshletTransform.Position = { 0.0f, 15.0f, 0.0f };
+
+    glm::vec3 color{};
+
+    for (int sic = 0; sic < 2; ++sic)
+    {
+        if (sic == 0)
+            color = 0.8f * glm::vec3(1.0f, 1.0f, 1.0f);
+        else
+            color = glm::vec3(0.8, 0.6941176470588235f, 0.11372549019607843f); // gold-like
+
+        for (int sim = 0; sim < 5; ++sim)
+        {
+            float metalness = sim / 4.0f;
+            for (int sir = 0; sir < 5; ++sir)
+            {
+                float roughness = sir / 4.0f;
+                lne::Entity entity = m_Scene->CreateEntity();
+                entity.EmplaceComponent<lne::StaticMeshComponent>();
+
+                SafePtr metalRoughSphereMesh = meshletSphereMesh->Clone();
+                SafePtr grayMaterial = lnnew Material(meshletTech);
+                grayMaterial->SetProperty("uColor", glm::vec4(color, 1.0f));
+                grayMaterial->SetProperty("uMetalness", metalness);
+                grayMaterial->SetProperty("uRoughness", roughness);
+                metalRoughSphereMesh->SetMaterial(grayMaterial, 0);
+                auto [transform, meshComponent] = entity.GetComponents<lne::TransformComponent, lne::StaticMeshComponent>();
+                meshComponent.Mesh = metalRoughSphereMesh;
+
+                transform.Position = glm::vec3(
+                    (sim * 2.0f - 1.0f) * 5.0f,
+                    (sir * 2.0f - 1.0f) * 5.0f,
+                    10.0f * (sic + 1)
+                );
+            }
+        }
+    }
 }
 
 void AppLayer::InitFrameGraph()

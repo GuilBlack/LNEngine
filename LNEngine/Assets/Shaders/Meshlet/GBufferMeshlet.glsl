@@ -106,9 +106,11 @@ layout(set = MESH_SET, binding = 3) readonly buffer TriangleIndicesBuffer {
 
 layout(location = 0) out Interpolants
 {
-    vec3 color;
     vec3 worldPos;
     vec3 normal;
+    vec3 tangent;
+    vec3 bitangent;
+    vec2 uv;
 } oMeshlet[];
 
 void main()
@@ -131,10 +133,26 @@ void main()
     {
         uint vertexIndex = meshlet.VertexOffset + gl_LocalInvocationIndex;
         vertexIndex = vertexIndicesBuffer.vertexIndices[vertexIndex];
-        oMeshlet[gl_LocalInvocationIndex].worldPos = vec3(vertexBuffer.vertices[vertexIndex].position);
-        oMeshlet[gl_LocalInvocationIndex].normal = vertexBuffer.vertices[vertexIndex].normal;
-        gl_MeshVerticesEXT[gl_LocalInvocationIndex].gl_Position = uViewProj * transforms[instancesOffset] * vec4(vertexBuffer.vertices[vertexIndex].position, 1.0);
-        oMeshlet[gl_LocalInvocationIndex].color = vec3(float(meshletIndex & 1), float(meshletIndex & 3) / 4.0, float(meshletIndex & 7) / 8.0);
+        mat4 model = transforms[instancesOffset];
+
+        vec4 worldPos = model * vec4(vertexBuffer.vertices[vertexIndex].position, 1.0);
+        gl_MeshVerticesEXT[gl_LocalInvocationIndex].gl_Position = uViewProj * worldPos;
+        oMeshlet[gl_LocalInvocationIndex].worldPos = worldPos.xyz;
+
+        oMeshlet[gl_LocalInvocationIndex].uv = vertexBuffer.vertices[vertexIndex].uv;
+
+        mat3 normalMatrix = transpose(inverse(mat3(model)));
+        oMeshlet[gl_LocalInvocationIndex].normal = normalize(normalMatrix * vertexBuffer.vertices[vertexIndex].normal);
+        if (vertexBuffer.vertices[vertexIndex].tangent.xyz == vec3(0.0))
+        {
+            oMeshlet[gl_LocalInvocationIndex].tangent = vec3(0.0);
+            oMeshlet[gl_LocalInvocationIndex].bitangent = vec3(0.0);
+        }
+        else
+        {
+            oMeshlet[gl_LocalInvocationIndex].tangent = normalize(normalMatrix * vertexBuffer.vertices[vertexIndex].tangent.xyz);
+            oMeshlet[gl_LocalInvocationIndex].bitangent = normalize(cross(oMeshlet[gl_LocalInvocationIndex].normal, oMeshlet[gl_LocalInvocationIndex].tangent) * vertexBuffer.vertices[vertexIndex].tangent.w);
+        }
     }
 }
 
@@ -144,9 +162,11 @@ void main()
 
 layout(location = 0) in Interpolants
 {
-    vec3 color;
     vec3 worldPos;
     vec3 normal;
+    vec3 tangent;
+    vec3 bitangent;
+    vec2 uv;
 } iMeshlet;
 
 layout(location = 0) out vec4 oAlbedo;
@@ -157,10 +177,24 @@ layout(location = 3) out vec4 oMetalnessRoughness;
 void main()
 {
     MaterialData mat = mb.materials[matId];
-    oAlbedo = vec4(iMeshlet.color, 1.0);
+    oAlbedo = mat.tAlbedo == 0 ? mat.uColor : texture(globalTextures[nonuniformEXT(mat.tAlbedo)], iMeshlet.uv);
     oPosition = vec4(iMeshlet.worldPos, 1.0);
-    oNormal = vec4(normalize(iMeshlet.normal), 1.0);
-    oMetalnessRoughness = vec4(0.0, 0.5, 0.0, 1.0);
+
+    float metalness = mat.tMetalness == 0 ? mat.uMetalness : texture(globalTextures[nonuniformEXT(mat.tMetalness)], iMeshlet.uv).z;
+    float roughness = mat.tRoughness == 0 ? mat.uRoughness : texture(globalTextures[nonuniformEXT(mat.tRoughness)], iMeshlet.uv).y;
+    oMetalnessRoughness = vec4(metalness, roughness, 0.0, 1.0);
+
+    vec3 normal = normalize(iMeshlet.normal);
+    if (mat.tNormal != 0 && iMeshlet.tangent != vec3(0.0))
+    {
+        vec3 tangent =   normalize(iMeshlet.tangent - normal * dot(normal, iMeshlet.tangent));
+        vec3 bitangent = normalize(iMeshlet.bitangent);
+
+        mat3 TBN = mat3(tangent, bitangent, normal);
+        oNormal = vec4(TBN * (texture(globalTextures[nonuniformEXT(mat.tNormal)], iMeshlet.uv).xyz * 2.0 - vec3(1.0)), 1.0);
+    }
+    else
+        oNormal = vec4(normal, 1.0);
 }
 
 #endif
