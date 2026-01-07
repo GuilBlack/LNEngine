@@ -88,6 +88,8 @@ public:
 
     void SetTexture(const std::string& name, SafePtr<Texture> texture);
 
+    SafePtr<class GfxPipeline>  GetPipeline(PassID passId, SafePtr<FrameGraph> frameGraph);
+
 private:
     struct MaterialElement
     {
@@ -148,7 +150,6 @@ private:
     void                        InvalidateMaterial();
     bool                        IsOfShaderElementType(TypeId typeId, ShaderElementType::Enum elemType);
     bool                        CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, uint32_t frameIndex);
-    SafePtr<class GfxPipeline>  GetPipeline(PassID passId, SafePtr<FrameGraph> frameGraph);
 };
 
 

@@ -22,6 +22,11 @@ Effect::Effect(SafePtr<GfxContext> context, const std::string& shaderPath)
     uint32_t matSetIndex = m_Shader->GetSetIndex(ShaderSetIndexType::eMaterial);
     uint32_t maxFramesInFlight = m_Context->GetMaxFramesInFlight();
 
+    if (m_Shader->GetReflectedData().DescriptorSets.find(matSetIndex) == m_Shader->GetReflectedData().DescriptorSets.end())
+    {
+        LNE_INFO("Effect '{}' has no material descriptor set.", m_Name);
+        return;
+    }
     const DescriptorSet& matSet = m_Shader->GetReflectedData().DescriptorSets.at(matSetIndex);
 
     if (matSet.StorageBuffers.empty())
@@ -29,6 +34,7 @@ Effect::Effect(SafePtr<GfxContext> context, const std::string& shaderPath)
         LNE_ERROR("Effect '{}' has no storage buffer in the material set", m_Name);
         return;
     }
+    m_HasMaterialSet = true;
     vk::DescriptorSetLayout matDescSet = m_Shader->GetDescriptorSetLayouts().at(matSetIndex);
     size_t numStorageBuffer = matSet.StorageBuffers.size();
     m_Bank.Items.resize(numStorageBuffer);
@@ -105,8 +111,11 @@ Effect::Effect(SafePtr<GfxContext> context, const std::string& shaderPath)
 Effect::~Effect()
 {
     m_Pipelines.clear();
+
+    if (!m_HasMaterialSet)
+        return;
     m_Bank.Items.clear();
-    
+
     for (auto& descSet : m_Bank.FrameDescSets)
     {
         DescriptorSetDeletion descSetDel{
@@ -146,6 +155,9 @@ lne::SafePtr<lne::GfxPipeline> Effect::GetPipeline(PipelineHandle hash)
 lne::MaterialSlot Effect::AllocateMaterialSlot()
 {
     std::lock_guard<std::mutex> lock(m_SlotAllocMutex);
+
+    if (!m_HasMaterialSet)
+        return UINT32_MAX;
 
     MaterialSlot slot;
     if (m_Bank.FreeSlots.empty())
@@ -206,6 +218,9 @@ bool Effect::CopyMaterialDataToBuffer(vk::CommandBuffer cmdBuffer,
                                       uint32_t binding,
                                       void* data)
 {
+    if (m_HasMaterialSet == false)
+        return true; // since there's no material set, nothing to copy to. Can happen in special cases.
+
     auto& item = m_Bank.Items[binding];
     if (item.FrameBuffer[currentFrameInFlight]->GetMemoryFlags() & vk::MemoryPropertyFlagBits::eHostVisible && m_DirtyFrames != 0)
         return false;

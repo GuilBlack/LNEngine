@@ -400,6 +400,13 @@ void AppLayer::InitFrameGraph()
     lne::FrameGraphResourceDesc transparentResource = transparentResourceBuilder.SetName("LightingTransparentRef")
         .SetImageDimension(width, height)
         .SetType(lne::FrameGraphResourceType::eProxy)
+        .SetProxyInfo("MeshletDebugRef")
+        .Build();
+
+    lne::FrameGraphResourceDescBuilder meshletDebugResourceBuilder = lne::FrameGraphResourceDescBuilder();
+    lne::FrameGraphResourceDesc meshletDebugResource = meshletDebugResourceBuilder.SetName("MeshletDebugRef")
+        .SetImageDimension(width, height)
+        .SetType(lne::FrameGraphResourceType::eProxy)
         .SetProxyInfo("Lighting")
         .Build();
 
@@ -423,11 +430,18 @@ void AppLayer::InitFrameGraph()
         .SetType(lne::RenderPassType::eTransfer)
         .Build();
 
-    auto otherDepth = depthAttachmentDesc;
-    otherDepth.Name = "DepthTest";
+    nodeBuilder.Clear();
+    lne::FrameGraphNodeDesc meshletDebugPassDesc = nodeBuilder.SetName("MeshletDebugPass")
+        .AddInputResource(lightingResource)
+        .AddInputResource(depthAttachmentDesc)
+        .AddOutputResource(meshletDebugResource)
+        .SetEnabled(false)
+        .Build();
+
+    meshletDebugResource.Type = lne::FrameGraphResourceType::eAttachment;
     nodeBuilder.Clear();
     lne::FrameGraphNodeDesc transparentPassDesc = nodeBuilder.SetName("TransparentForwardPass")
-        .AddInputResource(lightingResource)
+        .AddInputResource(meshletDebugResource)
         .AddInputResource(depthAttachmentDesc)
         .AddOutputResource(transparentResource)
         .Build();
@@ -478,6 +492,7 @@ void AppLayer::InitFrameGraph()
     m_FrameGraph->CreateNode(gBufferPassDesc);
     m_FrameGraph->CreateNode(lightingPassDesc);
     m_FrameGraph->CreateNode(toneMappingPassDesc);
+    m_FrameGraph->CreateNode(meshletDebugPassDesc);
     m_FrameGraph->Compile();
 
     m_FrameGraph->BindRenderPass(lnnew lne::LightingPass());
@@ -487,6 +502,7 @@ void AppLayer::InitFrameGraph()
     m_FrameGraph->BindRenderPass(lnnew SkyboxPass());
     m_FrameGraph->BindRenderPass(lnnew lne::GBufferPass());
     m_FrameGraph->BindRenderPass(lnnew ToneMappingPass());
+    m_FrameGraph->BindRenderPass(lnnew lne::MeshletDebugPass());
 }
 
 void AppLayer::OnDetach()
