@@ -559,14 +559,36 @@ lne::SafePtr<StaticMesh> StaticMesh::GenerateUVSphereMeshlets(float radius /*= 1
     meshopt_Meshlet& lastMeshlet = meshlets[meshletCount - 1];
     meshletVertices.resize(lastMeshlet.vertex_offset + lastMeshlet.vertex_count);
     meshletTriangles.resize(lastMeshlet.triangle_offset + lastMeshlet.triangle_count * 3);
+    auto* meshletsData = new MeshletData[meshletCount];
+
+    // compute bounds for each meshlet
+    for (uint32_t mi = 0; mi < meshletCount; ++mi)
+    {
+        meshopt_Meshlet& meshlet = meshlets[mi];
+        meshopt_Bounds bounds = meshopt_computeMeshletBounds(
+            meshletVertices.data() + meshlet.vertex_offset,
+            meshletTriangles.data() + meshlet.triangle_offset,
+            meshlet.triangle_count,
+            (float*)vertices,
+            nVertices,
+            sizeof(Vertex)
+        );
+        MeshletData& meshletData = meshletsData[mi];
+        meshletData.VertexCount = meshlet.vertex_count;
+        meshletData.TriangleCount = meshlet.triangle_count;
+        meshletData.VertexOffset = meshlet.vertex_offset;
+        meshletData.TriangleOffset = meshlet.triangle_offset;
+        meshletData.BoundsCenter = glm::vec3(bounds.center[0], bounds.center[1], bounds.center[2]);
+        meshletData.BoundsRadius = bounds.radius;
+        meshletData.ConeAxis = glm::vec3(bounds.cone_axis_s8[0], bounds.cone_axis_s8[1], bounds.cone_axis_s8[2]);
+        meshletData.ConeCutoff = bounds.cone_cutoff_s8;
+    }
 
     // could use meshopt_optimizeMeshlet later but for now, we test.
     Renderer& renderer = ApplicationBase::GetRenderer();
     SafePtr vertexBuffer = renderer.CreateGeometryBuffer(vertices, nVertices * sizeof(Vertex));
 
-    void* meshletsData = new meshopt_Meshlet[meshletCount];
-    std::memcpy(meshletsData, meshlets.data(), meshletCount * sizeof(meshopt_Meshlet));
-    SafePtr meshletBuffer = renderer.CreateGeometryBuffer(meshletsData, meshletCount * sizeof(meshopt_Meshlet));
+    SafePtr meshletBuffer = renderer.CreateGeometryBuffer(meshletsData, meshletCount * sizeof(MeshletData));
 
     void* meshletVerticesData = new uint32_t[meshletVertices.size()];
     std::memcpy(meshletVerticesData, meshletVertices.data(), meshletVertices.size() * sizeof(uint32_t));
@@ -584,7 +606,7 @@ lne::SafePtr<StaticMesh> StaticMesh::GenerateUVSphereMeshlets(float radius /*= 1
         meshletBuffer,
         meshletVertexIndicesBuffer,
         meshletTriangleIndicesBuffer,
-        meshletsData,
+        (void*)meshletsData,
         meshletVerticesData,
         meshletTrianglesData,
         vertices,

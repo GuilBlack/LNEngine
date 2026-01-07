@@ -20,6 +20,13 @@ layout(scalar, push_constant) uniform PushConstants
     uint instancesOffset;
 };
 
+struct Vertex {
+    vec3 position;
+    vec2 uv;
+    vec3 normal;
+    vec4 tangent;
+};
+
 struct MaterialData {
     uint dummy;
 };
@@ -36,6 +43,19 @@ layout(set = TEX_SET, binding = 1, rgba16f) uniform writeonly image2D globalImag
 layout(set = TEX_SET, binding = 1, rgba32f) uniform writeonly image2D globalImageRgba32f[];
 
 #if defined(TASK) || defined(MESH)
+
+layout(scalar, set = MESH_SET, binding = 0) readonly buffer VertexBuffer {
+    Vertex vertices[];
+} vertexBuffer;
+layout(scalar, set = MESH_SET, binding = 1) readonly buffer MeshletBuffer {
+    Meshlet meshlets[];
+} meshletBuffer;
+layout(scalar, set = MESH_SET, binding = 2) readonly buffer VertexIndicesBuffer {
+    uint vertexIndices[];
+} vertexIndicesBuffer;
+layout(scalar, set = MESH_SET, binding = 3) readonly buffer TriangleIndicesBuffer {
+    uint8_t triangleIndices[];
+} triangleIndicesBuffer;
 
 const uint WORKGROUP_SIZE = 32;
 
@@ -56,9 +76,39 @@ void main()
 {
     uint liIdx = gl_LocalInvocationID.x;
     uint giIdx = gl_GlobalInvocationID.x;
+    mat4 model = transforms[instancesOffset];
+    Meshlet meshlet = meshletBuffer.meshlets[giIdx];
 
-    sPayload.meshletIndices[liIdx] = giIdx;
-    EmitMeshTasksEXT(WORKGROUP_SIZE, 1, 1);
+    vec4 center = model * vec4(meshlet.BoundsCenter, 1.0);
+    float radius = meshlet.BoundsRadius * max(
+        length(vec3(model[0][0], model[1][0], model[2][0])),
+        max(
+            length(vec3(model[0][1], model[1][1], model[2][1])),
+            length(vec3(model[0][2], model[1][2], model[2][2]))
+        ) * 1.05
+    ); // scale the bounding sphere radius + a small bias
+
+    vec3 coneAxis = vec3(
+        int(meshlet.ConeAxis[0]) / 127.0,
+        int(meshlet.ConeAxis[1]) / 127.0,
+        int(meshlet.ConeAxis[2]) / 127.0
+    );
+    coneAxis = (transpose(inverse(mat3(model))) * coneAxis);
+
+    float coneCutoff = float(int(meshlet.ConeCutoff)) / 127.0;
+    bool visible = cullCone(coneAxis, coneCutoff, center.xyz, radius, uEyePos);
+    uvec4 mask = subgroupBallot(visible);
+
+    uint index = subgroupBallotExclusiveBitCount(mask);
+
+    if (visible)
+        sPayload.meshletIndices[index] = giIdx;
+
+    uint totalVisible = subgroupBallotBitCount(mask);
+
+    barrier();
+    if (subgroupElect())
+        EmitMeshTasksEXT(totalVisible, 1, 1);
 }
 
 #endif
@@ -67,33 +117,6 @@ void main()
 
 layout(local_size_x = 128) in;
 layout(triangles, max_vertices = 64, max_primitives = 128) out;
-
-struct Vertex {
-    vec3 position;
-    vec2 uv;
-    vec3 normal;
-    vec4 tangent;
-};
-
-struct Meshlet {
-	uint VertexOffset;
-	uint TriangleOffset;
-	uint VertexCount;
-	uint TriangleCount;
-};
-
-layout(scalar, set = MESH_SET, binding = 0) readonly buffer VertexBuffer {
-    Vertex vertices[];
-} vertexBuffer;
-layout(set = MESH_SET, binding = 1) readonly buffer MeshletBuffer {
-    Meshlet meshlets[];
-} meshletBuffer;
-layout(set = MESH_SET, binding = 2) readonly buffer VertexIndicesBuffer {
-    uint vertexIndices[];
-} vertexIndicesBuffer;
-layout(set = MESH_SET, binding = 3) readonly buffer TriangleIndicesBuffer {
-    uint8_t triangleIndices[];
-} triangleIndicesBuffer;
 
 layout(location = 0) out Interpolants
 {

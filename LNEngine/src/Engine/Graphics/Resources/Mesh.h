@@ -24,6 +24,20 @@ struct Vertex
     glm::vec4 Tangent;
 };
 
+struct MeshletData
+{
+    uint32_t        VertexOffset;
+    uint32_t        TriangleOffset;
+    uint32_t        VertexCount;
+    uint32_t        TriangleCount;
+
+    glm::vec3       BoundsCenter;
+    float           BoundsRadius;
+
+    glm::i8vec3     ConeAxis;
+    int8_t          ConeCutoff;
+};
+
 class Geometry
 {
 public:
