@@ -44,44 +44,44 @@ using FrameGraphResourceInfoVariant = std::variant<
 
 struct FrameGraphResourceInfo
 {
-    FrameGraphResourceInfoVariant Variant{};
-    bool External = false;
+    FrameGraphResourceInfoVariant   Variant{};
+    bool                            External = false;
 };
 
 struct FrameGraphResource
 {
-    FrameGraphResourceType::Enum Type{};
+    FrameGraphResourceType::Enum    Type{};
     // TODO: This ref count does not work on resize.
-    uint32_t RefCount{ 0 };
-    FrameGraphResourceInfo Info{};
-    SafePtr<RefCountBase> Resource{}; // Texture, Buffer, etc.
+    uint32_t                        RefCount{ 0 };
+    FrameGraphResourceInfo          Info{};
+    SafePtr<RefCountBase>           Resource{}; // Texture, Buffer, etc.
 
-    FrameGraphNodeHandle Producer{ INVALID_OBJECT_POOL_HANDLE };
-    FrameGraphResourceHandle ProducerResourceHandle{ INVALID_OBJECT_POOL_HANDLE };
+    FrameGraphNodeHandle            Producer{ INVALID_OBJECT_POOL_HANDLE };
+    FrameGraphResourceHandle        ProducerResourceHandle{ INVALID_OBJECT_POOL_HANDLE };
 
-    std::string Name{};
+    std::string                     Name{};
 };
 
 struct FrameGraphNode
 {
-    std::vector<FrameGraphResourceHandle> InputResources{};
-    std::vector<FrameGraphResourceHandle> OutputResources{};
+    std::vector<FrameGraphResourceHandle>   InputResources{};
+    std::vector<FrameGraphResourceHandle>   OutputResources{};
 
-    Framebuffer Framebuffer{};
-    SafePtr<IRenderPass> RenderPass{};
+    Framebuffer                             Framebuffer{};
+    SafePtr<IRenderPass>                    RenderPass{};
 
-    std::vector<FrameGraphNodeHandle> Dependents{};
+    std::vector<FrameGraphNodeHandle>       Dependents{};
 
-    std::string Name{};
-    bool Enabled{ true };
-    RenderPassType::Enum Type{ RenderPassType::eGraphics };
+    std::string                             Name{};
+    bool                                    Enabled{ true };
+    RenderPassType::Enum                    Type{ RenderPassType::eGraphics };
 };
 
 struct FrameGraphResourceDesc
 {
-    FrameGraphResourceType::Enum Type;
-    FrameGraphResourceInfo Info{};
-    std::string Name{};
+    FrameGraphResourceType::Enum        Type;
+    FrameGraphResourceInfo              Info{};
+    std::string                         Name{};
 };
 
 struct FrameGraphNodeDesc
@@ -89,9 +89,9 @@ struct FrameGraphNodeDesc
     std::vector<FrameGraphResourceDesc> InputResources{};
     std::vector<FrameGraphResourceDesc> OutputResources{};
 
-    std::string Name{};
-    bool Enabled{ true };
-    RenderPassType::Enum Type{ RenderPassType::eGraphics };
+    std::string                         Name{};
+    bool                                Enabled{ true };
+    RenderPassType::Enum                Type{ RenderPassType::eGraphics };
 };
 
 class FrameGraphResourceDescBuilder
@@ -156,14 +156,14 @@ public:
     FrameGraphResourceDescBuilder& SetDefaultColorAttachmentInfos();
     FrameGraphResourceDescBuilder& SetDefaultDepthAttachmentInfos();
 
-    FrameGraphResourceDesc Build();
+    FrameGraphResourceDesc         Build();
 
 private:
-    FrameGraphResourceBufferInfo m_BufferInfo{};
-    FrameGraphResourceImageInfo m_ImageInfo{};
-    FrameGraphResourceProxyInfo m_ProxyInfo{};
-    vk::Extent3D m_Extent{};
-    FrameGraphResourceDesc m_Desc{};
+    FrameGraphResourceBufferInfo    m_BufferInfo{};
+    FrameGraphResourceImageInfo     m_ImageInfo{};
+    FrameGraphResourceProxyInfo     m_ProxyInfo{};
+    vk::Extent3D                    m_Extent{};
+    FrameGraphResourceDesc          m_Desc{};
 };
 
 class FrameGraphNodeDescBuilder
@@ -201,9 +201,9 @@ public:
         return *this;
     }
 
-    void Clear() { m_Desc = {}; }
+    void                      Clear() { m_Desc = {}; }
 
-    FrameGraphNodeDesc Build();
+    FrameGraphNodeDesc        Build();
 
 private:
     FrameGraphNodeDesc m_Desc{};
@@ -228,50 +228,54 @@ public:
 
     ~FrameGraph() = default;
 
-    FrameGraphResource* GetResource(FrameGraphResourceHandle resourceHandle) 
+    [[nodiscard]] FrameGraphResource*               GetResource(FrameGraphResourceHandle resourceHandle) 
     {
         return m_ResourceCache.GetPool().Access(resourceHandle);
     }
-    FrameGraphResource* GetResource(const std::string& name) { return m_ResourceCache.Access(name); }
-    std::vector<SafePtr<IRenderPass>> GetRenderPassesWithSignature(EntitySignature signature);
-    const std::vector<FrameGraphNodeHandle>& GetNodes() const { return m_Nodes; }
-    FrameGraphNode* GetNode(FrameGraphNodeHandle nodeHandle) { return m_NodeCache.GetPool().Access(nodeHandle); }
-    const FrameGraphNode* GetNode(const std::string& name) const { return m_NodeCache.Access(name); }
 
-    void Compile();
-    void Execute(vk::CommandBuffer commandBuffer, class WorldRenderer* worldRenderer);
-    void OnResize(class WindowResizeEvent& e);
+    [[nodiscard]] FrameGraphResource*               GetResource(const std::string& name) { return m_ResourceCache.Access(name); }
+    [[nodiscard]] std::vector<SafePtr<IRenderPass>> GetRenderPassesWithSignature(EntitySignature signature);
+    [[nodiscard]] const std::vector<FrameGraphNodeHandle>& GetNodes() const { return m_Nodes; }
+    [[nodiscard]] FrameGraphNode*                   GetNode(FrameGraphNodeHandle nodeHandle) 
+    { return m_NodeCache.GetPool().Access(nodeHandle); }
+    [[nodiscard]] const FrameGraphNode*             GetNode(const std::string& name) const { return m_NodeCache.Access(name); }
 
-    void RenderImGui();
+    void                                            Compile();
+    void                                            Execute(vk::CommandBuffer commandBuffer,
+                                                            class WorldRenderer* worldRenderer);
+    void                                            OnResize(class WindowResizeEvent& e);
 
-    void BindRenderPass(SafePtr<IRenderPass> renderPass);
-    FrameGraphNodeHandle CreateNode(const FrameGraphNodeDesc& desc);
+    void                                            RenderImGui();
 
-    void OutputGraphToMermaid();
+    void                                            BindRenderPass(SafePtr<IRenderPass> renderPass);
+    FrameGraphNodeHandle                            CreateNode(const FrameGraphNodeDesc& desc);
+
+    void                                            OutputGraphToMermaid();
 
 protected:
-    virtual std::string_view GetDebugName() const override
+    std::string_view                                GetDebugName() const override
     {
         return m_Name.empty() ? "FrameGraph" : m_Name;
     }
 private:
-    SafePtr<class GfxContext> m_Context{};
+    SafePtr<class GfxContext>                       m_Context{};
     // normally, it will be topologically sorted
-    std::vector<FrameGraphNodeHandle> m_Nodes{};
-    ObjectCache<std::string, FrameGraphResource> m_ResourceCache;
-    ObjectCache<std::string, FrameGraphNode> m_NodeCache;
-    std::string m_Name{};
+    std::vector<FrameGraphNodeHandle>               m_Nodes{};
+    ObjectCache<std::string, FrameGraphResource>    m_ResourceCache;
+    ObjectCache<std::string, FrameGraphNode>        m_NodeCache;
+    std::string                                     m_Name{};
 
 private:
-    FrameGraphResourceHandle CreateInputResource(const FrameGraphResourceDesc& desc);
-    FrameGraphResourceHandle CreateOutputResource(const FrameGraphResourceDesc& desc, FrameGraphNodeHandle producer);
+    [[nodiscard]] FrameGraphResourceHandle          CreateInputResource(const FrameGraphResourceDesc& desc);
+    [[nodiscard]] FrameGraphResourceHandle          CreateOutputResource(const FrameGraphResourceDesc& desc,
+                                                                         FrameGraphNodeHandle producer);
 
-    void CreateNodeDependents(FrameGraphNodeHandle node);
-    void SortGraph(std::vector<FrameGraphNodeHandle>& nodes);
-    void CreateFramebuffers(lne::FrameGraphNodeHandle nodeHandle);
+    void                                            CreateNodeDependents(FrameGraphNodeHandle node);
+    void                                            SortGraph(std::vector<FrameGraphNodeHandle>& nodes);
+    void                                            CreateFramebuffers(lne::FrameGraphNodeHandle nodeHandle);
 
-    FrameGraphResourceInfo  GetProxyRealResourceInfo(FrameGraphResource* resource);
-    FrameGraphResource*     GetProxyRealResource(FrameGraphResource* resource);
+    [[nodiscard]] FrameGraphResourceInfo            GetProxyRealResourceInfo(FrameGraphResource* resource);
+    [[nodiscard]] FrameGraphResource*               GetProxyRealResource(FrameGraphResource* resource);
 };
 }
 
