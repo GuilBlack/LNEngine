@@ -594,6 +594,7 @@ lne::SafePtr<StaticMesh> StaticMesh::GenerateUVSphereMeshlets(float radius /*= 1
 
     mesh->m_Geometry.reset(geometry);
     mesh->m_SubMeshes = { { "UVSphere_Meshlets", 0, 0, geometry->m_VertexCount, geometry->m_IndexCount, 0, AABB{.Min = {-radius,-radius,-radius}, .Max = {radius,radius,radius} } } };
+    delete[] indices;
     return mesh;
 }
 
