@@ -617,9 +617,9 @@ void AppLayer::HandleInput(float deltaTime)
     if (inputManager.IsKeyPressed(lne::eKeyA))
         movementInput -= camTransform.GetRight();
     if (inputManager.IsKeyPressed(lne::eKeyQ))
-        movementInput += camTransform.GetUp();
-    if (inputManager.IsKeyPressed(lne::eKeyE))
         movementInput -= camTransform.GetUp();
+    if (inputManager.IsKeyPressed(lne::eKeyE))
+        movementInput += camTransform.GetUp();
 
     if (glm::length(movementInput) > 0.0f)
     {
