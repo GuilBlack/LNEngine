@@ -21,19 +21,25 @@ This README is more of a way for me to keep track of what I did and what I'll be
 - Bindless textures
 - Simple camera system
 - Simple skybox
-- Texture loading in async
 - Simple PBR shader
 - Simple model loading (needs more testing)
-- Frame graph implementation working with a simple forward renderer
+- Frame graph implementation working
 - ECS which is Archetype-based. I took it from [my other ECS project](https://github.com/GuilBlack/ECS) and adapted it to this project
+- Shader Spirv caching
 - Simple scene system. Still a big WIP
+- Meshlets rendering (still experimental and includes only cone culling for now)
+- Asynchronous GPU resource loader (textures and models for now)
 
 ## Next steps
-- Deferred rendering & resource aliasing as well as compute shaders
+- Have a scene hierarchy view using ImGui
+- Have an inspector for entities/components
+- Have a material inspector
+- HAVE MORE LIGHTS IN THE SCENE PLEASE
+- Implement shadows
 - Some comments in the code would be nice...
 - Make a better interface with ImGui
-- Make a resource loader
-- Shader Spirv caching + just shader cache in general
+- Hot reloading of shaders and materials
+- More testing of the ECS and scene system
 
 ## How it works
 
@@ -41,9 +47,9 @@ This README is more of a way for me to keep track of what I did and what I'll be
 For the moment, it only works on Windows with Vulkan version 1.3 and I don't really plan to support a wide variety of devices. I'd like to try and make it work on Linux machines but since I don't have one, it will probably have to wait. I use Visual Studio 2022 to develop this app.
 
 To build the project on Windows:
-- Download Vulkan 1.3 SDK and include shaderc, spirv-cross with it.
+- Download Vulkan 1.3 SDK and include shaderc, spirv-cross and the debug symbols with it since I'm using them.
 - Define a VULKAN_SDK environment variable where the Vulkan SDK is.
-- Clone this repository recursively since I use some libraries.
+- Clone this repository recursively since I use some libraries as submodules.
 - launch the ProjectGen.bat script located in vendor/premake/Scripts from the root of this directory.
 - That's probably it unless I forgot something...
 
@@ -56,11 +62,14 @@ And here is a stress test with 32k spheres which are entities and not particles 
 
 ![square-image](github-images/StressTest.png)
 
-The frame graph generates a graph in mermaid (mmd) format in the profiling directory. Here is a basic and a complex frame graph in image:
+The frame graph generates a graph in mermaid (mmd) format in the profiling directory. Here is an example of what it looks like:
 
-| Basic Frame Graph | Complex Frame Graph |
-| --- | --- |
-| ![square-image](github-images/BasicFrameGraph.png) | ![square-image](github-images/ComplexFrameGraph.png) |
+| Frame Graph |
+| --- |
+| ![square-image](github-images/BasicFrameGraph.png) |
+
+And a little example of meshlets rendering working alongside normal rendering to conclude. To activate the debug view, just check the "Is Enabled" box in the Meshlet Debug Pass section of the ImGui interface.
+![Meshlets](github-images/MeshletDebug.png)
 
 Currently, we are using the basic frame graph to render the scene. The complex frame graph is a work in progress.
 
