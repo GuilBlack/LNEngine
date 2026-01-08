@@ -110,11 +110,16 @@ void WorldRenderer::Render(EntityRegistry& registry)
 
                 glm::mat4 model = transform.GetModelMatrix() * subMesh.WorldTransform;
                 StaticMeshHash hash{ (uint64_t)staticMesh.Mesh.GetPtr(), i };
-                currTransforms[hash].Transforms.emplace_back(model);
-
-                for (auto& drawStaticMeshesAdder : drawStaticMeshesAdders)
-                    drawStaticMeshesAdder->AddStaticMeshDrawCommand(hash, staticMesh.Mesh, i);
+                auto& submeshTransformArray = currTransforms[hash];
+                submeshTransformArray.Mesh = staticMesh.Mesh;
+                submeshTransformArray.Transforms.emplace_back(model);
             }
+        }
+
+        for (auto& [hash, array] : currTransforms)
+        {
+            for (auto& drawStaticMeshesAdder : drawStaticMeshesAdders)
+                drawStaticMeshesAdder->AddStaticMeshDrawCommand(hash, array.Mesh, hash.SubMeshIndex);
         }
 
         uint32_t offset = 0;

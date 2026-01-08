@@ -12,15 +12,17 @@ class FrameGraph;
 
 namespace lne
 {
+class StaticMesh;
 struct SubMeshTransformArray
 {
-    std::vector<glm::mat4>  Transforms;
-    uint32_t                Offset;
+    SafePtr<StaticMesh>         Mesh;
+    std::vector<glm::mat4>      Transforms;
+    uint32_t                    Offset;
 };
 
 struct TransformBuffer
 {
-    SafePtr<class StandaloneStorageBuffer> Buffer;
+    SafePtr<StandaloneStorageBuffer> Buffer;
     glm::mat4* Data;
 };
 
