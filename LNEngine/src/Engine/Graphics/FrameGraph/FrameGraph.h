@@ -12,7 +12,7 @@ using FrameGraphResourceHandle = ObjectPoolHandle;
 using FrameGraphNodeHandle = ObjectPoolHandle;
 struct FrameGraphNode;
 class FrameGraph;
-class IRenderPass;
+class RenderPass;
 
 struct FrameGraphResourceBufferInfo
 {
@@ -68,7 +68,7 @@ struct FrameGraphNode
     std::vector<FrameGraphResourceHandle>   OutputResources{};
 
     Framebuffer                             Framebuffer{};
-    SafePtr<IRenderPass>                    RenderPass{};
+    SafePtr<RenderPass>                    RenderPass{};
 
     std::vector<FrameGraphNodeHandle>       Dependents{};
 
@@ -234,7 +234,7 @@ public:
     }
 
     [[nodiscard]] FrameGraphResource*               GetResource(const std::string& name) { return m_ResourceCache.Access(name); }
-    [[nodiscard]] std::vector<SafePtr<IRenderPass>> GetRenderPassesWithSignature(EntitySignature signature);
+    [[nodiscard]] std::vector<SafePtr<RenderPass>> GetRenderPassesWithSignature(EntitySignature signature);
     [[nodiscard]] const std::vector<FrameGraphNodeHandle>& GetNodes() const { return m_Nodes; }
     [[nodiscard]] FrameGraphNode*                   GetNode(FrameGraphNodeHandle nodeHandle) 
     { return m_NodeCache.GetPool().Access(nodeHandle); }
@@ -247,7 +247,7 @@ public:
 
     void                                            RenderImGui();
 
-    void                                            BindRenderPass(SafePtr<IRenderPass> renderPass);
+    void                                            BindRenderPass(SafePtr<RenderPass> renderPass);
     FrameGraphNodeHandle                            CreateNode(const FrameGraphNodeDesc& desc);
 
     void                                            OutputGraphToMermaid();

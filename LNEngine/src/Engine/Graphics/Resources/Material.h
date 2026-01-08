@@ -6,7 +6,7 @@
 #include "Engine/Graphics/Structs.h"
 #include "Engine/Graphics/StructsHashes.h"
 #include "Engine/GlobalUtils.h"
-#include "Engine/Graphics/FrameGraph/RenderPass/IRenderPass.h"
+#include "Engine/Graphics/FrameGraph/RenderPass/RenderPass.h"
 #include "Engine/Core/DataStructures/FlatHashClasses.h"
 
 namespace lne

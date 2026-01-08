@@ -13,11 +13,11 @@ struct FrameGraphNode;
 
 PassID MakePassID(std::string_view name);
 
-class IRenderPass : public RefCountBase
+class RenderPass : public RefCountBase
 {
 public:
-    IRenderPass() = default;
-    virtual ~IRenderPass() = default;
+    RenderPass() = default;
+    virtual ~RenderPass() = default;
 
     void OnBindInternal(FrameGraph* frameGraph, FrameGraphNode* node);
     virtual void OnBind(FrameGraph* frameGraph, FrameGraphNode* node) {}

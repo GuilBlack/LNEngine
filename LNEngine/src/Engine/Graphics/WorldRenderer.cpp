@@ -6,7 +6,7 @@
 #include "Resources/Material.h"
 #include "CommandPoolManager.h"
 #include "WorldRenderer.h"
-#include <Graphics/FrameGraph/RenderPass/IRenderPass.h>
+#include <Graphics/FrameGraph/RenderPass/RenderPass.h>
 #include "ECS/EntityRegistry.h"
 #include "Scene/Components.h"
 #include "Resources/Mesh.h"
@@ -86,7 +86,7 @@ void WorldRenderer::Render(EntityRegistry& registry)
     auto staticMeshView = registry.GetView<TransformComponent, StaticMeshComponent>();
     {
         LNE_PROFILE_SCOPE("Update Transform Buffer")
-        std::vector<SafePtr<IRenderPass>> staticMeshRenderPasses = m_FrameGraph->GetRenderPassesWithSignature(ComponentType<StaticMeshComponent>());
+        std::vector<SafePtr<RenderPass>> staticMeshRenderPasses = m_FrameGraph->GetRenderPassesWithSignature(ComponentType<StaticMeshComponent>());
         std::vector<IDrawStaticMeshes*> drawStaticMeshesAdders;
 
         for (auto& renderPass : staticMeshRenderPasses)

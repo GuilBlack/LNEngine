@@ -1,11 +1,11 @@
 #pragma once
-#include <Engine/Graphics/FrameGraph/RenderPass/IRenderPass.h>
+#include <Engine/Graphics/FrameGraph/RenderPass/RenderPass.h>
 
 namespace lne
 {
 class Material;
 
-class LightingPass : public lne::IRenderPass
+class LightingPass : public lne::RenderPass
 {
 public:
     LightingPass()

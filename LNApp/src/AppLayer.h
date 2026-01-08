@@ -3,7 +3,7 @@
 
 class AppLayer final : public lne::Layer
 {
-    class FinalPass : public lne::IRenderPass
+    class FinalPass : public lne::RenderPass
     {
     public:
         FinalPass();
@@ -16,7 +16,7 @@ class AppLayer final : public lne::Layer
         lne::SafePtr<lne::Texture> m_OutputTexture{};
     };
 
-    class SkyboxPass : public lne::IRenderPass
+    class SkyboxPass : public lne::RenderPass
     {
     public:
         SkyboxPass()
@@ -37,7 +37,7 @@ class AppLayer final : public lne::Layer
         bool m_IsDebugOpen{ false };
     };
 
-    class ToneMappingPass : public lne::IRenderPass
+    class ToneMappingPass : public lne::RenderPass
     {
     public:
         ToneMappingPass()

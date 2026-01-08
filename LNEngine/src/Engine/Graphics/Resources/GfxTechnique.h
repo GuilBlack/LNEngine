@@ -2,7 +2,7 @@
 #include "Engine/Graphics/Enums.h"
 #include "Engine/Graphics/Structs.h"
 #include "Engine/Core/SafePtr.h"
-#include "Engine/Graphics/FrameGraph/RenderPass/IRenderPass.h"
+#include "Engine/Graphics/FrameGraph/RenderPass/RenderPass.h"
 #include "Engine/Graphics/Resources/Effect.h"
 #include "Engine/Core/DataStructures/FlatHashClasses.h"
 

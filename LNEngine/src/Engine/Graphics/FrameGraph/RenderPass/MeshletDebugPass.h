@@ -1,12 +1,12 @@
 #pragma once
-#include "IRenderPass.h"
+#include "RenderPass.h"
 #include "Engine/Core/SafePtr.h"
 
 namespace lne
 {
 class Material;
 
-class MeshletDebugPass : public IRenderPass, public IDrawStaticMeshes
+class MeshletDebugPass : public RenderPass, public IDrawStaticMeshes
 {
 public:
     MeshletDebugPass();
