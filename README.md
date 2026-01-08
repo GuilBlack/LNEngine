@@ -77,3 +77,9 @@ Currently, we are using the basic frame graph to render the scene. The complex f
 
 You'll find a code example on how everything works in the LNApp/src/AppLayer.cpp and .h.
 
+## Controls in LNApp
+
+WASD -> Directional controls
+Q -> Go up
+E -> Go down
+Mouse Left Click + Move the mouse -> Move the orientation of the camera
