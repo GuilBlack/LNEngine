@@ -54,7 +54,7 @@ To build the project on Windows:
 - That's probably it unless I forgot something...
 
 The executable is constructed with the LNApp project and the Assets etc are copied to the output directory so that you can just plug and play in renderdoc.
-That's about it for now. With all of this, you should be able to run the application and see two beautiful cubes and a duck! 😊
+!!! Note that you'll need a GPU that supports Vulkan 1.3 and mesh shaders.
 
 ![square-image](github-images/preview.gif)
 
