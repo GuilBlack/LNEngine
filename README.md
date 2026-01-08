@@ -47,7 +47,7 @@ This README is more of a way for me to keep track of what I did and what I'll be
 For the moment, it only works on Windows with Vulkan version 1.3 and I don't really plan to support a wide variety of devices. I'd like to try and make it work on Linux machines but since I don't have one, it will probably have to wait. I use Visual Studio 2022 to develop this app.
 
 To build the project on Windows:
-- Download Vulkan at least 1.3 SDK and include shaderc, volk, spirv-cross and the debug symbols with it since I'm using them.
+- Download Vulkan 1.3.283 SDK (it did compile and run with Vulkan 1.4 but with some runtime errors) and include volk, and the debug symbols with it since I'm using them.
 - Define a VULKAN_SDK environment variable where the Vulkan SDK is if it's not already defined.
 - Clone this repository ***recursively*** with `--recursive-submodules` since I use some libraries as submodules. If you don't have all the submodules cloned, the build will fail. If you've already cloned the repo, you can just run `git submodule update --init --recursive` in the root of the repository.
 - launch the `ProjectGen.bat` script located in `vendor/premake/Scripts` from the root of this directory.
@@ -80,6 +80,6 @@ You'll find a code example on how everything works in the LNApp/src/AppLayer.cpp
 ## Controls in LNApp
 
 - WASD -> Directional controls.
-- Q -> Go up.
-- E -> Go down.
+- Q -> Go down.
+- E -> Go up.
 - Mouse Left Click + Move the mouse -> Move the orientation of the camera.
