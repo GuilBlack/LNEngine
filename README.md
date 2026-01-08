@@ -79,7 +79,7 @@ You'll find a code example on how everything works in the LNApp/src/AppLayer.cpp
 
 ## Controls in LNApp
 
-WASD -> Directional controls
-Q -> Go up
-E -> Go down
-Mouse Left Click + Move the mouse -> Move the orientation of the camera
+- WASD -> Directional controls.
+- Q -> Go up.
+- E -> Go down.
+- Mouse Left Click + Move the mouse -> Move the orientation of the camera.
