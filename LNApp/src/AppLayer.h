@@ -3,28 +3,6 @@
 
 class AppLayer final : public lne::Layer
 {
-    class DoFPass : public lne::IRenderPass
-    {
-    public:
-        DoFPass()
-        {
-            m_Name = "DoFPass";
-        }
-
-        virtual void Execute(vk::CommandBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override{}
-    };
-
-    class TransparentPass : public lne::IRenderPass
-    {
-    public:
-        TransparentPass()
-        {
-            m_Name = "TransparentPass";
-        }
-
-        virtual void Execute(vk::CommandBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override{}
-    };
-
     class FinalPass : public lne::IRenderPass
     {
     public:
