@@ -763,8 +763,8 @@ FrameGraphResourceDesc FrameGraphResourceDescBuilder::Build()
     case FrameGraphResourceType::eAttachment:
     case FrameGraphResourceType::eTexture:
     {
-        if (m_Extent == vk::Extent3D(0, 0, 0) || m_Extent == vk::Extent3D(0, 0, 0))
-            LNE_ERROR("Image width or height is 0");
+        if (m_Extent == vk::Extent3D(0, 0, 0))
+            LNE_ERROR("Image width or height or height is 0");
         m_ImageInfo.Extent = m_Extent;
         m_Desc.Info.Variant = m_ImageInfo;
         break;
