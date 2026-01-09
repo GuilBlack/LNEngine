@@ -353,6 +353,8 @@ public:
 
     ECS_FORCE_INLINE Iterator begin() const
     {
+        if (m_TotalSize == 0)
+            return end();
         return Iterator{ Index{ m_EntityData.front()->front(), 0, 0 },
                          m_TotalSize,
                          m_ArchetypeSizes,
@@ -361,6 +363,13 @@ public:
 
     ECS_FORCE_INLINE Iterator end() const
     {
+        if (m_TotalSize == 0)
+        {
+            return Iterator{ Index{ 0, 0, 0 },
+                             0,
+                             m_ArchetypeSizes,
+                             m_EntityData };
+        }
         return Iterator{ Index{ m_EntityData.back()->back(), static_cast<uint32_t>(m_ArchetypeSizes.size()), 0 },
                          m_TotalSize,
                          m_ArchetypeSizes,
