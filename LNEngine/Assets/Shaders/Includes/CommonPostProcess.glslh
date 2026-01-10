@@ -1,6 +1,9 @@
-#define TEX_SET 3
-#define MAT_SET 2
-#define VERTEX_SET 1
+#define TEX_SET 4
+#define MAT_SET 3
+#define VERTEX_SET 2
+#define LIGHT_SET 1
+
+#include "LightDef.glslh"
 
 layout(scalar, set=0, binding=0) uniform GlobalUBO {
     mat4    uViewProj;
@@ -12,5 +15,11 @@ layout(scalar, set=0, binding=0) uniform GlobalUBO {
     uint    tBRDFLut;
     uint    tIrradianceMap;
     uint    tPrefilteredMap;
+};
+
+layout(scalar, set = LIGHT_SET, binding = 0) buffer LightBuffer
+{
+    uint lightCount;
+    Light lights[];
 };
 

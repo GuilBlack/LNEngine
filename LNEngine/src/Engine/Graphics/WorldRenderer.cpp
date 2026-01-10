@@ -29,12 +29,20 @@ WorldRenderer::WorldRenderer(const SafePtr<FrameGraph>& frameGraph)
     }
 
     m_TransformBuffers.resize(maxFramesInFlight);
-    m_Transfroms.resize(maxFramesInFlight);
-    // 2 MB of transform data per frame since a mat4 is 64 bytes. 1024 * 32 = 32k transforms
+    m_Transforms.resize(maxFramesInFlight);
+
+    m_LightBuffersGPU.resize(maxFramesInFlight);
+    m_LightsCPU.resize(maxFramesInFlight);
+    m_NumLights.resize(maxFramesInFlight, 0);
+    uint32_t initialNumLights = 512;
+
     for (uint32_t i = 0; i < maxFramesInFlight; ++i)
     {
         m_TransformBuffers[i].Buffer.Reset(lnnew StandaloneStorageBuffer(gfxContext, sizeof(glm::mat4) * 1024 * 32, nullptr, StorageBufferType::eDynamic));
         m_TransformBuffers[i].Data = lnnew glm::mat4[1024*32];
+
+        m_LightBuffersGPU[i] = lnnew StandaloneStorageBuffer(gfxContext, 4 + sizeof(LightGPUData) * initialNumLights, nullptr, StorageBufferType::eDynamic);
+        m_LightsCPU[i].resize(initialNumLights);
     }
 }
 
@@ -62,7 +70,7 @@ void WorldRenderer::BeginScene(Entity& cameraEntity)
         node->RenderPass->BeginFrame();
     }
     uint32_t currentFrameIndex = ApplicationBase::GetRenderer().GetCurrentFrameIndexOnMainThread();
-    m_Transfroms[currentFrameIndex].clear();
+    m_Transforms[currentFrameIndex].clear();
     CameraComponent& cameraComponent = cameraEntity.GetComponent<CameraComponent>();
     m_GlobalData = WorldData{
         .ViewProj = cameraComponent.GetViewProj(),
@@ -95,7 +103,7 @@ void WorldRenderer::Render(EntityRegistry& registry)
             if (drawStaticMeshesAdder)
                 drawStaticMeshesAdders.push_back(drawStaticMeshesAdder);
         }
-        auto& currTransforms = m_Transfroms[currentFrameIndex];
+        auto& currTransforms = m_Transforms[currentFrameIndex];
         for (auto& index : staticMeshView)
         {
             auto [transform, staticMesh] = staticMeshView.Get(index);
@@ -136,18 +144,64 @@ void WorldRenderer::Render(EntityRegistry& registry)
         }
         totalSizeBytes = offset * sizeof(glm::mat4);
     }
+
+    {
+        LNE_PROFILE_SCOPE("Update Light Buffer")
+        auto lightView = registry.GetView<TransformComponent, LightComponent>();
+        uint32_t& numLights = m_NumLights[currentFrameIndex];
+        auto& lightsCPU = m_LightsCPU[currentFrameIndex];
+        numLights = lightView.TotalSize();
+        if (numLights > lightsCPU.capacity())
+            lightsCPU.resize(numLights);
+
+        for (auto& index : lightView)
+        {
+            auto [transform, light] = lightView.Get(index);
+            lightsCPU[index.ComposedIndex] = LightGPUData{
+                light.Type,
+                transform.Position,
+                transform.GetForward(),
+                light.Color,
+                light.Intensity,
+                light.Range,
+                light.SpotAngle
+            };
+        }
+    }
+
+    // the this should be safe since it's more of a ref that we give to the
+    // render thread which should be nuked before the end of the app.
+    // so, no worries (I think)
     auto renderTask = [this, totalSizeBytes]()
         {
             LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
             auto& renderer = ApplicationBase::GetRenderer();
             vk::CommandBuffer cmdBuffer = renderer.GetGfxContext()->GetPrimaryCommandBuffer();
-            m_TransformBuffers[renderer.GetCurrentFrameIndex()].Buffer->CopyData(
+            uint32_t currentFrameIndex = renderer.GetCurrentFrameIndex();
+
+            m_TransformBuffers[currentFrameIndex].Buffer->CopyData(
                 cmdBuffer,
-                m_TransformBuffers[renderer.GetCurrentFrameIndex()].Data, totalSizeBytes, 0);
+                m_TransformBuffers[currentFrameIndex].Data, totalSizeBytes, 0);
+
+            uint32_t numLights = m_NumLights[currentFrameIndex];
+            if (m_LightBuffersGPU[currentFrameIndex]->GetSize() < numLights * sizeof(LightGPUData))
+            {
+                m_LightBuffersGPU[currentFrameIndex]->Grow(
+                    cmdBuffer,
+                    4 + numLights * sizeof(LightGPUData) * 2, false);
+            }
+
+            // TODO: Mayby reduce this to a since copy instead of two
+            // (dunno if it's really necessary tho. need to test)
+            m_LightBuffersGPU[currentFrameIndex]->CopyData(
+                cmdBuffer, &numLights,
+                sizeof(uint32_t), 0);
+            m_LightBuffersGPU[currentFrameIndex]->CopyData(
+                cmdBuffer, m_LightsCPU[currentFrameIndex].data(),
+                numLights * sizeof(LightGPUData), 4);
+
             renderer.PushLabel(cmdBuffer, "Frame");
-
             m_FrameGraph->Execute(cmdBuffer, this);
-
             renderer.PopLabel(cmdBuffer);
         };
     if (renderer.IsAsync())

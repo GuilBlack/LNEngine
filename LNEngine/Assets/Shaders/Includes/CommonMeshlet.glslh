@@ -1,7 +1,10 @@
-#define TEX_SET 4
-#define MAT_SET 3
-#define MESH_SET 2
-#define TRANSFORM_SET 1
+#define TEX_SET 5
+#define MAT_SET 4
+#define MESH_SET 3
+#define TRANSFORM_SET 2
+#define LIGHT_SET 1
+
+#include "LightDef.glslh"
 
 layout(scalar, set = 0, binding = 0) uniform GlobalUBO
 {
@@ -29,6 +32,12 @@ struct Meshlet {
     /* normal cone axis and cutoff, stored in 8-bit SNORM format; decode using x/127.0 */
     int8_t[3] ConeAxis;
     int8_t ConeCutoff;
+};
+
+layout(scalar, set = LIGHT_SET, binding = 0) buffer LightBuffer
+{
+    uint lightCount;
+    Light lights[];
 };
 
 /**

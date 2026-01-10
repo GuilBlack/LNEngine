@@ -320,6 +320,7 @@ void Renderer::EndRenderPass(const Framebuffer& framebuffer)
 void Renderer::Draw(vk::CommandBuffer cmdBuffer,
                     const SafePtr<StaticMesh>& mesh,
                     const SafePtr<StandaloneStorageBuffer>& transformBuffer,
+                    const SafePtr<StandaloneStorageBuffer>& lightBuffer,
                     PassID passId,
                     uint32_t offset, uint32_t subMeshIndex,
                     uint32_t instanceCount)
@@ -340,24 +341,25 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer,
         DrawClassicMesh(cmdBuffer,
                         mesh, submesh,
                         material, effect, pipeline,
-                        transformBuffer,
+                        transformBuffer, lightBuffer,
                         offset, instanceCount, passId);
         break;
     case GeometryType::eMeshlet:
         DrawMeshlets(cmdBuffer,
                      mesh, submesh,
                      material, effect, pipeline,
-                     transformBuffer,
+                     transformBuffer, lightBuffer,
                      offset, instanceCount, passId);
         break;
     }
 }
 
 void Renderer::DrawClassicMesh(vk::CommandBuffer cmdBuffer,
-                               const SafePtr<StaticMesh>& mesh, const SubMesh& submesh,
+                               const SafePtr<StaticMesh>& mesh, const SubMesh& subMesh,
                                SafePtr<Material> material,
                                SafePtr<Effect> effect, SafePtr<GfxPipeline> pipeline,
                                const SafePtr<StandaloneStorageBuffer>& transformBuffer,
+                               const SafePtr<StandaloneStorageBuffer>& lightBuffer,
                                uint32_t offset, uint32_t instanceCount,
                                PassID passId)
 {
@@ -365,22 +367,25 @@ void Renderer::DrawClassicMesh(vk::CommandBuffer cmdBuffer,
 
     bool hasPipelineChanged = false;
     SafePtr descAllocator = m_FrameData[m_CurrentFrameInFlight].DescriptorAllocator;
+    Shader::MatTypeInfo shaderInfo = effect->GetShader()->MatTypeInfos[ShaderDomain::eMesh];
+
     if (pipeline != m_LastUsedPipeline)
     {
         pipeline->Bind(cmdBuffer);
         m_LastUsedPipeline = pipeline;
         hasPipelineChanged = true;
+        
 
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
-                                     { m_FrameData[m_CurrentFrameInFlight].DescriptorSet, transformBuffer->GetDescSet() }, {});
-        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 4,
+                                     { m_FrameData[m_CurrentFrameInFlight].DescriptorSet, lightBuffer->GetDescSet(), transformBuffer->GetDescSet() }, {});
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 5,
                                      { m_Context->GetBindlessDescriptorSet() }, {});
     }
     if (hasPipelineChanged || mesh != m_LastUsedStaticMesh)
     {
         LNE_PROFILE_SCOPE_C("Set Geometry DescSet", PROFILING_COL)
             const Geometry& geometry = mesh->GetGeometry();
-        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 2,
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 3,
                                      { geometry.GetDescSet() }, {});
         m_LastUsedStaticMesh = mesh;
     }
@@ -391,7 +396,7 @@ void Renderer::DrawClassicMesh(vk::CommandBuffer cmdBuffer,
             auto matDescSet = effect->GetFrameDescriptorSet(m_CurrentFrameInFlight);
         cmdBuffer.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
-            pipeline->GetLayout(), 3,
+            pipeline->GetLayout(), 4,
             { matDescSet },
             {}
         );
@@ -399,10 +404,16 @@ void Renderer::DrawClassicMesh(vk::CommandBuffer cmdBuffer,
     }
     auto matSlot = material->GetMaterialPassSlot(passId);
     cmdBuffer.pushConstants<MaterialSlot>(pipeline->GetLayout(), matSlot.Stages, 0, { matSlot.Slot });
-    cmdBuffer.draw(submesh.IndexCount, instanceCount, submesh.BaseIndex, offset);
+    cmdBuffer.draw(subMesh.IndexCount, instanceCount, subMesh.BaseIndex, offset);
 }
 
-void Renderer::DrawMeshlets(vk::CommandBuffer cmdBuffer, const SafePtr<StaticMesh>& mesh, const SubMesh& subMesh, SafePtr<Material> material, SafePtr<Effect> effect, SafePtr<GfxPipeline> pipeline, const SafePtr<StandaloneStorageBuffer>& transformBuffer, uint32_t offset, uint32_t instanceCount, PassID passId)
+void Renderer::DrawMeshlets(vk::CommandBuffer cmdBuffer,
+                            const SafePtr<StaticMesh>& mesh, const SubMesh& subMesh,
+                            SafePtr<Material> material,
+                            SafePtr<Effect> effect, SafePtr<GfxPipeline> pipeline,
+                            const SafePtr<StandaloneStorageBuffer>& transformBuffer,
+                            const SafePtr<StandaloneStorageBuffer>& lightBuffer,
+                            uint32_t offset, uint32_t instanceCount, PassID passId)
 {
     vk::Device device = m_Context->GetDevice();
 
@@ -415,8 +426,8 @@ void Renderer::DrawMeshlets(vk::CommandBuffer cmdBuffer, const SafePtr<StaticMes
         hasPipelineChanged = true;
 
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
-                                     { m_FrameData[m_CurrentFrameInFlight].DescriptorSet, transformBuffer->GetDescSet() }, {});
-        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 4,
+                                     { m_FrameData[m_CurrentFrameInFlight].DescriptorSet, lightBuffer->GetDescSet(), transformBuffer->GetDescSet() }, {});
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 5,
                                      { m_Context->GetBindlessDescriptorSet() }, {});
     }
 
@@ -424,7 +435,7 @@ void Renderer::DrawMeshlets(vk::CommandBuffer cmdBuffer, const SafePtr<StaticMes
     {
         LNE_PROFILE_SCOPE_C("Set Geometry DescSet", PROFILING_COL)
             const Geometry& geometry = mesh->GetGeometry();
-        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 2,
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 3,
                                      { geometry.GetDescSet() }, {});
         m_LastUsedStaticMesh = mesh;
     }
@@ -435,7 +446,7 @@ void Renderer::DrawMeshlets(vk::CommandBuffer cmdBuffer, const SafePtr<StaticMes
             auto matDescSet = effect->GetFrameDescriptorSet(m_CurrentFrameInFlight);
         cmdBuffer.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
-            pipeline->GetLayout(), 3,
+            pipeline->GetLayout(), 4,
             { matDescSet },
             {}
         );
@@ -446,7 +457,10 @@ void Renderer::DrawMeshlets(vk::CommandBuffer cmdBuffer, const SafePtr<StaticMes
     cmdBuffer.drawMeshTasksEXT(mesh->GetGeometry().GetVertexCount() / 32, 1, 1);
 }
 
-void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, SafePtr<Material> material, PassID passId)
+void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer,
+                                  SafePtr<Material> material,
+                                  const SafePtr<StandaloneStorageBuffer>& lightBuffer,
+                                  PassID passId)
 {
     LNE_PROFILE_FUNCTION_C(PROFILING_COL);
     if (material->GetMaterialType() != ShaderDomain::ePostProcess)
@@ -472,11 +486,10 @@ void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, SafePtr<Material>
         hasPipelineChanged = true;
 
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
-                                     { m_FrameData[m_CurrentFrameInFlight].DescriptorSet }, {});
-        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 3,
+                                     { m_FrameData[m_CurrentFrameInFlight].DescriptorSet, lightBuffer->GetDescSet(), geometry.GetDescSet() }, {});
+
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 4,
                                      { m_Context->GetBindlessDescriptorSet() }, {});
-        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 1,
-                                     { geometry.GetDescSet() }, {});
     }
     auto matSlot = material->GetMaterialPassSlot(passId);
 
@@ -486,7 +499,7 @@ void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, SafePtr<Material>
         auto matDescSet = effect->GetFrameDescriptorSet(m_CurrentFrameInFlight);
         cmdBuffer.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
-            pipeline->GetLayout(), 2,
+            pipeline->GetLayout(), 3,
             { matDescSet },
             {}
         );

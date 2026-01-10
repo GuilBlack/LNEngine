@@ -76,7 +76,8 @@ void AppLayer::SkyboxPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRender
     }
 
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
-    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, GetID());
+    auto lightBuffer = worldRenderer->GetLightBufferGPU(renderer.GetCurrentFrameIndex());
+    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, lightBuffer, GetID());
 }
 
 void AppLayer::SkyboxPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
@@ -177,7 +178,8 @@ void AppLayer::ToneMappingPass::Execute(vk::CommandBuffer cmdBuffer, class lne::
         lne::FrameGraphResource* resource = frameGraph->GetResource(handle);
         lne::SafePtr<lne::Texture> sceneTexture = resource->Resource.GetAs<lne::Texture>();
     }
-    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, GetID());
+    auto lightBuffer = worldRenderer->GetLightBufferGPU(renderer.GetCurrentFrameIndex());
+    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, lightBuffer, GetID());
 }
 
 void AppLayer::ToneMappingPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
@@ -240,8 +242,6 @@ void AppLayer::OnAttach()
 
 #pragma region CreateEntities
     m_CameraEntity = m_Scene->CreateEntity();
-    CameraComponent& cameraComponent = m_CameraEntity.EmplaceComponent<CameraComponent>();
-    TransformComponent& cameraTransform = m_CameraEntity.GetComponent<TransformComponent>();
 
     m_ModelEntity = m_Scene->CreateEntity();
     m_ModelSpheres = m_Scene->CreateEntity();
@@ -253,10 +253,34 @@ void AppLayer::OnAttach()
     m_CubeEntity.EmplaceComponent<StaticMeshComponent>();
     m_SphereEntity.EmplaceComponent<StaticMeshComponent>();
 
+    m_LightEntities.reserve(10);
+    for (uint32_t i = 0; i < 10; ++i)
+    {
+        lne::Entity lightEntity = m_Scene->CreateEntity();
+        auto& lightComp = lightEntity.EmplaceComponent<lne::LightComponent>();
+        lightComp.Type = lne::LightType::ePoint;
+        lightComp.Color = glm::vec3(static_cast<float>(std::rand()) / RAND_MAX,
+                                    static_cast<float>(std::rand()) / RAND_MAX,
+                                    static_cast<float>(std::rand()) / RAND_MAX);
+        float angle = (float)i * 0.1f * glm::two_pi<float>();
+        float radius = 5.f;
+        auto& lightTransform = lightEntity.GetComponent<lne::TransformComponent>();
+        lightTransform.Position = glm::vec3(radius * glm::cos(angle), 2.0f, radius * glm::sin(angle));
+
+        lightComp.Intensity = 50.0f;
+        lightComp.Range = 15.0f;
+
+        m_LightEntities.emplace_back(std::move(lightEntity));
+    }
+
+    CameraComponent& cameraComponent = m_CameraEntity.EmplaceComponent<CameraComponent>();
+    TransformComponent& cameraTransform = m_CameraEntity.GetComponent<TransformComponent>();
+
     auto [modelTransform, modelMeshComponent] = m_ModelEntity.GetComponents<TransformComponent, StaticMeshComponent>();
     auto [modelSphereTransform, modelSphereMeshComponent] = m_ModelSpheres.GetComponents<TransformComponent, StaticMeshComponent>();
     auto [cubeTransform, cubeMeshComponent] = m_CubeEntity.GetComponents<TransformComponent, StaticMeshComponent>();
     auto [sphereTransform, sphereMeshComponent] = m_SphereEntity.GetComponents<TransformComponent, StaticMeshComponent>();
+
 #pragma endregion
 
 #pragma region LoadModels

@@ -51,16 +51,18 @@ void lne::MeshletDebugPass::Execute(vk::CommandBuffer cmdBuffer, class WorldRend
     LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     auto& renderer = ApplicationBase::GetRenderer();
     uint32_t frameIndex = renderer.GetCurrentFrameIndex();
+    auto lightBuffer = worldRenderer->GetLightBufferGPU(frameIndex);
+    const TransformBuffer& transformBuffer = worldRenderer->GetTransformBuffer(frameIndex);
+    
     for (auto& [hash, drawCommand] : m_DrawCommands[frameIndex])
     {
         SafePtr<StaticMesh> mesh = drawCommand.Mesh;
-        SubMeshTransformArray& transforms = worldRenderer->GetTransforms(frameIndex, hash);
-        TransformBuffer& transformBuffer = worldRenderer->GetTransformBuffer(frameIndex);
+        const SubMeshTransformArray& transforms = worldRenderer->GetTransforms(frameIndex, hash);
 
         auto& submesh = mesh->GetSubMeshes()[drawCommand.SubMeshIndex];
         auto pipeline = m_Material->GetPipeline(GetID(), frameGraph);
         auto effect = m_Material->GetTechnique()->GetPassEffect(GetID());
-        renderer.DrawMeshlets(cmdBuffer, mesh, submesh, m_Material, effect, pipeline, transformBuffer.Buffer, transforms.Offset, drawCommand.InstanceCount, GetID());
+        renderer.DrawMeshlets(cmdBuffer, mesh, submesh, m_Material, effect, pipeline, transformBuffer.Buffer, lightBuffer, transforms.Offset, drawCommand.InstanceCount, GetID());
     }
 }
 

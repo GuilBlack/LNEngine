@@ -22,8 +22,9 @@ public:
     }
     vk::MemoryPropertyFlags GetMemoryFlags() const { return m_Allocation.MemoryFlags; }
 
+    uint64_t GetSize() const { return m_Size; }
     void CopyData(vk::CommandBuffer cb, const void* data, uint64_t size, uint64_t offset = 0);
-    void Grow(vk::CommandBuffer cb, uint64_t newSize);
+    void Grow(vk::CommandBuffer cb, uint64_t newSize, bool shouldCopyData = true);
 protected:
     SafePtr<class GfxContext> m_Context;
 

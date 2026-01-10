@@ -1,0 +1,13 @@
+#define DirectionalLightType 0
+#define PointLightType 1
+#define SpotLightType 2
+
+struct Light {
+    uint    Type;
+    vec3    Position;
+    vec3    Direction;
+    vec3    Color;
+    float   Intensity;
+    float   Range;
+    float   SpotAngle;
+};

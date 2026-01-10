@@ -2,6 +2,17 @@
 
 namespace lne
 {
+
+namespace LightType
+{
+enum Enum : uint32_t
+{
+    eDirectional = 0,
+    ePoint = 1,
+    eSpot = 2
+};
+}
+
 namespace ShaderStage
 {
 enum Enum : byte

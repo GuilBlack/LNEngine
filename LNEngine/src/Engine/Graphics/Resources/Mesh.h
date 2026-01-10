@@ -108,19 +108,6 @@ private:
     Geometry operator=(Geometry) = delete;
 };
 
-struct SubMesh
-{
-    std::string Name;
-    uint32_t BaseVertex;
-    uint32_t BaseIndex;
-    uint32_t VertexCount;
-    uint32_t IndexCount;
-    uint32_t MaterialIndex;
-    AABB BoundingBox;
-
-    glm::mat4 WorldTransform = glm::mat4(1.0f);
-};
-
 class StaticMesh : public RefCountBase
 {
 public:

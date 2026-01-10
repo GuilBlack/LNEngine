@@ -617,6 +617,7 @@ void Shader::ReflectOnSpirv(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>
     bool isUnknownMatType = (m_Header.ShaderDomain == ShaderDomain::eUnknown);
     if (isUnknownMatType == false)
         matTypeInfo = MatTypeInfos[m_Header.ShaderDomain];
+
     for (auto& [stage, code] : spirvCode)
     {
         LNE_INFO("Stage: {}", ShaderStageToDefine(stage));
@@ -908,7 +909,6 @@ FlatHashMap<ShaderStage::Enum, vk::ShaderModule> Shader::CreateModules(FlatHashM
 void Shader::CreateDescriptorSetLayouts()
 {
     m_DescriptorSetLayouts.resize(m_ReflectedData.DescriptorSets.size());
-    uint32_t layoutIndex = 0;
     using StageFlags = vk::ShaderStageFlagBits;
     MatTypeInfo matTypeInfo{};
     if (m_Header.ShaderDomain != ShaderDomain::eUnknown)
@@ -924,21 +924,12 @@ void Shader::CreateDescriptorSetLayouts()
             return;
         }
     };
+
     for (auto&[setIndex, set] : m_ReflectedData.DescriptorSets)
     {
-        if (setIndex == matTypeInfo.SetIndices[ShaderSetIndexType::eVertex])
+        if (set.StorageBuffers.empty() == false && set.UniformBuffers.empty())
         {
-            if (m_Header.ShaderDomain == ShaderDomain::eMeshlet)
-                m_DescriptorSetLayouts[layoutIndex] = m_Context->GetStorageOnlyDescriptorSetLayout(4);
-            else
-                m_DescriptorSetLayouts[layoutIndex] = m_Context->GetStorageOnlyDescriptorSetLayout(2);
-            layoutIndex++;
-            continue;
-        }
-        else if (setIndex == matTypeInfo.SetIndices[ShaderSetIndexType::eTransform])
-        {
-            m_DescriptorSetLayouts[layoutIndex] = m_Context->GetStorageOnlyDescriptorSetLayout(1);
-            layoutIndex++;
+            m_DescriptorSetLayouts[setIndex] = m_Context->GetStorageOnlyDescriptorSetLayout((uint32_t)set.StorageBuffers.size());
             continue;
         }
 
@@ -960,10 +951,9 @@ void Shader::CreateDescriptorSetLayouts()
             bindings.emplace_back(vk::DescriptorSetLayoutBinding(buffer.BindingIndex, vk::DescriptorType::eStorageBuffer, 1, stages));
         }
         descSetLayoutCI.setBindings(bindings);
-        m_DescriptorSetLayouts[layoutIndex] = m_Context->GetDevice().createDescriptorSetLayout(descSetLayoutCI);
-        m_CreatedLayouts.emplace_back(m_DescriptorSetLayouts[layoutIndex]);
-        m_Context->SetVkObjectName(m_DescriptorSetLayouts[layoutIndex], std::format("DescSetLayout {}, set: {}", m_Name, setIndex));
-        layoutIndex++;
+        m_DescriptorSetLayouts[setIndex] = m_Context->GetDevice().createDescriptorSetLayout(descSetLayoutCI);
+        m_CreatedLayouts.emplace_back(m_DescriptorSetLayouts[setIndex]);
+        m_Context->SetVkObjectName(m_DescriptorSetLayouts[setIndex], std::format("DescSetLayout {}, set: {}", m_Name, setIndex));
     }
 }
 

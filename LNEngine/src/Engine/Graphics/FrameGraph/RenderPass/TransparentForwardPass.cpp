@@ -22,12 +22,14 @@ void TransparentForwardPass::Execute(vk::CommandBuffer commandBuffer, WorldRende
 {
     auto& renderer = ApplicationBase::GetRenderer();
     uint32_t frameIndex = renderer.GetCurrentFrameIndex();
+    auto lightBuffer = worldRenderer->GetLightBufferGPU(frameIndex);
+    const TransformBuffer& transformBuffer = worldRenderer->GetTransformBuffer(frameIndex);
+
     for (auto& [hash, drawCommand] : m_DrawCommands[frameIndex])
     {
         SafePtr<StaticMesh> mesh = drawCommand.Mesh;
-        SubMeshTransformArray& transforms = worldRenderer->GetTransforms(frameIndex, hash);
-        TransformBuffer& transformBuffer = worldRenderer->GetTransformBuffer(frameIndex);
-        renderer.Draw(commandBuffer, drawCommand.Mesh, transformBuffer.Buffer, GetID(), transforms.Offset, drawCommand.SubMeshIndex, drawCommand.InstanceCount);
+        const SubMeshTransformArray& transforms = worldRenderer->GetTransforms(frameIndex, hash);
+        renderer.Draw(commandBuffer, drawCommand.Mesh, transformBuffer.Buffer, lightBuffer, GetID(), transforms.Offset, drawCommand.SubMeshIndex, drawCommand.InstanceCount);
     }
 }
 

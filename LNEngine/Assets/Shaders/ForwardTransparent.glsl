@@ -49,11 +49,11 @@ struct Vertex {
     vec4 tangent;
 };
 
-layout(scalar, set = 2, binding = 0) readonly buffer VertexBuffer {
+layout(scalar, set = VERTEX_SET, binding = 0) readonly buffer VertexBuffer {
     Vertex vertices[];
 } vertexBuffer;
 
-layout(set = 2, binding = 1) readonly buffer IndexBuffer {
+layout(set = VERTEX_SET, binding = 1) readonly buffer IndexBuffer {
     uint indices[];
 } indexBuffer;
 
