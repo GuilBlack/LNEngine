@@ -162,6 +162,8 @@ ShaderDomain::Enum MapMaterialTypeToken(std::string_view token)
         return ShaderDomain::ePostProcess;
     if (token == "Meshlet")
         return ShaderDomain::eMeshlet;
+    if (token == "Compute")
+        return ShaderDomain::eCompute;
     return ShaderDomain::eUnknown;
 }
 
