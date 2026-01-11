@@ -347,4 +347,21 @@ StandaloneStorageBuffer::~StandaloneStorageBuffer()
     });
 }
 
+void StandaloneStorageBuffer::Grow(vk::CommandBuffer cb, uint64_t newSize, bool shouldCopyData /*= true*/)
+{
+    StorageBuffer::Grow(cb, newSize, shouldCopyData);
+    vk::DescriptorBufferInfo bufferInfo = GetDescriptorInfo();
+    vk::WriteDescriptorSet writeDescSet{
+        m_DescSet,
+        0,
+        0,
+        1,
+        vk::DescriptorType::eStorageBuffer,
+        nullptr,
+        &bufferInfo,
+        nullptr
+    };
+    m_Context->GetDevice().updateDescriptorSets(writeDescSet, nullptr);
+}
+
 }
