@@ -157,6 +157,7 @@ struct LightGPUData
     glm::vec3                              Color;
     float                                  Intensity;
     float                                  Range;
+    float                                  Falloff;
     float                                  SpotAngle;
 };
 }

@@ -164,6 +164,7 @@ void WorldRenderer::Render(EntityRegistry& registry)
                 light.Color,
                 light.Intensity,
                 light.Range,
+                light.Falloff,
                 light.SpotAngle
             };
         }
