@@ -33,7 +33,10 @@ public:
     ~WorldRenderer();
 
     void                                SetEnvironmentMap(std::string_view pathToEnvMap);
-    void                                SetSunLightDirection(const glm::vec3& direction) { m_Environment->SunDirection = direction; }
+    void                                SetSunLightDirection(const glm::vec3& direction) { m_Environment->SunLight.Direction = direction; }
+    void                                SetSunLightColor(const glm::vec3& color) { m_Environment->SunLight.Color = color; }
+    void                                SetSunLightIntensity(float intensity) { m_Environment->SunLight.Intensity = intensity; }
+    void                                SetIsSunEnabled(bool isEnabled) { m_Environment->IsSunEnabled = isEnabled; }
 
     void                                SetAmbientLight(float ambientLight) { m_Environment->AmbientLight = ambientLight; }
 

@@ -9,10 +9,20 @@ namespace lne
 class WorldEnvironment : public RefCountBase
 {
 public:
-    SafePtr<Texture> SkyboxTexture{}; // the actual environment map texture which is the radiance texture
-    SafePtr<Texture> PrefilteredTexture{}; // pre-filtered radiance texture used for specular reflections
-    SafePtr<Texture> IrradianceTexture{}; // pre-filtered irradiance texture used for diffuse reflections
-    glm::vec3 SunDirection{ 0.0f, -1.0f, 0.0f }; // the direction of the sun light
-    float AmbientLight{ 0.03f }; // the ambient light intensity
+    SafePtr<Texture>    SkyboxTexture{};
+    SafePtr<Texture>    PrefilteredTexture{};
+    SafePtr<Texture>    IrradianceTexture{};
+    LightGPUData        SunLight{
+        LightType::eDirectional,
+        glm::vec3(0.0f),
+        glm::normalize(glm::vec3(-.5f, -1.0f, 0.5f)),
+        glm::vec3(1.0f, 1.0f, 1.0f),
+        1.0f,
+        0.0f,
+        0.0f,
+        0.0f
+    };
+    bool                IsSunEnabled{ true };
+    float               AmbientLight{ 0.03f };
 };
 }

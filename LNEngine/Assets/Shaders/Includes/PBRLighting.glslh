@@ -17,8 +17,8 @@ struct ComputeAllLightingArgs
 // https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf
 vec3 ComputeDirectionalLighting(in Light light, in ComputeAllLightingArgs allArgs, in float nDotV, in float roughnessAlpha)
 {
-    vec3 halfDir = normalize(light.direction + allArgs.viewDir);
-    float nDotL = max(0.0, dot(allArgs.normal, light.direction));
+    vec3 halfDir = normalize(-light.direction + allArgs.viewDir);
+    float nDotL = max(0.0, dot(allArgs.normal, -light.direction));
     float nDotH = max(0.0, dot(allArgs.normal, halfDir));
     float vDotH = max(0.0, dot(allArgs.viewDir, halfDir));
 

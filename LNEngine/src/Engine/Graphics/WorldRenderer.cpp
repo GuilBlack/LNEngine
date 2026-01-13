@@ -77,10 +77,10 @@ void WorldRenderer::BeginScene(Entity& cameraEntity)
         .View = cameraComponent.View,
         .Proj = cameraComponent.Proj,
         .CameraPosition = cameraEntity.GetComponent<TransformComponent>().Position,
-        .SunDirection = m_Environment->SunDirection,
         .AmbientLight = m_Environment->AmbientLight,
         .IrradianceMap = m_Environment->IrradianceTexture->GetBindlessTextureHandle(),
-        .PrefilteredMap = m_Environment->PrefilteredTexture->GetBindlessTextureHandle()
+        .PrefilteredMap = m_Environment->PrefilteredTexture->GetBindlessTextureHandle(),
+        .IsSunEnabled = m_Environment->IsSunEnabled
     };
     ApplicationBase::GetRenderer().BeginScene(this, m_FrameGraph, m_GlobalData, m_WorldGlobalUniforms[currentFrameIndex]);
 }
@@ -148,16 +148,22 @@ void WorldRenderer::Render(EntityRegistry& registry)
     {
         LNE_PROFILE_SCOPE("Update Light Buffer")
         auto lightView = registry.GetView<TransformComponent, LightComponent>();
+
         uint32_t& numLights = m_NumLights[currentFrameIndex];
         auto& lightsCPU = m_LightsCPU[currentFrameIndex];
-        numLights = lightView.TotalSize();
+        uint32_t sunLightCount = m_Environment->IsSunEnabled ? 1 : 0;
+        numLights = lightView.TotalSize() + sunLightCount;
+
         if (numLights > lightsCPU.capacity())
             lightsCPU.resize(numLights);
+
+        if (m_Environment->IsSunEnabled)
+            lightsCPU[0] = m_Environment->SunLight;
 
         for (auto& index : lightView)
         {
             auto [transform, light] = lightView.Get(index);
-            lightsCPU[index.ComposedIndex] = LightGPUData{
+            lightsCPU[index.ComposedIndex + sunLightCount] = LightGPUData{
                 light.Type,
                 transform.Position,
                 transform.GetForward(),
