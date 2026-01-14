@@ -62,12 +62,22 @@ void GBufferPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* world
     uint32_t frameIndex = renderer.GetCurrentFrameIndex();
     auto lightBuffer = worldRenderer->GetLightBufferGPU(frameIndex);
     const TransformBuffer& transformBuffer = worldRenderer->GetTransformBuffer(frameIndex);
+    DrawMeshArgs drawArgs{
+        .TransformBuffer = transformBuffer.Buffer,
+        .LightsBuffer = lightBuffer,
+        .PassId = GetID(),
+    };
 
     for (auto& [hash, drawCommand] : m_DrawCommands[frameIndex])
     {
         SafePtr<StaticMesh> mesh = drawCommand.Mesh;
         const SubMeshTransformArray& transforms = worldRenderer->GetTransforms(frameIndex, hash);
-        renderer.Draw(cmdBuffer, drawCommand.Mesh, transformBuffer.Buffer, lightBuffer, GetID(), transforms.Offset, drawCommand.SubMeshIndex, drawCommand.InstanceCount);
+
+        drawArgs.Mesh = mesh;
+        drawArgs.Offset = transforms.Offset;
+        drawArgs.SubMeshIndex = drawCommand.SubMeshIndex;
+        drawArgs.InstanceCount = drawCommand.InstanceCount;
+        renderer.Draw(cmdBuffer, drawArgs);
     }
 }
 

@@ -318,51 +318,34 @@ void Renderer::EndRenderPass(const Framebuffer& framebuffer)
 }
 
 void Renderer::Draw(vk::CommandBuffer cmdBuffer,
-                    const SafePtr<StaticMesh>& mesh,
-                    const SafePtr<StandaloneStorageBuffer>& transformBuffer,
-                    const SafePtr<StandaloneStorageBuffer>& lightBuffer,
-                    PassID passId,
-                    uint32_t offset, uint32_t subMeshIndex,
-                    uint32_t instanceCount)
+                    const DrawMeshArgs& drawArgs)
 {
+    auto& submesh = drawArgs.Mesh->GetSubMeshes()[drawArgs.SubMeshIndex];
+    auto material = drawArgs.Mesh->GetMaterial(submesh.MaterialIndex);
     LNE_PROFILE_FUNCTION_C(PROFILING_COL);
-    auto& submesh = mesh->GetSubMeshes()[subMeshIndex];
-    auto material = mesh->GetMaterial(submesh.MaterialIndex);
-    auto pipeline = material->GetPipeline(passId, m_CurrentFrameGraph);
-    auto effect = material->GetTechnique()->GetPassEffect(passId);
-    if (effect == nullptr || pipeline == nullptr)
-    {
-        LNE_ERROR("Pipeline is null. No draw call issued.");
-        return;
-    }
-    switch (mesh->GetGeometry().GetType())
+    switch (drawArgs.Mesh->GetGeometry().GetType())
     {
     case GeometryType::eClassic:
-        DrawClassicMesh(cmdBuffer,
-                        mesh, submesh,
-                        material, effect, pipeline,
-                        transformBuffer, lightBuffer,
-                        offset, instanceCount, passId);
+        DrawClassicMesh(cmdBuffer, drawArgs, material);
         break;
     case GeometryType::eMeshlet:
-        DrawMeshlets(cmdBuffer,
-                     mesh, submesh,
-                     material, effect, pipeline,
-                     transformBuffer, lightBuffer,
-                     offset, instanceCount, passId);
+        DrawMeshlets(cmdBuffer, drawArgs, material);
         break;
     }
 }
 
 void Renderer::DrawClassicMesh(vk::CommandBuffer cmdBuffer,
-                               const SafePtr<StaticMesh>& mesh, const SubMesh& subMesh,
-                               SafePtr<Material> material,
-                               SafePtr<Effect> effect, SafePtr<GfxPipeline> pipeline,
-                               const SafePtr<StandaloneStorageBuffer>& transformBuffer,
-                               const SafePtr<StandaloneStorageBuffer>& lightBuffer,
-                               uint32_t offset, uint32_t instanceCount,
-                               PassID passId)
+                               const DrawMeshArgs& drawArgs,
+                               SafePtr<Material>& material)
 {
+    auto& submesh = drawArgs.Mesh->GetSubMeshes()[drawArgs.SubMeshIndex];
+    auto pipeline = material->GetPipeline(drawArgs.PassId, m_CurrentFrameGraph);
+    auto effect = material->GetTechnique()->GetPassEffect(drawArgs.PassId);
+    if (effect == nullptr || pipeline == nullptr)
+    {
+        LNE_ERROR("Pipeline is null. No draw call issued.");
+        return;
+    }
     vk::Device device = m_Context->GetDevice();
 
     bool hasPipelineChanged = false;
@@ -377,17 +360,17 @@ void Renderer::DrawClassicMesh(vk::CommandBuffer cmdBuffer,
         
 
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
-                                     { m_FrameData[m_CurrentFrameInFlight].DescriptorSet, lightBuffer->GetDescSet(), transformBuffer->GetDescSet() }, {});
+                                     { m_FrameData[m_CurrentFrameInFlight].DescriptorSet, drawArgs.LightsBuffer->GetDescSet(), drawArgs.TransformBuffer->GetDescSet() }, {});
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 5,
                                      { m_Context->GetBindlessDescriptorSet() }, {});
     }
-    if (hasPipelineChanged || mesh != m_LastUsedStaticMesh)
+    if (hasPipelineChanged || drawArgs.Mesh != m_LastUsedStaticMesh)
     {
         LNE_PROFILE_SCOPE_C("Set Geometry DescSet", PROFILING_COL)
-            const Geometry& geometry = mesh->GetGeometry();
+            const Geometry& geometry = drawArgs.Mesh->GetGeometry();
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 3,
                                      { geometry.GetDescSet() }, {});
-        m_LastUsedStaticMesh = mesh;
+        m_LastUsedStaticMesh = drawArgs.Mesh;
     }
 
     if (hasPipelineChanged || m_LastUsedEffect != effect)
@@ -402,19 +385,22 @@ void Renderer::DrawClassicMesh(vk::CommandBuffer cmdBuffer,
         );
         m_LastUsedEffect = effect;
     }
-    auto matSlot = material->GetMaterialPassSlot(passId);
+    auto matSlot = material->GetMaterialPassSlot(drawArgs.PassId);
     cmdBuffer.pushConstants<MaterialSlot>(pipeline->GetLayout(), matSlot.Stages, 0, { matSlot.Slot });
-    cmdBuffer.draw(subMesh.IndexCount, instanceCount, subMesh.BaseIndex, offset);
+    cmdBuffer.draw(submesh.IndexCount, drawArgs.InstanceCount, submesh.BaseIndex, drawArgs.Offset);
 }
 
 void Renderer::DrawMeshlets(vk::CommandBuffer cmdBuffer,
-                            const SafePtr<StaticMesh>& mesh, const SubMesh& subMesh,
-                            SafePtr<Material> material,
-                            SafePtr<Effect> effect, SafePtr<GfxPipeline> pipeline,
-                            const SafePtr<StandaloneStorageBuffer>& transformBuffer,
-                            const SafePtr<StandaloneStorageBuffer>& lightBuffer,
-                            uint32_t offset, uint32_t instanceCount, PassID passId)
+                            const DrawMeshArgs& drawArgs,
+                            SafePtr<Material>& material)
 {
+    auto pipeline = material->GetPipeline(drawArgs.PassId, m_CurrentFrameGraph);
+    auto effect = material->GetTechnique()->GetPassEffect(drawArgs.PassId);
+    if (effect == nullptr || pipeline == nullptr)
+    {
+        LNE_ERROR("Pipeline is null. No draw call issued.");
+        return;
+    }
     vk::Device device = m_Context->GetDevice();
 
     bool hasPipelineChanged = false;
@@ -426,18 +412,18 @@ void Renderer::DrawMeshlets(vk::CommandBuffer cmdBuffer,
         hasPipelineChanged = true;
 
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
-                                     { m_FrameData[m_CurrentFrameInFlight].DescriptorSet, lightBuffer->GetDescSet(), transformBuffer->GetDescSet() }, {});
+                                     { m_FrameData[m_CurrentFrameInFlight].DescriptorSet, drawArgs.LightsBuffer->GetDescSet(), drawArgs.TransformBuffer->GetDescSet() }, {});
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 5,
                                      { m_Context->GetBindlessDescriptorSet() }, {});
     }
 
-    if (hasPipelineChanged || mesh != m_LastUsedStaticMesh)
+    if (hasPipelineChanged || drawArgs.Mesh != m_LastUsedStaticMesh)
     {
         LNE_PROFILE_SCOPE_C("Set Geometry DescSet", PROFILING_COL)
-            const Geometry& geometry = mesh->GetGeometry();
+            const Geometry& geometry = drawArgs.Mesh->GetGeometry();
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 3,
                                      { geometry.GetDescSet() }, {});
-        m_LastUsedStaticMesh = mesh;
+        m_LastUsedStaticMesh = drawArgs.Mesh;
     }
 
     if (hasPipelineChanged || m_LastUsedEffect != effect)
@@ -452,9 +438,9 @@ void Renderer::DrawMeshlets(vk::CommandBuffer cmdBuffer,
         );
         m_LastUsedEffect = effect;
     }
-    auto matSlot = material->GetMaterialPassSlot(passId);
-    cmdBuffer.pushConstants<MeshletPushConstants>(pipeline->GetLayout(), matSlot.Stages, 0, { {matSlot.Slot, offset} });
-    cmdBuffer.drawMeshTasksEXT(mesh->GetGeometry().GetVertexCount() / 32, 1, 1);
+    auto matSlot = material->GetMaterialPassSlot(drawArgs.PassId);
+    cmdBuffer.pushConstants<MeshletPushConstants>(pipeline->GetLayout(), matSlot.Stages, 0, { {matSlot.Slot, drawArgs.Offset} });
+    cmdBuffer.drawMeshTasksEXT(drawArgs.Mesh->GetGeometry().GetVertexCount() / 32, 1, 1);
 }
 
 void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer,

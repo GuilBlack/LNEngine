@@ -58,32 +58,11 @@ struct DrawMeshArgs
 {
     SafePtr<StaticMesh>                             Mesh;
     SafePtr<StandaloneStorageBuffer>                TransformBuffer;
+    SafePtr<StandaloneStorageBuffer>                LightsBuffer;
     PassID                                          PassId;
     uint32_t                                        Offset;
     uint32_t                                        SubMeshIndex;
     uint32_t                                        InstanceCount;
-};
-
-struct DrawClassicMeshArgs
-{
-    SafePtr<StaticMesh>                             Mesh;
-    uint32_t                                        SubMeshIndex;
-    SafePtr<Material>                               Material; // override material if needed
-    SafePtr<StandaloneStorageBuffer>                TransformBuffer;
-    uint32_t                                        Offset;
-    uint32_t                                        InstanceCount;
-    PassID                                          PassId;
-};
-
-struct DrawMeshletArgs
-{
-    SafePtr<StaticMesh>                             Mesh;
-    uint32_t                                        SubMeshIndex;
-    SafePtr<Material>                               Material; // override material if needed
-    SafePtr<StandaloneStorageBuffer>                TransformBuffer;
-    uint32_t                                        Offset;
-    uint32_t                                        InstanceCount;
-    PassID                                          PassId;
 };
 
 class Renderer
@@ -121,39 +100,24 @@ public:
     void                                            BeginRenderPass(const class Framebuffer& framebuffer);
     void                                            EndRenderPass(const class Framebuffer& framebuffer);
 
+
     void                                            Draw(vk::CommandBuffer cmdBuffer,
-                                                         const SafePtr<StaticMesh>& mesh,
-                                                         const SafePtr<StandaloneStorageBuffer>& transformBuffer,
-                                                         const SafePtr<StandaloneStorageBuffer>&lightBuffer,
-                                                         PassID passId,
-                                                         uint32_t offset, uint32_t subMeshIndex,
-                                                         uint32_t instanceCount);
+                                                         const DrawMeshArgs& drawArgs);
 
     void                                            DrawClassicMesh(vk::CommandBuffer cmdBuffer,
-                                                                    const SafePtr<StaticMesh>& mesh, const SubMesh& subMesh,
-                                                                    SafePtr<Material> material,
-                                                                    SafePtr<Effect> effect, SafePtr<GfxPipeline> pipeline,
-                                                                    const SafePtr<StandaloneStorageBuffer>& transformBuffer, const SafePtr<StandaloneStorageBuffer>& lightBuffer,
-                                                                    uint32_t offset, uint32_t instanceCount,
-                                                                    PassID passId);
+                                                                    const DrawMeshArgs& drawArgs,
+                                                                    SafePtr<Material>& material);
     void                                            DrawMeshlets(vk::CommandBuffer cmdBuffer,
-                                                                 const SafePtr<StaticMesh>& mesh, const SubMesh& subMesh,
-                                                                 SafePtr<Material> material,
-                                                                 SafePtr<Effect> effect, SafePtr<GfxPipeline> pipeline,
-                                                                 const SafePtr<StandaloneStorageBuffer>& transformBuffer, const SafePtr<StandaloneStorageBuffer>& lightBuffer,
-                                                                 uint32_t offset, uint32_t instanceCount,
-                                                                 PassID passId);
-
+                                                                 const DrawMeshArgs& drawArgs,
+                                                                 SafePtr<Material>& material);
     void                                            DrawFullscreenQuad(vk::CommandBuffer cmdBuffer,
                                                                         SafePtr<Material> material,
                                                                        const SafePtr<StandaloneStorageBuffer>& lightBuffer,
                                                                        PassID passId);
 
-
     void                                            Dispatch(SafePtr<class ComputeProgram> program, 
                                                              uint32_t x, uint32_t y, uint32_t z, 
                                                              bool async);
-
     void                                            Dispatch(vk::CommandBuffer cmdBuffer, 
                                                              SafePtr<class ComputeProgram> program, 
                                                              uint32_t x, uint32_t y, uint32_t z);
