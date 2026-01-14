@@ -1,5 +1,6 @@
 #pragma once
 #include "Engine/Core/SafePtr.h"
+#include "Engine/Graphics/Structs.h"
 #include "Engine/Graphics/GlobalGfxData.h"
 #include "Engine/Resources/GfxLoader.h"
 #include "Engine/GlobalUtils.h"
@@ -53,6 +54,17 @@ struct RenderTasksLauncher : enki::ITaskSet
                                                                  uint32_t threadnum) override;
 };
 
+struct DrawMeshArgs
+{
+    SafePtr<StaticMesh>                             Mesh;
+    SafePtr<StandaloneStorageBuffer>                TransformBuffer;
+    SafePtr<StandaloneStorageBuffer>                LightsBuffer;
+    PassID                                          PassId;
+    uint32_t                                        Offset;
+    uint32_t                                        SubMeshIndex;
+    uint32_t                                        InstanceCount;
+};
+
 class Renderer
 {
 public:
@@ -88,37 +100,24 @@ public:
     void                                            BeginRenderPass(const class Framebuffer& framebuffer);
     void                                            EndRenderPass(const class Framebuffer& framebuffer);
 
+
     void                                            Draw(vk::CommandBuffer cmdBuffer,
-                                                         const SafePtr<StaticMesh>& mesh,
-                                                         const SafePtr<StandaloneStorageBuffer>& transformBuffer,
-                                                         PassID passId,
-                                                         uint32_t offset, uint32_t subMeshIndex,
-                                                         uint32_t instanceCount);
+                                                         const DrawMeshArgs& drawArgs);
 
     void                                            DrawClassicMesh(vk::CommandBuffer cmdBuffer,
-                                                                    const SafePtr<StaticMesh>& mesh, const SubMesh& subMesh,
-                                                                    SafePtr<Material> material,
-                                                                    SafePtr<Effect> effect, SafePtr<GfxPipeline> pipeline,
-                                                                    const SafePtr<StandaloneStorageBuffer>& transformBuffer,
-                                                                    uint32_t offset, uint32_t instanceCount,
-                                                                    PassID passId);
+                                                                    const DrawMeshArgs& drawArgs,
+                                                                    SafePtr<Material>& material);
     void                                            DrawMeshlets(vk::CommandBuffer cmdBuffer,
-                                                                 const SafePtr<StaticMesh>& mesh, const SubMesh& subMesh,
-                                                                 SafePtr<Material> material,
-                                                                 SafePtr<Effect> effect, SafePtr<GfxPipeline> pipeline,
-                                                                 const SafePtr<StandaloneStorageBuffer>& transformBuffer,
-                                                                 uint32_t offset, uint32_t instanceCount,
-                                                                 PassID passId);
-
+                                                                 const DrawMeshArgs& drawArgs,
+                                                                 SafePtr<Material>& material);
     void                                            DrawFullscreenQuad(vk::CommandBuffer cmdBuffer,
                                                                         SafePtr<Material> material,
+                                                                       const SafePtr<StandaloneStorageBuffer>& lightBuffer,
                                                                        PassID passId);
-
 
     void                                            Dispatch(SafePtr<class ComputeProgram> program, 
                                                              uint32_t x, uint32_t y, uint32_t z, 
                                                              bool async);
-
     void                                            Dispatch(vk::CommandBuffer cmdBuffer, 
                                                              SafePtr<class ComputeProgram> program, 
                                                              uint32_t x, uint32_t y, uint32_t z);

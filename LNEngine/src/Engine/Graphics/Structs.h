@@ -88,6 +88,19 @@ struct ResourceDeletion
     uint32_t                                ElapsedFrames;
 };
 
+struct SubMesh
+{
+    std::string Name;
+    uint32_t BaseVertex;
+    uint32_t BaseIndex;
+    uint32_t VertexCount;
+    uint32_t IndexCount;
+    uint32_t MaterialIndex;
+    AABB BoundingBox;
+
+    glm::mat4 WorldTransform = glm::mat4(1.0f);
+};
+
 struct StaticMeshHash
 {
     // TODO: Should probably change this to an ID instead of a pointer...
@@ -134,5 +147,17 @@ struct MeshletPushConstants
 {
     MaterialSlot                            MatId;
     uint32_t                                InstanceOffset;
+};
+
+struct LightGPUData
+{
+    LightType::Enum                        Type;
+    glm::vec3                              Position;
+    glm::vec3                              Direction;
+    glm::vec3                              Color;
+    float                                  Intensity;
+    float                                  Range;
+    float                                  Falloff;
+    float                                  SpotAngle;
 };
 }

@@ -22,8 +22,9 @@ public:
     }
     vk::MemoryPropertyFlags GetMemoryFlags() const { return m_Allocation.MemoryFlags; }
 
+    uint64_t GetSize() const { return m_Size; }
     void CopyData(vk::CommandBuffer cb, const void* data, uint64_t size, uint64_t offset = 0);
-    void Grow(vk::CommandBuffer cb, uint64_t newSize);
+    virtual void Grow(vk::CommandBuffer cb, uint64_t newSize, bool shouldCopyData = true);
 protected:
     SafePtr<class GfxContext> m_Context;
 
@@ -52,6 +53,7 @@ class StandaloneStorageBuffer : public StorageBuffer
 public:
     StandaloneStorageBuffer(SafePtr<class GfxContext> ctx, uint64_t size, const void* data, StorageBufferType::Enum type = StorageBufferType::eStatic);
     ~StandaloneStorageBuffer();
+    void Grow(vk::CommandBuffer cb, uint64_t newSize, bool shouldCopyData = true) override;
 
     vk::DescriptorSet GetDescSet() const { return m_DescSet; }
 

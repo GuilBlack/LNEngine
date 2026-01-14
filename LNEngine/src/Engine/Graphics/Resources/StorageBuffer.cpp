@@ -115,7 +115,7 @@ void StorageBuffer::CopyData(vk::CommandBuffer cb, const void* data, uint64_t si
     }
 }
 
-void StorageBuffer::Grow(vk::CommandBuffer cb, uint64_t newSize)
+void StorageBuffer::Grow(vk::CommandBuffer cb, uint64_t newSize, bool shouldCopyData)
 {
     if (newSize == m_Size)
         return;
@@ -184,9 +184,12 @@ void StorageBuffer::Grow(vk::CommandBuffer cb, uint64_t newSize)
         m_HasStagingBuffer = false;
     }
 
-    cb.fillBuffer(newAllocation.Buffer, oldSize, newSize - oldSize, 0);
-    // 2. Copy old data to new buffer
-    CopyBufferToBuffer(cb, m_Allocation, newAllocation, oldSize);
+        // 2. Copy old data to new buffer
+    if (shouldCopyData)
+    {
+        cb.fillBuffer(newAllocation.Buffer, oldSize, newSize - oldSize, 0); // is it needed??
+        CopyBufferToBuffer(cb, m_Allocation, newAllocation, oldSize);
+    }
 
     // 3. Free old buffer
     BufferResourceDeletion bufferDeletion{
@@ -342,6 +345,23 @@ StandaloneStorageBuffer::~StandaloneStorageBuffer()
         .Type = ResourceType::eDescriptorSet,
         .Resource = resourceDeletion
     });
+}
+
+void StandaloneStorageBuffer::Grow(vk::CommandBuffer cb, uint64_t newSize, bool shouldCopyData /*= true*/)
+{
+    StorageBuffer::Grow(cb, newSize, shouldCopyData);
+    vk::DescriptorBufferInfo bufferInfo = GetDescriptorInfo();
+    vk::WriteDescriptorSet writeDescSet{
+        m_DescSet,
+        0,
+        0,
+        1,
+        vk::DescriptorType::eStorageBuffer,
+        nullptr,
+        &bufferInfo,
+        nullptr
+    };
+    m_Context->GetDevice().updateDescriptorSets(writeDescSet, nullptr);
 }
 
 }

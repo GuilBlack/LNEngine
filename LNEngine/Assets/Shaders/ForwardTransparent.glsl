@@ -49,11 +49,11 @@ struct Vertex {
     vec4 tangent;
 };
 
-layout(scalar, set = 2, binding = 0) readonly buffer VertexBuffer {
+layout(scalar, set = VERTEX_SET, binding = 0) readonly buffer VertexBuffer {
     Vertex vertices[];
 } vertexBuffer;
 
-layout(set = 2, binding = 1) readonly buffer IndexBuffer {
+layout(set = VERTEX_SET, binding = 1) readonly buffer IndexBuffer {
     uint indices[];
 } indexBuffer;
 
@@ -92,7 +92,7 @@ layout(location = 4) in vec3 iBitangent;
 
 layout(location = 0) out vec4 oColor;
 
-#include "PBR.glslh"
+#include "PBRLighting.glslh"
 
 vec3 samplePrefilteredReflection(vec3 reflectDir, float roughness)
 {
@@ -132,41 +132,33 @@ void main()
     }
 
     vec3 viewDir = normalize(uEyePos - iWorldPos);
-    vec3 lightDir = normalize(-uSunDir);
-    vec3 lightColor = length(uSunDir) * vec3(1.0);
-    vec3 halfDir = normalize(lightDir + viewDir);
     vec3 reflectDir = reflect(-viewDir, normal);
-
-    float nDotL = max(0.0, dot(normal, lightDir));
     float nDotV = max(0.0, dot(normal, viewDir));
-    float nDotH = max(0.0, dot(normal, halfDir));
-    float vDotH = max(0.0, dot(viewDir, halfDir));
 
-    // Sample the prefiltered environment map
-
-    // Calculate FresnelSchlick
+    // --- IBL ---
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, albedo, metalness);
-    vec3 F = FresnelSchlick(vDotH, F0);
+    vec3 F = FresnelSchlick(nDotV, F0);
 
     // Calculate Cook-Torrance dielectric ratio
     vec3 kD = (1.0 - F) * (1.0 - metalness);
 
-    // --- direct lighting ---
-    float alpha = roughness * roughness;
-    float denom = 4.0 * nDotL * nDotV + 1e-5; // prevent division by zero
-    vec3 specSun = (TrowbridgeReitzNDF(nDotH, alpha) * SchlickBeckmanGSF(nDotL, nDotV, alpha) * F) / denom;
-    vec3  diffuseSun  = (kD * albedo) / PI;
-    vec3 directLight = (diffuseSun + specSun) * nDotL * lightColor;
-    
-    // --- IBL ---
     vec2 brdf = texture(globalTextures[nonuniformEXT(tBRDFLut)], vec2(nDotV, roughness)).xy;
     vec3 prefilteredColor = samplePrefilteredReflection(reflectDir, roughness);
     vec3 irradiance = texture(globalCubemaps[nonuniformEXT(tIrradianceMap)], normal).xyz;
-    vec3 diffuseIBL = kD * (irradiance * albedo) / PI;
+    vec3 diffuseIBL = kD * (irradiance * albedo) * INV_PI;
     vec3 specularIBL = prefilteredColor * (F * brdf.x + brdf.y);
+    vec3 iblLight = diffuseIBL + specularIBL;
 
-    vec3 color = uAmbientLight * albedo + diffuseIBL + specularIBL + directLight;
+    ComputeAllLightingArgs lightingArgs;
+    lightingArgs.normal = normal;
+    lightingArgs.position = iWorldPos;
+    lightingArgs.viewDir = viewDir;
+    lightingArgs.albedo = albedo;
+    lightingArgs.metalness = metalness;
+    lightingArgs.roughness = roughness;
+
+    vec3 color = ComputeLighting(lightingArgs) + iblLight + uAmbientLight;
 
     oColor = vec4(color, 1.0);
 }

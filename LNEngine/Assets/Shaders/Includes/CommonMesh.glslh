@@ -1,17 +1,25 @@
-#define TEX_SET 4
-#define MAT_SET 3
-#define VERTEX_SET 2
-#define TRANSFORM_SET 1
+#define TEX_SET 5
+#define MAT_SET 4
+#define VERTEX_SET 3
+#define TRANSFORM_SET 2
+#define LIGHT_SET 1
 
-layout(scalar, set = 0, binding = 0) uniform GlobalUBO
-{
+#include "LightDef.glslh"
+
+layout(scalar, set=0, binding=0) uniform GlobalUBO {
     mat4    uViewProj;
     mat4    uView;
     mat4    uProj;
     vec3    uEyePos;
-    vec3    uSunDir;
     float   uAmbientLight;
     uint    tBRDFLut;
     uint    tIrradianceMap;
     uint    tPrefilteredMap;
+    bool    uUseSunLight;
+};
+
+layout(scalar, set = LIGHT_SET, binding = 0) buffer LightBuffer
+{
+    uint lightCount;
+    Light lights[];
 };

@@ -1,0 +1,125 @@
+#include "LightDef.glslh"
+#include "PBR.glslh"
+
+
+struct ComputeAllLightingArgs
+{
+    vec3 normal;
+    vec3 position;
+    vec3 viewDir;
+
+    vec3 albedo;
+    float metalness;
+    float roughness;
+};
+
+// TODO: refacto all this later (I know that I'll probably procrastinate)
+// https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf
+vec3 ComputeDirectionalLighting(in Light light, in ComputeAllLightingArgs allArgs, in float nDotV, in float roughnessAlpha)
+{
+    vec3 halfDir = normalize(-light.direction + allArgs.viewDir);
+    float nDotL = max(0.0, dot(allArgs.normal, -light.direction));
+    float nDotH = max(0.0, dot(allArgs.normal, halfDir));
+    float vDotH = max(0.0, dot(allArgs.viewDir, halfDir));
+
+    // Calculate FresnelSchlick
+    vec3 F0 = vec3(0.04);
+    F0 = mix(F0, allArgs.albedo, allArgs.metalness);
+    vec3 F = FresnelSchlick(vDotH, F0);
+
+    // Calculate Cook-Torrance diffuse ratio for dielectric materials
+    vec3 kD = (1.0 - F) * (1.0 - allArgs.metalness);
+
+    float denom = 4.0 * nDotL * nDotV + 1e-5; // prevent division by zero
+    vec3 specular = (TrowbridgeReitzNDF(nDotH, roughnessAlpha) * SchlickBeckmanGSF(nDotL, nDotV, roughnessAlpha) * F) / denom;
+    vec3  diffuse  = (kD * allArgs.albedo) * INV_PI;
+    return (diffuse + specular) * nDotL * light.color * light.intensity;
+}
+
+// https://lisyarus.github.io/blog/posts/point-light-attenuation.html
+// instead of something more realistic like inverse square law
+// since I do want a controllable falloff and range for the lights.
+float PointLightAttenuation(in float distance, in float range, in float falloff, in float intensity) {
+    float s = distance / range;
+    float s2 = s * s;
+    return intensity * ((1 - s2) * (1 - s2) / (1 + falloff * s2));
+}
+
+vec3 ComputePointLighting(in Light light, in ComputeAllLightingArgs allArgs, in float nDotV, in float roughnessAlpha)
+{
+    float dist = length(light.position - allArgs.position);
+    if (dist > light.range)
+        return vec3(0.0);
+    vec3 lightDir = normalize(light.position - allArgs.position);
+
+    vec3 halfDir = normalize(lightDir + allArgs.viewDir);
+    float nDotL = max(0.0, dot(allArgs.normal, lightDir));
+    float nDotH = max(0.0, dot(allArgs.normal, halfDir));
+    float vDotH = max(0.0, dot(allArgs.viewDir, halfDir));
+
+    // Calculate FresnelSchlick
+    vec3 F0 = vec3(0.04);
+    F0 = mix(F0, allArgs.albedo, allArgs.metalness);
+    vec3 F = FresnelSchlick(vDotH, F0);
+
+    // Calculate Cook-Torrance diffuse ratio for dielectric materials
+    vec3 kD = (1.0 - F) * (1.0 - allArgs.metalness);
+
+    float denom = 4.0 * nDotL * nDotV + 1e-5; // prevent division by zero
+    vec3 specular = (TrowbridgeReitzNDF(nDotH, roughnessAlpha) * SchlickBeckmanGSF(nDotL, nDotV, roughnessAlpha) * F) / denom;
+    vec3  diffuse  = (kD * allArgs.albedo) * INV_PI;
+
+    return (diffuse + specular) * nDotL * light.color * PointLightAttenuation(dist, light.range, light.falloff, light.intensity);
+}
+
+float SpotLightAttenuation(in float outerCone, in float innerCone, in float coneAngle, in float distance, in float range, in float falloff, in float intensity) {
+    return PointLightAttenuation(distance, range, falloff, intensity) * smoothstep(outerCone, innerCone, coneAngle);
+}
+
+vec3 ComputeSpotLighting(in Light light, in ComputeAllLightingArgs allArgs, in float nDotV, in float roughnessAlpha)
+{
+    float dist = length(light.position - allArgs.position);
+    float coneAngle = dot(normalize(allArgs.position - light.position), light.direction);
+    float outerCone = cos(light.spotAngle);
+    if (dist > light.range || coneAngle < outerCone)
+        return vec3(0.0);
+    float innerCone = cos(light.spotAngle * 0.7); // for softer look
+    vec3 lightDir = normalize(light.position - allArgs.position);
+
+    vec3 halfDir = normalize(lightDir + allArgs.viewDir);
+    float nDotL = max(0.0, dot(allArgs.normal, lightDir));
+    float nDotH = max(0.0, dot(allArgs.normal, halfDir));
+    float vDotH = max(0.0, dot(allArgs.viewDir, halfDir));
+
+    // Calculate FresnelSchlick
+    vec3 F0 = vec3(0.04);
+    F0 = mix(F0, allArgs.albedo, allArgs.metalness);
+    vec3 F = FresnelSchlick(vDotH, F0);
+
+    // Calculate Cook-Torrance diffuse ratio for dielectric materials
+    vec3 kD = (1.0 - F) * (1.0 - allArgs.metalness);
+
+    float denom = 4.0 * nDotL * nDotV + 1e-5; // prevent division by zero
+    vec3 specular = (TrowbridgeReitzNDF(nDotH, roughnessAlpha) * SchlickBeckmanGSF(nDotL, nDotV, roughnessAlpha) * F) / denom;
+    vec3  diffuse  = (kD * allArgs.albedo) * INV_PI;
+
+    return (diffuse + specular) * nDotL * light.color * SpotLightAttenuation(outerCone, innerCone, coneAngle, dist, light.range, light.falloff, light.intensity);
+}
+
+vec3 ComputeLighting(in ComputeAllLightingArgs allArgs)
+{
+    float nDotV = max(0.0, dot(allArgs.normal, allArgs.viewDir));
+    float roughnessAlpha = allArgs.roughness * allArgs.roughness;
+    vec3 result = vec3(0.0);
+    for (uint i = 0; i < lightCount; ++i)
+    {
+        Light light = lights[i];
+        if (light.type == DirectionalLightType)
+            result += ComputeDirectionalLighting(light, allArgs, nDotV, roughnessAlpha);
+        else if (light.type == PointLightType)
+            result += ComputePointLighting(light, allArgs, nDotV, roughnessAlpha);
+        else if (light.type == SpotLightType)
+            result += ComputeSpotLighting(light, allArgs, nDotV, roughnessAlpha);
+    }
+    return result;
+}

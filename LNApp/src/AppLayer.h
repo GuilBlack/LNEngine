@@ -85,16 +85,17 @@ private:
     } m_CameraTarget{};
 
     lne::SafePtr<lne::HierarchicalScene> m_Scene{};
-    lne::Entity m_CameraEntity;
-    lne::Entity m_ModelEntity;
-    lne::Entity m_ModelSpheres;
-    lne::Entity m_CubeEntity;
-    lne::Entity m_SphereEntity;
+    lne::Entity                 m_CameraEntity;
+    lne::Entity                 m_ModelEntity;
+    lne::Entity                 m_ModelSpheres;
+    lne::Entity                 m_CubeEntity;
+    lne::Entity                 m_SphereEntity;
+    std::vector<lne::Entity>    m_LightEntities;
 
-    glm::vec3 m_LightDirection{ 0.0f, -.9f, 0.7f };
-    float m_AmbientLight{ 0.0f };
-    float m_Metalness{ 0.0f };
-    float m_Roughness{ 0.0f };
+    glm::vec3                   m_LightDirection{ 0.0f, -.9f, 0.7f };
+    float                       m_AmbientLight{ 0.0f };
+    float                       m_Metalness{ 0.0f };
+    float                       m_Roughness{ 0.0f };
 
     lne::SafePtr<lne::FrameGraph> m_FrameGraph{};
     lne::SafePtr<lne::WorldRenderer> m_WorldRenderer{};

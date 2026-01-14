@@ -11,6 +11,7 @@
 #include <Graphics/Resources/Mesh.h>
 #include "../../Resources/Effect.h"
 #include "../../Resources/GfxTechnique.h"
+#include "../../WorldRenderer.h"
 
 namespace lne
 {
@@ -106,7 +107,8 @@ void LightingPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worl
 {
     LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     Renderer& renderer = ApplicationBase::GetRenderer();
-    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, GetID());
+    auto lightBuffer = worldRenderer->GetLightBufferGPU(renderer.GetCurrentFrameIndex());
+    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, lightBuffer, GetID());
 }
 
 void LightingPass::PostExecute(vk::CommandBuffer cmdBuffer, FrameGraph* frameGraph, FrameGraphNode* node)

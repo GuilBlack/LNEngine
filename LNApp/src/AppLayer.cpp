@@ -76,7 +76,8 @@ void AppLayer::SkyboxPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRender
     }
 
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
-    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, GetID());
+    auto lightBuffer = worldRenderer->GetLightBufferGPU(renderer.GetCurrentFrameIndex());
+    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, lightBuffer, GetID());
 }
 
 void AppLayer::SkyboxPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
@@ -177,7 +178,8 @@ void AppLayer::ToneMappingPass::Execute(vk::CommandBuffer cmdBuffer, class lne::
         lne::FrameGraphResource* resource = frameGraph->GetResource(handle);
         lne::SafePtr<lne::Texture> sceneTexture = resource->Resource.GetAs<lne::Texture>();
     }
-    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, GetID());
+    auto lightBuffer = worldRenderer->GetLightBufferGPU(renderer.GetCurrentFrameIndex());
+    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, lightBuffer, GetID());
 }
 
 void AppLayer::ToneMappingPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
@@ -240,8 +242,6 @@ void AppLayer::OnAttach()
 
 #pragma region CreateEntities
     m_CameraEntity = m_Scene->CreateEntity();
-    CameraComponent& cameraComponent = m_CameraEntity.EmplaceComponent<CameraComponent>();
-    TransformComponent& cameraTransform = m_CameraEntity.GetComponent<TransformComponent>();
 
     m_ModelEntity = m_Scene->CreateEntity();
     m_ModelSpheres = m_Scene->CreateEntity();
@@ -253,10 +253,44 @@ void AppLayer::OnAttach()
     m_CubeEntity.EmplaceComponent<StaticMeshComponent>();
     m_SphereEntity.EmplaceComponent<StaticMeshComponent>();
 
+    m_LightEntities.reserve(1);
+    for (uint32_t i = 0; i < 10; ++i)
+    {
+        lne::Entity lightEntity = m_Scene->CreateEntity();
+        auto& lightComp = lightEntity.EmplaceComponent<lne::LightComponent>();
+        lightComp.Type = lne::LightType::ePoint;
+        lightComp.Color = glm::vec3(static_cast<float>(std::rand()) / RAND_MAX,
+                                    static_cast<float>(std::rand()) / RAND_MAX,
+                                    static_cast<float>(std::rand()) / RAND_MAX);
+        float angle = i * glm::two_pi<float>() / 10;
+        float radius = 1.f;
+        auto& lightTransform = lightEntity.GetComponent<lne::TransformComponent>();
+        lightTransform.Position = glm::vec3(cos(angle) * radius, 0.5f, sin(angle) * radius);
+
+        lightComp.Intensity = 100.f;
+        lightComp.Range = 1.0f;
+
+        m_LightEntities.emplace_back(std::move(lightEntity));
+    }
+    lne::Entity spotLightEntity = m_Scene->CreateEntity();
+    auto& spotLightComp = spotLightEntity.EmplaceComponent<lne::LightComponent>();
+    spotLightComp.Type = lne::LightType::eSpot;
+    spotLightComp.Color = glm::vec3(1.0f, 1.0f, 1.0f);
+    spotLightComp.Intensity = 100.f;
+    spotLightComp.Range = 30.0f;
+    spotLightComp.SpotAngle = glm::radians(10.0f);
+    auto& spotLightTransform = spotLightEntity.GetComponent<lne::TransformComponent>();
+    spotLightTransform.Position = glm::vec3(0.0f, 0.5f, 0.0f);
+    spotLightTransform.SetEulerAngles({ 0.0f, -90.0f, 0.0f });
+
+    CameraComponent& cameraComponent = m_CameraEntity.EmplaceComponent<CameraComponent>();
+    TransformComponent& cameraTransform = m_CameraEntity.GetComponent<TransformComponent>();
+
     auto [modelTransform, modelMeshComponent] = m_ModelEntity.GetComponents<TransformComponent, StaticMeshComponent>();
     auto [modelSphereTransform, modelSphereMeshComponent] = m_ModelSpheres.GetComponents<TransformComponent, StaticMeshComponent>();
     auto [cubeTransform, cubeMeshComponent] = m_CubeEntity.GetComponents<TransformComponent, StaticMeshComponent>();
     auto [sphereTransform, sphereMeshComponent] = m_SphereEntity.GetComponents<TransformComponent, StaticMeshComponent>();
+
 #pragma endregion
 
 #pragma region LoadModels
@@ -528,7 +562,13 @@ void AppLayer::OnUpdate(float deltaTime)
     float sinTime = (float)sin(currentTime);
     float cosTime = (float)cos(currentTime);
 
-    // m_CubeEntity.GetComponent<lne::TransformComponent>().Position.y = sinTime * 0.5f;
+    for (int i = 0; i < m_LightEntities.size(); ++i)
+    {
+        auto& lightTransform = m_LightEntities[i].GetComponent<lne::TransformComponent>();
+        float angle = (float)currentTime * 0.5f + i * glm::two_pi<float>() / m_LightEntities.size();
+        float radius = 1.f;
+        lightTransform.Position = glm::vec3(cos(angle) * radius, .5f, sin(angle) * radius);
+    }
 
     m_WorldRenderer->BeginScene(m_CameraEntity);
     m_WorldRenderer->Render(*m_Scene.GetPtr());
