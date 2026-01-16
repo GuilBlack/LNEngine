@@ -683,7 +683,16 @@ void AppLayer::HandleInput(float deltaTime)
     float positionLerpFactor = 0.99f;
     float rotationLerpFactor = 0.99f;
 
-    camTransform.Position = Lerp3(camTransform.Position, m_CameraTarget.Position, positionLerpFactor, deltaTime);
-    camTransform.SetEulerAngles(Lerp3(camTransform.EulerAngles, m_CameraTarget.Rotation, rotationLerpFactor, deltaTime));
+    const float epsilon = 1e-3f;
+    if (glm::distance(camTransform.Position, m_CameraTarget.Position) < epsilon)
+        camTransform.Position = m_CameraTarget.Position;
+    else
+        camTransform.Position = Lerp3(camTransform.Position, m_CameraTarget.Position, positionLerpFactor, deltaTime);
+
+    if (glm::distance(camTransform.EulerAngles, m_CameraTarget.Rotation) < epsilon)
+        camTransform.SetEulerAngles(m_CameraTarget.Rotation);
+    else
+        camTransform.SetEulerAngles(Lerp3(camTransform.EulerAngles, m_CameraTarget.Rotation, rotationLerpFactor, deltaTime));
+
     cam.UpdateView(camTransform);
 }
