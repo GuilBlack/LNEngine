@@ -94,7 +94,18 @@ struct CameraComponent
 
     void SetPerspective(float fov, float aspect, float nearPlane, float farPlane)
     {
-        Proj = glm::perspective(glm::radians(fov), aspect, nearPlane, farPlane);
+        assert(abs(aspect - std::numeric_limits<float>::epsilon()) > 0.0f);
+
+        float const tanHalfFovy = tan(glm::radians(fov) * 0.5f);
+
+        Proj = glm::mat<4, 4, float, glm::defaultp>(0.0f);
+        Proj[0][0] = 1.0f / (aspect * tanHalfFovy);
+        Proj[1][1] = 1.0f / (tanHalfFovy);
+
+        // had to modify this to have a reversed Z
+        Proj[2][2] = nearPlane / (farPlane - nearPlane);
+        Proj[2][3] = -1.0f;
+        Proj[3][2] = (farPlane * nearPlane) / (farPlane - nearPlane);
     }
 
     void SetOrthographic(float left, float right, float bottom, float top, float nearPlane, float farPlane)

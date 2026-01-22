@@ -457,7 +457,7 @@ void FrameGraph::CreateFramebuffers(FrameGraphNodeHandle nodeHandle)
                 attachmentLayout,
                 attachmentLayout,
                 vk::ClearValue().setColor(std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f })
-                    .setDepthStencil({ 1.0f, 0 })
+                    .setDepthStencil({ 0.0f, 0 })
             };
             if (texture->IsDepth())
                 depthAttachment = attachmentDesc;
@@ -512,7 +512,7 @@ void FrameGraph::CreateFramebuffers(FrameGraphNodeHandle nodeHandle)
                 attachmentLayout,
                 attachmentLayout,
                 vk::ClearValue().setColor(std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f })
-                    .setDepthStencil({ 1.0f, 0 })
+                    .setDepthStencil({ 0.0f, 0 })
             };
 
             if (inputResource.Type == FrameGraphResourceType::eTexture)

@@ -39,13 +39,11 @@ PipelineHandle GfxTechnique::CreateOrGetPipeline(PassID passID, SafePtr<FrameGra
     desc.CullMode = m_State.Cull;
     desc.Fill = m_State.Fill;
     desc.TransparencyMode = m_State.Transparency;
+    desc.DepthCompareOp = m_State.DepthCompareOp;
     desc.DeriveDepthFromTransparency = m_State.DeriveDepthFromTransparency;
     desc.FrameGraph = frameGraph.GetPtr();
     if (!m_State.DeriveDepthFromTransparency)
-    {
         desc.DepthMode = m_State.DepthMode;
-        desc.DepthCompareOp = m_State.DepthCompareOp;
-    }
     desc.Shader = passBinding.PassEffect->GetShader();
     return passBinding.PassEffect->CreateOrGetPipeline(desc);
 }

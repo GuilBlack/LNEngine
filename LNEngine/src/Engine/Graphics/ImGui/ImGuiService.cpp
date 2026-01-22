@@ -522,6 +522,7 @@ void ImGuiService::CreateDeviceObjects()
             vk::SamplerMipmapMode::eLinear, vk::SamplerAddressMode::eRepeat,
             1.0f,
             false, vk::CompareOp::eAlways,
+            0.0f, 16.0f, 0.0f,
             vk::BorderColor::eFloatOpaqueWhite,
             vk::SamplerReductionMode::eWeightedAverage,
             "ImGui Sampler"

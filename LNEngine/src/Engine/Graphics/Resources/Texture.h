@@ -50,7 +50,7 @@ public:
 public:
     explicit Texture(SafePtr<class GfxContext> ctx, vk::Image image,
         vk::Format format, vk::Extent3D extents, uint32_t numlayers = 1, const std::string& name = "");
-    explicit Texture(SafePtr<class GfxContext> ctx, vk::ImageCreateInfo imageCI, TextureUsageType::Enum usage, const std::string& name = "");
+    explicit Texture(SafePtr<class GfxContext> ctx, vk::ImageCreateInfo imageCI, TextureUsageType::Enum usage, vk::Sampler = {}, const std::string& name = "");
     virtual ~Texture();
 
     [[nodiscard]] vk::ImageView GetImageView() const { return m_ImageView; }

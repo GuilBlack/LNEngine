@@ -40,6 +40,7 @@ void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNo
     techDesc.TechniqueState.Fill = lne::EFillMode::Solid;
     techDesc.TechniqueState.Transparency = lne::TransparencyMode::eOpaque;
     techDesc.TechniqueState.DepthMode = lne::DepthMode::eNone;
+    techDesc.TechniqueState.DepthCompareOp = lne::ECompareOperation::GreaterOrEqual;
 
     PassBindingDesc passDesc{};
     passDesc.PassName = "SkyboxPass";
@@ -324,7 +325,7 @@ void AppLayer::OnAttach()
     cameraTransform.LookAt({ 0.0f, 0.0f, 0.0f });
 
     auto& windowSettings = ApplicationBase::GetWindow().GetSettings();
-    cameraComponent.SetPerspective(45.0f, windowSettings.Width / (float)windowSettings.Height, 0.001f, 1000.0f);
+    cameraComponent.SetPerspective(45.0f, windowSettings.Width / (float)windowSettings.Height, 0.01f, 1000.0f);
 
     m_CameraTarget.Position = cameraTransform.Position;
     m_CameraTarget.Rotation = cameraTransform.EulerAngles;
@@ -407,13 +408,7 @@ void AppLayer::InitFrameGraph()
         .SetDefaultColorAttachmentInfos()
         .SetImageFormat(vk::Format::eR16G16B16A16Sfloat)
         .Build();
-    
-    lne::FrameGraphResourceDesc positionAttachmentDesc = resourceBuilder.SetName("GBufferPosition")
-        .SetType(lne::FrameGraphResourceType::eAttachment)
-        .SetDefaultColorAttachmentInfos()
-        .SetImageFormat(vk::Format::eR16G16B16A16Sfloat)
-        .Build();
-    
+
     lne::FrameGraphResourceDesc metalRoughAttachmentDesc = resourceBuilder.SetName("GBufferMetalRough")
         .SetType(lne::FrameGraphResourceType::eAttachment)
         .SetDefaultColorAttachmentInfos()
@@ -454,6 +449,11 @@ void AppLayer::InitFrameGraph()
         .SetDefaultColorAttachmentInfos()
         .SetName("ToneMappedScene")
         .Build();
+
+    lne::FrameGraphResourceDesc depthTextureDesc = resourceBuilder
+        .SetType(lne::FrameGraphResourceType::eTexture)
+        .SetDefaultDepthAttachmentInfos()
+        .SetName("Depth").Build();
 
     lne::FrameGraphNodeDesc depthPrePassDesc = nodeBuilder.SetName("DepthPrePass")
         .AddOutputResource(depthAttachmentDesc)
@@ -502,21 +502,19 @@ void AppLayer::InitFrameGraph()
         .AddInputResource(depthAttachmentDesc)
         .AddOutputResource(colorAttachmentDesc)
         .AddOutputResource(normalAttachmentDesc)
-        .AddOutputResource(positionAttachmentDesc)
         .AddOutputResource(metalRoughAttachmentDesc)
         .Build();
 
     normalAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
-    positionAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
     colorAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
     metalRoughAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
 
     nodeBuilder.Clear();
     lne::FrameGraphNodeDesc lightingPassDesc = nodeBuilder.SetName("LightingPass")
         .AddInputResource(normalAttachmentDesc)
-        .AddInputResource(positionAttachmentDesc)
         .AddInputResource(colorAttachmentDesc)
         .AddInputResource(metalRoughAttachmentDesc)
+        .AddInputResource(depthTextureDesc)
         .AddOutputResource(lightingResource)
         .Build();
 

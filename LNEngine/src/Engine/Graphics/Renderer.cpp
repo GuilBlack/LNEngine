@@ -122,6 +122,7 @@ void Renderer::InitResources()
     meshletTechDesc.TechniqueState.Fill = EFillMode::Solid;
     meshletTechDesc.TechniqueState.Transparency = TransparencyMode::eOpaque;
     meshletTechDesc.TechniqueState.DepthMode = DepthMode::eReadWrite;
+    meshletTechDesc.TechniqueState.DepthCompareOp = ECompareOperation::GreaterOrEqual;
     PassBindingDesc meshletPassDesc{};
     meshletPassDesc.PassName = "GBufferPass";
     meshletPassDesc.PassEffect = gbufferMeshletEffect;
@@ -134,6 +135,7 @@ void Renderer::InitResources()
     techDesc.TechniqueState.Fill = EFillMode::Solid;
     techDesc.TechniqueState.Transparency = TransparencyMode::eOpaque;
     techDesc.TechniqueState.DepthMode = DepthMode::eReadWrite;
+    techDesc.TechniqueState.DepthCompareOp = ECompareOperation::GreaterOrEqual;
 
     PassBindingDesc passDesc{};
     passDesc.PassName = "GBufferPass";
@@ -149,6 +151,7 @@ void Renderer::InitResources()
     techDesc.TechniqueState.Fill = EFillMode::Solid;
     techDesc.TechniqueState.Transparency = TransparencyMode::eTransparent;
     techDesc.TechniqueState.DepthMode = DepthMode::eReadOnly;
+    techDesc.TechniqueState.DepthCompareOp = ECompareOperation::GreaterOrEqual;
     techDesc.Passes.clear();
     passDesc.PassName = "TransparentForwardPass";
     passDesc.PassEffect = forwardTransparentEffect;

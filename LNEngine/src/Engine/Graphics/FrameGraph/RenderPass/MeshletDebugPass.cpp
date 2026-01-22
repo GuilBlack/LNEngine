@@ -37,6 +37,7 @@ void lne::MeshletDebugPass::OnBind(FrameGraph* frameGraph, FrameGraphNode* node)
     meshletDebugTechDesc.TechniqueState.Fill = EFillMode::Solid;
     meshletDebugTechDesc.TechniqueState.Transparency = TransparencyMode::eOpaque;
     meshletDebugTechDesc.TechniqueState.DepthMode = DepthMode::eReadWrite;
+    meshletDebugTechDesc.TechniqueState.DepthCompareOp = ECompareOperation::GreaterOrEqual;
     PassBindingDesc meshletPassDesc{};
     meshletPassDesc.PassName = m_Name;
     meshletPassDesc.PassEffect = meshletDebugEffect;
