@@ -99,7 +99,6 @@ void main()
 
     float coneCutoff = float(int(meshlet.ConeCutoff)) / 127.0;
     bool visible = cullCone(coneAxis, coneCutoff, center.xyz, radius, uEyePos);
-    visible = true;
     uvec4 mask = subgroupBallot(visible);
 
     uint index = subgroupBallotExclusiveBitCount(mask);

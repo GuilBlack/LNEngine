@@ -155,7 +155,7 @@ void StaticMesh::LoadAsMeshlets(const aiScene* scene)
 
     const size_t maxVertices = 64;
     const size_t maxTriangles = 126;
-    const float coneWeight = 0.0f;
+    const float coneWeight = 0.25f;
 
     std::vector<meshopt_Meshlet> allMeshlets;
     std::vector<uint32_t>        allMeshletVertices;
