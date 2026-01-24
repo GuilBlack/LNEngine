@@ -196,14 +196,12 @@ layout(location = 0) in Interpolants
 
 layout(location = 0) out vec4 oAlbedo;
 layout(location = 1) out vec4 oNormal;
-layout(location = 2) out vec4 oPosition;
-layout(location = 3) out vec4 oMetalnessRoughness;
+layout(location = 2) out vec4 oMetalnessRoughness;
 
 void main()
 {
     MaterialData mat = mb.materials[matId];
     oAlbedo = mat.tAlbedo == 0 ? mat.uColor : texture(globalTextures[nonuniformEXT(mat.tAlbedo)], iMeshlet.uv);
-    oPosition = vec4(iMeshlet.worldPos, 1.0);
 
     float metalness = mat.tMetalness == 0 ? mat.uMetalness : texture(globalTextures[nonuniformEXT(mat.tMetalness)], iMeshlet.uv).z;
     float roughness = mat.tRoughness == 0 ? mat.uRoughness : texture(globalTextures[nonuniformEXT(mat.tRoughness)], iMeshlet.uv).y;
