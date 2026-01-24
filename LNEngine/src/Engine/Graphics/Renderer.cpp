@@ -116,6 +116,7 @@ void Renderer::InitResources()
     SafePtr depthPrePassEffect = CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\DepthPrePass.glsl");
 
     SafePtr gbufferMeshletEffect = CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\Meshlet\\GBufferMeshlet.glsl");
+    SafePtr depthPrePassMeshletEffect = CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\Meshlet\\DepthPrePassMeshlet.glsl");
     GfxTechniqueDesc meshletTechDesc{};
     meshletTechDesc.Name = "DefaultMeshletOpaque";
     meshletTechDesc.TechniqueState.Cull = ECullMode::Back;
@@ -126,7 +127,11 @@ void Renderer::InitResources()
     PassBindingDesc meshletPassDesc{};
     meshletPassDesc.PassName = "GBufferPass";
     meshletPassDesc.PassEffect = gbufferMeshletEffect;
-    meshletTechDesc.Passes.push_back(meshletPassDesc);
+    meshletTechDesc.Passes.emplace_back(meshletPassDesc);
+    PassBindingDesc meshletDepthPrePassDesc{};
+    meshletDepthPrePassDesc.PassName = "DepthPrePass";
+    meshletDepthPrePassDesc.PassEffect = depthPrePassMeshletEffect;
+    meshletTechDesc.Passes.emplace_back(meshletDepthPrePassDesc);
     SafePtr meshletTech = CreateOrGetTechnique(meshletTechDesc);
 
     GfxTechniqueDesc techDesc{};

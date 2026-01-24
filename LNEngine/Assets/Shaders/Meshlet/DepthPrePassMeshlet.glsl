@@ -99,6 +99,7 @@ void main()
 
     float coneCutoff = float(int(meshlet.ConeCutoff)) / 127.0;
     bool visible = cullCone(coneAxis, coneCutoff, center.xyz, radius, uEyePos);
+    visible = true;
     uvec4 mask = subgroupBallot(visible);
 
     uint index = subgroupBallotExclusiveBitCount(mask);
@@ -124,6 +125,7 @@ void main()
 {
     uint meshletIndex = sPayload.meshletIndices[gl_WorkGroupID.x];
     Meshlet meshlet = meshletBuffer.meshlets[meshletIndex];
+    uint materialId = matId;
     SetMeshOutputsEXT(meshlet.VertexCount, meshlet.TriangleCount);
 
     // thread only works on assigned triangles
@@ -142,8 +144,7 @@ void main()
         vertexIndex = vertexIndicesBuffer.vertexIndices[vertexIndex];
         mat4 model = transforms[instancesOffset];
 
-        vec4 worldPos = model * vec4(vertexBuffer.vertices[vertexIndex].position, 1.0);
-        gl_MeshVerticesEXT[gl_LocalInvocationIndex].gl_Position = uViewProj * worldPos;
+        gl_MeshVerticesEXT[gl_LocalInvocationIndex].gl_Position = uViewProj * model * vec4(vertexBuffer.vertices[vertexIndex].position, 1.0);
     }
 }
 
