@@ -91,14 +91,17 @@ struct ResourceDeletion
 struct SubMesh
 {
     std::string Name;
-    uint32_t BaseVertex;
-    uint32_t BaseIndex;
-    uint32_t VertexCount;
-    uint32_t IndexCount;
-    uint32_t MaterialIndex;
-    AABB BoundingBox;
+    uint32_t    BaseVertex;
+    uint32_t    BaseIndex;
+    uint32_t    VertexCount;
+    uint32_t    IndexCount;
+    uint32_t    MaterialIndex;
+    AABB        BoundingBox;
 
-    glm::mat4 WorldTransform = glm::mat4(1.0f);
+    uint32_t    BaseMeshlet;
+    uint32_t    MeshletCount;
+
+    glm::mat4   WorldTransform = glm::mat4(1.0f);
 };
 
 struct StaticMeshHash
@@ -147,6 +150,8 @@ struct MeshletPushConstants
 {
     MaterialSlot                            MatId;
     uint32_t                                InstanceOffset;
+    uint32_t                                BaseMeshlet;
+    uint32_t                                MeshletCount;
 };
 
 struct LightGPUData

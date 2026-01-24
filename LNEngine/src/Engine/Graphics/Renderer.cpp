@@ -397,6 +397,7 @@ void Renderer::DrawMeshlets(vk::CommandBuffer cmdBuffer,
                             const DrawMeshArgs& drawArgs,
                             SafePtr<Material>& material)
 {
+    auto& submesh = drawArgs.Mesh->GetSubMeshes()[drawArgs.SubMeshIndex];
     auto pipeline = material->GetPipeline(drawArgs.PassId, m_CurrentFrameGraph);
     auto effect = material->GetTechnique()->GetPassEffect(drawArgs.PassId);
     if (effect == nullptr || pipeline == nullptr)
@@ -442,8 +443,8 @@ void Renderer::DrawMeshlets(vk::CommandBuffer cmdBuffer,
         m_LastUsedEffect = effect;
     }
     auto matSlot = material->GetMaterialPassSlot(drawArgs.PassId);
-    cmdBuffer.pushConstants<MeshletPushConstants>(pipeline->GetLayout(), matSlot.Stages, 0, { {matSlot.Slot, drawArgs.Offset} });
-    cmdBuffer.drawMeshTasksEXT(drawArgs.Mesh->GetGeometry().GetVertexCount() / 32, 1, 1);
+    cmdBuffer.pushConstants<MeshletPushConstants>(pipeline->GetLayout(), matSlot.Stages, 0, { {matSlot.Slot, drawArgs.Offset, submesh.BaseMeshlet, submesh.MeshletCount} });
+    cmdBuffer.drawMeshTasksEXT((submesh.MeshletCount + 31) / 32, 1, 1);
 }
 
 void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer,

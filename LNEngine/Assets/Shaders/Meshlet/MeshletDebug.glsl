@@ -16,12 +16,6 @@ layout(scalar, set = TRANSFORM_SET, binding = 0) readonly buffer TransformBuffer
     mat4 transforms[];
 };
 
-layout(scalar, push_constant) uniform PushConstants
-{
-    uint matId;
-    uint instancesOffset;
-};
-
 struct Vertex {
     vec3 position;
     vec2 uv;
@@ -79,7 +73,12 @@ void main()
     uint liIdx = gl_LocalInvocationID.x;
     uint giIdx = gl_GlobalInvocationID.x;
     mat4 model = transforms[instancesOffset];
-    Meshlet meshlet = meshletBuffer.meshlets[giIdx];
+    uint meshletIdx = giIdx + baseMeshlet;
+
+    if (giIdx >= meshletCount)
+        return;
+
+    Meshlet meshlet = meshletBuffer.meshlets[meshletIdx];
 
     vec4 center = model * vec4(meshlet.BoundsCenter, 1.0);
     float radius = meshlet.BoundsRadius * max(
@@ -99,12 +98,13 @@ void main()
 
     float coneCutoff = float(int(meshlet.ConeCutoff)) / 127.0;
     bool visible = cullCone(coneAxis, coneCutoff, center.xyz, radius, uEyePos);
+    visible = true;
     uvec4 mask = subgroupBallot(visible);
 
     uint index = subgroupBallotExclusiveBitCount(mask);
 
     if (visible)
-        sPayload.meshletIndices[index] = giIdx;
+        sPayload.meshletIndices[index] = meshletIdx;
 
     uint totalVisible = subgroupBallotBitCount(mask);
 
@@ -150,7 +150,8 @@ void main()
         oMeshlet[gl_LocalInvocationIndex].worldPos = vec3(vertexBuffer.vertices[vertexIndex].position);
         oMeshlet[gl_LocalInvocationIndex].normal = vertexBuffer.vertices[vertexIndex].normal;
         gl_MeshVerticesEXT[gl_LocalInvocationIndex].gl_Position = uViewProj * transforms[instancesOffset] * vec4(vertexBuffer.vertices[vertexIndex].position, 1.0);
-        oMeshlet[gl_LocalInvocationIndex].color = vec3(float(meshletIndex & 1), float(meshletIndex & 3) / 4.0, float(meshletIndex & 7) / 8.0);
+        uint debugColor = meshletIndex;
+        oMeshlet[gl_LocalInvocationIndex].color = vec3(float(debugColor & 1), float(debugColor & 3) / 4.0, float(debugColor & 7) / 8.0);
     }
 }
 

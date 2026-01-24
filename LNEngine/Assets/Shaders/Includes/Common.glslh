@@ -14,7 +14,7 @@ float rand(vec2 co)
     float b = 78.233;
     float c = 43758.5453;
     float dt = dot(co.xy, vec2(a, b));
-    float sn = mod(dt, 3.14);
+    float sn = mod(dt, PI);
     return fract(sin(sn) * c);
 }
 

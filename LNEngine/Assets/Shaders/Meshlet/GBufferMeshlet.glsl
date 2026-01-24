@@ -36,12 +36,6 @@ struct MaterialData
     uint tNormal;
 };
 
-layout(scalar, push_constant) uniform PushConstants
-{
-    uint matId;
-    uint instancesOffset;
-};
-
 layout(scalar, set = MAT_SET, binding = 0) readonly buffer MaterialBuffer {
     MaterialData materials[]; // MaterialData
 } mb;
@@ -88,7 +82,12 @@ void main()
     uint liIdx = gl_LocalInvocationID.x;
     uint giIdx = gl_GlobalInvocationID.x;
     mat4 model = transforms[instancesOffset];
-    Meshlet meshlet = meshletBuffer.meshlets[giIdx];
+    uint meshletIdx = giIdx + baseMeshlet;
+
+    if (giIdx >= meshletCount)
+        return;
+
+    Meshlet meshlet = meshletBuffer.meshlets[meshletIdx];
 
     vec4 center = model * vec4(meshlet.BoundsCenter, 1.0);
     float radius = meshlet.BoundsRadius * max(
@@ -108,12 +107,13 @@ void main()
 
     float coneCutoff = float(int(meshlet.ConeCutoff)) / 127.0;
     bool visible = cullCone(coneAxis, coneCutoff, center.xyz, radius, uEyePos);
+    visible = true;
     uvec4 mask = subgroupBallot(visible);
 
     uint index = subgroupBallotExclusiveBitCount(mask);
 
     if (visible)
-        sPayload.meshletIndices[index] = giIdx;
+        sPayload.meshletIndices[index] = meshletIdx;
 
     uint totalVisible = subgroupBallotBitCount(mask);
 

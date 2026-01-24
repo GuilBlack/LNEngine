@@ -112,7 +112,7 @@ class StaticMesh : public RefCountBase
 {
 public:
     // TODO: probably make a mesh importer class or something
-    StaticMesh(std::filesystem::path path);
+    StaticMesh(std::filesystem::path path, GeometryType::Enum geometryType = GeometryType::eMeshlet);
 
     std::vector<SubMesh>&               GetSubMeshes() { return m_SubMeshes; }
     const Geometry&                     GetGeometry() const { return *m_Geometry.get(); }
@@ -150,8 +150,11 @@ private:
     StaticMesh();
 
     void                                InitSubmeshes(const struct aiScene* scene);
-    void                                LoadData(const struct aiScene* scene);
-    void                                LoadMaterials(const struct aiScene* scene);
+    void                                LoadAsClassicMesh(const aiScene* scene);
+    void                                LoadAsMeshlets(const aiScene* scene);
+    void                                FillMeshCPUData(const aiScene* scene);
+
+    void LoadMaterials(const struct aiScene* scene, GeometryType::Enum geometryType);
     void                                TraverseNodes(const struct aiNode* node, const glm::mat4& parentTransform);
 
     static void                         GenerateUVSphereData(uint32_t nLatitude, uint32_t nLongitude,

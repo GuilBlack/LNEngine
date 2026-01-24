@@ -299,7 +299,7 @@ void AppLayer::OnAttach()
     cubeMesh->SetMaterial(m_BasicMaterial, 0);
     SafePtr sphereMesh = StaticMesh::GenerateUVSphere(1.0f, 32, 32);
     sphereMesh->SetMaterial(m_BasicMaterial2, 0);
-    modelMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Sponza\\glTF\\Sponza.gltf");
+    modelMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Sponza\\glTF\\Sponza.gltf", GeometryType::eMeshlet);
 
     cubeMeshComponent.Mesh = cubeMesh;
     sphereMeshComponent.Mesh = sphereMesh;

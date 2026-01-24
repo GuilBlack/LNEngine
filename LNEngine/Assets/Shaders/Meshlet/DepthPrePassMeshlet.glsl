@@ -23,12 +23,6 @@ struct Vertex {
     vec4 tangent;
 };
 
-layout(scalar, push_constant) uniform PushConstants
-{
-    uint matId;
-    uint instancesOffset;
-};
-
 struct MaterialData
 {
     float uDummy;
@@ -80,7 +74,12 @@ void main()
     uint liIdx = gl_LocalInvocationID.x;
     uint giIdx = gl_GlobalInvocationID.x;
     mat4 model = transforms[instancesOffset];
-    Meshlet meshlet = meshletBuffer.meshlets[giIdx];
+    uint meshletIdx = giIdx + baseMeshlet;
+
+    if (giIdx >= meshletCount)
+        return;
+
+    Meshlet meshlet = meshletBuffer.meshlets[meshletIdx];
 
     vec4 center = model * vec4(meshlet.BoundsCenter, 1.0);
     float radius = meshlet.BoundsRadius * max(
@@ -105,7 +104,7 @@ void main()
     uint index = subgroupBallotExclusiveBitCount(mask);
 
     if (visible)
-        sPayload.meshletIndices[index] = giIdx;
+        sPayload.meshletIndices[index] = meshletIdx;
 
     uint totalVisible = subgroupBallotBitCount(mask);
 
