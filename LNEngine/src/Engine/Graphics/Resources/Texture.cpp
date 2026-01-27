@@ -35,7 +35,7 @@ SafePtr<Texture> Texture::CreateDepthTexture(
         vk::ImageLayout::eUndefined
     );
 
-    return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, usage, name));
+    return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, usage, ctx->GetDepthSampler(), name));
 }
 
 SafePtr<Texture> Texture::CreateColorAttachmentTexture(
@@ -62,7 +62,7 @@ SafePtr<Texture> Texture::CreateColorAttachmentTexture(
         nullptr,
         vk::ImageLayout::eUndefined
     );
-    return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, usage, name));
+    return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, usage, {}, name));
 }
 
 SafePtr<Texture> Texture::CreateColorTexture2D(
@@ -91,7 +91,7 @@ SafePtr<Texture> Texture::CreateColorTexture2D(
         nullptr,
         vk::ImageLayout::eUndefined
     );
-    return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, usage, name));
+    return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, usage, {}, name));
 }
 
 SafePtr<Texture> Texture::CreateCubemapTexture(
@@ -119,7 +119,7 @@ SafePtr<Texture> Texture::CreateCubemapTexture(
         nullptr,
         vk::ImageLayout::eUndefined
     };
-    return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, usage, name));
+    return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, usage, {}, name));
 }
 
 Texture::Texture(SafePtr<class GfxContext> ctx, vk::Image image, vk::Format format, vk::Extent3D extents, uint32_t numlayers, const std::string& name)
@@ -140,15 +140,11 @@ Texture::Texture(SafePtr<class GfxContext> ctx, vk::Image image, vk::Format form
     m_ImageView = m_Context->CreateImageView(m_Allocation.Image, vk::ImageViewType::e2D, m_Format, 1, m_NumLayers, aspectMask, name);
 }
 
-Texture::Texture(SafePtr<class GfxContext> ctx, vk::ImageCreateInfo imageCI, TextureUsageType::Enum usage, const std::string& name)
-    : m_Context{ ctx }
-    , m_Format{ imageCI.format }
-    , m_Extents{ imageCI.extent }
-    , m_ImageType{ imageCI.imageType }
-    , m_Tiling{ imageCI.tiling }
-    , m_Layout{ imageCI.initialLayout }
-    , m_NumLayers{ imageCI.arrayLayers }
-    , m_MipLevels{ imageCI.mipLevels }
+Texture::Texture(SafePtr<class GfxContext> ctx, vk::ImageCreateInfo imageCI, TextureUsageType::Enum usage, vk::Sampler sampler, const std::string& name)
+    : m_Context{ ctx }, m_Sampler{ sampler }
+    , m_Format{ imageCI.format }, m_Extents{ imageCI.extent }
+    , m_ImageType{ imageCI.imageType }, m_Tiling{ imageCI.tiling }
+    , m_Layout{ imageCI.initialLayout }, m_NumLayers{ imageCI.arrayLayers }, m_MipLevels{ imageCI.mipLevels }
     , m_Name{ name }
     , m_UsageType{ usage }
     , m_OwnsImage{ true }

@@ -1,4 +1,4 @@
-﻿#include "IRenderPass.h"
+﻿#include "RenderPass.h"
 #include "Graphics/Resources/Mesh.h"
 #include "Graphics/Resources/Material.h"
 #include "Graphics/Resources/GfxTechnique.h"
@@ -9,7 +9,7 @@
 namespace lne
 {
 
-void IRenderPass::OnBindInternal(FrameGraph* frameGraph, FrameGraphNode* node)
+void RenderPass::OnBindInternal(FrameGraph* frameGraph, FrameGraphNode* node)
 {
     m_ID = MakePassID(m_Name);
     OnBind(frameGraph, node);

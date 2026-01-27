@@ -3,6 +3,7 @@
 #include "Engine/Core/Utils/_Defines.h"
 #include "Engine/ECS/Types.h"
 #include "Engine/ECS/EntityRegistry.h"
+#include "Engine/Scene/Components.h"
 
 namespace lne
 {
@@ -14,6 +15,30 @@ public:
         : m_Handle(handle)
         , m_Registry(registry)
     {}
+
+    std::string GetName()
+    {
+        LNE_ASSERT(IsValid(), "Entity is not valid");
+        if (m_Registry->HasComponents<NameComponent>(m_Handle))
+        {
+            return m_Registry->GetComponent<NameComponent>(m_Handle).Name;
+        }
+        return m_DefaultName + std::to_string(m_Handle);
+    }
+
+    void SetName(const std::string& name)
+    {
+        LNE_ASSERT(IsValid(), "Entity is not valid");
+        if (m_Registry->HasComponents<NameComponent>(m_Handle))
+        {
+            m_Registry->GetComponent<NameComponent>(m_Handle).Name = name;
+        }
+        else
+        {
+            auto& nameComp = EmplaceComponent<NameComponent>();
+            nameComp.Name = name;
+        }
+    }
 
     template<ComponentConstraint Comp, typename... Args>
     Comp& EmplaceComponent(Args&&... args)

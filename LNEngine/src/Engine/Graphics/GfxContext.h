@@ -34,7 +34,7 @@ struct QueueFamilyIndices
 class GfxContext : public RefCountBase
 {
 public:
-    static constexpr uint32_t   s_MaxSSBOsPerSet = 4;
+    static constexpr uint32_t   s_MaxSSBOsPerSet = 15;
 
 public:
     GfxContext(vk::SurfaceKHR surface);
@@ -69,12 +69,13 @@ public:
     [[nodiscard]] SafePtr<Texture>          GetDefaultTexture() const;
     [[nodiscard]] SafePtr<Texture>          GetWhiteTexture() const;
     [[nodiscard]] vk::Sampler               GetDefaultSampler() const { return m_DefaultSampler; }
+    [[nodiscard]] vk::Sampler               GetDepthSampler() const { return m_DepthSampler; }
 
-    // numBindings MUST be in range [1, 4]
+    // numBindings MUST be in range [1, s_MaxSSBOsPerSet]
     [[nodiscard]] vk::DescriptorSetLayout   GetStorageOnlyDescriptorSetLayout(uint32_t numBindings) const
     { 
-        LNE_ASSERT(numBindings >= 1 && numBindings <= s_MaxSSBOsPerSet, "numBindings must be in range [1, 4]");
-        return m_StorageOnlyDescriptorSetLayouts[(numBindings) > s_MaxSSBOsPerSet ? s_MaxSSBOsPerSet - 1 : numBindings - 1];
+        LNE_ASSERT(numBindings >= 1 && numBindings <= s_MaxSSBOsPerSet, std::format("numBindings must be in range [1, {0}]", s_MaxSSBOsPerSet));
+        return m_StorageOnlyDescriptorSetLayouts[numBindings - 1];
     }
 
 #pragma region PhysicalDevice
@@ -122,6 +123,7 @@ public:
                                                           float maxAnisotropy = 1.0f,
                                                           bool compareEnable = false,
                                                           vk::CompareOp compareOp = vk::CompareOp::eAlways,
+                                                          float minLod = 0.f, float maxLod = 0.f, float mipLodBias = 0.f,
                                                           vk::BorderColor borderColor = vk::BorderColor::eFloatOpaqueWhite,
                                                           vk::SamplerReductionMode reductionMode = vk::SamplerReductionMode::eWeightedAverage,
                                                           const std::string& name = "");
@@ -202,6 +204,7 @@ private:
     std::unique_ptr<class CommandPoolManager> m_CommandPoolManager;
 
     vk::Sampler                             m_DefaultSampler;
+    vk::Sampler                             m_DepthSampler;
     SafePtr<Texture>                        m_DefaultTexture;
     SafePtr<Texture>                        m_WhitePixel;
     class Geometry*                         m_DefaultFullscreenQuad;

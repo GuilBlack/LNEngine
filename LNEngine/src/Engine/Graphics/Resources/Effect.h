@@ -66,6 +66,7 @@ private:
     SafePtr<GfxContext>                 m_Context;
     SafePtr<Shader>                     m_Shader;
     MaterialBank                        m_Bank{};
+    bool                                m_HasMaterialSet{ false };
     std::mutex                          m_PipelinesMutex{};
     PipelineCache                       m_Pipelines{};
     std::mutex                          m_SlotAllocMutex{};

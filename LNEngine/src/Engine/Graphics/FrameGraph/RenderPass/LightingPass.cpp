@@ -11,6 +11,7 @@
 #include <Graphics/Resources/Mesh.h>
 #include "../../Resources/Effect.h"
 #include "../../Resources/GfxTechnique.h"
+#include "../../WorldRenderer.h"
 
 namespace lne
 {
@@ -51,11 +52,6 @@ void LightingPass::OnBind(FrameGraph* frameGraph, FrameGraphNode* node)
     for (FrameGraphResourceHandle handle : node->InputResources)
     {
         FrameGraphResource* resource = frameGraph->GetResource(handle);
-        if (resource->Name == "GBufferPosition")
-        {
-            SafePtr<Texture> positionTexture = resource->Resource.GetAs<Texture>();
-            m_Material->SetTexture("tPosition", positionTexture);
-        }
         if (resource->Name == "GBufferNormal")
         {
             SafePtr<Texture> normalTexture = resource->Resource.GetAs<Texture>();
@@ -71,6 +67,11 @@ void LightingPass::OnBind(FrameGraph* frameGraph, FrameGraphNode* node)
             SafePtr<Texture> colorTexture = resource->Resource.GetAs<Texture>();
             m_Material->SetTexture("tMetalnessRoughness", colorTexture);
         }
+        if (resource->Name == "Depth")
+        {
+            SafePtr<Texture> depthTexture = resource->Resource.GetAs<Texture>();
+            m_Material->SetTexture("tDepth", depthTexture);
+        }
     }
 }
 
@@ -79,11 +80,6 @@ void LightingPass::OnResize(FrameGraph* frameGraph, FrameGraphNode* node)
     for (FrameGraphResourceHandle handle : node->InputResources)
     {
         FrameGraphResource* resource = frameGraph->GetResource(handle);
-        if (resource->Name == "GBufferPosition")
-        {
-            SafePtr<Texture> positionTexture = resource->Resource.GetAs<Texture>();
-            m_Material->SetTexture("tPosition", positionTexture);
-        }
         if (resource->Name == "GBufferNormal")
         {
             SafePtr<Texture> normalTexture = resource->Resource.GetAs<Texture>();
@@ -106,7 +102,8 @@ void LightingPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worl
 {
     LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     Renderer& renderer = ApplicationBase::GetRenderer();
-    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, GetID());
+    auto lightBuffer = worldRenderer->GetLightBufferGPU(renderer.GetCurrentFrameIndex());
+    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, lightBuffer, GetID());
 }
 
 void LightingPass::PostExecute(vk::CommandBuffer cmdBuffer, FrameGraph* frameGraph, FrameGraphNode* node)

@@ -2,6 +2,9 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include <assimp/aabb.h>
+#include <meshopt/src/meshoptimizer.h>
+#include <stb/stb_image.h>
+
 #include "Core/SafePtr.h"
 #include "Core/Utils/Log.h"
 #include "Core/ApplicationBase.h"
@@ -15,7 +18,23 @@
 #include "Graphics/DynamicDescriptorAllocator.h"
 
 #include "Mesh.h"
-#include <stb/stb_image.h>
+
+template <>
+struct std::formatter<lne::SubMesh> : std::formatter<std::string>
+{
+    auto format(lne::SubMesh s, format_context& ctx) const
+    {
+        if (s.MeshletCount != 0)
+            return formatter<string>::format(
+                std::format("{{Name: {}, MaterialID: {}, BaseMeshlet: {}, MeshletCount: {}}}", s.Name, s.MaterialIndex, s.BaseMeshlet, s.MeshletCount), ctx);
+        else
+        {
+            return formatter<string>::format(
+                std::format("{{Name: {}, MaterialID: {}, BaseVertex: {}, BaseIndex: {}, VertexCount: {}, IndexCount: {}}}",
+                            s.Name, s.MaterialIndex, s.BaseVertex, s.BaseIndex, s.VertexCount, s.IndexCount), ctx);
+        }
+    }
+};
 
 namespace lne
 {
@@ -24,10 +43,9 @@ StaticMesh::StaticMesh()
     m_Materials.resize(1);
 }
 
-StaticMesh::StaticMesh(std::filesystem::path path)
+StaticMesh::StaticMesh(std::filesystem::path path, GeometryType::Enum geometryType /*= GeometryType::eMeshlet*/)
     : m_Path(path),
-    m_Geometry{ nullptr },
-    m_Textures{}
+    m_Geometry{ nullptr }
 {
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(path.string(), aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_CalcTangentSpace);
@@ -49,7 +67,11 @@ StaticMesh::StaticMesh(std::filesystem::path path)
 
     m_Geometry.reset(lnnew Geometry());
     InitSubmeshes(scene);
-    LoadData(scene);
+    LoadMaterials(scene, geometryType);
+    if (geometryType == GeometryType::eMeshlet)
+        LoadAsMeshlets(scene);
+    else
+        LoadAsClassicMesh(scene);
 }
 
 void StaticMesh::InitSubmeshes(const aiScene* scene)
@@ -103,14 +125,176 @@ void StaticMesh::InitSubmeshes(const aiScene* scene)
 
     TraverseNodes(scene->mRootNode, glm::mat4(1.0f));
 
-    m_Geometry->Vertices = lnnew Vertex[m_TotalVertexCount];
-    m_Geometry->Indices = lnnew uint32_t[m_TotalIndexCount];
+    m_Geometry->m_Vertices = lnnew Vertex[m_TotalVertexCount];
+    m_Geometry->m_Indices = lnnew uint32_t[m_TotalIndexCount];
 }
 
-void StaticMesh::LoadData(const aiScene* scene)
+void StaticMesh::LoadAsClassicMesh(const aiScene* scene)
 {
-    LoadMaterials(scene);
+    FillMeshCPUData(scene);
 
+    m_Geometry->m_VertexCount = m_TotalVertexCount;
+    m_Geometry->m_IndexCount = m_TotalIndexCount;
+
+    auto& renderer = ApplicationBase::GetRenderer();
+
+    m_Geometry->m_VertexGPUBuffer = renderer.CreateGeometryBuffer(m_Geometry->m_Vertices, m_TotalVertexCount * sizeof(Vertex));
+    m_Geometry->m_IndexGPUBuffer = renderer.CreateGeometryBuffer(m_Geometry->m_Indices, m_TotalIndexCount * sizeof(uint32_t));
+
+    m_Geometry->m_Type = GeometryType::eClassic;
+    SafePtr ctx = renderer.GetGfxContext();
+    m_Geometry->InitDescSet(ctx.GetPtr(), ctx->GetStorageOnlyDescriptorSetLayout(2));
+}
+
+void StaticMesh::LoadAsMeshlets(const aiScene* scene)
+{
+    FillMeshCPUData(scene);
+
+    Vertex* vertices = (Vertex*)m_Geometry->m_Vertices;
+    uint32_t* indices = (uint32_t*)m_Geometry->m_Indices;
+
+    const size_t maxVertices = 64;
+    const size_t maxTriangles = 126;
+    const float coneWeight = 0.25f;
+
+    std::vector<meshopt_Meshlet> allMeshlets;
+    std::vector<uint32_t>        allMeshletVertices;
+    std::vector<uint8_t>         allMeshletTriangles;
+    std::vector<MeshletData>     allMeshletData;
+
+    FlatHashMap<std::string, uint32_t> alreadyBuiltMeshlets{};
+
+    for (uint32_t s = 0; s < (uint32_t)m_SubMeshes.size(); ++s)
+    {
+        SubMesh& submesh = m_SubMeshes[s];
+        if (submesh.VertexCount == 0 || submesh.IndexCount == 0)
+            continue;
+
+        if (auto it = alreadyBuiltMeshlets.find(submesh.Name); it != alreadyBuiltMeshlets.end())
+        {
+            const SubMesh& builtSubmesh = m_SubMeshes[it->second];
+            submesh.BaseMeshlet = builtSubmesh.BaseMeshlet;
+            submesh.MeshletCount = builtSubmesh.MeshletCount;
+            LNE_TRACE(std::format("[{}] {} from [{}]", s, submesh, it->second));
+            continue;
+        }
+        alreadyBuiltMeshlets[submesh.Name] = s;
+
+        const uint32_t* subIndices = indices + submesh.BaseIndex;
+        const uint32_t  subIndexCount = submesh.IndexCount;
+
+        size_t maxMeshlets = meshopt_buildMeshletsBound(subIndexCount, maxVertices, maxTriangles);
+
+        std::vector<meshopt_Meshlet> meshlets(maxMeshlets);
+        std::vector<uint32_t> meshletVertices(subIndexCount);
+        std::vector<uint8_t>  meshletTriangles(subIndexCount);
+
+        size_t meshletCount = meshopt_buildMeshlets(
+            meshlets.data(),
+            meshletVertices.data(),
+            meshletTriangles.data(),
+            subIndices,
+            subIndexCount,
+            (const float*)vertices,
+            m_TotalVertexCount,
+            sizeof(Vertex),
+            maxVertices,
+            maxTriangles,
+            coneWeight
+        );
+
+        if (meshletCount == 0)
+            continue;
+
+        meshopt_Meshlet& last = meshlets[meshletCount - 1];
+        meshletVertices.resize(last.vertex_offset + last.vertex_count);
+        meshletTriangles.resize(last.triangle_offset + last.triangle_count * 3);
+
+        submesh.BaseMeshlet = (uint32_t)allMeshletData.size();
+        submesh.MeshletCount = (uint32_t)meshletCount;
+
+        const uint32_t vertexOffsetBase = (uint32_t)allMeshletVertices.size();
+        const uint32_t triangleOffsetBase = (uint32_t)allMeshletTriangles.size();
+
+        allMeshletVertices.insert(allMeshletVertices.end(), meshletVertices.begin(), meshletVertices.end());
+        allMeshletTriangles.insert(allMeshletTriangles.end(), meshletTriangles.begin(), meshletTriangles.end());
+
+        allMeshletData.reserve(allMeshletData.size() + meshletCount);
+
+        for (uint32_t mi = 0; mi < meshletCount; ++mi)
+        {
+            meshopt_Meshlet mlt = meshlets[mi];
+
+            mlt.vertex_offset += vertexOffsetBase;
+            mlt.triangle_offset += triangleOffsetBase;
+
+            meshopt_Bounds bounds = meshopt_computeMeshletBounds(
+                allMeshletVertices.data() + mlt.vertex_offset,
+                allMeshletTriangles.data() + mlt.triangle_offset,
+                mlt.triangle_count,
+                (const float*)vertices,
+                m_TotalVertexCount,
+                sizeof(Vertex)
+            );
+
+            MeshletData md{};
+            md.VertexCount = mlt.vertex_count;
+            md.TriangleCount = mlt.triangle_count;
+            md.VertexOffset = mlt.vertex_offset;
+            md.TriangleOffset = mlt.triangle_offset;
+
+            md.BoundsCenter = glm::vec3(bounds.center[0], bounds.center[1], bounds.center[2]);
+            md.BoundsRadius = bounds.radius;
+
+            md.ConeAxis = glm::i8vec3(bounds.cone_axis_s8[0], bounds.cone_axis_s8[1], bounds.cone_axis_s8[2]);
+            md.ConeCutoff = bounds.cone_cutoff_s8;
+
+            allMeshletData.push_back(md);
+        }
+        LNE_TRACE(std::format("[{}] {}", s, submesh));
+    }
+
+    const uint32_t totalMeshletCount = (uint32_t)allMeshletData.size();
+
+    Renderer& renderer = ApplicationBase::GetRenderer();
+
+    SafePtr vertexBuffer = renderer.CreateGeometryBuffer(vertices, m_TotalVertexCount * sizeof(Vertex));
+
+    auto* meshletsDataCPU = lnnew MeshletData[totalMeshletCount];
+    std::memcpy(meshletsDataCPU, allMeshletData.data(), totalMeshletCount * sizeof(MeshletData));
+
+    auto* meshletVerticesCPU = lnnew uint32_t[allMeshletVertices.size()];
+    std::memcpy(meshletVerticesCPU, allMeshletVertices.data(), allMeshletVertices.size() * sizeof(uint32_t));
+
+    auto* meshletTrianglesCPU = lnnew uint8_t[allMeshletTriangles.size()];
+    std::memcpy(meshletTrianglesCPU, allMeshletTriangles.data(), allMeshletTriangles.size() * sizeof(uint8_t));
+
+    SafePtr meshletBuffer = renderer.CreateGeometryBuffer(meshletsDataCPU, totalMeshletCount * sizeof(MeshletData));
+    SafePtr meshletVertexIndicesBuffer = renderer.CreateGeometryBuffer(meshletVerticesCPU, allMeshletVertices.size() * sizeof(uint32_t));
+    SafePtr meshletTriangleIndicesBuffer = renderer.CreateGeometryBuffer(meshletTrianglesCPU, allMeshletTriangles.size() * sizeof(uint8_t));
+
+    delete[] m_Geometry->m_Indices;
+    m_Geometry->m_Indices = nullptr;
+
+    m_Geometry->m_VertexGPUBuffer = vertexBuffer;
+    m_Geometry->m_IndexGPUBuffer = nullptr;
+    m_Geometry->m_MeshletGPUBuffer = meshletBuffer;
+    m_Geometry->m_MeshletVertexIndicesGPUBuffer = meshletVertexIndicesBuffer;
+    m_Geometry->m_MeshletTriangleIndicesGPUBuffer = meshletTriangleIndicesBuffer;
+    m_Geometry->m_Meshlets = (void*)meshletsDataCPU;
+    m_Geometry->m_MeshletVertexIndices = (void*)meshletVerticesCPU;
+    m_Geometry->m_MeshletTriangleIndices = (void*)meshletTrianglesCPU;
+    m_Geometry->m_VertexCount = m_TotalVertexCount;
+    m_Geometry->m_IndexCount = 0;
+    m_Geometry->m_MeshletCount = totalMeshletCount;
+
+    m_Geometry->m_Type = GeometryType::eMeshlet;
+    GfxContext* ctx = renderer.GetGfxContext().GetPtr();
+    m_Geometry->InitDescSet(ctx, ctx->GetStorageOnlyDescriptorSetLayout(4));
+}
+
+void StaticMesh::FillMeshCPUData(const aiScene* scene)
+{
     uint32_t indexIndex = 0;
     uint32_t vertexIndex = 0;
     std::unordered_set<std::string> duplicatedMeshes;
@@ -121,8 +305,8 @@ void StaticMesh::LoadData(const aiScene* scene)
             continue;
         if (duplicatedMeshes.contains(mesh->mName.C_Str()))
             continue;
-        else
-            duplicatedMeshes.insert(mesh->mName.C_Str());
+        duplicatedMeshes.insert(mesh->mName.C_Str());
+
         for (uint32_t v = 0; v < mesh->mNumVertices; ++v)
         {
             Vertex vertex;
@@ -142,7 +326,7 @@ void StaticMesh::LoadData(const aiScene* scene)
             if (mesh->HasTextureCoords(0))
                 vertex.TexCoord = { mesh->mTextureCoords[0][v].x, mesh->mTextureCoords[0][v].y };
             LNE_ASSERT(vertexIndex < m_TotalVertexCount, "Vertex index out of bounds");
-            ((Vertex*)m_Geometry->Vertices)[vertexIndex++] = vertex;
+            ((Vertex*)m_Geometry->m_Vertices)[vertexIndex++] = vertex;
         }
 
         for (uint32_t f = 0; f < mesh->mNumFaces; ++f)
@@ -153,26 +337,15 @@ void StaticMesh::LoadData(const aiScene* scene)
             for (uint32_t i = 0; i < face.mNumIndices; ++i)
             {
                 LNE_ASSERT(indexIndex < m_TotalIndexCount, "Index index out of bounds");
-                ((uint32_t*)m_Geometry->Indices)[indexIndex++] = face.mIndices[i] + m_SubMeshes[m].BaseVertex;
+                ((uint32_t*)m_Geometry->m_Indices)[indexIndex++] = face.mIndices[i] + m_SubMeshes[m].BaseVertex;
             }
         }
     }
     LNE_ASSERT(indexIndex == m_TotalIndexCount, "Index count mismatch");
     LNE_ASSERT(vertexIndex == m_TotalVertexCount, "Vertex count mismatch");
-
-    m_Geometry->VertexCount = m_TotalVertexCount;
-    m_Geometry->IndexCount = m_TotalIndexCount;
-
-    auto& renderer = ApplicationBase::GetRenderer();
-
-    m_Geometry->VertexGPUBuffer = renderer.CreateGeometryBuffer(m_Geometry->Vertices, m_TotalVertexCount * sizeof(Vertex));
-    m_Geometry->IndexGPUBuffer = renderer.CreateGeometryBuffer(m_Geometry->Indices, m_TotalIndexCount * sizeof(uint32_t));
-
-    SafePtr ctx = renderer.GetGfxContext();
-    m_Geometry->InitDescSet(ctx.GetPtr(), ctx->GetStorageOnlyDescriptorSetLayout(2));
 }
 
-void StaticMesh::LoadMaterials(const aiScene* scene)
+void StaticMesh::LoadMaterials(const struct aiScene* scene, GeometryType::Enum geometryType)
 {
     auto& renderer = ApplicationBase::GetRenderer();
 
@@ -207,10 +380,20 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
         LNE_INFO("Material: {0}", name.C_Str());
 
         SafePtr<Material> material{};
-        if (isTransparent)
-            material = lnnew Material(renderer.GetTechnique("DefaultMeshTransparent"));
+        if (geometryType == GeometryType::eClassic)
+        {
+            if (isTransparent)
+                material = lnnew Material(renderer.GetTechnique("DefaultMeshTransparent"));
+            else
+                material = lnnew Material(renderer.GetTechnique("DefaultMeshOpaque"));
+        }
         else
-            material = lnnew Material(renderer.GetTechnique("DefaultMeshOpaque"));
+        {
+            if (isTransparent)
+                material = lnnew Material(renderer.GetTechnique("DefaultMeshTransparent")); // TODO: CHANGE THIS TO A MESHLET TYPE
+            else
+                material = lnnew Material(renderer.GetTechnique("DefaultMeshletOpaque"));
+        }
         m_Materials.push_back(material);
 
         aiColor3D aiColor(1.0f);
@@ -239,11 +422,11 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
             {
                 SafePtr<Texture> texture = renderer.CreateTexture(texPath.string());
                 material->SetTexture("tAlbedo", texture);
-                m_Textures.push_back(texture);
             }
         }
 
         aiString metalTex{};
+        SafePtr<Texture> metalTexture = nullptr;
         bool hasMetTex = aiMat->GetTexture(AI_MATKEY_METALLIC_TEXTURE, &metalTex) == AI_SUCCESS;
         if (hasMetTex)
         {
@@ -252,9 +435,8 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
                 LNE_WARN("Metalness texture not found for mat: {0}", aiMat->GetName().C_Str());
             else
             {
-                SafePtr<Texture> texture = renderer.CreateTexture(texPath.string(), vk::Format::eR8G8B8A8Unorm);
-                material->SetTexture("tMetalness", texture);
-                m_Textures.push_back(texture);
+                metalTexture = renderer.CreateTexture(texPath.string(), vk::Format::eR8G8B8A8Unorm);
+                material->SetTexture("tMetalness", metalTexture);
             }
         }
 
@@ -272,10 +454,9 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
                 {
                     SafePtr<Texture> texture = renderer.CreateTexture(texPath.string(), vk::Format::eR8G8B8A8Unorm);
                     material->SetTexture("tRoughness", texture);
-                    m_Textures.push_back(texture);
                 }
                 else
-                    material->SetTexture("tRoughness", m_Textures.back());
+                    material->SetTexture("tRoughness", metalTexture);
             }
         }
 
@@ -298,7 +479,6 @@ void StaticMesh::LoadMaterials(const aiScene* scene)
             {
                 SafePtr<Texture> texture = renderer.CreateTexture(texPath.string(), vk::Format::eR8G8B8A8Unorm);
                 material->SetTexture("tNormal", texture);
-                m_Textures.push_back(texture);
             }
         }
     }
@@ -317,6 +497,103 @@ void StaticMesh::TraverseNodes(const aiNode* node, const glm::mat4& parentTransf
 
     for (uint32_t i = 0; i < node->mNumChildren; ++i)
         TraverseNodes(node->mChildren[i], worldTransform);
+}
+
+void StaticMesh::GenerateUVSphereData(uint32_t nLatitude, uint32_t nLongitude, float radius, Vertex* oVertices, uint32_t* oIndices, uint32_t nVertices)
+{
+    float latitudeSlope = glm::pi<float>() / (float)(nLatitude + 1);
+    // here, longitude points should be mapped between -180 and 180 degrees (or -PI to PI).
+    float longitudeSlope = (2.f * glm::pi<float>()) / (float)nLongitude;
+
+    uint32_t count = 0;
+    // add north pole
+    for (uint32_t i = 1; i <= nLongitude; ++i)
+    {
+        oVertices[count].Position = { 0.0f, radius, 0.0f };
+        oVertices[count].TexCoord = { (float)i / ((float)nLongitude + 1.0f), 0.0f };
+        oVertices[count].Normal = { 0.0f, 1.0f, 0.0f };
+        ++count;
+    }
+
+    //middle quads
+    for (uint32_t i = 1; i < (nLatitude + 1); ++i)
+    {
+        float pLat = latitudeSlope * (float)i;
+        for (uint32_t j = 0; j < nLongitude + 1; ++j)
+        {
+            float pLon = longitudeSlope * (float)j;
+            glm::vec3 point = { sinf(pLat) * cosf(pLon), cosf(pLat), sinf(pLat) * sinf(pLon) };
+
+            oVertices[count].Position = { radius * point.x, radius * point.y, radius * point.z };
+            oVertices[count].TexCoord = { 1 - (float)j / (float)nLongitude, (float)i / (float)(nLatitude + 1) };
+            oVertices[count].Normal = glm::vec3(point);
+
+            ++count;
+        }
+    }
+
+    //add south pole
+    for (uint32_t i = 1; i <= nLongitude; ++i)
+    {
+        oVertices[count].Position = { 0.0f, -radius, 0.0f };
+        oVertices[count].TexCoord = { (float)i / ((float)nLongitude + 1.0f), 1.0f };
+        oVertices[count].Normal = { 0.0f, -1.0f, 0.0f };
+        ++count;
+    }
+
+    count = 0;
+    //north pole indices
+    for (uint32_t i = 0; i < nLongitude; ++i)
+    {
+        oIndices[count++] = i;
+        oIndices[count++] = (nLongitude - 1) + i + 2;
+        oIndices[count++] = (nLongitude - 1) + i + 1;
+    }
+
+    //middle quads
+    for (uint32_t i = 0; i < nLatitude - 1; ++i)
+    {
+        for (uint32_t j = 0; j < nLongitude; ++j)
+        {
+            uint32_t index[4] = {
+                nLongitude + i * (nLongitude + 1) + j,
+                nLongitude + i * (nLongitude + 1) + (j + 1),
+                nLongitude + (i + 1) * (nLongitude + 1) + (j + 1),
+                nLongitude + (i + 1) * (nLongitude + 1) + j
+            };
+
+            oIndices[count++] = index[0];
+            oIndices[count++] = index[1];
+            oIndices[count++] = index[2];
+
+            oIndices[count++] = index[0];
+            oIndices[count++] = index[2];
+            oIndices[count++] = index[3];
+        }
+    }
+
+    //south pole indices
+    const uint32_t southPoleIndex = nVertices - nLongitude;
+    for (uint32_t i = 0; i < nLongitude; ++i)
+    {
+        oIndices[count++] = southPoleIndex + i;
+        oIndices[count++] = southPoleIndex - (nLongitude + 1) + i;
+        oIndices[count++] = southPoleIndex - (nLongitude + 1) + i + 1;
+    }
+}
+
+void StaticMesh::SetMaterial(SafePtr<Material> mat, uint32_t index)
+{
+    bool isMeshlet = mat->GetTechnique()->GetShaderDomain() == ShaderDomain::eMeshlet && m_Geometry->GetType() == GeometryType::eMeshlet;
+    bool isClassic = mat->GetTechnique()->GetShaderDomain() == ShaderDomain::eMesh && m_Geometry->GetType() == GeometryType::eClassic;
+    LNE_ASSERT(
+        isMeshlet || isClassic, "Invalid material/geometry combination");
+    if (index >= m_Materials.size())
+    {
+        LNE_WARN("Material index out of bounds");
+        return;
+    }
+    m_Materials[index] = mat;
 }
 
 SafePtr<StaticMesh> StaticMesh::GenerateCube(uint32_t tesselationLevel)
@@ -372,19 +649,19 @@ SafePtr<StaticMesh> StaticMesh::GenerateCube(uint32_t tesselationLevel)
     std::memcpy(verticesPtr, vertices.data(), vertices.size() * sizeof(Vertex));
     std::memcpy(indicesPtr, indices.data(), indices.size() * sizeof(uint32_t));
 
-    geometry->VertexGPUBuffer = renderer.CreateGeometryBuffer(verticesPtr, vertices.size() * sizeof(Vertex));
-    geometry->IndexGPUBuffer = renderer.CreateGeometryBuffer(indicesPtr, indices.size() * sizeof(uint32_t));
-    geometry->Vertices = verticesPtr;
-    geometry->Indices = indicesPtr;
-    geometry->VertexCount = (uint32_t)vertices.size();
-    geometry->IndexCount = (uint32_t)indices.size();
+    geometry->m_VertexGPUBuffer = renderer.CreateGeometryBuffer(verticesPtr, vertices.size() * sizeof(Vertex));
+    geometry->m_IndexGPUBuffer = renderer.CreateGeometryBuffer(indicesPtr, indices.size() * sizeof(uint32_t));
+    geometry->m_Vertices = verticesPtr;
+    geometry->m_Indices = indicesPtr;
+    geometry->m_VertexCount = (uint32_t)vertices.size();
+    geometry->m_IndexCount = (uint32_t)indices.size();
 
     SafePtr ctx = renderer.GetGfxContext();
     geometry->InitDescSet(ctx.GetPtr(), ctx->GetStorageOnlyDescriptorSetLayout(2));
 
     SafePtr<StaticMesh> mesh = lnnew StaticMesh();
     mesh->m_Geometry.reset(geometry);
-    mesh->m_SubMeshes = { { "Cube", 0, 0, geometry->VertexCount, geometry->IndexCount, 0, AABB{.Min = {-1,-1,-1}, .Max = {1,1,1} } } };
+    mesh->m_SubMeshes = { { "Cube", 0, 0, geometry->m_VertexCount, geometry->m_IndexCount, 0, AABB{.Min = {-1,-1,-1}, .Max = {1,1,1} } } };
     return mesh;
 }
 
@@ -407,155 +684,215 @@ SafePtr<StaticMesh> StaticMesh::GenerateUVSphere(float radius, uint32_t nLatitud
 
     // here, latitude points should be mapped between -90 and 90 degrees (or -PI/2 to PI/2).
     // +1 to nLat because it wouldn't make sense otherwise.
-    float latitudeSlope = glm::pi<float>() / (float)(nLatitude + 1);
-    // here, longitude points should be mapped between -180 and 180 degrees (or -PI to PI).
-    float longitudeSlope = (2.f * glm::pi<float>()) / (float)nLongitude;
-
-    uint32_t count = 0;
-    // add north pole
-    for (uint32_t i = 1; i <= nLongitude; ++i)
-    {
-        vertices[count].Position = { 0.0f, radius, 0.0f };
-        vertices[count].TexCoord = { (float)i / ((float)nLongitude + 1.0f), 0.0f };
-        vertices[count].Normal = { 0.0f, 1.0f, 0.0f };
-        ++count;
-    }
-
-    //middle quads
-    for (uint32_t i = 1; i < (nLatitude + 1); ++i)
-    {
-        float pLat = latitudeSlope * (float)i;
-        for (uint32_t j = 0; j < nLongitude + 1; ++j)
-        {
-            float pLon = longitudeSlope * (float)j;
-            glm::vec3 point = { sinf(pLat) * cosf(pLon), cosf(pLat), sinf(pLat) * sinf(pLon) };
-
-            vertices[count].Position = { radius * point.x, radius * point.y, radius * point.z };
-            vertices[count].TexCoord = { 1 - (float)j / (float)nLongitude, (float)i / (float)(nLatitude + 1) };
-            vertices[count].Normal = glm::vec3(point);
-
-            ++count;
-        }
-    }
-
-    //add south pole
-    for (uint32_t i = 1; i <= nLongitude; ++i)
-    {
-        vertices[count].Position = { 0.0f, -radius, 0.0f };
-        vertices[count].TexCoord = { (float)i / ((float)nLongitude + 1.0f), 1.0f };
-        vertices[count].Normal = { 0.0f, -1.0f, 0.0f };
-        ++count;
-    }
-
-    count = 0;
-    //north pole indices
-    for (uint32_t i = 0; i < nLongitude; ++i)
-    {
-        indices[count++] = i;
-        indices[count++] = (nLongitude - 1) + i + 2;
-        indices[count++] = (nLongitude - 1) + i + 1;
-    }
-
-    //middle quads
-    for (uint32_t i = 0; i < nLatitude - 1; ++i)
-    {
-        for (uint32_t j = 0; j < nLongitude; ++j)
-        {
-            uint32_t index[4] = {
-                nLongitude + i * (nLongitude + 1) + j,
-                nLongitude + i * (nLongitude + 1) + (j + 1),
-                nLongitude + (i + 1) * (nLongitude + 1) + (j + 1),
-                nLongitude + (i + 1) * (nLongitude + 1) + j
-            };
-
-            indices[count++] = index[0];
-            indices[count++] = index[1];
-            indices[count++] = index[2];
-
-            indices[count++] = index[0];
-            indices[count++] = index[2];
-            indices[count++] = index[3];
-        }
-    }
-
-    //south pole indices
-    const uint32_t southPoleIndex = nVertices - nLongitude;
-    for (uint32_t i = 0; i < nLongitude; ++i)
-    {
-        indices[count++] = southPoleIndex + i;
-        indices[count++] = southPoleIndex - (nLongitude + 1) + i;
-        indices[count++] = southPoleIndex - (nLongitude + 1) + i + 1;
-    }
+    GenerateUVSphereData(nLatitude, nLongitude, radius, vertices, indices, nVertices);
 
     Renderer& renderer = ApplicationBase::GetRenderer();
-    geometry->VertexGPUBuffer = renderer.CreateGeometryBuffer(vertices, nVertices * sizeof(Vertex));
-    geometry->IndexGPUBuffer = renderer.CreateGeometryBuffer(indices, nIndices * sizeof(uint32_t));
+    geometry->m_VertexGPUBuffer = renderer.CreateGeometryBuffer(vertices, nVertices * sizeof(Vertex));
+    geometry->m_IndexGPUBuffer = renderer.CreateGeometryBuffer(indices, nIndices * sizeof(uint32_t));
 
-    geometry->VertexCount = nVertices;
-    geometry->IndexCount = nIndices;
+    geometry->m_VertexCount = nVertices;
+    geometry->m_IndexCount = nIndices;
 
-    geometry->Vertices = vertices;
-    geometry->Indices = indices;
+    geometry->m_Vertices = vertices;
+    geometry->m_Indices = indices;
 
     SafePtr ctx = renderer.GetGfxContext();
     geometry->InitDescSet(ctx.GetPtr(), ctx->GetStorageOnlyDescriptorSetLayout(2));
     
     SafePtr<StaticMesh> mesh = lnnew StaticMesh();
     mesh->m_Geometry.reset(geometry);
-    mesh->m_SubMeshes = { { "UVSphere", 0, 0, geometry->VertexCount, geometry->IndexCount, 0, AABB{.Min = {-radius,0,0}, .Max = {radius,0,0} } } };
+    mesh->m_SubMeshes = { { "UVSphere", 0, 0, geometry->m_VertexCount, geometry->m_IndexCount, 0, AABB{.Min = {-radius,-radius,-radius}, .Max = {radius,radius,radius} } } };
     return mesh;
 }
 
+lne::SafePtr<StaticMesh> StaticMesh::GenerateUVSphereMeshlets(float radius /*= 1.f*/, uint32_t nLatitude /*= 32*/, uint32_t nLongitude /*= 32*/)
+{
+    if (nLatitude < 1)
+        nLatitude = 1;
+    if (nLongitude < 3)
+        nLongitude = 3;
+
+    SafePtr<StaticMesh> mesh = lnnew StaticMesh();
+
+    uint32_t nVertices = nLatitude * (nLongitude + 1) + (nLongitude * 2);
+    uint32_t nIndices = 2 * 3 * nLongitude + 2 * 3 * (nLatitude - 1) * nLongitude;
+
+    Vertex* vertices = lnnew Vertex[nVertices];
+    std::memset(vertices, 0, nVertices * sizeof(Vertex));
+    uint32_t* indices = lnnew uint32_t[nIndices];
+
+    GenerateUVSphereData(nLatitude, nLongitude, radius, vertices, indices, nVertices);
+
+    // numbers advised by nvidia https://developer.nvidia.com/blog/introduction-turing-mesh-shaders/
+    const size_t maxVertices = 64;
+    const size_t maxTriangles = 126;
+    const float coneWeight = 0.0f;
+
+    size_t maxMeshlets = meshopt_buildMeshletsBound(nIndices, maxVertices, maxTriangles);
+    std::vector<meshopt_Meshlet> meshlets(maxMeshlets);
+    std::vector<uint32_t> meshletVertices(nIndices);
+    std::vector<uint8_t> meshletTriangles(nIndices);
+
+    size_t meshletCount = meshopt_buildMeshlets(
+        meshlets.data(), meshletVertices.data(), meshletTriangles.data(),
+        indices, nIndices, (float*)vertices, nVertices, sizeof(Vertex),
+        maxVertices, maxTriangles, coneWeight
+    );
+    meshopt_Meshlet& lastMeshlet = meshlets[meshletCount - 1];
+    meshletVertices.resize(lastMeshlet.vertex_offset + lastMeshlet.vertex_count);
+    meshletTriangles.resize(lastMeshlet.triangle_offset + lastMeshlet.triangle_count * 3);
+    auto* meshletsData = new MeshletData[meshletCount];
+
+    // compute bounds for each meshlet
+    for (uint32_t mi = 0; mi < meshletCount; ++mi)
+    {
+        meshopt_Meshlet& meshlet = meshlets[mi];
+        meshopt_Bounds bounds = meshopt_computeMeshletBounds(
+            meshletVertices.data() + meshlet.vertex_offset,
+            meshletTriangles.data() + meshlet.triangle_offset,
+            meshlet.triangle_count,
+            (float*)vertices,
+            nVertices,
+            sizeof(Vertex)
+        );
+        MeshletData& meshletData = meshletsData[mi];
+        meshletData.VertexCount = meshlet.vertex_count;
+        meshletData.TriangleCount = meshlet.triangle_count;
+        meshletData.VertexOffset = meshlet.vertex_offset;
+        meshletData.TriangleOffset = meshlet.triangle_offset;
+        meshletData.BoundsCenter = glm::vec3(bounds.center[0], bounds.center[1], bounds.center[2]);
+        meshletData.BoundsRadius = bounds.radius;
+        meshletData.ConeAxis = glm::i8vec3(bounds.cone_axis_s8[0], bounds.cone_axis_s8[1], bounds.cone_axis_s8[2]);
+        meshletData.ConeCutoff = bounds.cone_cutoff_s8;
+    }
+
+    // could use meshopt_optimizeMeshlet later but for now, we test.
+    Renderer& renderer = ApplicationBase::GetRenderer();
+    SafePtr vertexBuffer = renderer.CreateGeometryBuffer(vertices, nVertices * sizeof(Vertex));
+
+    SafePtr meshletBuffer = renderer.CreateGeometryBuffer(meshletsData, meshletCount * sizeof(MeshletData));
+
+    void* meshletVerticesData = new uint32_t[meshletVertices.size()];
+    std::memcpy(meshletVerticesData, meshletVertices.data(), meshletVertices.size() * sizeof(uint32_t));
+    SafePtr meshletVertexIndicesBuffer = renderer.CreateGeometryBuffer(meshletVerticesData, meshletVertices.size() * sizeof(uint32_t));
+
+    void* meshletTrianglesData = new uint8_t[meshletTriangles.size()];
+    std::memcpy(meshletTrianglesData, meshletTriangles.data(), meshletTriangles.size() * sizeof(uint8_t));
+    SafePtr meshletTriangleIndicesBuffer = renderer.CreateGeometryBuffer(meshletTrianglesData, meshletTriangles.size() * sizeof(uint8_t));
+    Geometry* geometry;
+
+    geometry = lnnew Geometry(
+        renderer.GetGfxContext().GetPtr(),
+        vertexBuffer,
+        nullptr,
+        meshletBuffer,
+        meshletVertexIndicesBuffer,
+        meshletTriangleIndicesBuffer,
+        (void*)meshletsData,
+        meshletVerticesData,
+        meshletTrianglesData,
+        vertices,
+        nVertices,
+        static_cast<uint32_t>(meshletCount)
+    );
+
+    mesh->m_Geometry.reset(geometry);
+    mesh->m_SubMeshes = { { "UVSphere_Meshlets", 0, 0, 0, 0, 0, AABB{.Min = {-radius,-radius,-radius}, .Max = {radius,radius,radius} }, 0, (uint32_t)meshletCount } };
+    delete[] indices;
+    return mesh;
+}
+
+lne::SafePtr<lne::StaticMesh> StaticMesh::Clone() const
+{
+    SafePtr<StaticMesh> clone = lnnew StaticMesh();
+    clone->m_Path = m_Path;
+
+    clone->m_SubMeshes = m_SubMeshes;
+    clone->m_Geometry = m_Geometry;
+    clone->m_TotalVertexCount = m_TotalVertexCount;
+    clone->m_TotalIndexCount = m_TotalIndexCount;
+
+    clone->m_Materials = m_Materials;
+    return clone;
+}
+
 Geometry::Geometry(GfxContext* ctx, SafePtr<StorageBuffer> vertexGPUBuffer, SafePtr<StorageBuffer> indexGPUBuffer, void* vertices, void* indices, uint32_t vertexCount, uint32_t indexCount)
-    : VertexGPUBuffer(vertexGPUBuffer), IndexGPUBuffer(indexGPUBuffer), 
-      Vertices(vertices), Indices(indices), 
-      VertexCount(vertexCount), IndexCount(indexCount)
+    : m_Type(GeometryType::eClassic), m_VertexGPUBuffer(vertexGPUBuffer), m_IndexGPUBuffer(indexGPUBuffer),
+      m_Vertices(vertices), m_Indices(indices), 
+      m_VertexCount(vertexCount), m_IndexCount(indexCount)
 {
     InitDescSet(ctx, ctx->GetStorageOnlyDescriptorSetLayout(2));
 }
 
 Geometry::Geometry(Geometry&& other) noexcept
-    : VertexGPUBuffer(std::move(other.VertexGPUBuffer)),
-    IndexGPUBuffer(std::move(other.IndexGPUBuffer)),
-    Vertices(other.Vertices),
-    Indices(other.Indices),
-    VertexCount(other.VertexCount),
-    IndexCount(other.IndexCount)
+    : m_VertexGPUBuffer(std::move(other.m_VertexGPUBuffer)),
+    m_IndexGPUBuffer(std::move(other.m_IndexGPUBuffer)),
+    m_Vertices(other.m_Vertices),
+    m_Indices(other.m_Indices),
+    m_VertexCount(other.m_VertexCount),
+    m_IndexCount(other.m_IndexCount),
+    m_DescSet(other.m_DescSet)
 {
-    other.Vertices = nullptr;
-    other.Indices = nullptr;
-    other.IndexCount = 0;
-    other.VertexCount = 0;
+    other.m_Vertices = nullptr;
+    other.m_Indices = nullptr;
+    other.m_IndexCount = 0;
+    other.m_VertexCount = 0;
+    other.m_DescSet = nullptr;
+}
+
+Geometry::Geometry(GfxContext* ctx, 
+                   SafePtr<StorageBuffer> vertexGPUBuffer, SafePtr<StorageBuffer> indexGPUBuffer, 
+                   SafePtr<StorageBuffer> meshletGPUBuffer, 
+                   SafePtr<StorageBuffer> meshletVertexIndicesGPUBuffer, 
+                   SafePtr<StorageBuffer> meshletTriangleIndicesGPUBuffer, 
+                   void* meshlets, void* meshletVertexIndices, void* meshletTriangleIndices,
+                   void* vertices, uint32_t vertexCount, uint32_t meshletCount)
+    : m_Type(GeometryType::eMeshlet), m_VertexGPUBuffer(vertexGPUBuffer), m_IndexGPUBuffer(indexGPUBuffer),
+      m_MeshletGPUBuffer(meshletGPUBuffer), m_MeshletVertexIndicesGPUBuffer(meshletVertexIndicesGPUBuffer),
+      m_MeshletTriangleIndicesGPUBuffer(meshletTriangleIndicesGPUBuffer),
+      m_Meshlets(meshlets), m_MeshletVertexIndices(meshletVertexIndices), m_MeshletTriangleIndices(meshletTriangleIndices),
+      m_Vertices(vertices), m_VertexCount(vertexCount), m_MeshletCount(meshletCount)
+{
+    InitDescSet(ctx, ctx->GetStorageOnlyDescriptorSetLayout(4));
 }
 
 Geometry& Geometry::operator=(Geometry&& other) noexcept
 {
     if (this == &other)
         return *this;
-    VertexGPUBuffer = std::move(other.VertexGPUBuffer);
-    IndexGPUBuffer = std::move(other.IndexGPUBuffer);
-    Vertices = other.Vertices;
-    Indices = other.Indices;
-    VertexCount = other.VertexCount;
-    IndexCount = other.IndexCount;
-    other.Vertices = nullptr;
-    other.Indices = nullptr;
-    other.IndexCount = 0;
-    other.VertexCount = 0;
+    m_VertexGPUBuffer = std::move(other.m_VertexGPUBuffer);
+    m_IndexGPUBuffer = std::move(other.m_IndexGPUBuffer);
+    m_Vertices = other.m_Vertices;
+    m_Indices = other.m_Indices;
+    m_VertexCount = other.m_VertexCount;
+    m_IndexCount = other.m_IndexCount;
+    other.m_Vertices = nullptr;
+    other.m_Indices = nullptr;
+    other.m_IndexCount = 0;
+    other.m_VertexCount = 0;
     return *this;
 }
 
 Geometry::~Geometry()
 {
-    delete[] Vertices;
-    delete[] Indices;
-    VertexGPUBuffer.Reset();
-    IndexGPUBuffer.Reset();
-    if (DescSet)
+    delete[] m_Vertices;
+
+    if (m_Indices != nullptr) 
+        delete[] m_Indices;
+    if (m_Meshlets != nullptr) 
+        delete[] m_Meshlets;
+    if (m_MeshletVertexIndices != nullptr) 
+        delete[] m_MeshletVertexIndices;
+    if (m_MeshletTriangleIndices != nullptr) 
+        delete[] m_MeshletTriangleIndices;
+
+    m_VertexGPUBuffer.Reset();
+    m_IndexGPUBuffer.Reset();
+    if (m_DescSet)
     {
         DescriptorSetDeletion resourceDeletion{
             .Type = DescriptorType::eStorageOnly,
-            .DescriptorSet = DescSet,
+            .DescriptorSet = m_DescSet,
         };
         ApplicationBase::GetRenderer().GetGfxContext()->EnqueueResourceDeletion(ResourceDeletion{
             .Type = ResourceType::eDescriptorSet,
@@ -566,32 +903,92 @@ Geometry::~Geometry()
 
 void Geometry::InitDescSet(GfxContext* ctx, vk::DescriptorSetLayout layout)
 {
-    DescSet = ctx->AllocateDescriptorSet(layout, DescriptorType::eStorageOnly);
-    vk::DescriptorBufferInfo vertexInfo = VertexGPUBuffer->GetDescriptorInfo();
-    vk::DescriptorBufferInfo indexInfo = IndexGPUBuffer->GetDescriptorInfo();
-    std::vector<vk::WriteDescriptorSet> writeDescSets = {
-        vk::WriteDescriptorSet{
-            DescSet,
-            0,
-            0,
-            1,
-            vk::DescriptorType::eStorageBuffer,
-            nullptr,
-            &vertexInfo,
-            nullptr
-        },
-        vk::WriteDescriptorSet{
-            DescSet,
-            1,
-            0,
-            1,
-            vk::DescriptorType::eStorageBuffer,
-            nullptr,
-            &indexInfo,
-            nullptr
-        }
-    };
-    ctx->GetDevice().updateDescriptorSets(writeDescSets, {});
+    m_DescSet = ctx->AllocateDescriptorSet(layout, DescriptorType::eStorageOnly);
+    std::vector<vk::WriteDescriptorSet> writeDescSets;
+    switch (m_Type)
+    {
+    case GeometryType::eClassic:
+    {
+        vk::DescriptorBufferInfo vertexInfo = m_VertexGPUBuffer->GetDescriptorInfo();
+        vk::DescriptorBufferInfo indexInfo = m_IndexGPUBuffer->GetDescriptorInfo();
+        writeDescSets = {
+            vk::WriteDescriptorSet{
+                m_DescSet,
+                0,
+                0,
+                1,
+                vk::DescriptorType::eStorageBuffer,
+                nullptr,
+                & vertexInfo,
+                nullptr
+            },
+            vk::WriteDescriptorSet{
+                m_DescSet,
+                1,
+                0,
+                1,
+                vk::DescriptorType::eStorageBuffer,
+                nullptr,
+                &indexInfo,
+                nullptr
+            }
+        };
+        ctx->GetDevice().updateDescriptorSets(writeDescSets, {});
+        break;
+    }
+    case GeometryType::eMeshlet:
+    {
+        vk::DescriptorBufferInfo vertexInfo = m_VertexGPUBuffer->GetDescriptorInfo();
+        vk::DescriptorBufferInfo meshletInfo = m_MeshletGPUBuffer->GetDescriptorInfo();
+        vk::DescriptorBufferInfo meshletVertexIndicesInfo = m_MeshletVertexIndicesGPUBuffer->GetDescriptorInfo();
+        vk::DescriptorBufferInfo meshletTriangleIndicesInfo = m_MeshletTriangleIndicesGPUBuffer->GetDescriptorInfo();
+
+        writeDescSets = {
+            vk::WriteDescriptorSet{
+                m_DescSet,
+                0,
+                0,
+                1,
+                vk::DescriptorType::eStorageBuffer,
+                nullptr,
+                &vertexInfo,
+                nullptr
+            },
+            vk::WriteDescriptorSet{
+                m_DescSet,
+                1,
+                0,
+                1,
+                vk::DescriptorType::eStorageBuffer,
+                nullptr,
+                &meshletInfo,
+                nullptr
+            },
+            vk::WriteDescriptorSet{
+                m_DescSet,
+                2,
+                0,
+                1,
+                vk::DescriptorType::eStorageBuffer,
+                nullptr,
+                &meshletVertexIndicesInfo,
+                nullptr
+            },
+            vk::WriteDescriptorSet{
+                m_DescSet,
+                3,
+                0,
+                1,
+                vk::DescriptorType::eStorageBuffer,
+                nullptr,
+                &meshletTriangleIndicesInfo,
+                nullptr
+            }
+        };
+        ctx->GetDevice().updateDescriptorSets(writeDescSets, {});
+        break;
+    }
+    }
 }
 
 }

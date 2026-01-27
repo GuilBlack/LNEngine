@@ -1,4 +1,4 @@
-//#lne_head [Cp main]
+//#lne_head [Cp main][Tp Compute]
 #version 460
 
 #include "Common.glslh"

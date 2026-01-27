@@ -1,9 +1,9 @@
 #pragma once
-#include "IRenderPass.h"
+#include "RenderPass.h"
 
 namespace lne
 {
-class DepthPrePass : public IRenderPass, public IDrawStaticMeshes
+class DepthPrePass : public RenderPass, public IDrawStaticMeshes
 {
 public:
     DepthPrePass();

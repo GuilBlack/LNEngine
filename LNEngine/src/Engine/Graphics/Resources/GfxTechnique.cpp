@@ -10,6 +10,13 @@ namespace lne
 GfxTechnique::GfxTechnique(const GfxTechniqueDesc& desc)
     : m_Name(desc.Name), m_State(desc.TechniqueState)
 {
+    if (!desc.IsValid())
+    {
+        LNE_ASSERT("Invalid GfxTechniqueDesc passed to GfxTechnique constructor for technique '{}'", desc.Name);
+        return;
+    }
+    m_ShaderDomain = desc.GetShaderDomain();
+
     for (const PassBindingDesc& passDesc : desc.Passes)
     {
         PassBinding binding{
@@ -32,13 +39,11 @@ PipelineHandle GfxTechnique::CreateOrGetPipeline(PassID passID, SafePtr<FrameGra
     desc.CullMode = m_State.Cull;
     desc.Fill = m_State.Fill;
     desc.TransparencyMode = m_State.Transparency;
+    desc.DepthCompareOp = m_State.DepthCompareOp;
     desc.DeriveDepthFromTransparency = m_State.DeriveDepthFromTransparency;
     desc.FrameGraph = frameGraph.GetPtr();
     if (!m_State.DeriveDepthFromTransparency)
-    {
         desc.DepthMode = m_State.DepthMode;
-        desc.DepthCompareOp = m_State.DepthCompareOp;
-    }
     desc.Shader = passBinding.PassEffect->GetShader();
     return passBinding.PassEffect->CreateOrGetPipeline(desc);
 }
@@ -69,9 +74,11 @@ FlatHashMap<PassID, MaterialPassSlot> GfxTechnique::AllocateMaterialSlots()
     for (const auto&[passId, passBinding] : m_Passes)
     {
         MaterialSlot slot = passBinding.PassEffect->AllocateMaterialSlot();
-        auto it = passBinding.PassEffect->GetShader()->GetReflectedData().PushConstants.find("matPC");
-        vk::ShaderStageFlags stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-        if (it == passBinding.PassEffect->GetShader()->GetReflectedData().PushConstants.end())
+
+        // should always have only one push constant block
+        auto it = passBinding.PassEffect->GetShader()->GetReflectedData().PushConstants.cbegin();
+        vk::ShaderStageFlags stageFlags;
+        if (it == passBinding.PassEffect->GetShader()->GetReflectedData().PushConstants.cend())
             LNE_ERROR("Shader used in technique {} pass '{}' does not have 'matPC' push constant", m_Name, passId);
 
         stageFlags = it->second.Stages;
@@ -79,4 +86,27 @@ FlatHashMap<PassID, MaterialPassSlot> GfxTechnique::AllocateMaterialSlots()
     }
     return slots;
 }
+
+bool GfxTechniqueDesc::IsValid() const
+{
+    if (Passes.empty())
+        return false;
+    ShaderDomain::Enum domain = Passes[0].PassEffect->GetShader()->GetShaderDomain();
+    for (const PassBindingDesc& passDesc : Passes)
+    {
+        if (!passDesc.PassEffect)
+            return false;
+        if (passDesc.PassEffect->GetShader()->GetShaderDomain() != domain)
+            return false;
+    }
+    return true;
+}
+
+lne::ShaderDomain::Enum GfxTechniqueDesc::GetShaderDomain() const
+{
+    if (IsValid() == false)
+        return ShaderDomain::eUnknown;
+    return Passes[0].PassEffect->GetShader()->GetShaderDomain();
+}
+
 }

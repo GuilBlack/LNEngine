@@ -1,8 +1,12 @@
 #extension GL_EXT_scalar_block_layout : enable
 #extension GL_EXT_nonuniform_qualifier : require
 
-#define PI 3.14159265358979323846
-#define TWO_OVER_PI 2.0 / PI
+#define PI 3.14159265358979311599796346854
+#define TWO_PI (2.0 * PI)
+#define HALF_PI (0.5 * PI)
+#define INV_PI (1.0 / PI)
+#define INV_TWO_PI (1.0 / (2.0 * PI))
+#define TWO_OVER_PI (2.0 / PI)
 
 float rand(vec2 co)
 {
@@ -10,7 +14,7 @@ float rand(vec2 co)
     float b = 78.233;
     float c = 43758.5453;
     float dt = dot(co.xy, vec2(a, b));
-    float sn = mod(dt, 3.14);
+    float sn = mod(dt, PI);
     return fract(sin(sn) * c);
 }
 

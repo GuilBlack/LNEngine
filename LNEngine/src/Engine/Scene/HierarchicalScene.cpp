@@ -14,6 +14,7 @@ HierarchicalScene::HierarchicalScene()
         EntityRegistry::RegisterComponentType<TransformComponent>();
         EntityRegistry::RegisterComponentType<CameraComponent>();
         EntityRegistry::RegisterComponentType<StaticMeshComponent>();
+        EntityRegistry::RegisterComponentType<LightComponent>();
         s_Initialized = true;
     }
 }

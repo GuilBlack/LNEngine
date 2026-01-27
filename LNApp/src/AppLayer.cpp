@@ -40,6 +40,7 @@ void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNo
     techDesc.TechniqueState.Fill = lne::EFillMode::Solid;
     techDesc.TechniqueState.Transparency = lne::TransparencyMode::eOpaque;
     techDesc.TechniqueState.DepthMode = lne::DepthMode::eNone;
+    techDesc.TechniqueState.DepthCompareOp = lne::ECompareOperation::GreaterOrEqual;
 
     PassBindingDesc passDesc{};
     passDesc.PassName = "SkyboxPass";
@@ -76,7 +77,8 @@ void AppLayer::SkyboxPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRender
     }
 
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
-    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, GetID());
+    auto lightBuffer = worldRenderer->GetLightBufferGPU(renderer.GetCurrentFrameIndex());
+    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, lightBuffer, GetID());
 }
 
 void AppLayer::SkyboxPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
@@ -177,7 +179,8 @@ void AppLayer::ToneMappingPass::Execute(vk::CommandBuffer cmdBuffer, class lne::
         lne::FrameGraphResource* resource = frameGraph->GetResource(handle);
         lne::SafePtr<lne::Texture> sceneTexture = resource->Resource.GetAs<lne::Texture>();
     }
-    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, GetID());
+    auto lightBuffer = worldRenderer->GetLightBufferGPU(renderer.GetCurrentFrameIndex());
+    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, lightBuffer, GetID());
 }
 
 void AppLayer::ToneMappingPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
@@ -240,23 +243,55 @@ void AppLayer::OnAttach()
 
 #pragma region CreateEntities
     m_CameraEntity = m_Scene->CreateEntity();
-    CameraComponent& cameraComponent = m_CameraEntity.EmplaceComponent<CameraComponent>();
-    TransformComponent& cameraTransform = m_CameraEntity.GetComponent<TransformComponent>();
 
     m_ModelEntity = m_Scene->CreateEntity();
     m_ModelSpheres = m_Scene->CreateEntity();
     m_CubeEntity = m_Scene->CreateEntity();
     m_SphereEntity = m_Scene->CreateEntity();
-    
+
     m_ModelEntity.EmplaceComponent<StaticMeshComponent>();
     m_ModelSpheres.EmplaceComponent<StaticMeshComponent>();
     m_CubeEntity.EmplaceComponent<StaticMeshComponent>();
     m_SphereEntity.EmplaceComponent<StaticMeshComponent>();
 
-    auto[modelTransform, modelMeshComponent] = m_ModelEntity.GetComponents<TransformComponent, StaticMeshComponent>();
-    auto[modelSphereTransform, modelSphereMeshComponent] = m_ModelSpheres.GetComponents<TransformComponent, StaticMeshComponent>();
-    auto[cubeTransform, cubeMeshComponent] = m_CubeEntity.GetComponents<TransformComponent, StaticMeshComponent>();
-    auto[sphereTransform, sphereMeshComponent] = m_SphereEntity.GetComponents<TransformComponent, StaticMeshComponent>();
+    m_LightEntities.reserve(1);
+    for (uint32_t i = 0; i < 10; ++i)
+    {
+        lne::Entity lightEntity = m_Scene->CreateEntity();
+        auto& lightComp = lightEntity.EmplaceComponent<lne::LightComponent>();
+        lightComp.Type = lne::LightType::ePoint;
+        lightComp.Color = glm::vec3(static_cast<float>(std::rand()) / RAND_MAX,
+                                    static_cast<float>(std::rand()) / RAND_MAX,
+                                    static_cast<float>(std::rand()) / RAND_MAX);
+        float angle = i * glm::two_pi<float>() / 10;
+        float radius = 1.f;
+        auto& lightTransform = lightEntity.GetComponent<lne::TransformComponent>();
+        lightTransform.Position = glm::vec3(cos(angle) * radius, 0.5f, sin(angle) * radius);
+
+        lightComp.Intensity = 100.f;
+        lightComp.Range = 1.0f;
+
+        m_LightEntities.emplace_back(std::move(lightEntity));
+    }
+    lne::Entity spotLightEntity = m_Scene->CreateEntity();
+    auto& spotLightComp = spotLightEntity.EmplaceComponent<lne::LightComponent>();
+    spotLightComp.Type = lne::LightType::eSpot;
+    spotLightComp.Color = glm::vec3(1.0f, 1.0f, 1.0f);
+    spotLightComp.Intensity = 100.f;
+    spotLightComp.Range = 30.0f;
+    spotLightComp.SpotAngle = glm::radians(10.0f);
+    auto& spotLightTransform = spotLightEntity.GetComponent<lne::TransformComponent>();
+    spotLightTransform.Position = glm::vec3(0.0f, 0.5f, 0.0f);
+    spotLightTransform.SetEulerAngles({ 0.0f, -90.0f, 0.0f });
+
+    CameraComponent& cameraComponent = m_CameraEntity.EmplaceComponent<CameraComponent>();
+    TransformComponent& cameraTransform = m_CameraEntity.GetComponent<TransformComponent>();
+
+    auto [modelTransform, modelMeshComponent] = m_ModelEntity.GetComponents<TransformComponent, StaticMeshComponent>();
+    auto [modelSphereTransform, modelSphereMeshComponent] = m_ModelSpheres.GetComponents<TransformComponent, StaticMeshComponent>();
+    auto [cubeTransform, cubeMeshComponent] = m_CubeEntity.GetComponents<TransformComponent, StaticMeshComponent>();
+    auto [sphereTransform, sphereMeshComponent] = m_SphereEntity.GetComponents<TransformComponent, StaticMeshComponent>();
+
 #pragma endregion
 
 #pragma region LoadModels
@@ -264,8 +299,7 @@ void AppLayer::OnAttach()
     cubeMesh->SetMaterial(m_BasicMaterial, 0);
     SafePtr sphereMesh = StaticMesh::GenerateUVSphere(1.0f, 32, 32);
     sphereMesh->SetMaterial(m_BasicMaterial2, 0);
-    modelMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Sponza\\glTF\\Sponza.gltf");
-    modelSphereMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\MetalRoughSpheres\\glTF\\MetalRoughSpheres.gltf");
+    modelMeshComponent.Mesh = lnnew StaticMesh(ApplicationBase::GetAssetsPath() + "Models\\gltf\\Models\\Sponza\\glTF\\Sponza.gltf", GeometryType::eMeshlet);
 
     cubeMeshComponent.Mesh = cubeMesh;
     sphereMeshComponent.Mesh = sphereMesh;
@@ -275,40 +309,23 @@ void AppLayer::OnAttach()
     cubeTransform.Position =  { -0.5f, 0.0f, -30.0f };
     cubeTransform.Scale =     { 0.25f, 0.25f, 0.25f };
 
-    sphereTransform.Position = { 0.5f, 0.0f, 0.0f };
+    sphereTransform.Position = { 0.f, 1.0f, 0.0f };
     sphereTransform.Scale = { 0.25f, 0.25f, 0.25f };
 
     modelTransform.Position = { 0.0f, 0.0f, 0.0f };
     modelTransform.Scale = { 100.f, 100.f, 100.f };
 
     modelSphereTransform.Position = { 0.0f, 10.0f, 0.0f };
+    modelSphereTransform.SetEulerAngles({ 90.0f, 0.0f, 0.0f });
     modelSphereTransform.Scale = { 10.f, 10.f, 10.f };
 
 #pragma endregion
-    //SafePtr<StaticMesh> purpleSphere = sphereMeshComponent.Mesh;
-    //SafePtr<StaticMesh> uvSphere = lnnew StaticMesh(sphereGeo, m_BasicMaterial, { uvChecker }, m_BasePipeline);
-
-    //for (int i = 0; i < 32000; i++)
-    //{
-    //    Entity temp = m_Scene->CreateEntity();
-    //    temp.EmplaceComponent<StaticMeshComponent>();
-
-    //    auto [tempTransform, tempMeshComp] =
-    //        temp.GetComponents<TransformComponent, StaticMeshComponent>();
-
-    //    float xRand = (rand() / (float)RAND_MAX) * 60;
-    //    float yRand = (rand() / (float)RAND_MAX) * 60;
-    //    float zRand = (rand() / (float)RAND_MAX) * 60;
-    //    tempTransform.Position = { xRand, yRand, -zRand };
-    //    tempTransform.Scale = { 0.25f, 0.25f, 0.25f };
-    //        tempMeshComp.Mesh = sphereMesh;
-    //}
 
     cameraTransform.Position = { -2.0f, 4.0f, 0.0f };
     cameraTransform.LookAt({ 0.0f, 0.0f, 0.0f });
 
     auto& windowSettings = ApplicationBase::GetWindow().GetSettings();
-    cameraComponent.SetPerspective(45.0f, windowSettings.Width / (float)windowSettings.Height, 0.001f, 1000.0f);
+    cameraComponent.SetPerspective(45.0f, windowSettings.Width / (float)windowSettings.Height, 0.01f, 1000.0f);
 
     m_CameraTarget.Position = cameraTransform.Position;
     m_CameraTarget.Rotation = cameraTransform.EulerAngles;
@@ -317,6 +334,60 @@ void AppLayer::OnAttach()
     m_WorldRenderer->SetEnvironmentMap(ApplicationBase::GetAssetsPath() + "Textures\\HDRIs\\pisa.hdr");
     m_WorldRenderer->SetSunLightDirection(m_LightDirection);
     m_WorldRenderer->SetAmbientLight(m_AmbientLight);
+
+    SafePtr meshletSphereMesh = StaticMesh::GenerateUVSphereMeshlets(3.0f, 128, 128);
+
+    SafePtr meshletTech = renderer.GetTechnique("DefaultMeshletOpaque");
+    if (meshletTech)
+    {
+        PipelineHandle pipeline = meshletTech->CreateOrGetPipeline(lne::MakePassID("GBufferPass"), m_FrameGraph);
+    }
+    m_MeshletMaterial = lnnew Material(meshletTech);
+    m_MeshletMaterial->SetProperty("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
+    meshletSphereMesh->SetMaterial(m_MeshletMaterial, 0);
+    lne::Entity meshletSphereEntity = m_Scene->CreateEntity();
+    meshletSphereEntity.EmplaceComponent<lne::StaticMeshComponent>();
+
+    auto [meshletTransform, meshletMeshComponent] = meshletSphereEntity.GetComponents<lne::TransformComponent, lne::StaticMeshComponent>();
+
+    meshletMeshComponent.Mesh = meshletSphereMesh;
+    meshletTransform.Position = { 0.0f, 15.0f, 0.0f };
+
+    glm::vec3 color{};
+
+    for (int sic = 0; sic < 2; ++sic)
+    {
+        if (sic == 0)
+            color = 0.8f * glm::vec3(1.0f, 1.0f, 1.0f);
+        else
+            color = glm::vec3(0.8, 0.6941176470588235f, 0.11372549019607843f); // gold-like
+
+        for (int sim = 0; sim < 5; ++sim)
+        {
+            float metalness = sim / 4.0f;
+            for (int sir = 0; sir < 5; ++sir)
+            {
+                float roughness = sir / 4.0f;
+                lne::Entity entity = m_Scene->CreateEntity();
+                entity.EmplaceComponent<lne::StaticMeshComponent>();
+
+                SafePtr metalRoughSphereMesh = meshletSphereMesh->Clone();
+                SafePtr grayMaterial = lnnew Material(meshletTech);
+                grayMaterial->SetProperty("uColor", glm::vec4(color, 1.0f));
+                grayMaterial->SetProperty("uMetalness", metalness);
+                grayMaterial->SetProperty("uRoughness", roughness);
+                metalRoughSphereMesh->SetMaterial(grayMaterial, 0);
+                auto [transform, meshComponent] = entity.GetComponents<lne::TransformComponent, lne::StaticMeshComponent>();
+                meshComponent.Mesh = metalRoughSphereMesh;
+
+                transform.Position = glm::vec3(
+                    (sim * 2.0f - 1.0f) * 5.0f,
+                    (sir * 2.0f - 1.0f) * 5.0f,
+                    10.0f * (sic + 1)
+                );
+            }
+        }
+    }
 }
 
 void AppLayer::InitFrameGraph()
@@ -337,13 +408,7 @@ void AppLayer::InitFrameGraph()
         .SetDefaultColorAttachmentInfos()
         .SetImageFormat(vk::Format::eR16G16B16A16Sfloat)
         .Build();
-    
-    lne::FrameGraphResourceDesc positionAttachmentDesc = resourceBuilder.SetName("GBufferPosition")
-        .SetType(lne::FrameGraphResourceType::eAttachment)
-        .SetDefaultColorAttachmentInfos()
-        .SetImageFormat(vk::Format::eR16G16B16A16Sfloat)
-        .Build();
-    
+
     lne::FrameGraphResourceDesc metalRoughAttachmentDesc = resourceBuilder.SetName("GBufferMetalRough")
         .SetType(lne::FrameGraphResourceType::eAttachment)
         .SetDefaultColorAttachmentInfos()
@@ -365,6 +430,13 @@ void AppLayer::InitFrameGraph()
     lne::FrameGraphResourceDesc transparentResource = transparentResourceBuilder.SetName("LightingTransparentRef")
         .SetImageDimension(width, height)
         .SetType(lne::FrameGraphResourceType::eProxy)
+        .SetProxyInfo("MeshletDebugRef")
+        .Build();
+
+    lne::FrameGraphResourceDescBuilder meshletDebugResourceBuilder = lne::FrameGraphResourceDescBuilder();
+    lne::FrameGraphResourceDesc meshletDebugResource = meshletDebugResourceBuilder.SetName("MeshletDebugRef")
+        .SetImageDimension(width, height)
+        .SetType(lne::FrameGraphResourceType::eProxy)
         .SetProxyInfo("Lighting")
         .Build();
 
@@ -378,6 +450,11 @@ void AppLayer::InitFrameGraph()
         .SetName("ToneMappedScene")
         .Build();
 
+    lne::FrameGraphResourceDesc depthTextureDesc = resourceBuilder
+        .SetType(lne::FrameGraphResourceType::eTexture)
+        .SetDefaultDepthAttachmentInfos()
+        .SetName("Depth").Build();
+
     lne::FrameGraphNodeDesc depthPrePassDesc = nodeBuilder.SetName("DepthPrePass")
         .AddOutputResource(depthAttachmentDesc)
         .Build();
@@ -388,11 +465,18 @@ void AppLayer::InitFrameGraph()
         .SetType(lne::RenderPassType::eTransfer)
         .Build();
 
-    auto otherDepth = depthAttachmentDesc;
-    otherDepth.Name = "DepthTest";
+    nodeBuilder.Clear();
+    lne::FrameGraphNodeDesc meshletDebugPassDesc = nodeBuilder.SetName("MeshletDebugPass")
+        .AddInputResource(lightingResource)
+        .AddInputResource(depthAttachmentDesc)
+        .AddOutputResource(meshletDebugResource)
+        .SetEnabled(false)
+        .Build();
+
+    meshletDebugResource.Type = lne::FrameGraphResourceType::eAttachment;
     nodeBuilder.Clear();
     lne::FrameGraphNodeDesc transparentPassDesc = nodeBuilder.SetName("TransparentForwardPass")
-        .AddInputResource(lightingResource)
+        .AddInputResource(meshletDebugResource)
         .AddInputResource(depthAttachmentDesc)
         .AddOutputResource(transparentResource)
         .Build();
@@ -418,21 +502,19 @@ void AppLayer::InitFrameGraph()
         .AddInputResource(depthAttachmentDesc)
         .AddOutputResource(colorAttachmentDesc)
         .AddOutputResource(normalAttachmentDesc)
-        .AddOutputResource(positionAttachmentDesc)
         .AddOutputResource(metalRoughAttachmentDesc)
         .Build();
 
     normalAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
-    positionAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
     colorAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
     metalRoughAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
 
     nodeBuilder.Clear();
     lne::FrameGraphNodeDesc lightingPassDesc = nodeBuilder.SetName("LightingPass")
         .AddInputResource(normalAttachmentDesc)
-        .AddInputResource(positionAttachmentDesc)
         .AddInputResource(colorAttachmentDesc)
         .AddInputResource(metalRoughAttachmentDesc)
+        .AddInputResource(depthTextureDesc)
         .AddOutputResource(lightingResource)
         .Build();
 
@@ -443,6 +525,7 @@ void AppLayer::InitFrameGraph()
     m_FrameGraph->CreateNode(gBufferPassDesc);
     m_FrameGraph->CreateNode(lightingPassDesc);
     m_FrameGraph->CreateNode(toneMappingPassDesc);
+    m_FrameGraph->CreateNode(meshletDebugPassDesc);
     m_FrameGraph->Compile();
 
     m_FrameGraph->BindRenderPass(lnnew lne::LightingPass());
@@ -452,6 +535,7 @@ void AppLayer::InitFrameGraph()
     m_FrameGraph->BindRenderPass(lnnew SkyboxPass());
     m_FrameGraph->BindRenderPass(lnnew lne::GBufferPass());
     m_FrameGraph->BindRenderPass(lnnew ToneMappingPass());
+    m_FrameGraph->BindRenderPass(lnnew lne::MeshletDebugPass());
 }
 
 void AppLayer::OnDetach()
@@ -476,7 +560,13 @@ void AppLayer::OnUpdate(float deltaTime)
     float sinTime = (float)sin(currentTime);
     float cosTime = (float)cos(currentTime);
 
-    // m_CubeEntity.GetComponent<lne::TransformComponent>().Position.y = sinTime * 0.5f;
+    for (int i = 0; i < m_LightEntities.size(); ++i)
+    {
+        auto& lightTransform = m_LightEntities[i].GetComponent<lne::TransformComponent>();
+        float angle = (float)currentTime * 0.5f + i * glm::two_pi<float>() / m_LightEntities.size();
+        float radius = 1.f;
+        lightTransform.Position = glm::vec3(cos(angle) * radius, .5f, sin(angle) * radius);
+    }
 
     m_WorldRenderer->BeginScene(m_CameraEntity);
     m_WorldRenderer->Render(*m_Scene.GetPtr());
@@ -565,9 +655,9 @@ void AppLayer::HandleInput(float deltaTime)
     if (inputManager.IsKeyPressed(lne::eKeyA))
         movementInput -= camTransform.GetRight();
     if (inputManager.IsKeyPressed(lne::eKeyQ))
-        movementInput += camTransform.GetUp();
-    if (inputManager.IsKeyPressed(lne::eKeyE))
         movementInput -= camTransform.GetUp();
+    if (inputManager.IsKeyPressed(lne::eKeyE))
+        movementInput += camTransform.GetUp();
 
     if (glm::length(movementInput) > 0.0f)
     {
@@ -591,7 +681,16 @@ void AppLayer::HandleInput(float deltaTime)
     float positionLerpFactor = 0.99f;
     float rotationLerpFactor = 0.99f;
 
-    camTransform.Position = Lerp3(camTransform.Position, m_CameraTarget.Position, positionLerpFactor, deltaTime);
-    camTransform.SetEulerAngles(Lerp3(camTransform.EulerAngles, m_CameraTarget.Rotation, rotationLerpFactor, deltaTime));
+    const float epsilon = 1e-3f;
+    if (glm::distance(camTransform.Position, m_CameraTarget.Position) < epsilon)
+        camTransform.Position = m_CameraTarget.Position;
+    else
+        camTransform.Position = Lerp3(camTransform.Position, m_CameraTarget.Position, positionLerpFactor, deltaTime);
+
+    if (glm::distance(camTransform.EulerAngles, m_CameraTarget.Rotation) < epsilon)
+        camTransform.SetEulerAngles(m_CameraTarget.Rotation);
+    else
+        camTransform.SetEulerAngles(Lerp3(camTransform.EulerAngles, m_CameraTarget.Rotation, rotationLerpFactor, deltaTime));
+
     cam.UpdateView(camTransform);
 }

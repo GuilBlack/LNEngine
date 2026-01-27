@@ -6,7 +6,7 @@
 #include "Resources/Material.h"
 #include "CommandPoolManager.h"
 #include "WorldRenderer.h"
-#include <Graphics/FrameGraph/RenderPass/IRenderPass.h>
+#include <Graphics/FrameGraph/RenderPass/RenderPass.h>
 #include "ECS/EntityRegistry.h"
 #include "Scene/Components.h"
 #include "Resources/Mesh.h"
@@ -29,12 +29,20 @@ WorldRenderer::WorldRenderer(const SafePtr<FrameGraph>& frameGraph)
     }
 
     m_TransformBuffers.resize(maxFramesInFlight);
-    m_Transfroms.resize(maxFramesInFlight);
-    // 2 MB of transform data per frame since a mat4 is 64 bytes. 1024 * 32 = 32k transforms
+    m_Transforms.resize(maxFramesInFlight);
+
+    m_LightBuffersGPU.resize(maxFramesInFlight);
+    m_LightsCPU.resize(maxFramesInFlight);
+    m_NumLights.resize(maxFramesInFlight, 0);
+    uint32_t initialNumLights = 512;
+
     for (uint32_t i = 0; i < maxFramesInFlight; ++i)
     {
         m_TransformBuffers[i].Buffer.Reset(lnnew StandaloneStorageBuffer(gfxContext, sizeof(glm::mat4) * 1024 * 32, nullptr, StorageBufferType::eDynamic));
         m_TransformBuffers[i].Data = lnnew glm::mat4[1024*32];
+
+        m_LightBuffersGPU[i] = lnnew StandaloneStorageBuffer(gfxContext, 4 + sizeof(LightGPUData) * initialNumLights, nullptr, StorageBufferType::eDynamic);
+        m_LightsCPU[i].resize(initialNumLights);
     }
 }
 
@@ -62,17 +70,17 @@ void WorldRenderer::BeginScene(Entity& cameraEntity)
         node->RenderPass->BeginFrame();
     }
     uint32_t currentFrameIndex = ApplicationBase::GetRenderer().GetCurrentFrameIndexOnMainThread();
-    m_Transfroms[currentFrameIndex].clear();
+    m_Transforms[currentFrameIndex].clear();
     CameraComponent& cameraComponent = cameraEntity.GetComponent<CameraComponent>();
     m_GlobalData = WorldData{
         .ViewProj = cameraComponent.GetViewProj(),
         .View = cameraComponent.View,
         .Proj = cameraComponent.Proj,
         .CameraPosition = cameraEntity.GetComponent<TransformComponent>().Position,
-        .SunDirection = m_Environment->SunDirection,
         .AmbientLight = m_Environment->AmbientLight,
         .IrradianceMap = m_Environment->IrradianceTexture->GetBindlessTextureHandle(),
-        .PrefilteredMap = m_Environment->PrefilteredTexture->GetBindlessTextureHandle()
+        .PrefilteredMap = m_Environment->PrefilteredTexture->GetBindlessTextureHandle(),
+        .IsSunEnabled = m_Environment->IsSunEnabled
     };
     ApplicationBase::GetRenderer().BeginScene(this, m_FrameGraph, m_GlobalData, m_WorldGlobalUniforms[currentFrameIndex]);
 }
@@ -86,7 +94,7 @@ void WorldRenderer::Render(EntityRegistry& registry)
     auto staticMeshView = registry.GetView<TransformComponent, StaticMeshComponent>();
     {
         LNE_PROFILE_SCOPE("Update Transform Buffer")
-        std::vector<SafePtr<IRenderPass>> staticMeshRenderPasses = m_FrameGraph->GetRenderPassesWithSignature(ComponentType<StaticMeshComponent>());
+        std::vector<SafePtr<RenderPass>> staticMeshRenderPasses = m_FrameGraph->GetRenderPassesWithSignature(ComponentType<StaticMeshComponent>());
         std::vector<IDrawStaticMeshes*> drawStaticMeshesAdders;
 
         for (auto& renderPass : staticMeshRenderPasses)
@@ -95,7 +103,7 @@ void WorldRenderer::Render(EntityRegistry& registry)
             if (drawStaticMeshesAdder)
                 drawStaticMeshesAdders.push_back(drawStaticMeshesAdder);
         }
-        auto& currTransforms = m_Transfroms[currentFrameIndex];
+        auto& currTransforms = m_Transforms[currentFrameIndex];
         for (auto& index : staticMeshView)
         {
             auto [transform, staticMesh] = staticMeshView.Get(index);
@@ -110,11 +118,16 @@ void WorldRenderer::Render(EntityRegistry& registry)
 
                 glm::mat4 model = transform.GetModelMatrix() * subMesh.WorldTransform;
                 StaticMeshHash hash{ (uint64_t)staticMesh.Mesh.GetPtr(), i };
-                currTransforms[hash].Transforms.emplace_back(model);
-
-                for (auto& drawStaticMeshesAdder : drawStaticMeshesAdders)
-                    drawStaticMeshesAdder->AddStaticMeshDrawCommand(hash, staticMesh.Mesh, i);
+                auto& submeshTransformArray = currTransforms[hash];
+                submeshTransformArray.Mesh = staticMesh.Mesh;
+                submeshTransformArray.Transforms.emplace_back(model);
             }
+        }
+
+        for (auto& [hash, array] : currTransforms)
+        {
+            for (auto& drawStaticMeshesAdder : drawStaticMeshesAdders)
+                drawStaticMeshesAdder->AddStaticMeshDrawCommand(hash, array.Mesh, hash.SubMeshIndex);
         }
 
         uint32_t offset = 0;
@@ -131,18 +144,71 @@ void WorldRenderer::Render(EntityRegistry& registry)
         }
         totalSizeBytes = offset * sizeof(glm::mat4);
     }
+
+    {
+        LNE_PROFILE_SCOPE("Update Light Buffer")
+        auto lightView = registry.GetView<TransformComponent, LightComponent>();
+
+        uint32_t& numLights = m_NumLights[currentFrameIndex];
+        auto& lightsCPU = m_LightsCPU[currentFrameIndex];
+        uint32_t sunLightCount = m_Environment->IsSunEnabled ? 1 : 0;
+        numLights = lightView.TotalSize() + sunLightCount;
+
+        if (numLights > lightsCPU.capacity())
+            lightsCPU.resize(numLights);
+
+        if (m_Environment->IsSunEnabled)
+            lightsCPU[0] = m_Environment->SunLight;
+
+        for (auto& index : lightView)
+        {
+            auto [transform, light] = lightView.Get(index);
+            lightsCPU[index.ComposedIndex + sunLightCount] = LightGPUData{
+                light.Type,
+                transform.Position,
+                transform.GetForward(),
+                light.Color,
+                light.Intensity,
+                light.Range,
+                light.Falloff,
+                light.SpotAngle
+            };
+        }
+    }
+
+    // the this should be safe since it's more of a ref that we give to the
+    // render thread which should be nuked before the end of the app.
+    // so, no worries (I think)
     auto renderTask = [this, totalSizeBytes]()
         {
             LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
             auto& renderer = ApplicationBase::GetRenderer();
             vk::CommandBuffer cmdBuffer = renderer.GetGfxContext()->GetPrimaryCommandBuffer();
-            m_TransformBuffers[renderer.GetCurrentFrameIndex()].Buffer->CopyData(
+            uint32_t currentFrameIndex = renderer.GetCurrentFrameIndex();
+
+            m_TransformBuffers[currentFrameIndex].Buffer->CopyData(
                 cmdBuffer,
-                m_TransformBuffers[renderer.GetCurrentFrameIndex()].Data, totalSizeBytes, 0);
+                m_TransformBuffers[currentFrameIndex].Data, totalSizeBytes, 0);
+
+            uint32_t numLights = m_NumLights[currentFrameIndex];
+            if (m_LightBuffersGPU[currentFrameIndex]->GetSize() < numLights * sizeof(LightGPUData))
+            {
+                m_LightBuffersGPU[currentFrameIndex]->Grow(
+                    cmdBuffer,
+                    4 + numLights * sizeof(LightGPUData) * 2, false);
+            }
+
+            // TODO: Mayby reduce this to a since copy instead of two
+            // (dunno if it's really necessary tho. need to test)
+            m_LightBuffersGPU[currentFrameIndex]->CopyData(
+                cmdBuffer, &numLights,
+                sizeof(uint32_t), 0);
+            m_LightBuffersGPU[currentFrameIndex]->CopyData(
+                cmdBuffer, m_LightsCPU[currentFrameIndex].data(),
+                numLights * sizeof(LightGPUData), 4);
+
             renderer.PushLabel(cmdBuffer, "Frame");
-
             m_FrameGraph->Execute(cmdBuffer, this);
-
             renderer.PopLabel(cmdBuffer);
         };
     if (renderer.IsAsync())

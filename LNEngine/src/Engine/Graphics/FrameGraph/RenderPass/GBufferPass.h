@@ -1,9 +1,9 @@
 #pragma once
-#include <Engine/Graphics/FrameGraph/RenderPass/IRenderPass.h>
+#include <Engine/Graphics/FrameGraph/RenderPass/RenderPass.h>
 
 namespace lne
 {
-class GBufferPass : public lne::IRenderPass, public IDrawStaticMeshes
+class GBufferPass : public lne::RenderPass, public IDrawStaticMeshes
 {
 public:
     GBufferPass()

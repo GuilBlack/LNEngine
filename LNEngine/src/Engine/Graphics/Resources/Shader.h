@@ -122,12 +122,15 @@ public:
 public:
     struct MatTypeInfo
     {
-        std::array<int8_t, ShaderSetIndexType::NUM_MATERIAL_SET_INDICES> SetIndices{-1,-1,-1,-1,-1};
+        std::array<int8_t, ShaderSetIndexType::NUM_MATERIAL_SET_INDICES> SetIndices{ -1, -1, -1, -1, -1, -1, -1, -1 };
     };
     constexpr static std::array<MatTypeInfo, ShaderDomain::NUM_MATERIAL_TYPES> MatTypeInfos = {
-        MatTypeInfo{ {  0,  3,  4,  2,  1 } }, // eMesh
-        MatTypeInfo{ {  0,  2,  3,  1, -1 } }, // ePostProcess
+        MatTypeInfo{ {  0,  4,  5,  3,  2,  1, -1, -1, } }, // eMesh
+        MatTypeInfo{ {  0,  3,  4,  2, -1,  1, -1, -1, } }, // ePostProcess
+        MatTypeInfo{ {  0,  4,  5,  3,  2,  1, -1, -1, } }, // eMeshlet
+        MatTypeInfo{ { -1, -1,  1, -1, -1, -1,  0, -1, } }  // eCompute
     };
+
 
 private:
     friend class GfxPipeline;

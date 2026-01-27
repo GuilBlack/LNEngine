@@ -10,11 +10,11 @@ struct WorldData
     glm::mat4           View;
     glm::mat4           Proj;
     glm::vec3           CameraPosition;
-    glm::vec3           SunDirection;
     float               AmbientLight;
     BindlessImageHandle BRDFLut;
     BindlessImageHandle IrradianceMap;
     BindlessImageHandle PrefilteredMap;
+    bool                IsSunEnabled;
 };
 
 // TODO: move this in the World renderer

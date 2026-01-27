@@ -98,21 +98,16 @@ layout(location = 4) in vec3 iBitangent;
 
 layout(location = 0) out vec4 oAlbedo;
 layout(location = 1) out vec4 oNormal;
-layout(location = 2) out vec4 oPosition;
-layout(location = 3) out vec4 oMetalnessRoughness;
+layout(location = 2) out vec4 oMetalnessRoughness;
 
 void main()
 {
     MaterialData mat = mb.materials[matPC.id];
-    oAlbedo = texture(globalTextures[nonuniformEXT(mat.tAlbedo)], iUV);
-    oPosition = vec4(iWorldPos, 1.0);
 
-    float metalness = mat.uMetalness;
-    if (mat.tMetalness != 0)
-        metalness = texture(globalTextures[nonuniformEXT(mat.tMetalness)], iUV).z;
-    float roughness = mat.uRoughness;
-    if (mat.tRoughness != 0)
-        roughness = texture(globalTextures[nonuniformEXT(mat.tRoughness)], iUV).y;
+    oAlbedo = mat.tAlbedo == 0 ? mat.uColor : texture(globalTextures[nonuniformEXT(mat.tAlbedo)], iUV);
+
+    float metalness = mat.tMetalness == 0 ? mat.uMetalness : texture(globalTextures[nonuniformEXT(mat.tMetalness)], iUV).z;
+    float roughness = mat.tRoughness == 0 ? mat.uRoughness : texture(globalTextures[nonuniformEXT(mat.tRoughness)], iUV).y;
     oMetalnessRoughness = vec4(metalness, roughness, 0.0, 1.0);
 
     vec3 normal = normalize(iNormal);

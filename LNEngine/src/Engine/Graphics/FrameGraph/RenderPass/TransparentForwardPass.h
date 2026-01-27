@@ -1,9 +1,9 @@
 ﻿#pragma once
-#include "IRenderPass.h"
+#include "RenderPass.h"
 
 namespace lne
 {
-class TransparentForwardPass : public IRenderPass, public IDrawStaticMeshes
+class TransparentForwardPass : public RenderPass, public IDrawStaticMeshes
 {
 public:
     TransparentForwardPass()

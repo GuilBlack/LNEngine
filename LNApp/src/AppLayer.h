@@ -3,29 +3,7 @@
 
 class AppLayer final : public lne::Layer
 {
-    class DoFPass : public lne::IRenderPass
-    {
-    public:
-        DoFPass()
-        {
-            m_Name = "DoFPass";
-        }
-
-        virtual void Execute(vk::CommandBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override{}
-    };
-
-    class TransparentPass : public lne::IRenderPass
-    {
-    public:
-        TransparentPass()
-        {
-            m_Name = "TransparentPass";
-        }
-
-        virtual void Execute(vk::CommandBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override{}
-    };
-
-    class FinalPass : public lne::IRenderPass
+    class FinalPass : public lne::RenderPass
     {
     public:
         FinalPass();
@@ -38,7 +16,7 @@ class AppLayer final : public lne::Layer
         lne::SafePtr<lne::Texture> m_OutputTexture{};
     };
 
-    class SkyboxPass : public lne::IRenderPass
+    class SkyboxPass : public lne::RenderPass
     {
     public:
         SkyboxPass()
@@ -59,7 +37,7 @@ class AppLayer final : public lne::Layer
         bool m_IsDebugOpen{ false };
     };
 
-    class ToneMappingPass : public lne::IRenderPass
+    class ToneMappingPass : public lne::RenderPass
     {
     public:
         ToneMappingPass()
@@ -98,6 +76,7 @@ public:
 private:
     lne::SafePtr<lne::Material> m_BasicMaterial{};
     lne::SafePtr<lne::Material> m_BasicMaterial2{};
+    lne::SafePtr<lne::Material> m_MeshletMaterial{};
 
     struct CameraTarget
     {
@@ -106,16 +85,17 @@ private:
     } m_CameraTarget{};
 
     lne::SafePtr<lne::HierarchicalScene> m_Scene{};
-    lne::Entity m_CameraEntity;
-    lne::Entity m_ModelEntity;
-    lne::Entity m_ModelSpheres;
-    lne::Entity m_CubeEntity;
-    lne::Entity m_SphereEntity;
+    lne::Entity                 m_CameraEntity;
+    lne::Entity                 m_ModelEntity;
+    lne::Entity                 m_ModelSpheres;
+    lne::Entity                 m_CubeEntity;
+    lne::Entity                 m_SphereEntity;
+    std::vector<lne::Entity>    m_LightEntities;
 
-    glm::vec3 m_LightDirection{ 0.0f, -.9f, 0.7f };
-    float m_AmbientLight{ 0.03f };
-    float m_Metalness{ 0.0f };
-    float m_Roughness{ 0.0f };
+    glm::vec3                   m_LightDirection{ 0.0f, -.9f, 0.7f };
+    float                       m_AmbientLight{ 0.0f };
+    float                       m_Metalness{ 0.0f };
+    float                       m_Roughness{ 0.0f };
 
     lne::SafePtr<lne::FrameGraph> m_FrameGraph{};
     lne::SafePtr<lne::WorldRenderer> m_WorldRenderer{};

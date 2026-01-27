@@ -27,6 +27,8 @@ shaderc_shader_kind ShaderStageToShaderc(ShaderStage::Enum stage)
     case ShaderStage::eGeometry: return shaderc_glsl_geometry_shader;
     case ShaderStage::eFragment: return shaderc_glsl_fragment_shader;
     case ShaderStage::eCompute: return shaderc_glsl_compute_shader;
+    case ShaderStage::eMesh: return shaderc_glsl_mesh_shader;
+    case ShaderStage::eTask: return shaderc_glsl_task_shader;
     default: LNE_ASSERT(false, "This isn't a stage");
     }
     return shaderc_glsl_vertex_shader;
@@ -42,6 +44,8 @@ vk::ShaderStageFlagBits ShaderStageToVk(ShaderStage::Enum stage)
     case ShaderStage::eGeometry: return vk::ShaderStageFlagBits::eGeometry;
     case ShaderStage::eFragment: return vk::ShaderStageFlagBits::eFragment;
     case ShaderStage::eCompute: return vk::ShaderStageFlagBits::eCompute;
+    case ShaderStage::eMesh: return vk::ShaderStageFlagBits::eMeshEXT;
+    case ShaderStage::eTask: return vk::ShaderStageFlagBits::eTaskEXT;
     default: LNE_ASSERT(false, "This isn't a stage");
     }
     return vk::ShaderStageFlagBits::eVertex;
@@ -49,24 +53,19 @@ vk::ShaderStageFlagBits ShaderStageToVk(ShaderStage::Enum stage)
 
 std::string ShaderStageToDefine(ShaderStage::Enum stage)
 {
-    static const std::string Vertex("VERT");
-    static const std::string TessellationControl("TESC");
-    static const std::string TessellationEvaluation("TESE");
-    static const std::string Geometry("GEOM");
-    static const std::string Fragment("FRAG");
-    static const std::string Compute("COMP");
-
     switch (stage)
     {
-    case ShaderStage::eVertex: return Vertex;
-    case ShaderStage::eTessellationControl: return TessellationControl;
-    case ShaderStage::eTessellationEvaluation: return TessellationEvaluation;
-    case ShaderStage::eGeometry: return Geometry;
-    case ShaderStage::eFragment: return Fragment;
-    case ShaderStage::eCompute: return Compute;
+    case ShaderStage::eVertex: return "VERT";
+    case ShaderStage::eTessellationControl: return "TESC";
+    case ShaderStage::eTessellationEvaluation: return "TESE";
+    case ShaderStage::eGeometry: return "GEOM";
+    case ShaderStage::eFragment: return "FRAG";
+    case ShaderStage::eCompute: return "COMP";
+    case ShaderStage::eMesh: return "MESH";
+    case ShaderStage::eTask: return "TASK";
     default: LNE_ASSERT(false, "This isn't a stage");
     }
-    return Vertex;
+    return "VERT";
 }
 
 ShaderElementType::Enum SpirvTypeToUniformElementType(spirv_cross::SPIRType type)
@@ -138,28 +137,34 @@ ShaderStage::Enum MapShaderToken(std::string_view token)
 {
     if (token == "Vt")
         return ShaderStage::eVertex;
-    else if (token == "Fg")
+    if (token == "Fg")
         return ShaderStage::eFragment;
-    else if (token == "Gm")
+    if (token == "Gm")
         return ShaderStage::eGeometry;
-    else if (token == "Tc")
+    if (token == "Tc")
         return ShaderStage::eTessellationControl;
-    else if (token == "Te")
+    if (token == "Te")
         return ShaderStage::eTessellationEvaluation;
-    else if (token == "Cp")
+    if (token == "Cp")
         return ShaderStage::eCompute;
-    else
-        return ShaderStage::eUnknown;
+    if (token == "Ms")
+        return ShaderStage::eMesh;
+    if (token == "Ts")
+        return ShaderStage::eTask;
+    return ShaderStage::eUnknown;
 }
 
 ShaderDomain::Enum MapMaterialTypeToken(std::string_view token)
 {
     if (token == "Mesh")
         return ShaderDomain::eMesh;
-    else if (token == "PostProcess")
+    if (token == "PostProcess")
         return ShaderDomain::ePostProcess;
-    else
-        return ShaderDomain::eUnknown;
+    if (token == "Meshlet")
+        return ShaderDomain::eMeshlet;
+    if (token == "Compute")
+        return ShaderDomain::eCompute;
+    return ShaderDomain::eUnknown;
 }
 
 #pragma endregion
@@ -612,6 +617,7 @@ void Shader::ReflectOnSpirv(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>
     bool isUnknownMatType = (m_Header.ShaderDomain == ShaderDomain::eUnknown);
     if (isUnknownMatType == false)
         matTypeInfo = MatTypeInfos[m_Header.ShaderDomain];
+
     for (auto& [stage, code] : spirvCode)
     {
         LNE_INFO("Stage: {}", ShaderStageToDefine(stage));
@@ -716,10 +722,8 @@ void Shader::ReflectOnSpirv(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>
             spirv_cross::SPIRType type = compiler.get_type(res.base_type_id);
             const uint32_t declaredSize = static_cast<uint32_t>(compiler.get_declared_struct_size(type));
 
-            // SPIRV-Cross can report per-stage active ranges for this push block.
             const auto ranges = compiler.get_active_buffer_ranges(res.id);
 
-            // Compute the minimal active [minOffset, maxEnd) for THIS stage.
             uint32_t stageMin = UINT32_MAX;
             uint32_t stageMax = 0;
             for (const auto& r : ranges)
@@ -729,7 +733,6 @@ void Shader::ReflectOnSpirv(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>
             }
             if (ranges.empty())
             {
-                // Fallback: if active ranges not reported, use the declared size from 0.
                 stageMin = 0;
                 stageMax = declaredSize;
             }
@@ -737,13 +740,11 @@ void Shader::ReflectOnSpirv(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>
             auto& block = m_ReflectedData.PushConstants[res.name];
             if (block.Size == 0 && block.Stages == vk::ShaderStageFlags{})
             {
-                // First time we see it
                 block.Offset = stageMin;
                 block.Size = (stageMax - stageMin);
             }
             else
             {
-                // Merge across stages
                 const uint32_t curEnd = block.Offset + block.Size;
                 const uint32_t newMin = std::min(block.Offset, stageMin);
                 const uint32_t newMax = std::max(curEnd, stageMax);
@@ -756,7 +757,6 @@ void Shader::ReflectOnSpirv(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>
             LNE_INFO("    PUSH Name: {}, Stage: {}, DeclaredSize: {}, ActiveRange: [{}..{}), Merged: offset {}, size {}",
                      res.name, ShaderStageToDefine(stage), declaredSize, stageMin, stageMax, block.Offset, block.Size);
 
-            // Reflect members of the push-constant struct
             for (uint32_t i = 0; i < type.member_types.size(); ++i)
             {
                 const std::string memberName = compiler.get_member_name(res.base_type_id, i);
@@ -909,7 +909,6 @@ FlatHashMap<ShaderStage::Enum, vk::ShaderModule> Shader::CreateModules(FlatHashM
 void Shader::CreateDescriptorSetLayouts()
 {
     m_DescriptorSetLayouts.resize(m_ReflectedData.DescriptorSets.size());
-    uint32_t layoutIndex = 0;
     using StageFlags = vk::ShaderStageFlagBits;
     MatTypeInfo matTypeInfo{};
     if (m_Header.ShaderDomain != ShaderDomain::eUnknown)
@@ -925,18 +924,12 @@ void Shader::CreateDescriptorSetLayouts()
             return;
         }
     };
+
     for (auto&[setIndex, set] : m_ReflectedData.DescriptorSets)
     {
-        if (setIndex == matTypeInfo.SetIndices[ShaderSetIndexType::eVertex])
+        if (set.StorageBuffers.empty() == false && set.UniformBuffers.empty())
         {
-            m_DescriptorSetLayouts[layoutIndex] = m_Context->GetStorageOnlyDescriptorSetLayout(2);
-            layoutIndex++;
-            continue;
-        }
-        else if (setIndex == matTypeInfo.SetIndices[ShaderSetIndexType::eTransform])
-        {
-            m_DescriptorSetLayouts[layoutIndex] = m_Context->GetStorageOnlyDescriptorSetLayout(1);
-            layoutIndex++;
+            m_DescriptorSetLayouts[setIndex] = m_Context->GetStorageOnlyDescriptorSetLayout((uint32_t)set.StorageBuffers.size());
             continue;
         }
 
@@ -958,15 +951,15 @@ void Shader::CreateDescriptorSetLayouts()
             bindings.emplace_back(vk::DescriptorSetLayoutBinding(buffer.BindingIndex, vk::DescriptorType::eStorageBuffer, 1, stages));
         }
         descSetLayoutCI.setBindings(bindings);
-        m_DescriptorSetLayouts[layoutIndex] = m_Context->GetDevice().createDescriptorSetLayout(descSetLayoutCI);
-        m_CreatedLayouts.emplace_back(m_DescriptorSetLayouts[layoutIndex]);
-        m_Context->SetVkObjectName(m_DescriptorSetLayouts[layoutIndex], std::format("DescSetLayout {}, set: {}", m_Name, setIndex));
-        layoutIndex++;
+        m_DescriptorSetLayouts[setIndex] = m_Context->GetDevice().createDescriptorSetLayout(descSetLayoutCI);
+        m_CreatedLayouts.emplace_back(m_DescriptorSetLayouts[setIndex]);
+        m_Context->SetVkObjectName(m_DescriptorSetLayouts[setIndex], std::format("DescSetLayout {}, set: {}", m_Name, setIndex));
     }
 }
 
 void Shader::MakePushConstantRange()
 {
+    LNE_ASSERT(m_ReflectedData.PushConstants.size() <= 1, "Currently only one push constant block is supported per shader");
     m_PushConstantRanges.reserve(m_ReflectedData.PushConstants.size());
     for (const auto& [name, pc] : m_ReflectedData.PushConstants)
     {
@@ -993,6 +986,8 @@ vk::ShaderStageFlagBits lne::vkut::ShaderStageToVk(ShaderStage::Enum stage)
     case ShaderStage::eGeometry: return vk::ShaderStageFlagBits::eGeometry;
     case ShaderStage::eFragment: return vk::ShaderStageFlagBits::eFragment;
     case ShaderStage::eCompute: return vk::ShaderStageFlagBits::eCompute;
+    case ShaderStage::eTask: return vk::ShaderStageFlagBits::eTaskEXT;
+    case ShaderStage::eMesh: return vk::ShaderStageFlagBits::eMeshEXT;
     default: return vk::ShaderStageFlagBits::eVertex;
     }
 }

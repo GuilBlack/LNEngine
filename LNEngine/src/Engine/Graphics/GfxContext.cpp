@@ -296,9 +296,19 @@ void GfxContext::InitDefaultResources()
 {
     m_DefaultSampler = CreateSampler(
         vk::Filter::eLinear, vk::Filter::eLinear, vk::SamplerMipmapMode::eLinear,
-        vk::SamplerAddressMode::eRepeat, m_Properties.limits.maxSamplerAnisotropy, false, vk::CompareOp::eNever,
+        vk::SamplerAddressMode::eRepeat, m_Properties.limits.maxSamplerAnisotropy,
+        false, vk::CompareOp::eNever,
+        0.0f, 16.0f, 0.0f,
         vk::BorderColor::eFloatOpaqueWhite, vk::SamplerReductionMode::eWeightedAverage,
         "DefaultSampler"
+    );
+    m_DepthSampler = CreateSampler(
+        vk::Filter::eNearest, vk::Filter::eNearest, vk::SamplerMipmapMode::eNearest,
+        vk::SamplerAddressMode::eClampToEdge, 0.0f,
+        false, vk::CompareOp::eNever,
+        0.0f, 0.0f, 0.0f,
+        vk::BorderColor::eFloatOpaqueWhite, vk::SamplerReductionMode::eWeightedAverage,
+        "DepthReconstructSampler"
     );
 
     vk::ImageCreateInfo imageInfo(
@@ -317,8 +327,8 @@ void GfxContext::InitDefaultResources()
         vk::ImageLayout::eUndefined
     );
 
-    m_DefaultTexture = lnnew Texture(this, imageInfo, TextureUsageType::eSampledAndStorage, "DefaultTexture");
-    m_WhitePixel = lnnew Texture(this, imageInfo, TextureUsageType::eSampledAndStorage, "WhitePixel");
+    m_DefaultTexture = lnnew Texture(this, imageInfo, TextureUsageType::eSampledAndStorage, {}, "DefaultTexture");
+    m_WhitePixel = lnnew Texture(this, imageInfo, TextureUsageType::eSampledAndStorage, {}, "WhitePixel");
 }
 
 void GfxContext::UploadDefaultResources()
@@ -357,6 +367,7 @@ void GfxContext::NukeDefaultResources()
 {
     m_DefaultTexture.Reset();
     m_Device.destroySampler(m_DefaultSampler);
+    m_Device.destroySampler(m_DepthSampler);
     for (auto& ssboLayout : m_StorageOnlyDescriptorSetLayouts)
     {
         if (ssboLayout == nullptr)
@@ -404,10 +415,12 @@ vkb::PhysicalDevice GfxContext::VkbSelectPhysicalDevice(const vkb::Instance& ins
         .geometryShader = vk::True, // for im3d
         .logicOp = vk::True,
         .depthClamp = vk::True,
-        .samplerAnisotropy = vk::True,
+        .samplerAnisotropy = vk::True
     };
 
     auto features12 = VkPhysicalDeviceVulkan12Features{
+        .storageBuffer8BitAccess = vk::True,
+        .shaderInt8 = vk::True,
         .descriptorIndexing = vk::True,
         .shaderSampledImageArrayNonUniformIndexing = vk::True,
         .descriptorBindingSampledImageUpdateAfterBind = vk::True,
@@ -419,16 +432,24 @@ vkb::PhysicalDevice GfxContext::VkbSelectPhysicalDevice(const vkb::Instance& ins
     };
 
     auto features13 = VkPhysicalDeviceVulkan13Features{
-        .synchronization2 = true,
-        .dynamicRendering = true,
+        .synchronization2 = vk::True,
+        .dynamicRendering = vk::True,
+        .maintenance4 = vk::True,
     };
+
+    auto meshShaderFeatures = vk::PhysicalDeviceMeshShaderFeaturesEXT{};
+    meshShaderFeatures.meshShader = vk::True;
+    meshShaderFeatures.taskShader = vk::True;
 
     physDeviceSelect.set_surface(surface)
         .set_minimum_version(1, 3)
         .set_required_features(deviceFeatures)
         .set_required_features_12(features12)
         .set_required_features_13(features13)
-        .add_required_extension(VK_KHR_MAINTENANCE1_EXTENSION_NAME);
+        .add_required_extension_features((VkPhysicalDeviceMeshShaderFeaturesEXT)meshShaderFeatures)
+        .add_required_extension(VK_KHR_MAINTENANCE1_EXTENSION_NAME)
+        .add_required_extension(VK_EXT_MESH_SHADER_EXTENSION_NAME)
+        .add_required_extension(VK_KHR_8BIT_STORAGE_EXTENSION_NAME);
 
     vkb::Result<vkb::PhysicalDevice> selectedDevice = physDeviceSelect.select();
 
@@ -573,7 +594,7 @@ BindlessImageHandle GfxContext::RegisterBindlessTexture(Texture* texture)
 {
     std::lock_guard<std::mutex> lock(m_BindlessMutex);
     vk::Sampler sampler = texture->GetSampler();
-    if (sampler == nullptr)
+    if (sampler == vk::Sampler{})
     {
         assert(m_DefaultSampler);
         sampler = m_DefaultSampler;
@@ -618,9 +639,12 @@ BindlessImageHandle GfxContext::RegisterBindlessImage(vk::ImageView imageView)
     return handle;
 }
 
-vk::Sampler GfxContext::CreateSampler(vk::Filter magFilter, vk::Filter minFilter, vk::SamplerMipmapMode mipmapMode, 
-    vk::SamplerAddressMode addressMode, float maxAnisotropy, bool compareEnable, vk::CompareOp compareOp, vk::BorderColor borderColor, 
-    vk::SamplerReductionMode reductionMode, const std::string& name)
+vk::Sampler GfxContext::CreateSampler(vk::Filter magFilter, vk::Filter minFilter,
+                                      vk::SamplerMipmapMode mipmapMode, vk::SamplerAddressMode addressMode,
+                                      float maxAnisotropy, bool compareEnable, vk::CompareOp compareOp,
+                                      float minLod, float maxLod, float mipLodBias,
+                                      vk::BorderColor borderColor,
+                                      vk::SamplerReductionMode reductionMode, const std::string& name)
 {
     vk::SamplerCreateInfo samplerInfo = vk::SamplerCreateInfo{
         {},
@@ -630,13 +654,13 @@ vk::Sampler GfxContext::CreateSampler(vk::Filter magFilter, vk::Filter minFilter
         addressMode,
         addressMode,
         addressMode,
-        0,
+        mipLodBias,
         maxAnisotropy > 0.0f,
         maxAnisotropy,
         compareEnable,
         compareOp,
-        0,
-        16,
+        minLod,
+        maxLod,
         borderColor,
         vk::False
     };

@@ -43,7 +43,7 @@ void main() {
     uint currentIndex = indexBuffer.indices[gl_VertexIndex];
     Vertex v = vertexBuffer.vertices[currentIndex];
     
-    gl_Position = vec4(v.position.xy, 1.0, 1.0);
+    gl_Position = vec4(v.position.xy, 0.0, 1.0);
     oUV = v.position.xy;
 }
 

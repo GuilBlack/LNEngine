@@ -20,6 +20,7 @@ project "LNEngine"
         "Assets/**.glsl",
         "vendor/VMA/**.h",
         "vendor/BOOST/**.hpp",
+        "**.natvis",
     }
 
     includedirs
@@ -37,6 +38,7 @@ project "LNEngine"
         "%{IncludeDir.enkiTS}",
         "%{IncludeDir.Assimp}",
         "%{IncludeDir.Tracy}",
+        "%{IncludeDir.MeshOptimizer}",
     }
 
     links
@@ -48,7 +50,8 @@ project "LNEngine"
         "VkBootstrap",
         "ImGui",
         "STB",
-        "enkiTS"
+        "enkiTS",
+        "meshopt",
     }
 
     pchheader "lnepch.h"

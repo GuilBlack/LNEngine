@@ -1,0 +1,79 @@
+#define TEX_SET 5
+#define MAT_SET 4
+#define MESH_SET 3
+#define TRANSFORM_SET 2
+#define LIGHT_SET 1
+
+#include "LightDef.glslh"
+
+layout(scalar, set=0, binding=0) uniform GlobalUBO {
+    mat4    uViewProj;
+    mat4    uView;
+    mat4    uProj;
+    vec3    uEyePos;
+    float   uAmbientLight;
+    uint    tBRDFLut;
+    uint    tIrradianceMap;
+    uint    tPrefilteredMap;
+    bool    uUseSunLight;
+};
+
+layout(scalar, push_constant) uniform PushConstants
+{
+    uint matId;
+    uint instancesOffset;
+    uint baseMeshlet;
+    uint meshletCount;
+};
+
+struct Meshlet {
+    uint VertexOffset;
+    uint TriangleOffset;
+    uint VertexCount;
+    uint TriangleCount;
+
+    vec3 BoundsCenter;
+    float BoundsRadius;
+
+    // from meshoptimizer.h:
+    /* normal cone axis and cutoff, stored in 8-bit SNORM format; decode using x/127.0 */
+    int8_t[3] ConeAxis;
+    int8_t ConeCutoff;
+};
+
+layout(scalar, set = LIGHT_SET, binding = 0) buffer LightBuffer
+{
+    uint lightCount;
+    Light lights[];
+};
+
+/**
+ * !!!!!!! INSTRUCTIONS DIRECTLY TAKEN FOR THE MESH OPTIMIZER HEADER
+ * Cluster bounds generator
+ * Creates bounding volumes that can be used for frustum, backface and occlusion culling.
+ *
+ * For backface culling with orthographic projection, use the following formula to reject backfacing clusters:
+ *   dot(view, cone_axis) >= cone_cutoff
+ *
+ * For perspective projection, you can use the formula that needs cone apex in addition to axis & cutoff:
+ *   dot(normalize(cone_apex - camera_position), cone_axis) >= cone_cutoff
+ *
+ * Alternatively, you can use the formula that doesn't need cone apex and uses bounding sphere instead:
+ *   dot(normalize(center - camera_position), cone_axis) >= cone_cutoff + radius / length(center - camera_position)
+ * or an equivalent formula that doesn't have a singularity at center = camera_position:
+ *   dot(center - camera_position, cone_axis) >= cone_cutoff * length(center - camera_position) + radius
+ *
+ * The formula that uses the apex is slightly more accurate but needs the apex; if you are already using bounding sphere
+ * to do frustum/occlusion culling, the formula that doesn't use the apex may be preferable (for derivation see
+ * Real-Time Rendering 4th Edition, section 19.3).
+ */
+
+/**
+ * Returns true if the cone is visible from the camera position
+ */
+bool cullCone(vec3 coneAxis, float coneCutoff, vec3 center, float radius, vec3 cameraPos)
+{
+    return dot(center - cameraPos, normalize(coneAxis)) <
+        coneCutoff * length(center - cameraPos) + radius
+        || (coneAxis == vec3(0,0,0));
+}

@@ -38,16 +38,21 @@ void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskS
     m_Context = window->GetGfxContext();
     m_Swapchain = window->GetSwapchain();
     m_TaskScheduler = taskScheduler;
-    //m_FrameRenderTasks.resize(m_Context->GetMaxFramesInFlight());
+
     m_IsAsync = true;
     AddShaderIncludeDir(ApplicationBase::GetAssetsPath() + "Engine/Shaders/Includes");
     std::filesystem::path shaderCachePath = GetShaderCachePath();
     if (!std::filesystem::exists(shaderCachePath))
         std::filesystem::create_directories(shaderCachePath);
 
-    for (uint32_t i = 0; i < 2; ++i)
+    for (uint32_t i = 0; i < m_Context->GetMaxFramesInFlight(); ++i)
     {
-        m_FrameRenderTasks.emplace_back(std::vector<RenderTask*>());
+        // 10 MB per frame should be MORE than enough
+        uint8_t* allocation = lnnew uint8_t[10 * 1024 * 1024];
+        std::memset(allocation, 0, 10 * 1024 * 1024);
+        m_FrameRenderTasksAllocation.emplace_back(allocation);
+        m_FrameRenderTasksAllocationOffsets.emplace_back(0);
+
         m_RenderTasksLauncher.emplace_back(lnnew RenderTasksLauncher());
     }
     m_PrevFrameInFlightMain = 1;
@@ -76,13 +81,11 @@ void Renderer::Nuke()
     {
         frameData.DescriptorAllocator.Reset();
         m_Context->GetDevice().destroyDescriptorSetLayout(frameData.DescriptorSetLayout);
-	}
+    }
     for (uint32_t i = 0; i < m_Context->GetMaxFramesInFlight(); ++i)
     {
-        for (auto& task : m_FrameRenderTasks[i])
-            delete task;
-        m_FrameRenderTasks[i].clear();
         delete m_RenderTasksLauncher[i];
+        delete[] m_FrameRenderTasksAllocation[i];
     }
     m_FrameData.clear();
     m_GfxLoader.Reset();
@@ -112,12 +115,32 @@ void Renderer::InitResources()
     SafePtr forwardTransparentEffect = CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\ForwardTransparent.glsl");
     SafePtr depthPrePassEffect = CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\DepthPrePass.glsl");
 
+    SafePtr gbufferMeshletEffect = CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\Meshlet\\GBufferMeshlet.glsl");
+    SafePtr depthPrePassMeshletEffect = CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\Meshlet\\DepthPrePassMeshlet.glsl");
+    GfxTechniqueDesc meshletTechDesc{};
+    meshletTechDesc.Name = "DefaultMeshletOpaque";
+    meshletTechDesc.TechniqueState.Cull = ECullMode::Back;
+    meshletTechDesc.TechniqueState.Fill = EFillMode::Solid;
+    meshletTechDesc.TechniqueState.Transparency = TransparencyMode::eOpaque;
+    meshletTechDesc.TechniqueState.DepthMode = DepthMode::eReadWrite;
+    meshletTechDesc.TechniqueState.DepthCompareOp = ECompareOperation::GreaterOrEqual;
+    PassBindingDesc meshletPassDesc{};
+    meshletPassDesc.PassName = "GBufferPass";
+    meshletPassDesc.PassEffect = gbufferMeshletEffect;
+    meshletTechDesc.Passes.emplace_back(meshletPassDesc);
+    PassBindingDesc meshletDepthPrePassDesc{};
+    meshletDepthPrePassDesc.PassName = "DepthPrePass";
+    meshletDepthPrePassDesc.PassEffect = depthPrePassMeshletEffect;
+    meshletTechDesc.Passes.emplace_back(meshletDepthPrePassDesc);
+    SafePtr meshletTech = CreateOrGetTechnique(meshletTechDesc);
+
     GfxTechniqueDesc techDesc{};
     techDesc.Name = "DefaultMeshOpaque";
     techDesc.TechniqueState.Cull = ECullMode::Back;
     techDesc.TechniqueState.Fill = EFillMode::Solid;
     techDesc.TechniqueState.Transparency = TransparencyMode::eOpaque;
     techDesc.TechniqueState.DepthMode = DepthMode::eReadWrite;
+    techDesc.TechniqueState.DepthCompareOp = ECompareOperation::GreaterOrEqual;
 
     PassBindingDesc passDesc{};
     passDesc.PassName = "GBufferPass";
@@ -133,6 +156,7 @@ void Renderer::InitResources()
     techDesc.TechniqueState.Fill = EFillMode::Solid;
     techDesc.TechniqueState.Transparency = TransparencyMode::eTransparent;
     techDesc.TechniqueState.DepthMode = DepthMode::eReadOnly;
+    techDesc.TechniqueState.DepthCompareOp = ECompareOperation::GreaterOrEqual;
     techDesc.Passes.clear();
     passDesc.PassName = "TransparentForwardPass";
     passDesc.PassEffect = forwardTransparentEffect;
@@ -302,23 +326,90 @@ void Renderer::EndRenderPass(const Framebuffer& framebuffer)
 }
 
 void Renderer::Draw(vk::CommandBuffer cmdBuffer,
-                    const SafePtr<StaticMesh>& mesh,
-                    const SafePtr<StandaloneStorageBuffer>& transformBuffer,
-                    PassID passId,
-                    uint32_t offset, uint32_t subMeshIndex,
-                    uint32_t instanceCount)
+                    const DrawMeshArgs& drawArgs)
 {
+    auto& submesh = drawArgs.Mesh->GetSubMeshes()[drawArgs.SubMeshIndex];
+    auto material = drawArgs.Mesh->GetMaterial(submesh.MaterialIndex);
     LNE_PROFILE_FUNCTION_C(PROFILING_COL);
-    auto& submesh = mesh->GetSubMeshes()[subMeshIndex];
-    auto material = mesh->GetMaterial(submesh.MaterialIndex);
-    auto pipeline = material->GetPipeline(passId, m_CurrentFrameGraph);
-    auto effect = material->GetTechnique()->GetPassEffect(passId);
+    switch (drawArgs.Mesh->GetGeometry().GetType())
+    {
+    case GeometryType::eClassic:
+        DrawClassicMesh(cmdBuffer, drawArgs, material);
+        break;
+    case GeometryType::eMeshlet:
+        DrawMeshlets(cmdBuffer, drawArgs, material);
+        break;
+    }
+}
+
+void Renderer::DrawClassicMesh(vk::CommandBuffer cmdBuffer,
+                               const DrawMeshArgs& drawArgs,
+                               SafePtr<Material>& material)
+{
+    auto& submesh = drawArgs.Mesh->GetSubMeshes()[drawArgs.SubMeshIndex];
+    auto pipeline = material->GetPipeline(drawArgs.PassId, m_CurrentFrameGraph);
+    auto effect = material->GetTechnique()->GetPassEffect(drawArgs.PassId);
     if (effect == nullptr || pipeline == nullptr)
     {
         LNE_ERROR("Pipeline is null. No draw call issued.");
         return;
     }
-    
+    vk::Device device = m_Context->GetDevice();
+
+    bool hasPipelineChanged = false;
+    SafePtr descAllocator = m_FrameData[m_CurrentFrameInFlight].DescriptorAllocator;
+    Shader::MatTypeInfo shaderInfo = effect->GetShader()->MatTypeInfos[ShaderDomain::eMesh];
+
+    if (pipeline != m_LastUsedPipeline)
+    {
+        pipeline->Bind(cmdBuffer);
+        m_LastUsedPipeline = pipeline;
+        hasPipelineChanged = true;
+        
+
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
+                                     { m_FrameData[m_CurrentFrameInFlight].DescriptorSet, drawArgs.LightsBuffer->GetDescSet(), drawArgs.TransformBuffer->GetDescSet() }, {});
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 5,
+                                     { m_Context->GetBindlessDescriptorSet() }, {});
+    }
+    if (hasPipelineChanged || drawArgs.Mesh != m_LastUsedStaticMesh)
+    {
+        LNE_PROFILE_SCOPE_C("Set Geometry DescSet", PROFILING_COL)
+            const Geometry& geometry = drawArgs.Mesh->GetGeometry();
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 3,
+                                     { geometry.GetDescSet() }, {});
+        m_LastUsedStaticMesh = drawArgs.Mesh;
+    }
+
+    if (hasPipelineChanged || m_LastUsedEffect != effect)
+    {
+        LNE_PROFILE_SCOPE_C("Set Effect DescSet", PROFILING_COL)
+            auto matDescSet = effect->GetFrameDescriptorSet(m_CurrentFrameInFlight);
+        cmdBuffer.bindDescriptorSets(
+            vk::PipelineBindPoint::eGraphics,
+            pipeline->GetLayout(), 4,
+            { matDescSet },
+            {}
+        );
+        m_LastUsedEffect = effect;
+    }
+    auto matSlot = material->GetMaterialPassSlot(drawArgs.PassId);
+    cmdBuffer.pushConstants<MaterialSlot>(pipeline->GetLayout(), matSlot.Stages, 0, { matSlot.Slot });
+    cmdBuffer.draw(submesh.IndexCount, drawArgs.InstanceCount, submesh.BaseIndex, drawArgs.Offset);
+}
+
+void Renderer::DrawMeshlets(vk::CommandBuffer cmdBuffer,
+                            const DrawMeshArgs& drawArgs,
+                            SafePtr<Material>& material)
+{
+    auto& submesh = drawArgs.Mesh->GetSubMeshes()[drawArgs.SubMeshIndex];
+    auto pipeline = material->GetPipeline(drawArgs.PassId, m_CurrentFrameGraph);
+    auto effect = material->GetTechnique()->GetPassEffect(drawArgs.PassId);
+    if (effect == nullptr || pipeline == nullptr)
+    {
+        LNE_ERROR("Pipeline is null. No draw call issued.");
+        return;
+    }
     vk::Device device = m_Context->GetDevice();
 
     bool hasPipelineChanged = false;
@@ -330,37 +421,41 @@ void Renderer::Draw(vk::CommandBuffer cmdBuffer,
         hasPipelineChanged = true;
 
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
-                                     { m_FrameData[m_CurrentFrameInFlight].DescriptorSet, transformBuffer->GetDescSet() }, {});
-        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 4,
+                                     { m_FrameData[m_CurrentFrameInFlight].DescriptorSet, drawArgs.LightsBuffer->GetDescSet(), drawArgs.TransformBuffer->GetDescSet() }, {});
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 5,
                                      { m_Context->GetBindlessDescriptorSet() }, {});
     }
-    if (hasPipelineChanged || mesh != m_LastUsedStaticMesh)
+
+    if (hasPipelineChanged || drawArgs.Mesh != m_LastUsedStaticMesh)
     {
         LNE_PROFILE_SCOPE_C("Set Geometry DescSet", PROFILING_COL)
-            const Geometry& geometry = mesh->GetGeometry();
-        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 2,
+            const Geometry& geometry = drawArgs.Mesh->GetGeometry();
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 3,
                                      { geometry.GetDescSet() }, {});
-        m_LastUsedStaticMesh = mesh;
+        m_LastUsedStaticMesh = drawArgs.Mesh;
     }
 
     if (hasPipelineChanged || m_LastUsedEffect != effect)
     {
         LNE_PROFILE_SCOPE_C("Set Effect DescSet", PROFILING_COL)
-        auto matDescSet = effect->GetFrameDescriptorSet(m_CurrentFrameInFlight);
+            auto matDescSet = effect->GetFrameDescriptorSet(m_CurrentFrameInFlight);
         cmdBuffer.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
-            pipeline->GetLayout(), 3,
+            pipeline->GetLayout(), 4,
             { matDescSet },
             {}
         );
         m_LastUsedEffect = effect;
     }
-    auto matSlot = material->GetMaterialPassSlot(passId);
-    cmdBuffer.pushConstants<MaterialSlot>(pipeline->GetLayout(), matSlot.Stages, 0, { matSlot.Slot });
-    cmdBuffer.draw(submesh.IndexCount, instanceCount, submesh.BaseIndex, offset);
+    auto matSlot = material->GetMaterialPassSlot(drawArgs.PassId);
+    cmdBuffer.pushConstants<MeshletPushConstants>(pipeline->GetLayout(), matSlot.Stages, 0, { {matSlot.Slot, drawArgs.Offset, submesh.BaseMeshlet, submesh.MeshletCount} });
+    cmdBuffer.drawMeshTasksEXT((submesh.MeshletCount + 31) / 32, 1, 1);
 }
 
-void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, SafePtr<Material> material, PassID passId)
+void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer,
+                                  SafePtr<Material> material,
+                                  const SafePtr<StandaloneStorageBuffer>& lightBuffer,
+                                  PassID passId)
 {
     LNE_PROFILE_FUNCTION_C(PROFILING_COL);
     if (material->GetMaterialType() != ShaderDomain::ePostProcess)
@@ -386,11 +481,10 @@ void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, SafePtr<Material>
         hasPipelineChanged = true;
 
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
-                                     { m_FrameData[m_CurrentFrameInFlight].DescriptorSet }, {});
-        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 3,
+                                     { m_FrameData[m_CurrentFrameInFlight].DescriptorSet, lightBuffer->GetDescSet(), geometry.GetDescSet() }, {});
+
+        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 4,
                                      { m_Context->GetBindlessDescriptorSet() }, {});
-        cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 1,
-                                     { geometry.GetDescSet() }, {});
     }
     auto matSlot = material->GetMaterialPassSlot(passId);
 
@@ -400,7 +494,7 @@ void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer, SafePtr<Material>
         auto matDescSet = effect->GetFrameDescriptorSet(m_CurrentFrameInFlight);
         cmdBuffer.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
-            pipeline->GetLayout(), 2,
+            pipeline->GetLayout(), 3,
             { matDescSet },
             {}
         );
@@ -625,48 +719,38 @@ std::filesystem::path Renderer::GetShaderCachePath() const
     return std::filesystem::path(ApplicationBase::GetAssetsPath()) / "Engine" / "Shaders" / "Cache";
 }
 
-void Renderer::AddRenderTask(RenderTaskFunction renderTaskFunc)
-{
-    RenderTask* renderTask = lnnew RenderTask(renderTaskFunc);
-    renderTask->m_Priority = enki::TASK_PRIORITY_LOW;
-    auto& tasks = m_FrameRenderTasks[m_CurrentFrameInFlightMain];
-    if (tasks.empty() == false)
-        renderTask->SetDependency(renderTask->m_Dependency, tasks.back());
-    tasks.emplace_back(renderTask);
-}
-
 void Renderer::RunRenderTasks()
 {
     LNE_PROFILE_FUNCTION_C(PROFILING_COL);
-	auto& tasks = m_FrameRenderTasks[m_CurrentFrameInFlightMain];
+    auto& tasksAlloc = m_FrameRenderTasksAllocation[m_CurrentFrameInFlightMain];
+    uint64_t taskAllocOffset = m_FrameRenderTasksAllocationOffsets[m_CurrentFrameInFlightMain];
     auto* taskLauncher = m_RenderTasksLauncher[m_CurrentFrameInFlightMain];
-	if (tasks.empty())
-		return;
+    if (taskAllocOffset == 0)
+        return;
 
-    taskLauncher->m_pTaskToLaunch = tasks[0];
-    tasks.back()->SetDependency(tasks.back()->m_FinalTaskDependency, taskLauncher);
-    taskLauncher->m_Priority = enki::TASK_PRIORITY_LOW;
+    //taskLauncher->m_pTaskToLaunch = tasks[0];
+    //tasks.back()->SetDependency(tasks.back()->m_FinalTaskDependency, taskLauncher);
+    taskLauncher->m_Priority = enki::TASK_PRIORITY_HIGH;
+    taskLauncher->m_RenderTasksAllocation = tasksAlloc;
+    taskLauncher->m_RenderTasksAllocationOffset = taskAllocOffset;
 
-	m_TaskScheduler->AddTaskSetToPipe(taskLauncher); // will be executed on a random thread. but the tasks will be on the render thread.
+    m_TaskScheduler->AddTaskSetToPipe(taskLauncher); // will be executed on a random thread. but the tasks will be on the render thread.
     m_PrevFrameInFlightMain = m_CurrentFrameInFlightMain;
-    m_CurrentFrameInFlightMain = (m_CurrentFrameInFlightMain + 1) % m_FrameRenderTasks.size();
+    m_CurrentFrameInFlightMain = (m_CurrentFrameInFlightMain + 1) % m_Context->GetMaxFramesInFlight();
 }
 
 void Renderer::WaitForRenderTasksToFinish()
 {
     LNE_PROFILE_FUNCTION_C(PROFILING_COL);
-	auto& tasks = m_FrameRenderTasks[m_PrevFrameInFlightMain];
-	auto* taskLauncher = m_RenderTasksLauncher[m_PrevFrameInFlightMain];
-	if (tasks.empty())
-		return;
+    auto& tasksAllocOffset = m_FrameRenderTasksAllocationOffsets[m_PrevFrameInFlightMain];
+    auto* taskLauncher = m_RenderTasksLauncher[m_PrevFrameInFlightMain];
+    if (tasksAllocOffset == 0)
+        return;
     {
         LNE_PROFILE_SCOPE_C("Wait for Render Tasks", PROFILING_COL)
-	    m_TaskScheduler->WaitforTask(tasks.back());
+        m_TaskScheduler->WaitforTask(taskLauncher);
     }
-	for (auto& task : tasks)
-		delete task;
-    tasks.clear();
-    taskLauncher->m_pTaskToLaunch = nullptr;
+    tasksAllocOffset = 0;
 }
 
 void Renderer::InitFrameData(uint32_t index)
@@ -759,10 +843,32 @@ void Renderer::ProcessDirtyMaterials(vk::CommandBuffer cmdBuffer)
     }
 }
 
+void* Renderer::AllocateRenderTask(RenderTask&& renderTask, uint32_t size)
+{
+    auto& currentAllocationOffset = m_FrameRenderTasksAllocationOffsets[m_CurrentFrameInFlightMain];
+    auto currentAllocation = m_FrameRenderTasksAllocation[m_CurrentFrameInFlightMain];
+    
+    new (currentAllocation + currentAllocationOffset) RenderTask(renderTask);
+    currentAllocationOffset += sizeof(RenderTask);
+    
+    void* allocatedMemory = currentAllocation + currentAllocationOffset;
+    currentAllocationOffset += size;
+    
+    return allocatedMemory;
+}
+
 void RenderTasksLauncher::ExecuteRange(enki::TaskSetPartition range, uint32_t threadnum)
 {
     (void)range;
-    ApplicationBase::GetTaskScheduler()->AddPinnedTask(m_pTaskToLaunch);
+
+    uint64_t offset = 0;
+    while (offset < m_RenderTasksAllocationOffset)
+    {
+        auto& task = *reinterpret_cast<RenderTask*>(m_RenderTasksAllocation + offset);
+        offset += sizeof(RenderTask);
+        task.Invoke(m_RenderTasksAllocation + offset);
+        offset += task.Size;
+    }
 }
 
 }

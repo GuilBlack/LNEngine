@@ -2,6 +2,17 @@
 
 namespace lne
 {
+
+namespace LightType
+{
+enum Enum : uint32_t
+{
+    eDirectional = 0,
+    ePoint = 1,
+    eSpot = 2
+};
+}
+
 namespace ShaderStage
 {
 enum Enum : byte
@@ -12,7 +23,9 @@ enum Enum : byte
     eGeometry = 3,
     eFragment = 4,
     eCompute = 5,
-    eUnknown = 6
+    eMesh = 6,
+    eTask = 7,
+    eUnknown = 255
 };
 
 enum Mask
@@ -82,24 +95,29 @@ enum Enum : char
     eUnknown =      -1,
     eMesh =         0,
     ePostProcess =  1,
+    eMeshlet =      2,
+    eCompute =      3,
 };
 
-constexpr uint32_t NUM_MATERIAL_TYPES = 2;
+constexpr uint32_t NUM_MATERIAL_TYPES = 4;
 }
 
 namespace ShaderSetIndexType
 {
 enum Enum : char
 {
-    eUnknown =      -1,
-    eGlobal =       0,
-    eMaterial =     1,
-    eTexture =      2,
-    eVertex =       3,
-    eTransform =    4,
+    eUnknown =              -1,
+    eGlobal =               0,
+    eMaterial =             1,
+    eTexture =              2,
+    eVertex =               3,
+    eTransform =            4,
+    eLight =                5,
+    eComputeParams =        6,
+    eCustom =               7, // will probably be used at some point
 };
 
-constexpr uint32_t NUM_MATERIAL_SET_INDICES = 5;
+constexpr uint32_t NUM_MATERIAL_SET_INDICES = 8;
 }
 
 namespace FrameGraphResourceType
@@ -148,6 +166,15 @@ enum Enum : byte
 {
     eStatic = 0,
     eDynamic
+};
+}
+
+namespace GeometryType
+{
+enum Enum : byte
+{
+    eClassic = 0, // traditional vertex/index buffer
+    eMeshlet
 };
 }
 

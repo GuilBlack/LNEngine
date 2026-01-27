@@ -8,7 +8,7 @@
 #include "Graphics/Resources/Material.h"
 #include "Graphics/DynamicDescriptorAllocator.h"
 #include "Scene/Components.h"
-#include "RenderPass/IRenderPass.h"
+#include "RenderPass/RenderPass.h"
 #include "Core/Utils/Profiling.h"
 #include "../CommandPoolManager.h"
 
@@ -457,7 +457,7 @@ void FrameGraph::CreateFramebuffers(FrameGraphNodeHandle nodeHandle)
                 attachmentLayout,
                 attachmentLayout,
                 vk::ClearValue().setColor(std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f })
-                    .setDepthStencil({ 1.0f, 0 })
+                    .setDepthStencil({ 0.0f, 0 })
             };
             if (texture->IsDepth())
                 depthAttachment = attachmentDesc;
@@ -512,7 +512,7 @@ void FrameGraph::CreateFramebuffers(FrameGraphNodeHandle nodeHandle)
                 attachmentLayout,
                 attachmentLayout,
                 vk::ClearValue().setColor(std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f })
-                    .setDepthStencil({ 1.0f, 0 })
+                    .setDepthStencil({ 0.0f, 0 })
             };
 
             if (inputResource.Type == FrameGraphResourceType::eTexture)
@@ -605,7 +605,7 @@ void FrameGraph::SortGraph(std::vector<FrameGraphNodeHandle>& nodes)
     OutputGraphToMermaid();
 }
 
-void FrameGraph::BindRenderPass(SafePtr<IRenderPass> renderPass)
+void FrameGraph::BindRenderPass(SafePtr<RenderPass> renderPass)
 {
     FrameGraphNode* node = m_NodeCache.Access(std::string(renderPass->GetName()));
 
@@ -700,12 +700,12 @@ void FrameGraph::OutputGraphToMermaid()
     file.close();
 }
 
-std::vector<SafePtr<IRenderPass>> FrameGraph::GetRenderPassesWithSignature(EntitySignature signature)
+std::vector<SafePtr<RenderPass>> FrameGraph::GetRenderPassesWithSignature(EntitySignature signature)
 {
-    std::vector<SafePtr<IRenderPass>> renderPasses;
+    std::vector<SafePtr<RenderPass>> renderPasses;
     for (auto nodeHandle : m_Nodes)
     {
-        SafePtr<IRenderPass> renderPass = m_NodeCache.GetPool().Access(nodeHandle)->RenderPass;
+        SafePtr<RenderPass> renderPass = m_NodeCache.GetPool().Access(nodeHandle)->RenderPass;
         const EntitySignature& renderPassSignature = renderPass->MustHaveComponents();
         if ((renderPassSignature & signature) == renderPassSignature)
             renderPasses.push_back(renderPass);
@@ -763,8 +763,8 @@ FrameGraphResourceDesc FrameGraphResourceDescBuilder::Build()
     case FrameGraphResourceType::eAttachment:
     case FrameGraphResourceType::eTexture:
     {
-        if (m_Extent == 0 || m_Extent == 0)
-            LNE_ERROR("Image width or height is 0");
+        if (m_Extent == vk::Extent3D(0, 0, 0))
+            LNE_ERROR("Image width or height or height is 0");
         m_ImageInfo.Extent = m_Extent;
         m_Desc.Info.Variant = m_ImageInfo;
         break;
