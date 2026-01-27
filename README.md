@@ -29,12 +29,12 @@ This README is more of a way for me to keep track of what I did and what I'll be
 - Simple scene system. Still a big WIP
 - Meshlets rendering (still experimental and includes only cone culling for now)
 - Asynchronous GPU resource loader (textures and models for now)
+- The basic lights (directional, point and spot)
 
 ## Next steps
 - Have a scene hierarchy view using ImGui
 - Have an inspector for entities/components
 - Have a material inspector
-- HAVE MORE LIGHTS IN THE SCENE PLEASE
 - Implement shadows
 - Some comments in the code would be nice...
 - Make a better interface with ImGui
