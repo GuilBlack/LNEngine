@@ -20,11 +20,14 @@ public:
     vk::CommandBuffer           BeginOrGetPrimaryFrameCommandBuffer(uint32_t frameIndex);
 
     /**
-     * Begins a render pass command buffer.
-     * The frame buffer can be nullptr if no graphics render pass is needed.
-     * You must manually end the command buffer after use.
+     * Begins a NEW secondary command buffer. You will never have 2 same command
+     * buffers comming out of this method in a given frame. You must manually end
+     * the command buffer after use.
      * @param frameIndex The index of the current frame in flight.
      * @param fb The framebuffer to use for the render pass.
+     * The frame buffer can be nullptr if no graphics render pass is needed.
+     * @return a secondary command buffer that's flagged with eRenderPassContinue
+     * if there is a framebuffer associated.
      */
     vk::CommandBuffer           BeginRenderPassCommandBuffer(uint32_t frameIndex,
                                                              Framebuffer* fb = nullptr);

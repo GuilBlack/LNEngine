@@ -146,19 +146,16 @@ void CommandPoolManager::ResetFrameCommands(uint32_t frameIndex)
     VK_CHECK(device.waitForFences(frameContext.WaitFence, VK_TRUE, UINT64_MAX));
     {
         LNE_PROFILE_SCOPE("ResetThreadContexts");
-        uint32_t count{};
         for (auto& threadContext : frameContext.ThreadContexts)
         {
-            count++;
+            if (threadContext.IsPrimaryCommandBufferUsed || threadContext.CurrentSecondaryIndex != 0)
             {
                 LNE_PROFILE_SCOPE("ResetCommandPool");
                 device.resetCommandPool(threadContext.CommandPool);
+                threadContext.IsPrimaryCommandBufferUsed = false;
+                threadContext.CurrentSecondaryIndex = 0;
             }
-            threadContext.IsPrimaryCommandBufferUsed = false;
-            threadContext.CurrentSecondaryIndex = 0;
-            threadContext.SecondaryCommandBuffers.clear();
         }
-        LNE_TRACE(std::format("Num resets: {}", count));
     }
     device.resetFences(frameContext.WaitFence);
 
@@ -311,7 +308,7 @@ void CommandPoolManager::InitFrameContext(uint32_t numThreads)
         for (uint32_t j = 0; j < numThreads; ++j)
         {
             auto& threadContext = frameContext.ThreadContexts[j];
-            threadContext.CommandPool = m_Context->CreateCommandPool(m_Context->GetQueueFamilyIndex(EQueueFamilyType::Graphics));
+            threadContext.CommandPool = m_Context->CreateCommandPool(m_Context->GetQueueFamilyIndex(EQueueFamilyType::Graphics), {});
             m_Context->SetVkObjectName(threadContext.CommandPool, 
                 std::format("GraphicsFrameContext{}CommandPool{}", index, j));
 

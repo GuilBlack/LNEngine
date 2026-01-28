@@ -218,7 +218,7 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRe
         commandBuffer.executeCommands(secondaryCommandBuffers[i]);
 
         //node->RenderPass->Execute(commandBuffer, worldRenderer, this, node);
-        
+
         if (node->Type == RenderPassType::eGraphics)
             node->Framebuffer.Unbind(commandBuffer);
         node->RenderPass->PostExecute(commandBuffer, this, node);
