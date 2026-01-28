@@ -137,37 +137,48 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRe
     std::vector<vk::CommandBuffer> secondaryCommandBuffers{};
     secondaryCommandBuffers.resize(m_Nodes.size());
 
-    //enki::TaskSet set(
-    //    (uint32_t)m_Nodes.size(),
-    //    [this, &secondaryCommandBuffers, worldRenderer](enki::TaskSetPartition range, uint32_t threadnum)
-    //    {
-    //        uint32_t currentFrameIndex = ApplicationBase::GetRenderer().GetCurrentFrameIndex();
-    //        for (uint32_t i = range.start; i < range.end; ++i)
-    //        {
-    //            auto& commandPoolManager = m_Context->GetCommandPoolManager();
-    //            FrameGraphNode* node = m_NodeCache.GetPool().Access(m_Nodes[i]);
+    enki::TaskSet set(
+        (uint32_t)m_Nodes.size(),
+        [this, &secondaryCommandBuffers, worldRenderer](enki::TaskSetPartition range, uint32_t threadnum)
+        {
+            uint32_t currentFrameIndex = ApplicationBase::GetRenderer().GetCurrentFrameIndex();
+            for (uint32_t i = range.start; i < range.end; ++i)
+            {
+                auto& commandPoolManager = m_Context->GetCommandPoolManager();
+                FrameGraphNode* node = m_NodeCache.GetPool().Access(m_Nodes[i]);
 
-    //            if (node->Enabled == false)
-    //                continue;
+                if (node->Enabled == false)
+                    continue;
 
-    //            vk::CommandBuffer cmdBuffer{};
-    //            if (node->Type == RenderPassType::eGraphics)
-    //                cmdBuffer = commandPoolManager.BeginRenderPassCommandBuffer(currentFrameIndex, &node->Framebuffer);
-    //            else
-    //                cmdBuffer = commandPoolManager.BeginRenderPassCommandBuffer(currentFrameIndex);
+                vk::CommandBuffer cmdBuffer{};
+                if (node->Type == RenderPassType::eGraphics)
+                    cmdBuffer = commandPoolManager.BeginRenderPassCommandBuffer(currentFrameIndex, &node->Framebuffer);
+                else
+                    cmdBuffer = commandPoolManager.BeginRenderPassCommandBuffer(currentFrameIndex);
 
-    //            // do render pass here
-    //            node->RenderPass->Execute(cmdBuffer, worldRenderer, this, node);
+                if (node->Type == RenderPassType::eGraphics)
+                {
+                    vk::Extent3D extent = node->Framebuffer.GetExtent();
+                    vk::Viewport viewport = { 0.0f, 0.0f, (float)extent.width, (float)extent.height, 0.0f, 1.0f };
+                    viewport.y += viewport.height;
+                    viewport.height *= -1;
+                    cmdBuffer.setViewport(0, viewport);
+                    vk::Rect2D scissor = { {0, 0}, vk::Extent2D{ extent.width, extent.height } };
+                    cmdBuffer.setScissor(0, scissor);
+                }
 
-    //            cmdBuffer.end();
-    //            secondaryCommandBuffers[i] = cmdBuffer;
-    //        }
-    //    }
-    //);
+                // do render pass here
+                node->RenderPass->Execute(cmdBuffer, worldRenderer, this, node);
 
-    //set.m_Priority = enki::TASK_PRIORITY_MED;
-    //ApplicationBase::GetTaskScheduler()->AddTaskSetToPipe(&set);
-    //ApplicationBase::GetTaskScheduler()->WaitforTask(&set);
+                cmdBuffer.end();
+                secondaryCommandBuffers[i] = cmdBuffer;
+            }
+        }
+    );
+
+    set.m_Priority = enki::TASK_PRIORITY_MED;
+    ApplicationBase::GetTaskScheduler()->AddTaskSetToPipe(&set);
+    ApplicationBase::GetTaskScheduler()->WaitforTask(&set);
 
     for (uint32_t i = 0; i < m_Nodes.size(); ++i)
     {
@@ -197,16 +208,6 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRe
                 break;
             }
         }
-        if (node->Type == RenderPassType::eGraphics)
-        {
-            vk::Extent3D extent = node->Framebuffer.GetExtent();
-            vk::Viewport viewport = { 0.0f, 0.0f, (float)extent.width, (float)extent.height, 0.0f, 1.0f };
-            viewport.y += viewport.height;
-            viewport.height *= -1;
-            commandBuffer.setViewport(0, viewport);
-            vk::Rect2D scissor = { {0, 0}, vk::Extent2D{ extent.width, extent.height } };
-            commandBuffer.setScissor(0, scissor);
-        }
 
         LNE_ASSERT(node->RenderPass != nullptr, "Node has no render pass");
 
@@ -214,9 +215,9 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRe
         if (node->Type == RenderPassType::eGraphics)
             node->Framebuffer.Bind(commandBuffer);
 
-        //commandBuffer.executeCommands(secondaryCommandBuffers[i]);
+        commandBuffer.executeCommands(secondaryCommandBuffers[i]);
 
-        node->RenderPass->Execute(commandBuffer, worldRenderer, this, node);
+        //node->RenderPass->Execute(commandBuffer, worldRenderer, this, node);
         
         if (node->Type == RenderPassType::eGraphics)
             node->Framebuffer.Unbind(commandBuffer);

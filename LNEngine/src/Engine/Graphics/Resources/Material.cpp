@@ -149,6 +149,7 @@ bool Material::CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, uint32_t frame
 
 lne::SafePtr<class GfxPipeline> Material::GetPipeline(PassID passId, SafePtr<FrameGraph> frameGraph)
 {
+    std::scoped_lock lock(m_PipelineMutex);
     MaterialPipelineHash hash{
         .PassId = passId,
         .FrameGraphHash = (uint64_t)frameGraph.GetPtr()

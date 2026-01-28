@@ -177,6 +177,7 @@ private:
     SafePtr<Swapchain>                              m_Swapchain;
     SafePtr<GfxLoader>                              m_GfxLoader;
     std::shared_ptr<enki::TaskScheduler>            m_TaskScheduler;
+    uint32_t                                        m_NumThreads; // so that we don't have to always access it via the task scheduler
     std::vector<SafePtr<Texture>>                   m_TexturesToUpdate{};
     std::mutex                                      m_TexturesToUpdateMutex{};
     std::vector<SafePtr<Effect>>                    m_DirtyEffects{};
@@ -194,9 +195,9 @@ private:
 
     std::vector<FrameData>                          m_FrameData;
 
-    SafePtr<GfxPipeline>                            m_LastUsedPipeline;
-    SafePtr<Effect>                                 m_LastUsedEffect;
-    SafePtr<StaticMesh>                             m_LastUsedStaticMesh;
+    std::vector<SafePtr<GfxPipeline>>               m_LastUsedPipelines;
+    std::vector<SafePtr<Effect>>                    m_LastUsedEffects;
+    std::vector<SafePtr<StaticMesh>>                m_LastUsedStaticMeshes;
 
     // TODO: change this for multiple world renderers for later
     SafePtr<WorldRenderer>                          m_CurrentWorldRenderer;

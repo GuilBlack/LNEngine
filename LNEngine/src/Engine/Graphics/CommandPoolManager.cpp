@@ -6,6 +6,7 @@
 #include "Core/ApplicationBase.h"
 #include "Graphics/Resources/Texture.h"
 #include "Framebuffer.h"
+#include "Core/Utils/Profiling.h"
 
 namespace lne
 {
@@ -138,16 +139,26 @@ vk::CommandBuffer CommandPoolManager::BeginRenderPassCommandBuffer(uint32_t fram
 
 void CommandPoolManager::ResetFrameCommands(uint32_t frameIndex)
 {
+    LNE_PROFILE_FUNCTION();
     FrameCommandContext& frameContext = m_GraphicsFrameContexts[frameIndex];
     vk::Device device = m_Context->GetDevice();
 
     VK_CHECK(device.waitForFences(frameContext.WaitFence, VK_TRUE, UINT64_MAX));
-    for (auto& threadContext : frameContext.ThreadContexts)
     {
-        device.resetCommandPool(threadContext.CommandPool);
-        threadContext.IsPrimaryCommandBufferUsed = false;
-        threadContext.CurrentSecondaryIndex = 0;
-        threadContext.SecondaryCommandBuffers.clear();
+        LNE_PROFILE_SCOPE("ResetThreadContexts");
+        uint32_t count{};
+        for (auto& threadContext : frameContext.ThreadContexts)
+        {
+            count++;
+            {
+                LNE_PROFILE_SCOPE("ResetCommandPool");
+                device.resetCommandPool(threadContext.CommandPool);
+            }
+            threadContext.IsPrimaryCommandBufferUsed = false;
+            threadContext.CurrentSecondaryIndex = 0;
+            threadContext.SecondaryCommandBuffers.clear();
+        }
+        LNE_TRACE(std::format("Num resets: {}", count));
     }
     device.resetFences(frameContext.WaitFence);
 

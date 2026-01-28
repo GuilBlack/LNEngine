@@ -74,15 +74,23 @@ void Swapchain::BeginFrame()
     LNE_PROFILE_FUNCTION_C(PROFILING_COLOR);
     auto device = m_Context->GetDevice();
     uint32_t currentFrameInFlight = m_Context->GetCurrentFrameIndex();
-    VK_CHECK(device.waitForFences(m_AcquireFences[currentFrameInFlight], VK_TRUE, UINT64_MAX));
-    device.resetFences(m_AcquireFences[currentFrameInFlight]);
-    auto result = device.acquireNextImageKHR(m_Swapchain, UINT64_MAX, m_Semaphores[currentFrameInFlight].ImageAvailable, m_AcquireFences[currentFrameInFlight]);
-    m_CurrentImageIndex = result.value;
+    {
+        LNE_PROFILE_SCOPE_C("WaitForFrameFence", PROFILING_COLOR);
+        VK_CHECK(device.waitForFences(m_AcquireFences[currentFrameInFlight], VK_TRUE, UINT64_MAX));
+        device.resetFences(m_AcquireFences[currentFrameInFlight]);
+    }
+    vk::Result errorResult;
+    {
+        LNE_PROFILE_SCOPE_C("acquireNextImageKHR", PROFILING_COLOR);
+        auto result = device.acquireNextImageKHR(m_Swapchain, UINT64_MAX, m_Semaphores[currentFrameInFlight].ImageAvailable, m_AcquireFences[currentFrameInFlight]);
+        m_CurrentImageIndex = result.value;
+        errorResult = result.result;
+    }
 
-    if (result.result == vk::Result::eErrorOutOfDateKHR)
+    if (errorResult == vk::Result::eErrorOutOfDateKHR)
         CreateSwapchain();
-    else if (result.result != vk::Result::eSuccess && result.result != vk::Result::eSuboptimalKHR)
-        VK_CHECK(result.result);
+    else if (errorResult != vk::Result::eSuccess && errorResult != vk::Result::eSuboptimalKHR)
+        VK_CHECK(errorResult);
 }
 
 void Swapchain::Present()
@@ -125,6 +133,7 @@ void Swapchain::Present()
 
 void Swapchain::CreateSwapchain()
 {
+    LNE_PROFILE_FUNCTION_C(PROFILING_COLOR);
     auto device = m_Context->GetDevice();
     m_Context->WaitIdle();
 

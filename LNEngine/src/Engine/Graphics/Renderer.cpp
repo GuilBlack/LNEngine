@@ -38,6 +38,10 @@ void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskS
     m_Context = window->GetGfxContext();
     m_Swapchain = window->GetSwapchain();
     m_TaskScheduler = taskScheduler;
+    m_NumThreads = m_TaskScheduler->GetNumTaskThreads();
+    m_LastUsedEffects.resize(m_NumThreads);
+    m_LastUsedStaticMeshes.resize(m_NumThreads);
+    m_LastUsedPipelines.resize(m_NumThreads);
 
     m_IsAsync = true;
     AddShaderIncludeDir(ApplicationBase::GetAssetsPath() + "Engine/Shaders/Includes");
@@ -166,8 +170,12 @@ void Renderer::InitResources()
 
 void Renderer::NukeResources()
 {
-    m_LastUsedPipeline.Reset();
-    m_LastUsedStaticMesh.Reset();
+    for (uint32_t i = 0; i < m_NumThreads; ++i)
+    {
+        m_LastUsedPipelines[i].Reset();
+        m_LastUsedEffects[i].Reset();
+        m_LastUsedStaticMeshes[i].Reset();
+    }
     m_CurrentWorldRenderer.Reset();
     m_CurrentFrameGraph.Reset();
     m_ShadersLibrary.clear();
@@ -232,8 +240,12 @@ void Renderer::EndFrame()
     auto endFrame = [this]()
         {
             LNE_PROFILE_FUNCTION_C(PROFILING_COL)
-            m_LastUsedStaticMesh.Reset();
-            m_LastUsedPipeline.Reset();
+            for (uint32_t i = 0; i < m_NumThreads; ++i)
+            {
+                m_LastUsedPipelines[i].Reset();
+                m_LastUsedEffects[i].Reset();
+                m_LastUsedStaticMeshes[i].Reset();
+            }
             auto currentImage = m_Swapchain->GetImage(m_CurrentSwapchainImageIndex);
             vk::CommandBuffer cb = m_Context->GetPrimaryCommandBuffer();
             currentImage->TransitionLayout(cb, vk::ImageLayout::ePresentSrcKHR);
@@ -346,6 +358,7 @@ void Renderer::DrawClassicMesh(vk::CommandBuffer cmdBuffer,
                                const DrawMeshArgs& drawArgs,
                                SafePtr<Material>& material)
 {
+
     auto& submesh = drawArgs.Mesh->GetSubMeshes()[drawArgs.SubMeshIndex];
     auto pipeline = material->GetPipeline(drawArgs.PassId, m_CurrentFrameGraph);
     auto effect = material->GetTechnique()->GetPassEffect(drawArgs.PassId);
@@ -356,15 +369,20 @@ void Renderer::DrawClassicMesh(vk::CommandBuffer cmdBuffer,
     }
     vk::Device device = m_Context->GetDevice();
 
-    bool hasPipelineChanged = false;
+    uint32_t threadId = m_TaskScheduler->GetThreadNum();
+    SafePtr lastUsedEffect = m_LastUsedEffects[threadId];
+    SafePtr lastUsedPipeline = m_LastUsedPipelines[threadId];
+    SafePtr lastUsedStaticMesh = m_LastUsedStaticMeshes[threadId];
+
+    bool pipelineChanged = false;
     SafePtr descAllocator = m_FrameData[m_CurrentFrameInFlight].DescriptorAllocator;
     Shader::MatTypeInfo shaderInfo = effect->GetShader()->MatTypeInfos[ShaderDomain::eMesh];
 
-    if (pipeline != m_LastUsedPipeline)
+    if (pipeline != lastUsedPipeline)
     {
         pipeline->Bind(cmdBuffer);
-        m_LastUsedPipeline = pipeline;
-        hasPipelineChanged = true;
+        m_LastUsedPipelines[threadId] = pipeline;
+        pipelineChanged = true;
         
 
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
@@ -372,16 +390,16 @@ void Renderer::DrawClassicMesh(vk::CommandBuffer cmdBuffer,
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 5,
                                      { m_Context->GetBindlessDescriptorSet() }, {});
     }
-    if (hasPipelineChanged || drawArgs.Mesh != m_LastUsedStaticMesh)
+    if (pipelineChanged || drawArgs.Mesh != lastUsedStaticMesh)
     {
         LNE_PROFILE_SCOPE_C("Set Geometry DescSet", PROFILING_COL)
             const Geometry& geometry = drawArgs.Mesh->GetGeometry();
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 3,
                                      { geometry.GetDescSet() }, {});
-        m_LastUsedStaticMesh = drawArgs.Mesh;
+        m_LastUsedStaticMeshes[threadId] = drawArgs.Mesh;
     }
 
-    if (hasPipelineChanged || m_LastUsedEffect != effect)
+    if (pipelineChanged || lastUsedEffect != effect)
     {
         LNE_PROFILE_SCOPE_C("Set Effect DescSet", PROFILING_COL)
             auto matDescSet = effect->GetFrameDescriptorSet(m_CurrentFrameInFlight);
@@ -391,7 +409,7 @@ void Renderer::DrawClassicMesh(vk::CommandBuffer cmdBuffer,
             { matDescSet },
             {}
         );
-        m_LastUsedEffect = effect;
+        m_LastUsedEffects[threadId] = effect;
     }
     auto matSlot = material->GetMaterialPassSlot(drawArgs.PassId);
     cmdBuffer.pushConstants<MaterialSlot>(pipeline->GetLayout(), matSlot.Stages, 0, { matSlot.Slot });
@@ -412,13 +430,18 @@ void Renderer::DrawMeshlets(vk::CommandBuffer cmdBuffer,
     }
     vk::Device device = m_Context->GetDevice();
 
-    bool hasPipelineChanged = false;
+    uint32_t threadId = m_TaskScheduler->GetThreadNum();
+    SafePtr lastUsedEffect = m_LastUsedEffects[threadId];
+    SafePtr lastUsedPipeline = m_LastUsedPipelines[threadId];
+    SafePtr lastUsedStaticMesh = m_LastUsedStaticMeshes[threadId];
+
+    bool pipelineChanged = false;
     SafePtr descAllocator = m_FrameData[m_CurrentFrameInFlight].DescriptorAllocator;
-    if (pipeline != m_LastUsedPipeline)
+    if (pipeline != lastUsedPipeline)
     {
         pipeline->Bind(cmdBuffer);
-        m_LastUsedPipeline = pipeline;
-        hasPipelineChanged = true;
+        m_LastUsedPipelines[threadId] = pipeline;
+        pipelineChanged = true;
 
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
                                      { m_FrameData[m_CurrentFrameInFlight].DescriptorSet, drawArgs.LightsBuffer->GetDescSet(), drawArgs.TransformBuffer->GetDescSet() }, {});
@@ -426,16 +449,16 @@ void Renderer::DrawMeshlets(vk::CommandBuffer cmdBuffer,
                                      { m_Context->GetBindlessDescriptorSet() }, {});
     }
 
-    if (hasPipelineChanged || drawArgs.Mesh != m_LastUsedStaticMesh)
+    if (pipelineChanged || drawArgs.Mesh != lastUsedStaticMesh)
     {
         LNE_PROFILE_SCOPE_C("Set Geometry DescSet", PROFILING_COL)
             const Geometry& geometry = drawArgs.Mesh->GetGeometry();
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 3,
                                      { geometry.GetDescSet() }, {});
-        m_LastUsedStaticMesh = drawArgs.Mesh;
+        m_LastUsedStaticMeshes[threadId] = drawArgs.Mesh;
     }
 
-    if (hasPipelineChanged || m_LastUsedEffect != effect)
+    if (pipelineChanged || lastUsedEffect != effect)
     {
         LNE_PROFILE_SCOPE_C("Set Effect DescSet", PROFILING_COL)
             auto matDescSet = effect->GetFrameDescriptorSet(m_CurrentFrameInFlight);
@@ -445,7 +468,7 @@ void Renderer::DrawMeshlets(vk::CommandBuffer cmdBuffer,
             { matDescSet },
             {}
         );
-        m_LastUsedEffect = effect;
+        m_LastUsedEffects[threadId] = effect;
     }
     auto matSlot = material->GetMaterialPassSlot(drawArgs.PassId);
     cmdBuffer.pushConstants<MeshletPushConstants>(pipeline->GetLayout(), matSlot.Stages, 0, { {matSlot.Slot, drawArgs.Offset, submesh.BaseMeshlet, submesh.MeshletCount} });
@@ -466,18 +489,24 @@ void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer,
     SafePtr technique = material->GetTechnique();
     SafePtr effect = technique->GetPassEffect(passId);
     SafePtr pipeline = material->GetPipeline(passId, m_CurrentFrameGraph);
-    if (pipeline == nullptr)
+
+    if (effect == nullptr || pipeline == nullptr)
     {
         LNE_ERROR("Pipeline is null");
         return;
     }
+
+    uint32_t threadId = m_TaskScheduler->GetThreadNum();
+    SafePtr lastUsedEffect = m_LastUsedEffects[threadId];
+    SafePtr lastUsedPipeline = m_LastUsedPipelines[threadId];
+
     vk::Device device = m_Context->GetDevice();
     const Geometry& geometry = m_Context->GetDefaultFullscreenQuad();
     bool hasPipelineChanged = false;
-    if (pipeline != m_LastUsedPipeline)
+    if (pipeline != lastUsedPipeline)
     {
         pipeline->Bind(cmdBuffer);
-        m_LastUsedPipeline = pipeline;
+        m_LastUsedPipelines[threadId] = pipeline;
         hasPipelineChanged = true;
 
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
@@ -489,7 +518,7 @@ void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer,
     auto matSlot = material->GetMaterialPassSlot(passId);
 
     cmdBuffer.pushConstants<MaterialSlot>(pipeline->GetLayout(), matSlot.Stages, 0, { matSlot.Slot });
-    if (m_LastUsedEffect != effect || m_LastUsedPipeline != pipeline)
+    if (lastUsedEffect != effect || hasPipelineChanged)
     {
         auto matDescSet = effect->GetFrameDescriptorSet(m_CurrentFrameInFlight);
         cmdBuffer.bindDescriptorSets(
@@ -498,7 +527,7 @@ void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer,
             { matDescSet },
             {}
         );
-        m_LastUsedEffect = effect;
+        m_LastUsedEffects[threadId] = effect;
     }
     cmdBuffer.draw(geometry.GetIndexCount(), 1, 0, 0);
 }

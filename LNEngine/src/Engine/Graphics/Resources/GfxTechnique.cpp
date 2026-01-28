@@ -28,11 +28,11 @@ GfxTechnique::GfxTechnique(const GfxTechniqueDesc& desc)
 
 PipelineHandle GfxTechnique::CreateOrGetPipeline(PassID passID, SafePtr<FrameGraph> frameGraph)
 {
+    std::scoped_lock lock(m_PassMutex);
     auto it = m_Passes.find(passID);
     if (it == m_Passes.end())
         return PipelineHandle{};
 
-    std::scoped_lock lock(m_PipelineMutex);
     PassBinding& passBinding = it->second;
 
     GraphicsPipelineDescV2 desc{};
@@ -50,17 +50,18 @@ PipelineHandle GfxTechnique::CreateOrGetPipeline(PassID passID, SafePtr<FrameGra
 
 SafePtr<GfxPipeline> GfxTechnique::GetPipeline(PassID passID, PipelineHandle handle)
 {
+    std::scoped_lock lock(m_PassMutex);
     auto it = m_Passes.find(passID);
     if (it == m_Passes.end())
         return nullptr;
 
-    std::scoped_lock lock(m_PipelineMutex);
     return it->second.PassEffect->GetPipeline(handle);
 }
 
 lne::SafePtr<lne::Effect> GfxTechnique::GetPassEffect(PassID passID)
 {
     // Not thread-safe, should be called during initialization
+    std::scoped_lock lock(m_PassMutex);
     auto it = m_Passes.find(passID);
     if (it == m_Passes.end())
         return nullptr;
@@ -71,6 +72,7 @@ FlatHashMap<PassID, MaterialPassSlot> GfxTechnique::AllocateMaterialSlots()
 {
     FlatHashMap<PassID, MaterialPassSlot> slots;
     slots.reserve(m_Passes.size());
+    std::scoped_lock lock(m_PassMutex);
     for (const auto&[passId, passBinding] : m_Passes)
     {
         MaterialSlot slot = passBinding.PassEffect->AllocateMaterialSlot();

@@ -62,7 +62,7 @@ public:
 private:
     friend class Renderer;
     std::string                         m_Name;
-    std::mutex                          m_PipelineMutex;
+    std::mutex                          m_PassMutex;
     FlatHashMap<PassID, PassBinding>    m_Passes;
     GfxTechniqueState                   m_State;
     ShaderDomain::Enum                  m_ShaderDomain { ShaderDomain::eUnknown };

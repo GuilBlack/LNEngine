@@ -106,6 +106,7 @@ private:
     MaterialElementsMap                             m_Constants;
     MatPassDataMap                                  m_PassData;
     std::mutex                                      m_DataMutex;
+    std::mutex                                      m_PipelineMutex;
     FlatHashMap<PassID, MaterialPassSlot>           m_AllocatedSlots;
     FlatHashMap<MaterialPipelineHash, PipelineHandle, boost::hash<lne::MaterialPipelineHash>>       m_AllocatedPipelines;
     bool                                            m_IsTransparent{ false };
