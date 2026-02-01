@@ -1,3 +1,6 @@
+#ifndef Common_INC
+#define Common_INC
+
 #extension GL_EXT_scalar_block_layout : enable
 #extension GL_EXT_nonuniform_qualifier : require
 
@@ -27,3 +30,77 @@ float remap(float value, float fromMin, float fromMax, float toMin, float toMax)
 {
     return toMin + (value - fromMin) * (toMax - toMin) / (fromMax - fromMin);
 }
+
+vec3 getPositionFromDepth(in float depth, in vec2 uv, in mat4 viewProj)
+{
+    vec4 ndc = vec4(uv.x * 2.0 - 1.0, (uv.y * 2.0 - 1.0) * -1.0, depth, 1.0);
+    vec4 worldSpacePosition = inverse(viewProj) * ndc;
+    return worldSpacePosition.xyz / worldSpacePosition.w;
+}
+
+vec3 getViewPositionFromDepth(in float depth, in vec2 uv, in mat4 invProj)
+{
+    vec4 ndc = vec4(uv.x * 2.0 - 1.0, (uv.y * 2.0 - 1.0) * -1.0, depth, 1.0);
+    vec4 viewSpacePosition = invProj * ndc;
+    return viewSpacePosition.xyz / viewSpacePosition.w;
+}
+
+vec3 getNDCPositionFromDepth(in float depth, in vec2 uv)
+{
+    return vec3(uv.x * 2.0 - 1.0, (uv.y * 2.0 - 1.0) * -1.0, depth);
+}
+
+// https://holger.dammertz.org/stuff/notes_HammersleyOnHemisphere.html
+vec2 Hammersley2D(uint i, uint N, float invN)
+{
+    uint b = i;
+
+    b = (b << 16u) | (b >> 16u);
+    b = ((b & 0x55555555u) << 1u) | ((b & 0xAAAAAAAAu) >> 1u);
+    b = ((b & 0x33333333u) << 2u) | ((b & 0xCCCCCCCCu) >> 2u);
+    b = ((b & 0x0F0F0F0Fu) << 4u) | ((b & 0xF0F0F0F0u) >> 4u);
+    b = ((b & 0x00FF00FFu) << 8u) | ((b & 0xFF00FF00u) >> 8u);
+    
+    float radicalInverse = float(b) * 2.3283064365386963e-10;
+    return vec2(float(i) * invN, radicalInverse);
+}
+
+// really uniform on the hemisphere
+ vec3 HemisphereSampleUniform(vec2 Xi)
+{
+     float phi = Xi.x * 2.0 * PI;
+     float cosTheta = 1.0 - Xi.y;
+     float sinTheta = sqrt(1.0 - cosTheta * cosTheta);
+     return vec3(cos(phi) * sinTheta, sin(phi) * sinTheta, cosTheta);
+ }
+
+// has a more samples near the top of the hemisphere because it's cosine weighted
+ vec3 HemisphereSampleCos(vec2 Xi)
+{
+     float phi = Xi.x * 2.0 * PI;
+     float cosTheta = sqrt(1.0 - Xi.y);
+     float sinTheta = sqrt(1.0 - cosTheta * cosTheta);
+     return vec3(cos(phi) * sinTheta, sin(phi) * sinTheta, cosTheta);
+ }
+
+// https://www.shadertoy.com/view/3dcfDn
+ vec3 turboColormap(in float x)
+{
+    const vec4 kRedVec4 = vec4(0.13572138, 4.61539260, -42.66032258, 132.13108234);
+    const vec4 kGreenVec4 = vec4(0.09140261, 2.19418839, 4.84296658, -14.18503333);
+    const vec4 kBlueVec4 = vec4(0.10667330, 12.64194608, -60.58204836, 110.36276771);
+    const vec2 kRedVec2 = vec2(-152.94239396, 59.28637943);
+    const vec2 kGreenVec2 = vec2(4.27729857, 2.82956604);
+    const vec2 kBlueVec2 = vec2(-89.90310912, 27.34824973);
+  
+    x = saturate(x);
+    vec4 v4 = vec4( 1.0, x, x * x, x * x * x);
+    vec2 v2 = v4.zw * v4.z;
+    return vec3(
+        dot(v4, kRedVec4)   + dot(v2, kRedVec2),
+        dot(v4, kGreenVec4) + dot(v2, kGreenVec2),
+        dot(v4, kBlueVec4)  + dot(v2, kBlueVec2)
+    );
+}
+
+#endif

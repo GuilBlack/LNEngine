@@ -71,21 +71,12 @@ vec3 samplePrefilteredReflection(vec3 reflectDir, float roughness) {
     return mix(sample1, sample2, lod - lodMin);
 }
 
-vec3 getPositionFromDepth(float depth, vec2 uv)
-{
-    vec3 ndc = vec3(uv.x * 2.0 - 1.0, (uv.y * 2.0 - 1.0) * -1.0, depth);
-    vec4 clipSpacePosition = vec4(ndc, 1.0);
-    vec4 worldSpacePosition = inverse(uViewProj) * clipSpacePosition;
-    worldSpacePosition /= worldSpacePosition.w;
-    return worldSpacePosition.xyz;
-}
-
 void main() {
     MaterialData mat = mb.materials[matPC.id];
     vec3 albedo = texture(globalTextures[nonuniformEXT(mat.tAlbedo)], iUV).xyz;
     vec3 normal = normalize(texture(globalTextures[nonuniformEXT(mat.tNormal)], iUV).xyz);
     float depth = texture(globalTextures[nonuniformEXT(mat.tDepth)], iUV).x;
-    vec3 position = getPositionFromDepth(depth, iUV);
+    vec3 position = getPositionFromDepth(depth, iUV, uViewProj);
     vec3 metalnessRoughness = texture(globalTextures[nonuniformEXT(mat.tMetalnessRoughness)], iUV).xyz;
     float metalness = metalnessRoughness.x;
     float roughness = metalnessRoughness.y;

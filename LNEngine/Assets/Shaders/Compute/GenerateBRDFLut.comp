@@ -16,6 +16,8 @@ layout(scalar, set = PARAMS_SET, binding = 0) uniform ComputeParams
     uint tBRDFLut;
 };
 
+float invNumSamples = float(1) / float(uNumSamples);
+
 // https://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf
 vec2 IntegrateBRDF(float nDotV, float roughness)
 {
@@ -27,7 +29,7 @@ vec2 IntegrateBRDF(float nDotV, float roughness)
 
     for (uint i = 0; i < uNumSamples; ++i)
     {
-        vec2 Xi = Hammersley2D(i, uNumSamples);
+        vec2 Xi = Hammersley2D(i, uNumSamples, invNumSamples);
         vec3 H = ImportanceSampleGGX(Xi, alpha, N);
         vec3 L = 2.0 * dot(V, H) * H - V;
         float nDotL = saturate(dot(N, L));

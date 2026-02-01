@@ -207,16 +207,17 @@ void main()
     oMetalnessRoughness = vec4(metalness, roughness, 0.0, 1.0);
 
     vec3 normal = normalize(iMeshlet.normal);
+    float mask = 1.0 - roughness;
     if (mat.tNormal != 0 && iMeshlet.tangent != vec3(0.0))
     {
         vec3 tangent =   normalize(iMeshlet.tangent - normal * dot(normal, iMeshlet.tangent));
         vec3 bitangent = normalize(iMeshlet.bitangent);
 
         mat3 TBN = mat3(tangent, bitangent, normal);
-        oNormal = vec4(TBN * (texture(globalTextures[nonuniformEXT(mat.tNormal)], iMeshlet.uv).xyz * 2.0 - vec3(1.0)), 1.0);
+        oNormal = vec4(TBN * (texture(globalTextures[nonuniformEXT(mat.tNormal)], iMeshlet.uv).xyz * 2.0 - vec3(1.0)), mask);
     }
     else
-        oNormal = vec4(normal, 1.0);
+        oNormal = vec4(normal, mask);
 }
 
 #endif

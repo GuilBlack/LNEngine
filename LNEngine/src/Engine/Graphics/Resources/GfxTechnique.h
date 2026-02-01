@@ -26,7 +26,7 @@ struct GfxTechniqueState
     TransparencyMode::Enum          Transparency = TransparencyMode::eOpaque;
     bool                            DeriveDepthFromTransparency = true;
     DepthMode::Enum                 DepthMode = DepthMode::eReadWrite;
-    ECompareOperation               DepthCompareOp = ECompareOperation::LessOrEqual;
+    ECompareOperation               DepthCompareOp = ECompareOperation::GreaterOrEqual;
     EFillMode                       Fill = EFillMode::Solid;
     ECullMode                       Cull = ECullMode::Back;
 };

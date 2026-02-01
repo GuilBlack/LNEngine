@@ -22,6 +22,8 @@ layout(scalar, set = PARAMS_SET, binding = 0) uniform ComputeParams
     uint    tPrefilteredCubemap;
 };
 
+float invNumSamples = float(1) / float(uNumSamples);
+
 vec3 PrefilteredColor(float roughness, vec3 normal, vec3 viewDir)
 {
     vec3 specularColor = vec3(0.0);
@@ -30,7 +32,7 @@ vec3 PrefilteredColor(float roughness, vec3 normal, vec3 viewDir)
     float envMapDimension = float(textureSize(globalCubemaps[tRadianceCubemap], 0).s);
     for (uint i = 0; i < uNumSamples; ++i)
     {
-        vec2 Xi = Hammersley2D(i, uNumSamples);
+        vec2 Xi = Hammersley2D(i, uNumSamples, invNumSamples);
         vec3 vHalf = ImportanceSampleGGX(Xi, alpha, normal);
         vec3 vLight = 2.0 * dot(viewDir, vHalf) * vHalf - viewDir;
 

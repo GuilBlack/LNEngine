@@ -237,9 +237,13 @@ void AppLayer::OnAttach()
     m_BasicMaterial2 = lnnew Material(opaqueTechnique);
 
     m_BasicMaterial->SetProperty("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
-    m_BasicMaterial->SetTexture("tAlbedo", uvChecker);
-    m_BasicMaterial2->SetProperty("uColor", glm::vec4(0.25f, 0.25f, 0.25f, 0.25f));
-    m_BasicMaterial2->SetTexture("tAlbedo", renderer.GetDefaultTexture());
+    // m_BasicMaterial->SetTexture("tAlbedo", uvChecker);
+    m_BasicMaterial->SetProperty("uMetalness", 1.0f);
+    m_BasicMaterial->SetProperty("uRoughness", 0.0f);
+
+    m_BasicMaterial2->SetProperty("uColor", glm::vec4(1.f, 1.f, 1.f, 1.f));
+    m_BasicMaterial2->SetProperty("uMetalness", 0.0f);
+    m_BasicMaterial2->SetProperty("uRoughness", 1.0f);
 
 #pragma region CreateEntities
     m_CameraEntity = m_Scene->CreateEntity();
@@ -254,25 +258,25 @@ void AppLayer::OnAttach()
     m_CubeEntity.EmplaceComponent<StaticMeshComponent>();
     m_SphereEntity.EmplaceComponent<StaticMeshComponent>();
 
-    m_LightEntities.reserve(1);
-    for (uint32_t i = 0; i < 10; ++i)
-    {
-        lne::Entity lightEntity = m_Scene->CreateEntity();
-        auto& lightComp = lightEntity.EmplaceComponent<lne::LightComponent>();
-        lightComp.Type = lne::LightType::ePoint;
-        lightComp.Color = glm::vec3(static_cast<float>(std::rand()) / RAND_MAX,
-                                    static_cast<float>(std::rand()) / RAND_MAX,
-                                    static_cast<float>(std::rand()) / RAND_MAX);
-        float angle = i * glm::two_pi<float>() / 10;
-        float radius = 1.f;
-        auto& lightTransform = lightEntity.GetComponent<lne::TransformComponent>();
-        lightTransform.Position = glm::vec3(cos(angle) * radius, 0.5f, sin(angle) * radius);
+    //m_LightEntities.reserve(1);
+    //for (uint32_t i = 0; i < 10; ++i)
+    //{
+    //    lne::Entity lightEntity = m_Scene->CreateEntity();
+    //    auto& lightComp = lightEntity.EmplaceComponent<lne::LightComponent>();
+    //    lightComp.Type = lne::LightType::ePoint;
+    //    lightComp.Color = glm::vec3(static_cast<float>(std::rand()) / RAND_MAX,
+    //                                static_cast<float>(std::rand()) / RAND_MAX,
+    //                                static_cast<float>(std::rand()) / RAND_MAX);
+    //    float angle = i * glm::two_pi<float>() / 10;
+    //    float radius = 1.f;
+    //    auto& lightTransform = lightEntity.GetComponent<lne::TransformComponent>();
+    //    lightTransform.Position = glm::vec3(cos(angle) * radius, 0.5f, sin(angle) * radius);
 
-        lightComp.Intensity = 100.f;
-        lightComp.Range = 1.0f;
+    //    lightComp.Intensity = 100.f;
+    //    lightComp.Range = 1.0f;
 
-        m_LightEntities.emplace_back(std::move(lightEntity));
-    }
+    //    m_LightEntities.emplace_back(std::move(lightEntity));
+    //}
     lne::Entity spotLightEntity = m_Scene->CreateEntity();
     auto& spotLightComp = spotLightEntity.EmplaceComponent<lne::LightComponent>();
     spotLightComp.Type = lne::LightType::eSpot;
@@ -306,11 +310,11 @@ void AppLayer::OnAttach()
 #pragma endregion
 
 #pragma region TransformInit
-    cubeTransform.Position =  { -0.5f, 0.0f, -30.0f };
-    cubeTransform.Scale =     { 0.25f, 0.25f, 0.25f };
+    cubeTransform.Position =  { 0.0f, 0.0f, 0.0f };
+    cubeTransform.Scale =     { 10.f, 0.1f, 5.f };
 
-    sphereTransform.Position = { 0.f, 1.0f, 0.0f };
-    sphereTransform.Scale = { 0.25f, 0.25f, 0.25f };
+    sphereTransform.Position = { 0.f, .25f, 0.0f };
+    sphereTransform.Scale = { .5f, .5f, .5f };
 
     modelTransform.Position = { 0.0f, 0.0f, 0.0f };
     modelTransform.Scale = { 100.f, 100.f, 100.f };
@@ -321,8 +325,8 @@ void AppLayer::OnAttach()
 
 #pragma endregion
 
-    cameraTransform.Position = { -2.0f, 4.0f, 0.0f };
-    cameraTransform.LookAt({ 0.0f, 0.0f, 0.0f });
+    cameraTransform.Position = { -6.0f, 1.0f, 0.0f };
+    cameraTransform.Rotate(90.f, 0.f, 0.f);
 
     auto& windowSettings = ApplicationBase::GetWindow().GetSettings();
     cameraComponent.SetPerspective(45.0f, windowSettings.Width / (float)windowSettings.Height, 0.01f, 1000.0f);
@@ -355,39 +359,39 @@ void AppLayer::OnAttach()
 
     glm::vec3 color{};
 
-    for (int sic = 0; sic < 2; ++sic)
-    {
-        if (sic == 0)
-            color = 0.8f * glm::vec3(1.0f, 1.0f, 1.0f);
-        else
-            color = glm::vec3(0.8, 0.6941176470588235f, 0.11372549019607843f); // gold-like
+    //for (int sic = 0; sic < 2; ++sic)
+    //{
+    //    if (sic == 0)
+    //        color = 0.8f * glm::vec3(1.0f, 1.0f, 1.0f);
+    //    else
+    //        color = glm::vec3(0.8, 0.6941176470588235f, 0.11372549019607843f); // gold-like
 
-        for (int sim = 0; sim < 5; ++sim)
-        {
-            float metalness = sim / 4.0f;
-            for (int sir = 0; sir < 5; ++sir)
-            {
-                float roughness = sir / 4.0f;
-                lne::Entity entity = m_Scene->CreateEntity();
-                entity.EmplaceComponent<lne::StaticMeshComponent>();
+    //    for (int sim = 0; sim < 5; ++sim)
+    //    {
+    //        float metalness = sim / 4.0f;
+    //        for (int sir = 0; sir < 5; ++sir)
+    //        {
+    //            float roughness = sir / 4.0f;
+    //            lne::Entity entity = m_Scene->CreateEntity();
+    //            entity.EmplaceComponent<lne::StaticMeshComponent>();
 
-                SafePtr metalRoughSphereMesh = meshletSphereMesh->Clone();
-                SafePtr grayMaterial = lnnew Material(meshletTech);
-                grayMaterial->SetProperty("uColor", glm::vec4(color, 1.0f));
-                grayMaterial->SetProperty("uMetalness", metalness);
-                grayMaterial->SetProperty("uRoughness", roughness);
-                metalRoughSphereMesh->SetMaterial(grayMaterial, 0);
-                auto [transform, meshComponent] = entity.GetComponents<lne::TransformComponent, lne::StaticMeshComponent>();
-                meshComponent.Mesh = metalRoughSphereMesh;
+    //            SafePtr metalRoughSphereMesh = meshletSphereMesh->Clone();
+    //            SafePtr grayMaterial = lnnew Material(meshletTech);
+    //            grayMaterial->SetProperty("uColor", glm::vec4(color, 1.0f));
+    //            grayMaterial->SetProperty("uMetalness", metalness);
+    //            grayMaterial->SetProperty("uRoughness", roughness);
+    //            metalRoughSphereMesh->SetMaterial(grayMaterial, 0);
+    //            auto [transform, meshComponent] = entity.GetComponents<lne::TransformComponent, lne::StaticMeshComponent>();
+    //            meshComponent.Mesh = metalRoughSphereMesh;
 
-                transform.Position = glm::vec3(
-                    (sim * 2.0f - 1.0f) * 5.0f,
-                    (sir * 2.0f - 1.0f) * 5.0f,
-                    10.0f * (sic + 1)
-                );
-            }
-        }
-    }
+    //            transform.Position = glm::vec3(
+    //                (sim * 2.0f - 1.0f) * 5.0f,
+    //                (sir * 2.0f - 1.0f) * 5.0f,
+    //                10.0f * (sic + 1)
+    //            );
+    //        }
+    //    }
+    //}
 }
 
 void AppLayer::InitFrameGraph()
@@ -437,7 +441,7 @@ void AppLayer::InitFrameGraph()
     lne::FrameGraphResourceDesc meshletDebugResource = meshletDebugResourceBuilder.SetName("MeshletDebugRef")
         .SetImageDimension(width, height)
         .SetType(lne::FrameGraphResourceType::eProxy)
-        .SetProxyInfo("Lighting")
+        .SetProxyInfo("SsrScene")
         .Build();
 
     lne::FrameGraphResourceDesc depthAttachmentDesc = resourceBuilder
@@ -448,6 +452,12 @@ void AppLayer::InitFrameGraph()
     lne::FrameGraphResourceDesc toneMappedSceneDesc = resourceBuilder
         .SetDefaultColorAttachmentInfos()
         .SetName("ToneMappedScene")
+        .Build();
+
+    lne::FrameGraphResourceDesc ssrSceneDesc = resourceBuilder
+        .SetDefaultColorAttachmentInfos()
+        .SetImageFormat(vk::Format::eR16G16B16A16Sfloat)
+        .SetName("SsrScene")
         .Build();
 
     lne::FrameGraphResourceDesc depthTextureDesc = resourceBuilder
@@ -467,7 +477,7 @@ void AppLayer::InitFrameGraph()
 
     nodeBuilder.Clear();
     lne::FrameGraphNodeDesc meshletDebugPassDesc = nodeBuilder.SetName("MeshletDebugPass")
-        .AddInputResource(lightingResource)
+        .AddInputResource(ssrSceneDesc)
         .AddInputResource(depthAttachmentDesc)
         .AddOutputResource(meshletDebugResource)
         .SetEnabled(false)
@@ -518,6 +528,15 @@ void AppLayer::InitFrameGraph()
         .AddOutputResource(lightingResource)
         .Build();
 
+    lightingResource.Type = lne::FrameGraphResourceType::eTexture;
+    nodeBuilder.Clear();
+    lne::FrameGraphNodeDesc ssrPassDesc = nodeBuilder.SetName("SsrPass")
+        .AddInputResource(lightingResource)
+        .AddInputResource(normalAttachmentDesc)
+        .AddInputResource(depthTextureDesc)
+        .AddOutputResource(ssrSceneDesc)
+        .Build();
+
     m_FrameGraph->CreateNode(finalPassDesc);
     m_FrameGraph->CreateNode(skyboxPassDesc);
     m_FrameGraph->CreateNode(depthPrePassDesc);
@@ -526,6 +545,7 @@ void AppLayer::InitFrameGraph()
     m_FrameGraph->CreateNode(lightingPassDesc);
     m_FrameGraph->CreateNode(toneMappingPassDesc);
     m_FrameGraph->CreateNode(meshletDebugPassDesc);
+    m_FrameGraph->CreateNode(ssrPassDesc);
     m_FrameGraph->Compile();
 
     m_FrameGraph->BindRenderPass(lnnew lne::LightingPass());
@@ -536,6 +556,7 @@ void AppLayer::InitFrameGraph()
     m_FrameGraph->BindRenderPass(lnnew lne::GBufferPass());
     m_FrameGraph->BindRenderPass(lnnew ToneMappingPass());
     m_FrameGraph->BindRenderPass(lnnew lne::MeshletDebugPass());
+    m_FrameGraph->BindRenderPass(lnnew lne::SsrPass());
 }
 
 void AppLayer::OnDetach()
