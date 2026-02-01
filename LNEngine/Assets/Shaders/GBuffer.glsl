@@ -16,6 +16,7 @@ struct MaterialData
     vec4 uColor;
     float uMetalness;
     float uRoughness;
+    float uUseSSR;
 
     // texture indices
     uint tAlbedo;
@@ -111,7 +112,7 @@ void main()
     oMetalnessRoughness = vec4(metalness, roughness, 0.0, 1.0);
 
     vec3 normal = normalize(iNormal);
-    float mask = 1.0 - roughness;
+    float mask = mat.uUseSSR;
     if (mat.tNormal != 0 && iTangent != vec3(0.0))
     {
         vec3 tangent =   normalize(iTangent - normal * dot(normal, iTangent));

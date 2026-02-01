@@ -54,6 +54,18 @@ void SsrPass::OnBind(FrameGraph* frameGraph, FrameGraphNode* node)
             m_Material->SetTexture("tScene", sceneTexture);
             continue;
         }
+        if (resource.Name == "GBufferMetalRough")
+        {
+            SafePtr<Texture> normalTexture = resource.Resource.GetAs<Texture>();
+            m_Material->SetTexture("tMetalnessRoughness", normalTexture);
+            continue;
+        }
+        if (resource.Name == "GBufferColor")
+        {
+            SafePtr<Texture> normalTexture = resource.Resource.GetAs<Texture>();
+            m_Material->SetTexture("tAlbedo", normalTexture);
+            continue;
+        }
     }
 }
 

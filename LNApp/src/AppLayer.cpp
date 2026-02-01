@@ -239,7 +239,8 @@ void AppLayer::OnAttach()
     m_BasicMaterial->SetProperty("uColor", glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
     // m_BasicMaterial->SetTexture("tAlbedo", uvChecker);
     m_BasicMaterial->SetProperty("uMetalness", 1.0f);
-    m_BasicMaterial->SetProperty("uRoughness", 0.0f);
+    m_BasicMaterial->SetProperty("uRoughness", 0.05f);
+    m_BasicMaterial->SetProperty("uUseSSR", 1.0f);
 
     m_BasicMaterial2->SetProperty("uColor", glm::vec4(1.f, 1.f, 1.f, 1.f));
     m_BasicMaterial2->SetProperty("uMetalness", 0.0f);
@@ -258,25 +259,25 @@ void AppLayer::OnAttach()
     m_CubeEntity.EmplaceComponent<StaticMeshComponent>();
     m_SphereEntity.EmplaceComponent<StaticMeshComponent>();
 
-    //m_LightEntities.reserve(1);
-    //for (uint32_t i = 0; i < 10; ++i)
-    //{
-    //    lne::Entity lightEntity = m_Scene->CreateEntity();
-    //    auto& lightComp = lightEntity.EmplaceComponent<lne::LightComponent>();
-    //    lightComp.Type = lne::LightType::ePoint;
-    //    lightComp.Color = glm::vec3(static_cast<float>(std::rand()) / RAND_MAX,
-    //                                static_cast<float>(std::rand()) / RAND_MAX,
-    //                                static_cast<float>(std::rand()) / RAND_MAX);
-    //    float angle = i * glm::two_pi<float>() / 10;
-    //    float radius = 1.f;
-    //    auto& lightTransform = lightEntity.GetComponent<lne::TransformComponent>();
-    //    lightTransform.Position = glm::vec3(cos(angle) * radius, 0.5f, sin(angle) * radius);
+    m_LightEntities.reserve(1);
+    for (uint32_t i = 0; i < 10; ++i)
+    {
+        lne::Entity lightEntity = m_Scene->CreateEntity();
+        auto& lightComp = lightEntity.EmplaceComponent<lne::LightComponent>();
+        lightComp.Type = lne::LightType::ePoint;
+        lightComp.Color = glm::vec3(static_cast<float>(std::rand()) / RAND_MAX,
+                                    static_cast<float>(std::rand()) / RAND_MAX,
+                                    static_cast<float>(std::rand()) / RAND_MAX);
+        float angle = i * glm::two_pi<float>() / 10;
+        float radius = 1.f;
+        auto& lightTransform = lightEntity.GetComponent<lne::TransformComponent>();
+        lightTransform.Position = glm::vec3(cos(angle) * radius, 0.5f, sin(angle) * radius);
 
-    //    lightComp.Intensity = 100.f;
-    //    lightComp.Range = 1.0f;
+        lightComp.Intensity = 100.f;
+        lightComp.Range = 1.0f;
 
-    //    m_LightEntities.emplace_back(std::move(lightEntity));
-    //}
+        m_LightEntities.emplace_back(std::move(lightEntity));
+    }
     lne::Entity spotLightEntity = m_Scene->CreateEntity();
     auto& spotLightComp = spotLightEntity.EmplaceComponent<lne::LightComponent>();
     spotLightComp.Type = lne::LightType::eSpot;
@@ -285,7 +286,7 @@ void AppLayer::OnAttach()
     spotLightComp.Range = 30.0f;
     spotLightComp.SpotAngle = glm::radians(10.0f);
     auto& spotLightTransform = spotLightEntity.GetComponent<lne::TransformComponent>();
-    spotLightTransform.Position = glm::vec3(0.0f, 0.5f, 0.0f);
+    spotLightTransform.Position = glm::vec3(0.0f, .5f, 0.0f);
     spotLightTransform.SetEulerAngles({ 0.0f, -90.0f, 0.0f });
 
     CameraComponent& cameraComponent = m_CameraEntity.EmplaceComponent<CameraComponent>();
@@ -310,7 +311,7 @@ void AppLayer::OnAttach()
 #pragma endregion
 
 #pragma region TransformInit
-    cubeTransform.Position =  { 0.0f, 0.0f, 0.0f };
+    cubeTransform.Position =  { 0.0f, -.1f, 0.0f };
     cubeTransform.Scale =     { 10.f, 0.1f, 5.f };
 
     sphereTransform.Position = { 0.f, .25f, 0.0f };
@@ -326,7 +327,7 @@ void AppLayer::OnAttach()
 #pragma endregion
 
     cameraTransform.Position = { -6.0f, 1.0f, 0.0f };
-    cameraTransform.Rotate(90.f, 0.f, 0.f);
+    cameraTransform.SetEulerAngles({ 0.f, -90.f, 0.f });
 
     auto& windowSettings = ApplicationBase::GetWindow().GetSettings();
     cameraComponent.SetPerspective(45.0f, windowSettings.Width / (float)windowSettings.Height, 0.01f, 1000.0f);
@@ -359,39 +360,40 @@ void AppLayer::OnAttach()
 
     glm::vec3 color{};
 
-    //for (int sic = 0; sic < 2; ++sic)
-    //{
-    //    if (sic == 0)
-    //        color = 0.8f * glm::vec3(1.0f, 1.0f, 1.0f);
-    //    else
-    //        color = glm::vec3(0.8, 0.6941176470588235f, 0.11372549019607843f); // gold-like
+    for (int sic = 0; sic < 2; ++sic)
+    {
+        if (sic == 0)
+            color = 0.8f * glm::vec3(1.0f, 1.0f, 1.0f);
+        else
+            color = glm::vec3(0.8, 0.6941176470588235f, 0.11372549019607843f); // gold-like
 
-    //    for (int sim = 0; sim < 5; ++sim)
-    //    {
-    //        float metalness = sim / 4.0f;
-    //        for (int sir = 0; sir < 5; ++sir)
-    //        {
-    //            float roughness = sir / 4.0f;
-    //            lne::Entity entity = m_Scene->CreateEntity();
-    //            entity.EmplaceComponent<lne::StaticMeshComponent>();
+        for (int sim = 0; sim < 5; ++sim)
+        {
+            float metalness = sim / 4.0f;
+            for (int sir = 0; sir < 5; ++sir)
+            {
+                float roughness = sir / 4.0f;
+                lne::Entity entity = m_Scene->CreateEntity();
+                entity.EmplaceComponent<lne::StaticMeshComponent>();
 
-    //            SafePtr metalRoughSphereMesh = meshletSphereMesh->Clone();
-    //            SafePtr grayMaterial = lnnew Material(meshletTech);
-    //            grayMaterial->SetProperty("uColor", glm::vec4(color, 1.0f));
-    //            grayMaterial->SetProperty("uMetalness", metalness);
-    //            grayMaterial->SetProperty("uRoughness", roughness);
-    //            metalRoughSphereMesh->SetMaterial(grayMaterial, 0);
-    //            auto [transform, meshComponent] = entity.GetComponents<lne::TransformComponent, lne::StaticMeshComponent>();
-    //            meshComponent.Mesh = metalRoughSphereMesh;
+                SafePtr metalRoughSphereMesh = meshletSphereMesh->Clone();
+                SafePtr grayMaterial = lnnew Material(meshletTech);
+                grayMaterial->SetProperty("uColor", glm::vec4(color, 1.0f));
+                grayMaterial->SetProperty("uMetalness", metalness);
+                grayMaterial->SetProperty("uRoughness", roughness);
+                grayMaterial->SetProperty("uUseSSR", 1.0f);
+                metalRoughSphereMesh->SetMaterial(grayMaterial, 0);
+                auto [transform, meshComponent] = entity.GetComponents<lne::TransformComponent, lne::StaticMeshComponent>();
+                meshComponent.Mesh = metalRoughSphereMesh;
 
-    //            transform.Position = glm::vec3(
-    //                (sim * 2.0f - 1.0f) * 5.0f,
-    //                (sir * 2.0f - 1.0f) * 5.0f,
-    //                10.0f * (sic + 1)
-    //            );
-    //        }
-    //    }
-    //}
+                transform.Position = glm::vec3(
+                    (sim * 2.0f - 1.0f) * 5.0f,
+                    (sir * 2.0f - 1.0f) * 5.0f,
+                    10.0f * (sic + 1)
+                );
+            }
+        }
+    }
 }
 
 void AppLayer::InitFrameGraph()
@@ -533,6 +535,8 @@ void AppLayer::InitFrameGraph()
     lne::FrameGraphNodeDesc ssrPassDesc = nodeBuilder.SetName("SsrPass")
         .AddInputResource(lightingResource)
         .AddInputResource(normalAttachmentDesc)
+        .AddInputResource(colorAttachmentDesc)
+        .AddInputResource(metalRoughAttachmentDesc)
         .AddInputResource(depthTextureDesc)
         .AddOutputResource(ssrSceneDesc)
         .Build();
