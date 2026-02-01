@@ -71,6 +71,15 @@ vec3 samplePrefilteredReflection(vec3 reflectDir, float roughness) {
     return mix(sample1, sample2, lod - lodMin);
 }
 
+// https://www.shadertoy.com/view/MslGR8 for dithering (maybe)
+#define MOD3 vec3(443.8975,397.2973, 491.1871)
+float hash12(vec2 p)
+{
+    vec3 p3  = fract(vec3(p.xyx) * MOD3);
+    p3 += dot(p3, p3.yzx + 19.19);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
 void main() {
     float maxDist           = 20; // max ray distance
     float res               = 0.3; // % of the pixels to use
@@ -125,7 +134,7 @@ void main() {
     float useX = abs(rayLengthPx.x) >= abs(rayLengthPx.y) ? 1.0 : 0.0;
     float delta = mix(abs(rayLengthPx.y), abs(rayLengthPx.x), useX) * clamp(res, 0, 1);
     delta = min(delta, float(maxCoarseMarchSteps));
-    vec2 step = rayLengthPx / max(delta, 0.001);
+    vec2 rayStep = rayLengthPx / max(delta, 0.001);
 
     float lastMiss = 0.0;
     float lerpVal = 0.0;
@@ -141,7 +150,7 @@ void main() {
     vec3 marchPos = vec3(0.0);
 
     for (int i = 0; i < int(delta); ++i) {
-        currFrag += step;
+        currFrag += rayStep;
         currUv = currFrag / screenRes;
         marchPos = getViewPositionFromDepth(texture(globalTextures[nonuniformEXT(mat.tDepth)], currUv).r, currUv, inverseProj);
         lerpVal = useX == 1 ? (currFrag.x - startFrag.x) / rayLengthPx.x : (currFrag.y - startFrag.y) / rayLengthPx.y;
@@ -185,13 +194,20 @@ void main() {
             lastMiss = prevLerp;
         }
     }
-    float distWeight = length(marchPos - camToPos) / maxDist;
+    float distWeight = length(marchPos - camToPos) / maxDist; // if it's far away, the visibility is reduced
+    distWeight = (1.0 - clamp(distWeight*distWeight*distWeight, 0.0, 1.0));
+    float edgeDist = min(min(currUv.x, 1.0 - currUv.x), min(currUv.y, 1.0 - currUv.y));
+    float edgeWeight = smoothstep(0.0, 0.02, edgeDist); // if the ray hits outside the screen
+
+    float facing = dot(-dir, rayDir);
+    float facingWeight = 1.0 - smoothstep(0.1, 0.4, facing);  // if the ray is facing the camera, reduce visibility
+
+    float t = clamp(depth / thickness, 0.0, 1.0);
+    float thicknessWeight = 1.0 - smoothstep(0.0, 1.0, t); // the deeper the intersection, the less visible
+
     float weight = secondPassIntersection * (hitDepth > 0.0 ? 1.0 : 0.0) // my depth is 0.0 for far plane, so if I hit it, no visibility
-         * (1.0 - max(dot(-dir, rayDir), 0.0)) // if the ray is facing the camera, reduce visibility
-         * (1.0 - clamp(depth / thickness, 0.0, 1.0)) // the deeper the intersection, the less visible
-         * (1.0 - clamp(distWeight*distWeight*distWeight, 0.0, 1.0)) // if it's far away, the visibility is reduced
-         * (currUv.x < 0.0 || currUv.x > 1.0 ? 0.0 : 1.0)  // outside of screen
-         * (currUv.y < 0.0 || currUv.y > 1.0 ? 0.0 : 1.0); // outside of screen
+         * facingWeight * thicknessWeight * distWeight * edgeWeight;
+
     weight = clamp(weight, 0.0, 1.0);
 
     vec3 viewDir = normalize(uEyePos - worldPos);
