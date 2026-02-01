@@ -19,7 +19,7 @@ public:
         SafePtr<class GfxContext> ctx, 
         uint32_t width, uint32_t height, vk::Format format,
         TextureUsageType::Enum usage = TextureUsageType::eSampled,
-        const std::string& name = ""
+        const std::string& name = "", bool useMips = false
     );
     static SafePtr<Texture> CreateColorTexture2D(
         SafePtr<class GfxContext> ctx, 

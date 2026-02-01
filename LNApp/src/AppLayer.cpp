@@ -420,46 +420,47 @@ void AppLayer::InitFrameGraph()
         .SetDefaultColorAttachmentInfos()
         .SetImageFormat(vk::Format::eR8G8Unorm)
         .Build();
-    
+
     lne::FrameGraphResourceDesc lightingResource = resourceBuilder.SetName("Lighting")
         .SetType(lne::FrameGraphResourceType::eAttachment)
         .SetDefaultColorAttachmentInfos()
         .SetImageFormat(vk::Format::eR16G16B16A16Sfloat)
+        .SetImageUseMips(true)
+        .Build();
+    resourceBuilder.SetImageUseMips(false);
+
+    lne::FrameGraphResourceDescBuilder mainScenePyramidResourceBuilder = lne::FrameGraphResourceDescBuilder();
+    lne::FrameGraphResourceDesc lightingResourceProxy = mainScenePyramidResourceBuilder.SetName("LightingPyramidRef")
+        .SetImageDimension(width, height)
+        .SetType(lne::FrameGraphResourceType::eProxy).SetProxyInfo("Lighting")
         .Build();
 
     lne::FrameGraphResourceDesc skyboxResource = resourceBuilder.SetName("LightingSkyboxRef")
-        .SetType(lne::FrameGraphResourceType::eProxy)
-        .SetProxyInfo("LightingTransparentRef")
+        .SetType(lne::FrameGraphResourceType::eProxy).SetProxyInfo("LightingTransparentRef")
         .Build();
 
     lne::FrameGraphResourceDescBuilder transparentResourceBuilder = lne::FrameGraphResourceDescBuilder();
     lne::FrameGraphResourceDesc transparentResource = transparentResourceBuilder.SetName("LightingTransparentRef")
         .SetImageDimension(width, height)
-        .SetType(lne::FrameGraphResourceType::eProxy)
-        .SetProxyInfo("MeshletDebugRef")
+        .SetType(lne::FrameGraphResourceType::eProxy).SetProxyInfo("MeshletDebugRef")
         .Build();
 
     lne::FrameGraphResourceDescBuilder meshletDebugResourceBuilder = lne::FrameGraphResourceDescBuilder();
     lne::FrameGraphResourceDesc meshletDebugResource = meshletDebugResourceBuilder.SetName("MeshletDebugRef")
         .SetImageDimension(width, height)
-        .SetType(lne::FrameGraphResourceType::eProxy)
-        .SetProxyInfo("SsrScene")
+        .SetType(lne::FrameGraphResourceType::eProxy).SetProxyInfo("SsrScene")
         .Build();
 
     lne::FrameGraphResourceDesc depthAttachmentDesc = resourceBuilder
         .SetType(lne::FrameGraphResourceType::eAttachment)
-        .SetDefaultDepthAttachmentInfos()
-        .SetName("Depth").Build();
+        .SetDefaultDepthAttachmentInfos().SetName("Depth").Build();
 
     lne::FrameGraphResourceDesc toneMappedSceneDesc = resourceBuilder
-        .SetDefaultColorAttachmentInfos()
-        .SetName("ToneMappedScene")
+        .SetDefaultColorAttachmentInfos().SetName("ToneMappedScene")
         .Build();
 
     lne::FrameGraphResourceDesc ssrSceneDesc = resourceBuilder
-        .SetDefaultColorAttachmentInfos()
-        .SetImageFormat(vk::Format::eR16G16B16A16Sfloat)
-        .SetName("SsrScene")
+        .SetDefaultColorAttachmentInfos().SetImageFormat(vk::Format::eR16G16B16A16Sfloat).SetName("SsrScene")
         .Build();
 
     lne::FrameGraphResourceDesc depthTextureDesc = resourceBuilder
@@ -508,13 +509,11 @@ void AppLayer::InitFrameGraph()
         .AddOutputResource(toneMappedSceneDesc)
         .SetType(lne::RenderPassType::eGraphics)
         .Build();
-    
+
     nodeBuilder.Clear();
     lne::FrameGraphNodeDesc gBufferPassDesc = nodeBuilder.SetName("GBufferPass")
         .AddInputResource(depthAttachmentDesc)
-        .AddOutputResource(colorAttachmentDesc)
-        .AddOutputResource(normalAttachmentDesc)
-        .AddOutputResource(metalRoughAttachmentDesc)
+        .AddOutputResource(colorAttachmentDesc).AddOutputResource(normalAttachmentDesc).AddOutputResource(metalRoughAttachmentDesc)
         .Build();
 
     normalAttachmentDesc.Type = lne::FrameGraphResourceType::eTexture;
@@ -530,10 +529,17 @@ void AppLayer::InitFrameGraph()
         .AddOutputResource(lightingResource)
         .Build();
 
-    lightingResource.Type = lne::FrameGraphResourceType::eTexture;
+    nodeBuilder.Clear();
+    lne::FrameGraphNodeDesc mainScenePyramidPass = nodeBuilder.SetName("MainScenePyramidPass")
+        .AddInputResource(lightingResource)
+        .AddOutputResource(lightingResourceProxy)
+        .SetType(lne::RenderPassType::eTransfer)
+        .Build();
+
+    lightingResourceProxy.Type = lne::FrameGraphResourceType::eTexture;
     nodeBuilder.Clear();
     lne::FrameGraphNodeDesc ssrPassDesc = nodeBuilder.SetName("SsrPass")
-        .AddInputResource(lightingResource)
+        .AddInputResource(lightingResourceProxy)
         .AddInputResource(normalAttachmentDesc)
         .AddInputResource(colorAttachmentDesc)
         .AddInputResource(metalRoughAttachmentDesc)
@@ -541,15 +547,11 @@ void AppLayer::InitFrameGraph()
         .AddOutputResource(ssrSceneDesc)
         .Build();
 
-    m_FrameGraph->CreateNode(finalPassDesc);
-    m_FrameGraph->CreateNode(skyboxPassDesc);
-    m_FrameGraph->CreateNode(depthPrePassDesc);
-    m_FrameGraph->CreateNode(transparentPassDesc);
-    m_FrameGraph->CreateNode(gBufferPassDesc);
-    m_FrameGraph->CreateNode(lightingPassDesc);
-    m_FrameGraph->CreateNode(toneMappingPassDesc);
-    m_FrameGraph->CreateNode(meshletDebugPassDesc);
-    m_FrameGraph->CreateNode(ssrPassDesc);
+    m_FrameGraph->CreateNodes({
+        finalPassDesc, skyboxPassDesc, depthPrePassDesc,
+        transparentPassDesc, gBufferPassDesc, lightingPassDesc,
+        toneMappingPassDesc, meshletDebugPassDesc, ssrPassDesc, mainScenePyramidPass
+    });
     m_FrameGraph->Compile();
 
     m_FrameGraph->BindRenderPass(lnnew lne::LightingPass());
@@ -561,6 +563,7 @@ void AppLayer::InitFrameGraph()
     m_FrameGraph->BindRenderPass(lnnew ToneMappingPass());
     m_FrameGraph->BindRenderPass(lnnew lne::MeshletDebugPass());
     m_FrameGraph->BindRenderPass(lnnew lne::SsrPass());
+    m_FrameGraph->BindRenderPass(lnnew lne::ScenePyramidPass("MainScenePyramidPass", "Lighting"));
 }
 
 void AppLayer::OnDetach()

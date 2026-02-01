@@ -525,29 +525,26 @@ vk::Queue GfxContext::GetQueue(EQueueFamilyType type) const
 
 void GfxContext::SubmitToQueue(EQueueFamilyType type, const vk::SubmitInfo& submitInfo, vk::Fence fence)
 {
+    std::lock_guard lock(m_QueueMutex);
     switch (type)
     {
     case EQueueFamilyType::Graphics:
     {
-        std::lock_guard lock(m_GraphicsQueueMutex);
         m_GraphicsQueue.submit(submitInfo, fence);
         break;
     }
     case EQueueFamilyType::Compute:
     {
-        std::lock_guard lock(m_ComputeQueueMutex);
         m_ComputeQueue.submit(submitInfo, fence);
         break;
     }
     case EQueueFamilyType::Transfer:
     {
-        std::lock_guard lock(m_TransferQueueMutex);
         m_TransferQueue.submit(submitInfo, fence);
         break;
     }
     case EQueueFamilyType::Present:
     {
-        std::lock_guard lock(m_PresentQueueMutex);
         m_PresentQueue.submit(submitInfo, fence);
         break;
     }

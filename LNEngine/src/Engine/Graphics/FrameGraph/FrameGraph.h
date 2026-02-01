@@ -22,11 +22,12 @@ struct FrameGraphResourceBufferInfo
 
 struct FrameGraphResourceImageInfo
 {
-    vk::Extent3D            Extent;
+    vk::Extent3D            Extent{ 1,1,1 };
 
     vk::Format              Format;
     vk::ImageUsageFlags     Flags;
     vk::ImageAspectFlags    Aspect;
+    bool                    UseMips{ false };
 
     vk::AttachmentLoadOp    LoadOp;
 };
@@ -141,6 +142,11 @@ public:
         m_ImageInfo.LoadOp = loadOp;
         return *this;
     }
+    FrameGraphResourceDescBuilder& SetImageUseMips(bool useMips)
+    {
+        m_ImageInfo.UseMips = useMips;
+        return *this;
+    }
     
     FrameGraphResourceDescBuilder& SetExternal(bool external)
     {
@@ -249,6 +255,7 @@ public:
 
     void                                            BindRenderPass(SafePtr<RenderPass> renderPass);
     FrameGraphNodeHandle                            CreateNode(const FrameGraphNodeDesc& desc);
+    std::vector<FrameGraphNodeHandle>               CreateNodes(const std::vector<FrameGraphNodeDesc>& descs);
 
     void                                            OutputGraphToMermaid();
 

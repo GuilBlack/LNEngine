@@ -75,9 +75,11 @@ void FrameGraph::Compile()
                         imageInfo.Extent.width, imageInfo.Extent.height, TextureUsageType::eSampled, outputResource.Name);
                     break;
                 }
+                if (imageInfo.UseMips)
+                    LNE_TRACE(std::format("image: {} uses mips", outputResource.Name));
                 outputResource.Resource = Texture::CreateColorAttachmentTexture(m_Context,
                     imageInfo.Extent.width, imageInfo.Extent.height,
-                    imageInfo.Format, TextureUsageType::eSampled, outputResource.Name);
+                    imageInfo.Format, TextureUsageType::eSampled, outputResource.Name, imageInfo.UseMips);
                 break;
             }
             case FrameGraphResourceType::eBuffer:
@@ -645,6 +647,15 @@ FrameGraphNodeHandle FrameGraph::CreateNode(const FrameGraphNodeDesc& desc)
     }
 
     return handle;
+}
+
+std::vector<lne::FrameGraphNodeHandle> FrameGraph::CreateNodes(const std::vector<FrameGraphNodeDesc>& descs)
+{
+    std::vector<lne::FrameGraphNodeHandle> nodes;
+    nodes.reserve(descs.size());
+    for (FrameGraphNodeDesc desc : descs)
+        nodes.emplace_back(CreateNode(desc));
+    return nodes;
 }
 
 void FrameGraph::OutputGraphToMermaid()

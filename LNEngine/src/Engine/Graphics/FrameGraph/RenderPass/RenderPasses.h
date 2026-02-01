@@ -6,3 +6,4 @@
 #include "Engine/Graphics/FrameGraph/RenderPass/LightingPass.h"
 #include "Engine/Graphics/FrameGraph/RenderPass/MeshletDebugPass.h"
 #include "Engine/Graphics/FrameGraph/RenderPass/SsrPass.h"
+#include "Engine/Graphics/FrameGraph/RenderPass/ScenePyramidPass.h"

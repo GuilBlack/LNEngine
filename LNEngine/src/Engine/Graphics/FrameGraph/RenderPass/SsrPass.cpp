@@ -48,7 +48,7 @@ void SsrPass::OnBind(FrameGraph* frameGraph, FrameGraphNode* node)
             m_Material->SetTexture("tDepth", depthTexture);
             continue;
         }
-        if (resource.Name == "Lighting")
+        if (resource.Name == "LightingPyramidRef")
         {
             SafePtr<Texture> sceneTexture = resource.Resource.GetAs<Texture>();
             m_Material->SetTexture("tScene", sceneTexture);

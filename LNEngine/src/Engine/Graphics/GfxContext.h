@@ -193,10 +193,7 @@ private:
     vk::Queue                               m_TransferQueue;
     vk::Queue                               m_PresentQueue;
 
-    std::mutex                              m_GraphicsQueueMutex;
-    std::mutex                              m_ComputeQueueMutex;
-    std::mutex                              m_TransferQueueMutex;
-    std::mutex                              m_PresentQueueMutex;
+    std::mutex                              m_QueueMutex;
 
     uint32_t                                m_CurrentFrameInFlight{ 0 };
     uint32_t                                m_MaxFramesInFlight{ 2 };

@@ -42,7 +42,7 @@ SafePtr<Texture> Texture::CreateColorAttachmentTexture(
     SafePtr<class GfxContext> ctx,
     uint32_t width, uint32_t height, vk::Format format,
     TextureUsageType::Enum usage,
-    const std::string& name)
+    const std::string& name, bool useMips)
 {
     vk::ImageUsageFlags flags = vk::ImageUsageFlagBits::eColorAttachment | vkut::GetImageUsageFlags(usage)
         | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc;
@@ -52,7 +52,7 @@ SafePtr<Texture> Texture::CreateColorAttachmentTexture(
         vk::ImageType::e2D,
         format,
         vk::Extent3D(width, height, 1),
-        1,
+        useMips ? GetMaxMipLevels(width, height) : 1,
         1,
         vk::SampleCountFlagBits::e1,
         vk::ImageTiling::eOptimal,
