@@ -311,8 +311,8 @@ void AppLayer::OnAttach()
 #pragma endregion
 
 #pragma region TransformInit
-    cubeTransform.Position =  { 0.0f, -.1f, 0.0f };
-    cubeTransform.Scale =     { 10.f, 0.1f, 5.f };
+    cubeTransform.Position =  { 8.0f, -.1f, 0.0f };
+    cubeTransform.Scale =     { 2.f, 0.1f, 2.f };
 
     sphereTransform.Position = { 0.f, .25f, 0.0f };
     sphereTransform.Scale = { .5f, .5f, .5f };

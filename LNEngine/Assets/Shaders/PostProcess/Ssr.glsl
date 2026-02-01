@@ -61,7 +61,7 @@ layout(location = 0) out vec4 oColor;
 
 #include "PBRLighting.glslh"
 
-vec3 samplePrefilteredReflection(vec3 reflectDir, float roughness) {
+vec3 samplePrefilteredReflection(in vec3 reflectDir, float roughness) {
     float maxReflLod = log2(float(textureSize(globalTextures[nonuniformEXT(tPrefilteredMap)], 0).x));
     float lod = maxReflLod * roughness;
     float lodMin = floor(lod);
@@ -69,6 +69,23 @@ vec3 samplePrefilteredReflection(vec3 reflectDir, float roughness) {
     vec3 sample1 = textureLod(globalCubemaps[nonuniformEXT(tPrefilteredMap)], reflectDir, lodMin).xyz;
     vec3 sample2 = textureLod(globalCubemaps[nonuniformEXT(tPrefilteredMap)], reflectDir, lodMax).xyz;
     return mix(sample1, sample2, lod - lodMin);
+}
+
+vec3 sampleSceneReflection(in vec2 uv, float roughness, uint sceneHandle)
+{
+    vec2 ts = textureSize(globalTextures[nonuniformEXT(sceneHandle)], 0);
+    float maxLod = floor(log2(max(ts.x, ts.y)));
+
+    float pr = clamp(roughness, 0.0, 1.0);
+    float lod = clamp(maxLod * (pr * pr), 0.0, maxLod);
+
+    float lodMin = floor(lod);
+    float lodMax = min(lodMin + 1.0, maxLod);
+
+    vec3 a = textureLod(globalTextures[nonuniformEXT(sceneHandle)], uv, lodMin).rgb;
+    vec3 b = textureLod(globalTextures[nonuniformEXT(sceneHandle)], uv, lodMax).rgb;
+
+    return mix(a, b, lod - lodMin);
 }
 
 // https://www.shadertoy.com/view/MslGR8 for dithering (maybe)
@@ -92,7 +109,7 @@ void main() {
     vec4 nWorldAndMask = texture(globalTextures[nonuniformEXT(mat.tNormal)], iUV);
     vec3 worldNormal = normalize(nWorldAndMask.xyz);
     float mask = nWorldAndMask.w;
-    vec3 sceneColor = texture(globalTextures[nonuniformEXT(mat.tScene)], iUV).xyz;
+    vec3 sceneColor = textureLod(globalTextures[nonuniformEXT(mat.tScene)], iUV, 0).xyz;
 
     vec3 metalnessRoughness = texture(globalTextures[nonuniformEXT(mat.tMetalnessRoughness)], iUV).xyz;
     float metalness = metalnessRoughness.x;
@@ -100,7 +117,7 @@ void main() {
     vec3 albedo = texture(globalTextures[nonuniformEXT(mat.tAlbedo)], iUV).xyz;
 
     float depth = texture(globalTextures[nonuniformEXT(mat.tDepth)], iUV).r;
-    if (depth == 0.0 || roughness > 0.6 || mask < 0.99999999) {
+    if (depth == 0.0 || mask < 0.99999999) {
         oColor = vec4(sceneColor, 1.0);
         return;
     }
@@ -223,7 +240,9 @@ void main() {
     vec3 prefilteredColor = samplePrefilteredReflection(reflectDir, roughness);
     vec3 specularIBL = prefilteredColor * (F * brdf.x + brdf.y);
 
-    vec3 reflectedColor = texture(globalTextures[nonuniformEXT(mat.tScene)], currUv).xyz;
+    //vec3 reflectedColor = textureLod(globalTextures[nonuniformEXT(mat.tScene)], currUv, 0).xyz;
+    vec3 reflectedColor = sampleSceneReflection(currUv, roughness, mat.tScene);
+
     reflectedColor = reflectedColor * (F * brdf.x + brdf.y);
 
     float weightR = 1.0 - roughness * roughness; // to kill ssr on rough surfaces since I don't have a convolved mip chain for my scene
