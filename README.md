@@ -41,9 +41,7 @@ This README is more of a way for me to keep track of what I did and what I'll be
 - Hot reloading of shaders and materials
 - More testing of the ECS and scene system
 
-## How it works
-
-### Setup
+## Setup
 For the moment, it only works on Windows with Vulkan version 1.3 and I don't really plan to support a wide variety of devices. I'd like to try and make it work on Linux machines but since I don't have one, it will probably have to wait. I use Visual Studio 2022 to develop this app.
 
 To build the project on Windows:
@@ -51,27 +49,36 @@ To build the project on Windows:
 - Define a VULKAN_SDK environment variable where the Vulkan SDK is if it's not already defined.
 - Clone this repository ***recursively*** with `--recursive-submodules` since I use some libraries as submodules. If you don't have all the submodules cloned, the build will fail. If you've already cloned the repo, you can just run `git submodule update --init --recursive` in the root of the repository.
 - launch the `ProjectGen.bat` script located in `vendor/premake/Scripts` from the root of this directory.
+- Now, you'll see a sln file in the root of the repository. Open it with Visual Studio 2022.
 - That's probably it unless I forgot something...
 
 The executable is constructed with the LNApp project and the Assets etc are copied to the output directory so that you can just plug and play in renderdoc.
-!!! Note that you'll need a GPU that supports Vulkan 1.3 and mesh shaders.
+!!! Note that you'll need a GPU that supports Vulkan 1.3 and mesh shaders since I'm using them.
+
+## Some Screenshots
+
+That's how it started!
 
 ![square-image](github-images/preview.gif)
 
 And here is a stress test with 32k spheres which are entities and not particles that runs smoothly at 75fps on my laptop equipped with a GTX 3070ti and a Ryzen 7 6800H:
 
-![square-image](github-images/StressTest.png)
+![stress-test](github-images/StressTest.png)
 
 The frame graph generates a graph in mermaid (mmd) format in the profiling directory. Here is an example of what it looks like:
 
 | Frame Graph |
 | --- |
-| ![square-image](github-images/BasicFrameGraph.png) |
+| ![framegraph](github-images/BasicFrameGraph.png) |
 
 And a little example of meshlets rendering working alongside normal rendering to conclude. To activate the debug view, just check the "Is Enabled" box in the Meshlet Debug Pass section of the ImGui interface.
-![Meshlets](github-images/MeshletDebug.png)
+![meshlets](github-images/MeshletDebug.png)
 
-Currently, we are using the basic frame graph to render the scene. The complex frame graph is a work in progress.
+And here, you can see some screen space reflections in action:
+
+![ssr](github-images/SSR.png)
+
+(please ignore the leaves that doesn't have a cutoff, I know... But I'm procrastinating adding alpha cutoff support in the PBR shader...)
 
 ### Code example
 
