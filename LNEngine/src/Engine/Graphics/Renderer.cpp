@@ -370,7 +370,7 @@ void Renderer::DrawClassicMesh(vk::CommandBuffer cmdBuffer,
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
                                      { m_FrameData[m_CurrentFrameInFlight].DescriptorSet, drawArgs.LightsBuffer->GetDescSet(), drawArgs.TransformBuffer->GetDescSet() }, {});
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 5,
-                                     { m_Context->GetBindlessDescriptorSet() }, {});
+                                     { m_Context->GetBindlessDescriptorSet(m_CurrentFrameInFlight) }, {});
     }
     if (hasPipelineChanged || drawArgs.Mesh != m_LastUsedStaticMesh)
     {
@@ -423,7 +423,7 @@ void Renderer::DrawMeshlets(vk::CommandBuffer cmdBuffer,
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 0,
                                      { m_FrameData[m_CurrentFrameInFlight].DescriptorSet, drawArgs.LightsBuffer->GetDescSet(), drawArgs.TransformBuffer->GetDescSet() }, {});
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 5,
-                                     { m_Context->GetBindlessDescriptorSet() }, {});
+                                     { m_Context->GetBindlessDescriptorSet(m_CurrentFrameInFlight) }, {});
     }
 
     if (hasPipelineChanged || drawArgs.Mesh != m_LastUsedStaticMesh)
@@ -484,7 +484,7 @@ void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer,
                                      { m_FrameData[m_CurrentFrameInFlight].DescriptorSet, lightBuffer->GetDescSet(), geometry.GetDescSet() }, {});
 
         cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline->GetLayout(), 4,
-                                     { m_Context->GetBindlessDescriptorSet() }, {});
+                                     { m_Context->GetBindlessDescriptorSet(m_CurrentFrameInFlight) }, {});
     }
     auto matSlot = material->GetMaterialPassSlot(passId);
 
@@ -526,7 +526,7 @@ void Renderer::Dispatch(vk::CommandBuffer cmdBuffer, SafePtr<class ComputeProgra
     auto pipeline = program->GetPipeline();
     pipeline->Bind(cmdBuffer);
 
-    cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipeline->GetLayout(), 0, { program->m_DescriptorSet, m_Context->GetBindlessDescriptorSet() }, {});
+    cmdBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipeline->GetLayout(), 0, { program->m_DescriptorSet, m_Context->GetBindlessDescriptorSet(m_CurrentFrameInFlight) }, {});
 
     cmdBuffer.dispatch(x, y, z);
 

@@ -72,7 +72,8 @@ private:
                                                  uint32_t type_bits);
 
     void                        RenderDrawData(const DrawDataCopy& draw_data,
-                                               vk::CommandBuffer cmdBuffer);
+                                               vk::CommandBuffer cmdBuffer,
+                                               uint32_t currentFrame);
 
     void                        SetupRenderState(const DrawDataCopy& draw_data,
                                                  VkPipeline pipeline, 

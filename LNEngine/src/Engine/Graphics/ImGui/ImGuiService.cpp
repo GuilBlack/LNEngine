@@ -376,12 +376,13 @@ void ImGuiService::EndFrame()
                 LNE_PROFILE_SCOPE("ImGui Render");
                 uint32_t imageIndex = m_Swapchain->GetCurrentFrameIndex();
                 auto& renderer = ApplicationBase::GetRenderer();
+                uint32_t currentFrameIndex = renderer.GetCurrentFrameIndex();
                 auto cmdBuffer = m_GraphicsContext->GetPrimaryCommandBuffer();
 
                 renderer.PushLabel(cmdBuffer, "ImGui");
                 m_Framebuffers[imageIndex].Bind(cmdBuffer);
 
-                RenderDrawData(ddCopy, cmdBuffer);
+                RenderDrawData(ddCopy, cmdBuffer, currentFrameIndex);
 
                 m_Framebuffers[imageIndex].Unbind(cmdBuffer);
                 renderer.PopLabel(cmdBuffer);
@@ -777,7 +778,7 @@ uint32_t ImGuiService::VulkanMemoryType(VkMemoryPropertyFlags properties, uint32
     return 0xFFFFFFFF; // Unable to find memoryType
 }
 
-void ImGuiService::RenderDrawData(const DrawDataCopy& draw_data, vk::CommandBuffer cmdBuffer)
+void ImGuiService::RenderDrawData(const DrawDataCopy& draw_data, vk::CommandBuffer cmdBuffer, uint32_t currentFrame)
 {
     int fb_width = (int)(draw_data.DisplaySize.x * draw_data.FramebufferScale.x);
     int fb_height = (int)(draw_data.DisplaySize.y * draw_data.FramebufferScale.y);
@@ -897,7 +898,7 @@ void ImGuiService::RenderDrawData(const DrawDataCopy& draw_data, vk::CommandBuff
                 vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
                 // Bind DescriptorSet with font or user texture
-                VkDescriptorSet desc_set[1] = { (VkDescriptorSet)m_GraphicsContext->GetBindlessDescriptorSet() };
+                VkDescriptorSet desc_set[1] = { (VkDescriptorSet)m_GraphicsContext->GetBindlessDescriptorSet(currentFrame) };
                 uint32_t texId = pcmd->TextureId ? (uint32_t)(intptr_t)pcmd->TextureId : 0;
                 vkCmdPushConstants(cmdBuffer, bd->PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, sizeof(float) * 4, sizeof(uint32_t), &texId);
                 if (sizeof(ImTextureID) < sizeof(ImU64))

@@ -100,8 +100,6 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
         poolSizesBindless
     };
 
-    m_BindlessDescriptorPool = m_Device.createDescriptorPool(poolInfoBindless);
-    SetVkObjectName(m_BindlessDescriptorPool, "BindlessDescriptorPool");
 
     std::array<vk::DescriptorSetLayoutBinding, 2> bindlessLayoutBindings{
         vk::DescriptorSetLayoutBinding{
@@ -138,13 +136,20 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
     m_BindlessDescriptorSetLayout = m_Device.createDescriptorSetLayout(bindlessLayoutChain.get<vk::DescriptorSetLayoutCreateInfo>());
     SetVkObjectName(m_BindlessDescriptorSetLayout, "BindlessDescriptorSetLayout");
 
-    vk::DescriptorSetAllocateInfo allocInfoBindless{
-        m_BindlessDescriptorPool,
-        m_BindlessDescriptorSetLayout
-    };
-    auto result = m_Device.allocateDescriptorSets(allocInfoBindless);
-    m_BindlessDescriptorSet = result.back();
-    SetVkObjectName(m_BindlessDescriptorSet, "BindlessDescriptorSet");
+    m_BindlessDescriptorPool.resize(m_MaxFramesInFlight);
+    m_BindlessDescriptorSet.resize(m_MaxFramesInFlight);
+    for (uint32_t i = 0; i < m_BindlessDescriptorPool.size(); ++i)
+    {
+        m_BindlessDescriptorPool[i] = m_Device.createDescriptorPool(poolInfoBindless);
+        SetVkObjectName(m_BindlessDescriptorPool[i], std::format("BindlessDescriptorPool{}", i));
+        vk::DescriptorSetAllocateInfo allocInfoBindless{
+            m_BindlessDescriptorPool[i],
+            m_BindlessDescriptorSetLayout
+        };
+        auto result = m_Device.allocateDescriptorSets(allocInfoBindless);
+        m_BindlessDescriptorSet[i] = result.back();
+        SetVkObjectName(m_BindlessDescriptorSet[i], "BindlessDescriptorSet");
+    }
 
     m_FreeBindlessTextureIndices = std::queue<uint32_t>();
     for (uint32_t i = 0; i < bindlessPoolSize; i++)
@@ -205,8 +210,11 @@ GfxContext::~GfxContext()
     m_StorageOnlyDescriptorAllocator.reset();
     m_UniformOnlyDescriptorAllocator.reset();
     m_UniformStorageDescriptorAllocator.reset();
-    m_Device.resetDescriptorPool(m_BindlessDescriptorPool);
-    m_Device.destroyDescriptorPool(m_BindlessDescriptorPool);
+    for (uint32_t i = 0; i < m_MaxFramesInFlight; ++i)
+    {
+        m_Device.resetDescriptorPool(m_BindlessDescriptorPool[i]);
+        m_Device.destroyDescriptorPool(m_BindlessDescriptorPool[i]);
+    }
     m_Device.destroyDescriptorSetLayout(m_BindlessDescriptorSetLayout);
     vmaDestroyAllocator(m_MemoryAllocator);
     m_Device.destroy();
@@ -606,16 +614,45 @@ BindlessImageHandle GfxContext::RegisterBindlessTexture(Texture* texture)
         texture->GetImageView(),
         vk::ImageLayout::eShaderReadOnlyOptimal
     };
+    for (uint32_t i = 0; i < m_MaxFramesInFlight; ++i)
+    {
+        vk::WriteDescriptorSet descriptorWrite{
+            m_BindlessDescriptorSet[i],
+            0,
+            handle,
+            vk::DescriptorType::eCombinedImageSampler,
+            imageInfo
+        };
+        m_Device.updateDescriptorSets({ descriptorWrite }, nullptr);
+    }
+    m_FreeBindlessTextureIndices.pop();
+    return handle;
+}
+
+void GfxContext::UpdateBindlessTexture(Texture* texture, BindlessImageHandle imageHandle, uint32_t currentFrameInFlight)
+{
+    std::lock_guard<std::mutex> lock(m_BindlessMutex);
+    vk::Sampler sampler = texture->GetSampler();
+    if (sampler == vk::Sampler{})
+    {
+        assert(m_DefaultSampler);
+        sampler = m_DefaultSampler;
+    }
+
+    auto imageInfo = vk::DescriptorImageInfo{
+        sampler,
+        texture->GetImageView(),
+        vk::ImageLayout::eShaderReadOnlyOptimal
+    };
     vk::WriteDescriptorSet descriptorWrite{
-        m_BindlessDescriptorSet,
+        m_BindlessDescriptorSet[currentFrameInFlight],
         0,
-        handle,
+        imageHandle,
         vk::DescriptorType::eCombinedImageSampler,
         imageInfo
     };
     m_Device.updateDescriptorSets({ descriptorWrite }, nullptr);
     m_FreeBindlessTextureIndices.pop();
-    return handle;
 }
 
 BindlessImageHandle GfxContext::RegisterBindlessImage(vk::ImageView imageView)
@@ -627,14 +664,17 @@ BindlessImageHandle GfxContext::RegisterBindlessImage(vk::ImageView imageView)
         imageView,
         vk::ImageLayout::eGeneral
     };
-    vk::WriteDescriptorSet descriptorWrite{
-        m_BindlessDescriptorSet,
-        1,
-        handle,
-        vk::DescriptorType::eStorageImage,
-        imageInfo
-    };
-    m_Device.updateDescriptorSets({ descriptorWrite }, nullptr);
+    for (uint32_t i = 0; i < m_MaxFramesInFlight; ++i)
+    {
+        vk::WriteDescriptorSet descriptorWrite{
+            m_BindlessDescriptorSet[i],
+            1,
+            handle,
+            vk::DescriptorType::eStorageImage,
+            imageInfo
+        };
+        m_Device.updateDescriptorSets({ descriptorWrite }, nullptr);
+    }
     m_FreeBindlessImageIndices.pop();
     return handle;
 }

@@ -114,6 +114,7 @@ public:
         vk::Format format, uint32_t numMipLevels = 1,
         uint32_t layers = 1, vk::ImageAspectFlags aspect = vk::ImageAspectFlagBits::eColor, const std::string& name = "");
     [[nodiscard]] BindlessImageHandle       RegisterBindlessTexture(class Texture* texture);
+    [[nodiscard]] void                      UpdateBindlessTexture(class Texture* texture, BindlessImageHandle imageHandle, uint32_t currentFrameInFlight);
     [[nodiscard]] BindlessImageHandle       RegisterBindlessImage(vk::ImageView imageView);
 
     [[nodiscard]] vk::Sampler               CreateSampler(vk::Filter magFilter = vk::Filter::eLinear,
@@ -129,7 +130,7 @@ public:
                                                           const std::string& name = "");
 
     [[nodiscard]] vk::DescriptorSetLayout   GetBindlessDescriptorSetLayout() const { return m_BindlessDescriptorSetLayout; }
-    [[nodiscard]] vk::DescriptorSet         GetBindlessDescriptorSet() const { return m_BindlessDescriptorSet; }
+    [[nodiscard]] vk::DescriptorSet         GetBindlessDescriptorSet(uint32_t frameIndex) const { return m_BindlessDescriptorSet[frameIndex]; }
 
 #pragma endregion
 
@@ -209,9 +210,9 @@ private:
     SafePtr<Texture>                        m_WhitePixel;
     class Geometry*                         m_DefaultFullscreenQuad;
 
-    vk::DescriptorPool                      m_BindlessDescriptorPool;
+    std::vector<vk::DescriptorPool>         m_BindlessDescriptorPool;
     vk::DescriptorSetLayout                 m_BindlessDescriptorSetLayout;
-    vk::DescriptorSet                       m_BindlessDescriptorSet;
+    std::vector<vk::DescriptorSet>          m_BindlessDescriptorSet;
     std::queue<BindlessImageHandle>         m_FreeBindlessTextureIndices{};
     std::queue<BindlessImageHandle>         m_FreeBindlessImageIndices{};
     std::mutex                              m_BindlessMutex{};
