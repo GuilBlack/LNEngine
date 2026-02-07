@@ -229,7 +229,7 @@ lne::SafePtr<class WorldEnvironment> GfxLoader::CreateEnvironmentMap(std::string
         LNE_ERROR("Failed to load environment map: {0}", pathToEnvMap);
         return nullptr;
     }
-    uint32_t dimensions = texWidth / 4;
+    u32 dimensions = texWidth / 4;
     // TODO: should I check if dimensions are power of two?
     if (dimensions != texHeight / 2 || texChannels != 3)
     {
@@ -248,7 +248,7 @@ lne::SafePtr<class WorldEnvironment> GfxLoader::CreateEnvironmentMap(std::string
         TextureUsageType::eSampledAndStorage, true,
         std::format("Environment Irradiance: {}", std::filesystem::path(pathToEnvMap).filename().string())
     );
-    uint32_t radianceDim = std::min(m_RadianceTextureMaxSize, dimensions);
+    u32 radianceDim = std::min(m_RadianceTextureMaxSize, dimensions);
     env->PrefilteredTexture = Texture::CreateCubemapTexture(
         m_GraphicsContext, radianceDim, radianceDim, vk::Format::eR16G16B16A16Sfloat,
         TextureUsageType::eSampledAndStorage, true,
@@ -273,7 +273,7 @@ void GfxLoader::InitStaticStorageBuffer(SafePtr<class StorageBuffer> buffer, con
     UploadRequest request{
         .Type = ResourceTypes::eBuffer,
         .Resource = buffer,
-        .Size = (uint32_t)buffer->m_Size,
+        .Size = (u32)buffer->m_Size,
         .Data = const_cast<void*>(data),
         .ShouldFreeData = false,
     };
@@ -409,7 +409,7 @@ void GfxLoader::LoadCubemap(LoadRequest& request)
 
     uint8_t* allPixels = lnnew uint8_t[texWidth * texHeight * 4 * 6];
 
-    for (uint32_t i = 0; i < 6; ++i)
+    for (u32 i = 0; i < 6; ++i)
     {
         uint8_t* pixels = stbi_load(facesPaths[i].c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         if (!pixels)
@@ -511,7 +511,7 @@ void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cmdB
     cpManager.EndSingleUseCommandBuffer(EQueueFamilyType::Graphics);
 
     // generate radiance prefiltered mipmaps
-    uint32_t numMips = env->PrefilteredTexture->GetMipLevels();
+    u32 numMips = env->PrefilteredTexture->GetMipLevels();
     struct TempImageView
     {
         vk::ImageView ImageView;
@@ -519,7 +519,7 @@ void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cmdB
     };
     std::vector<TempImageView> tempImageViews;
     tempImageViews.reserve(numMips);
-    for (uint32_t i = 1; i < numMips; ++i)
+    for (u32 i = 1; i < numMips; ++i)
     {
         vk::ImageView view = env->PrefilteredTexture->CreateImageViewForMip(i);
         BindlessImageHandle imageHandle = m_GraphicsContext->RegisterBindlessImage(view);
@@ -533,7 +533,7 @@ void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cmdB
     
     std::vector<SafePtr<ComputeProgram>> programs;
     programs.reserve(numMips - 2);
-    for (uint32_t i = 1; i < numMips; ++i)
+    for (u32 i = 1; i < numMips; ++i)
     {
         float roughness = (float)i / (float)(numMips - 1);
         SafePtr program = lnnew ComputeProgram(m_PrefilterProgram->GetPipeline());
@@ -541,15 +541,15 @@ void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cmdB
         program->SetProperty(singleUseBuffer, "tPrefilteredCubemap", tempImageViews[i - 1].BindlessTextureHandle);
         program->SetProperty(singleUseBuffer, "uRoughness", roughness);
         program->SetProperty(singleUseBuffer, "uNumSamples", 1024u);
-        uint32_t dim = env->PrefilteredTexture->GetDimensions().width >> i;
-        uint32_t numGroups = (dim + 31) / 32;
+        u32 dim = env->PrefilteredTexture->GetDimensions().width >> i;
+        u32 numGroups = (dim + 31) / 32;
         renderer.Dispatch(singleUseBuffer, program, numGroups, numGroups, 6);
         programs.push_back(program);
     }
 
     std::vector<TempImageView> tempImageViews2;
     numMips = env->IrradianceTexture->GetMipLevels();
-    for (uint32_t i = 0; i < numMips; ++i)
+    for (u32 i = 0; i < numMips; ++i)
     {
         vk::ImageView view = env->IrradianceTexture->CreateImageViewForMip(i);
         BindlessImageHandle imageHandle = m_GraphicsContext->RegisterBindlessImage(view);
@@ -560,15 +560,15 @@ void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cmdB
     }
     env->IrradianceTexture->TransitionLayout(singleUseBuffer, vk::ImageLayout::eGeneral);
     std::vector<SafePtr<ComputeProgram>> irradiancePrograms;
-    for (uint32_t i = 0; i < numMips; ++i)
+    for (u32 i = 0; i < numMips; ++i)
     {
         SafePtr program = lnnew ComputeProgram(m_IrradianceProgram->GetPipeline());
         program->SetTexture(singleUseBuffer, "tRadianceCubemap", env->SkyboxTexture, false);
         program->SetProperty(singleUseBuffer, "tIrradianceCubemap", tempImageViews2[i].BindlessTextureHandle);
         program->SetProperty(singleUseBuffer, "uPhiDelta", 0.025f);
         program->SetProperty(singleUseBuffer, "uThetaDelta", 0.025f);
-        uint32_t dim = env->IrradianceTexture->GetDimensions().width >> i;
-        uint32_t numGroups = (dim + 31) / 32;
+        u32 dim = env->IrradianceTexture->GetDimensions().width >> i;
+        u32 numGroups = (dim + 31) / 32;
         renderer.Dispatch(singleUseBuffer, program, numGroups, numGroups, 6);
         irradiancePrograms.push_back(program);
     }

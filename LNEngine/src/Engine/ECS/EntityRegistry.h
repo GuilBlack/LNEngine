@@ -6,6 +6,7 @@
 #include "Types.h"
 #include "Engine/Core/DataStructures/CircularBuffer.h"
 #include "Engine/Core/DataStructures/FlatHashClasses.h"
+#include "Engine/Core/Utils/Defines.h"
 
 namespace lne
 {
@@ -24,8 +25,8 @@ public:
         Init();
     }
 
-    uint32_t GetEntityCount() const { return m_EntityCount; }
-    uint32_t GetMaxEntityCount() const { return m_MaxEntityCount; }
+    u32 GetEntityCount() const { return m_EntityCount; }
+    u32 GetMaxEntityCount() const { return m_MaxEntityCount; }
 
     template<ComponentConstraint... Comps>
     static void RegisterComponentTypes()
@@ -43,7 +44,7 @@ public:
         s_MoveComponentFuncs[GetComponentTypeIndex<Comp>()] = &MoveComponent<Comp>;
     }
 
-    EntityRegistry(uint32_t MaxEntityCount)
+    EntityRegistry(u32 MaxEntityCount)
         : m_MaxEntityCount(MaxEntityCount)
     {
         Init();
@@ -254,8 +255,8 @@ private:
     using ArchetypeCache = FlatHashMap<EntitySignature, std::vector<Archetype*>,
         std::hash<EntitySignature>>;
 
-    uint32_t m_EntityCount = 0;
-    uint32_t m_MaxEntityCount = 4096;
+    u32 m_EntityCount = 0;
+    u32 m_MaxEntityCount = 4096;
 
     CircularBuffer<EntityID>                                        m_AvailableEntities;
     struct EntityMetadata
@@ -303,7 +304,7 @@ private:
             return m_Archetypes[signature].get();
         Archetype* archetype = new Archetype();
 
-        for (uint32_t i = 0; i < MAX_COMPONENTS; ++i)
+        for (u32 i = 0; i < MAX_COMPONENTS; ++i)
         {
             if (signature.test(i))
             {
@@ -354,7 +355,7 @@ private:
         if (!s_RemoveComponentFuncs[compType](m_EntitySignatures[entity].Archetype, entity))
             return;
 
-        ComponentTypeID compId = ComponentTypeID((uint64_t)1 << (uint32_t)compType);
+        ComponentTypeID compId = ComponentTypeID((u64)1 << (u32)compType);
 
         EntitySignature newSig = m_EntitySignatures[entity].Signature & compId.flip();
         m_EntitySignatures[entity].Signature = newSig;

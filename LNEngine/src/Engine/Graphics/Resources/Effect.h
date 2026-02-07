@@ -18,14 +18,14 @@ namespace lne
 struct BankItem
 {
     std::vector<SafePtr<StorageBuffer>> FrameBuffer{};
-    uint32_t                            ElementSize{ 0 };
+    u32                            ElementSize{ 0 };
 };
 
 struct MaterialBank
 {
     std::vector<BankItem>           Items;
-    std::vector<uint32_t>           FreeSlots;
-    uint32_t                        Count;
+    std::vector<u32>           FreeSlots;
+    u32                        Count;
     std::vector<vk::DescriptorSet>  FrameDescSets;
 };
 
@@ -47,7 +47,7 @@ public:
      * @return A SafePtr to the GfxPipeline if found, otherwise nullptr.
      */
     [[nodiscard]] SafePtr<GfxPipeline>  GetPipeline(PipelineHandle handle);
-    [[nodiscard]] vk::DescriptorSet     GetFrameDescriptorSet(uint32_t frameIndex) const
+    [[nodiscard]] vk::DescriptorSet     GetFrameDescriptorSet(u32 frameIndex) const
     {
         return m_Bank.FrameDescSets[frameIndex];
     }
@@ -70,17 +70,17 @@ private:
     std::mutex                          m_PipelinesMutex{};
     PipelineCache                       m_Pipelines{};
     std::mutex                          m_SlotAllocMutex{};
-    uint32_t                            m_DirtyFrames{};
+    u32                            m_DirtyFrames{};
 
 private:
     Effect(SafePtr<GfxContext> context, const std::string& shaderPath);
 
     void                                GrowFreeSlots();
-    void                                GrowBank(vk::CommandBuffer cmdBuffer, uint32_t currentFrameInFLight);
+    void                                GrowBank(vk::CommandBuffer cmdBuffer, u32 currentFrameInFLight);
     bool                                CopyMaterialDataToBuffer(vk::CommandBuffer cmdBuffer,
-                                                                 uint32_t currentFrameInFlight,
+                                                                 u32 currentFrameInFlight,
                                                                  MaterialSlot matSlot,
-                                                                 uint32_t binding,
+                                                                 u32 binding,
                                                                  void* data);
 
     inline PipelineHandle               MakeHandle(const lne::GraphicsPipelineDescV2& d);

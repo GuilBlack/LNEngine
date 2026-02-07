@@ -45,7 +45,7 @@ void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskS
     if (!std::filesystem::exists(shaderCachePath))
         std::filesystem::create_directories(shaderCachePath);
 
-    for (uint32_t i = 0; i < m_Context->GetMaxFramesInFlight(); ++i)
+    for (u32 i = 0; i < m_Context->GetMaxFramesInFlight(); ++i)
     {
         // 10 MB per frame should be MORE than enough
         uint8_t* allocation = lnnew uint8_t[10 * 1024 * 1024];
@@ -67,7 +67,7 @@ void Renderer::Init(std::unique_ptr<Window>& window, std::shared_ptr<enki::TaskS
 
     m_GfxLoader->Init(gfxLoaderSettings);
     m_TexturesToUpdate.reserve(128);
-    for (uint32_t i = 0; i < m_Context->GetMaxFramesInFlight(); i++)
+    for (u32 i = 0; i < m_Context->GetMaxFramesInFlight(); i++)
     {
         InitFrameData(i);
     }
@@ -82,7 +82,7 @@ void Renderer::Nuke()
         frameData.DescriptorAllocator.Reset();
         m_Context->GetDevice().destroyDescriptorSetLayout(frameData.DescriptorSetLayout);
     }
-    for (uint32_t i = 0; i < m_Context->GetMaxFramesInFlight(); ++i)
+    for (u32 i = 0; i < m_Context->GetMaxFramesInFlight(); ++i)
     {
         delete m_RenderTasksLauncher[i];
         delete[] m_FrameRenderTasksAllocation[i];
@@ -201,8 +201,8 @@ void Renderer::BeginFrame()
         {
             LNE_PROFILE_FUNCTION_C(PROFILING_COL);
             m_Swapchain->BeginFrame();
-            uint32_t currentImageIndex = m_Swapchain->GetCurrentFrameIndex();
-            uint32_t frameIndex = m_Context->GetCurrentFrameIndex();
+            u32 currentImageIndex = m_Swapchain->GetCurrentFrameIndex();
+            u32 frameIndex = m_Context->GetCurrentFrameIndex();
             m_CurrentFrameInFlight = frameIndex;
             m_Context->GetCommandPoolManager().ResetFrameCommands(frameIndex);
             vk::CommandBuffer cmdBuffer = m_Context->GetPrimaryCommandBuffer();
@@ -267,7 +267,7 @@ void Renderer::BeginScene(SafePtr<WorldRenderer> worldRenderer,
             LNE_PROFILE_FUNCTION_C(PROFILING_COL);
             m_CurrentWorldRenderer = worldRenderer;
             m_CurrentFrameGraph = frameGraph;
-            uint32_t imageIndex = m_CurrentFrameInFlight;
+            u32 imageIndex = m_CurrentFrameInFlight;
             vk::CommandBuffer cmdBuffer = m_Context->GetPrimaryCommandBuffer();
             FrameData& frameData = m_FrameData[imageIndex];
             frameData.CurrentWorldDataUniforms = worldGlobalUniforms;
@@ -503,7 +503,7 @@ void Renderer::DrawFullscreenQuad(vk::CommandBuffer cmdBuffer,
     cmdBuffer.draw(geometry.GetIndexCount(), 1, 0, 0);
 }
 
-void Renderer::Dispatch(SafePtr<ComputeProgram> program, uint32_t x, uint32_t y, uint32_t z, bool async)
+void Renderer::Dispatch(SafePtr<ComputeProgram> program, u32 x, u32 y, u32 z, bool async)
 {
     LNE_PROFILE_FUNCTION_C(PROFILING_COL)
     vk::CommandBuffer cmdBuffer{};
@@ -520,7 +520,7 @@ void Renderer::Dispatch(SafePtr<ComputeProgram> program, uint32_t x, uint32_t y,
         cpManager.EndSingleUseCommandBuffer(EQueueFamilyType::Compute);
 }
 
-void Renderer::Dispatch(vk::CommandBuffer cmdBuffer, SafePtr<class ComputeProgram> program, uint32_t x, uint32_t y, uint32_t z)
+void Renderer::Dispatch(vk::CommandBuffer cmdBuffer, SafePtr<class ComputeProgram> program, u32 x, u32 y, u32 z)
 {
     PushLabel(cmdBuffer, std::format("Compute Dispatch {}", program->GetPipeline()->GetName()));
     auto pipeline = program->GetPipeline();
@@ -588,7 +588,7 @@ SafePtr<GfxPipeline> Renderer::CreateGraphicsPipeline(const GraphicsPipelineDesc
 SafePtr<class StorageBuffer> Renderer::CreateGeometryBuffer(const void* data, size_t size)
 {
     SafePtr<StorageBuffer> buffer;
-    buffer.Reset(lnnew StorageBuffer(m_Context, (uint64_t)size, data));
+    buffer.Reset(lnnew StorageBuffer(m_Context, (u64)size, data));
     return buffer;
 }
 
@@ -602,7 +602,7 @@ SafePtr<Texture> Renderer::CreateCubemapTexture(const std::vector<std::string>& 
     return m_GfxLoader->CreateCubemap(faces);
 }
 
-SafePtr<WorldEnvironment> Renderer::CreateEnvironmentMap(std::string_view pathToEnvMap, uint32_t dimensions)
+SafePtr<WorldEnvironment> Renderer::CreateEnvironmentMap(std::string_view pathToEnvMap, u32 dimensions)
 {
     return m_GfxLoader->CreateEnvironmentMap(pathToEnvMap);
 }
@@ -723,7 +723,7 @@ void Renderer::RunRenderTasks()
 {
     LNE_PROFILE_FUNCTION_C(PROFILING_COL);
     auto& tasksAlloc = m_FrameRenderTasksAllocation[m_CurrentFrameInFlightMain];
-    uint64_t taskAllocOffset = m_FrameRenderTasksAllocationOffsets[m_CurrentFrameInFlightMain];
+    u64 taskAllocOffset = m_FrameRenderTasksAllocationOffsets[m_CurrentFrameInFlightMain];
     auto* taskLauncher = m_RenderTasksLauncher[m_CurrentFrameInFlightMain];
     if (taskAllocOffset == 0)
         return;
@@ -753,7 +753,7 @@ void Renderer::WaitForRenderTasksToFinish()
     tasksAllocOffset = 0;
 }
 
-void Renderer::InitFrameData(uint32_t index)
+void Renderer::InitFrameData(u32 index)
 {
     m_FrameData.emplace_back(
         SafePtr(lnnew DynamicDescriptorAllocator(m_Context.GetPtr(),
@@ -803,7 +803,7 @@ void Renderer::ProcessDirtyEffects(vk::CommandBuffer cmdBuffer)
     std::lock_guard<std::mutex> lock(m_DirtyEffectsMutex);
     if (m_DirtyEffects.empty())
         return;
-    uint32_t currentFrameInFlight = m_CurrentFrameInFlight;
+    u32 currentFrameInFlight = m_CurrentFrameInFlight;
     for (size_t i = m_DirtyEffects.size(); i-- > 0; )
     {
         auto effect = m_DirtyEffects[i];
@@ -843,7 +843,7 @@ void Renderer::ProcessDirtyMaterials(vk::CommandBuffer cmdBuffer)
     }
 }
 
-void* Renderer::AllocateRenderTask(RenderTask&& renderTask, uint32_t size)
+void* Renderer::AllocateRenderTask(RenderTask&& renderTask, u32 size)
 {
     auto& currentAllocationOffset = m_FrameRenderTasksAllocationOffsets[m_CurrentFrameInFlightMain];
     auto currentAllocation = m_FrameRenderTasksAllocation[m_CurrentFrameInFlightMain];
@@ -857,11 +857,11 @@ void* Renderer::AllocateRenderTask(RenderTask&& renderTask, uint32_t size)
     return allocatedMemory;
 }
 
-void RenderTasksLauncher::ExecuteRange(enki::TaskSetPartition range, uint32_t threadnum)
+void RenderTasksLauncher::ExecuteRange(enki::TaskSetPartition range, u32 threadnum)
 {
     (void)range;
 
-    uint64_t offset = 0;
+    u64 offset = 0;
     while (offset < m_RenderTasksAllocationOffset)
     {
         auto& task = *reinterpret_cast<RenderTask*>(m_RenderTasksAllocation + offset);

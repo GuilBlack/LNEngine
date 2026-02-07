@@ -1,4 +1,5 @@
 #pragma once
+#include "Engine/Core/Utils/Defines.h"
 
 namespace lne
 {
@@ -17,7 +18,7 @@ public:
     inline const std::string& GetName() const { return m_DebugName; }
 
 protected:
-    virtual void BindEventCallbacks(int32_t priority) {}
+    virtual void BindEventCallbacks(s32 priority) {}
 
     friend class ApplicationBase;
 private:

@@ -21,7 +21,7 @@ public:
 
     void OnImGuiRender() override;
 
-    void AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, uint32_t subMeshIndex) override;
+    void AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, u32 subMeshIndex) override;
 
 private:
     std::unordered_map<std::string, SafePtr<class Texture>> m_DebugTextures{};

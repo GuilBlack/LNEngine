@@ -52,7 +52,7 @@ struct FrameGraphResource
 {
     FrameGraphResourceType::Enum    Type{};
     // TODO: This ref count does not work on resize.
-    uint32_t                        RefCount{ 0 };
+    u32                        RefCount{ 0 };
     FrameGraphResourceInfo          Info{};
     SafePtr<RefCountBase>           Resource{}; // Texture, Buffer, etc.
 
@@ -119,7 +119,7 @@ public:
         return *this;
     }
 
-    FrameGraphResourceDescBuilder& SetImageDimension(uint32_t width, uint32_t height, uint32_t depth = 1);
+    FrameGraphResourceDescBuilder& SetImageDimension(u32 width, u32 height, u32 depth = 1);
 
     FrameGraphResourceDescBuilder& SetImageFormat(vk::Format format)
     {
@@ -213,14 +213,14 @@ class RenderPassTask : public enki::ITaskSet
 {
 public:
     vk::CommandBuffer SecondaryCommandBuffer{}; // secondary command buffer that will be executed on the main command buffer
-    void ExecuteRange(enki::TaskSetPartition range, uint32_t threadnum) override;
+    void ExecuteRange(enki::TaskSetPartition range, u32 threadnum) override;
 };
 
 class FrameGraph : public RefCountBase
 {
 public:
-    static constexpr uint32_t MAX_RESOURCE_COUNT = 2048;
-    static constexpr uint32_t MAX_RENDERPASS_NODE_COUNT = 1024;
+    static constexpr u32 MAX_RESOURCE_COUNT = 2048;
+    static constexpr u32 MAX_RENDERPASS_NODE_COUNT = 1024;
 
 public:
     FrameGraph();

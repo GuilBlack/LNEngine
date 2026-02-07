@@ -7,6 +7,7 @@
 #include "Engine/Graphics/WorldEnvironment.h"
 #include "Engine/Graphics/GlobalGfxData.h"
 #include "Engine/Core/DataStructures/FlatHashClasses.h"
+#include "Engine/Core/Utils/Defines.h"
 
 class FrameGraph;
 
@@ -17,7 +18,7 @@ struct SubMeshTransformArray
 {
     SafePtr<StaticMesh>         Mesh;
     std::vector<glm::mat4>      Transforms;
-    uint32_t                    Offset;
+    u32                    Offset;
 };
 
 struct TransformBuffer
@@ -42,11 +43,11 @@ public:
 
     SafePtr<WorldEnvironment>           GetEnvironment() const { return m_Environment; }
 
-    const TransformBuffer&              GetTransformBuffer(uint32_t frameIndex) const  { return m_TransformBuffers[frameIndex]; }
-    const SubMeshTransformArray&        GetTransforms(uint32_t frameIndex, StaticMeshHash hash) { return m_Transforms[frameIndex][hash]; }
+    const TransformBuffer&              GetTransformBuffer(u32 frameIndex) const  { return m_TransformBuffers[frameIndex]; }
+    const SubMeshTransformArray&        GetTransforms(u32 frameIndex, StaticMeshHash hash) { return m_Transforms[frameIndex][hash]; }
 
-    SafePtr<StandaloneStorageBuffer>    GetLightBufferGPU(uint32_t frameIndex) const { return m_LightBuffersGPU[frameIndex]; }
-    uint32_t                            GetNumLights(uint32_t frameIndex) const { return m_NumLights[frameIndex]; }
+    SafePtr<StandaloneStorageBuffer>    GetLightBufferGPU(u32 frameIndex) const { return m_LightBuffersGPU[frameIndex]; }
+    u32                            GetNumLights(u32 frameIndex) const { return m_NumLights[frameIndex]; }
 
     void                                BeginScene(class Entity& cameraEntity);
     void                                Render(class EntityRegistry& registry);
@@ -63,6 +64,6 @@ private:
     std::vector<SafePtr<UniformBuffer>>             m_WorldGlobalUniforms{};
     std::vector<SafePtr<StandaloneStorageBuffer>>   m_LightBuffersGPU{};
     std::vector<std::vector<LightGPUData>>          m_LightsCPU{};
-    std::vector<uint32_t>                           m_NumLights{ 0 };
+    std::vector<u32>                           m_NumLights{ 0 };
 };
 }

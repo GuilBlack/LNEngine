@@ -51,7 +51,7 @@ void lne::MeshletDebugPass::Execute(vk::CommandBuffer cmdBuffer, class WorldRend
 {
     LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     auto& renderer = ApplicationBase::GetRenderer();
-    uint32_t frameIndex = renderer.GetCurrentFrameIndex();
+    u32 frameIndex = renderer.GetCurrentFrameIndex();
     auto lightBuffer = worldRenderer->GetLightBufferGPU(frameIndex);
     const TransformBuffer& transformBuffer = worldRenderer->GetTransformBuffer(frameIndex);
     DrawMeshArgs drawArgs{
@@ -84,12 +84,12 @@ void lne::MeshletDebugPass::OnImGuiRender()
     ImGui::Checkbox("Is Enabled", &m_AttachedNodeRef->Enabled);
 }
 
-void lne::MeshletDebugPass::AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, uint32_t subMeshIndex)
+void lne::MeshletDebugPass::AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, u32 subMeshIndex)
 {
     if (mesh->GetGeometry().GetType() != GeometryType::eMeshlet)
         return;
 
-    uint32_t frameIndex = ApplicationBase::GetRenderer().GetCurrentFrameIndexOnMainThread();
+    u32 frameIndex = ApplicationBase::GetRenderer().GetCurrentFrameIndexOnMainThread();
     auto& drawCommands = m_DrawCommands[frameIndex][hash];
     drawCommands.Mesh = mesh;
     drawCommands.SubMeshIndex = subMeshIndex;

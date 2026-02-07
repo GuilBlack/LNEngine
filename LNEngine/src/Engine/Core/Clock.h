@@ -1,5 +1,6 @@
 #pragma once
 #include <chrono>
+#include "Engine/Core/Utils/Defines.h"
 
 namespace lne
 {

@@ -1,4 +1,5 @@
 #pragma once
+#include "Engine/Core/Utils/Defines.h"
 
 namespace lne 
 {
@@ -6,7 +7,7 @@ class GlobalUtils
 {
 public:
     static void PrintLine(const std::string& msg);
-    static std::size_t HashU64(uint64_t value) noexcept;
+    static std::size_t HashU64(u64 value) noexcept;
 
     static size_t NextPow2(size_t v)
     {

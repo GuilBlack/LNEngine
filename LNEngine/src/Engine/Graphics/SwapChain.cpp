@@ -23,8 +23,8 @@ Swapchain::Swapchain(SafePtr<class GfxContext> ctx, vk::SurfaceKHR surface)
 Swapchain::~Swapchain()
 {
     auto device = m_Context->GetDevice();
-    uint32_t framesInFlight = m_Context->GetMaxFramesInFlight();
-    for (uint32_t i = 0; i < framesInFlight; i++)
+    u32 framesInFlight = m_Context->GetMaxFramesInFlight();
+    for (u32 i = 0; i < framesInFlight; i++)
     {
         device.destroySemaphore(m_Semaphores[i].ImageAvailable);
         device.destroySemaphore(m_Semaphores[i].RenderFinished);
@@ -37,7 +37,7 @@ Swapchain::~Swapchain()
     m_Context->VulkanInstance().destroySurfaceKHR(m_Surface);
 }
 
-vk::SubmitInfo Swapchain::GetSubmitInfo(vk::PipelineStageFlags* waitStages, uint32_t frameInFlight) const
+vk::SubmitInfo Swapchain::GetSubmitInfo(vk::PipelineStageFlags* waitStages, u32 frameInFlight) const
 {
     vk::SubmitInfo submitInfo(
         1,
@@ -57,13 +57,13 @@ SafePtr<class Texture> Swapchain::GetCurrentImage() const
     return m_ColorAttachments[m_CurrentImageIndex];
 }
 
-lne::SafePtr<class Texture> Swapchain::GetImage(uint32_t index) const
+lne::SafePtr<class Texture> Swapchain::GetImage(u32 index) const
 {
     LNE_ASSERT(index < m_ColorAttachments.size(), "Index out of bounds");
     return m_ColorAttachments[index];
 }
 
-class Framebuffer& Swapchain::GetFramebuffer(uint32_t index)
+class Framebuffer& Swapchain::GetFramebuffer(u32 index)
 {
     LNE_ASSERT(index < m_Framebuffers.size(), "Index out of bounds");
     return m_Framebuffers[index];
@@ -73,7 +73,7 @@ void Swapchain::BeginFrame()
 {
     LNE_PROFILE_FUNCTION_C(PROFILING_COLOR);
     auto device = m_Context->GetDevice();
-    uint32_t currentFrameInFlight = m_Context->GetCurrentFrameIndex();
+    u32 currentFrameInFlight = m_Context->GetCurrentFrameIndex();
     VK_CHECK(device.waitForFences(m_AcquireFences[currentFrameInFlight], VK_TRUE, UINT64_MAX));
     device.resetFences(m_AcquireFences[currentFrameInFlight]);
     auto result = device.acquireNextImageKHR(m_Swapchain, UINT64_MAX, m_Semaphores[currentFrameInFlight].ImageAvailable, m_AcquireFences[currentFrameInFlight]);
@@ -138,14 +138,14 @@ void Swapchain::CreateSwapchain()
         ? vk::SurfaceTransformFlagBitsKHR::eIdentity
         : sc.currentTransform;
 
-    const uint32_t imageCount = std::clamp(sc.minImageCount + 1, sc.minImageCount, sc.maxImageCount);
+    const u32 imageCount = std::clamp(sc.minImageCount + 1, sc.minImageCount, sc.maxImageCount);
     const auto presentationFamilyIndex = m_Context->GetQueueFamilyIndices().PresentFamily;
     const auto graphicsFamilyIndex = m_Context->GetQueueFamilyIndices().GraphicsFamily;
 
     const bool sameQueueFamily = presentationFamilyIndex.value() == graphicsFamilyIndex.value();
 
-    std::vector<uint32_t> queueFamilyIndices = sameQueueFamily ?
-        std::vector<uint32_t>{} : std::vector<uint32_t>{ graphicsFamilyIndex.value(), presentationFamilyIndex.value() };
+    std::vector<u32> queueFamilyIndices = sameQueueFamily ?
+        std::vector<u32>{} : std::vector<u32>{ graphicsFamilyIndex.value(), presentationFamilyIndex.value() };
 
     auto oldSwapchain = m_Swapchain;
 
@@ -209,7 +209,7 @@ void Swapchain::CreateSwapchain()
         .ClearValue = vk::ClearDepthStencilValue{1.0f, 0},
     };
 
-    for (uint32_t i = 0; i < images.size(); ++i)
+    for (u32 i = 0; i < images.size(); ++i)
     {
         m_Context->SetVkObjectName(images[i], std::format("Image: Swapchain {}", i));
         m_ColorAttachments[i].Reset(lnnew Texture(m_Context, images[i], surfaceFormat.format, vk::Extent3D(sc.currentExtent, 1), 1, std::format("SwapchainColor{}", i)));
@@ -217,13 +217,13 @@ void Swapchain::CreateSwapchain()
         depthAttachmentDesc.Texture = m_DepthAttachment;
         m_Framebuffers.emplace_back(Framebuffer(m_Context, { colorAttachmentDesc }, depthAttachmentDesc));
     }
-    m_Context->m_MaxFramesInFlight = (uint32_t)m_ColorAttachments.size() - 1;
+    m_Context->m_MaxFramesInFlight = (u32)m_ColorAttachments.size() - 1;
 }
 
 void Swapchain::CreateSyncObjects()
 {
     auto device = m_Context->GetDevice();
-    uint32_t count = m_Context->GetMaxFramesInFlight();
+    u32 count = m_Context->GetMaxFramesInFlight();
 
     vk::FenceCreateInfo fenceCI{ vk::FenceCreateFlagBits::eSignaled };
     m_AcquireFences.clear();
@@ -233,7 +233,7 @@ void Swapchain::CreateSyncObjects()
     m_Semaphores.clear();
     m_Semaphores.reserve(count);
 
-    for (uint32_t i = 0; i < count; ++i)
+    for (u32 i = 0; i < count; ++i)
     {
         m_AcquireFences.push_back(device.createFence(fenceCI));
         m_Context->SetVkObjectName(m_AcquireFences[i], std::format("Swapchain Acquire Fence {}", i));

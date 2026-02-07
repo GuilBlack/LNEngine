@@ -17,10 +17,10 @@ void RefCountBase::Capture() const
     }
 }
 
-uint32_t RefCountBase::Release() const
+u32 RefCountBase::Release() const
 {
     assert(m_Count.load(std::memory_order_acquire) > 0);
-    uint32_t newCount = m_Count.fetch_sub(1, std::memory_order_acq_rel) - 1;
+    u32 newCount = m_Count.fetch_sub(1, std::memory_order_acq_rel) - 1;
     if (newCount == 0)
     {
 #ifdef SAFEPTR_DEBUG

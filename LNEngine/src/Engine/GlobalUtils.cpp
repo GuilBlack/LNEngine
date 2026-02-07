@@ -1,4 +1,5 @@
 #include "GlobalUtils.h"
+#include "Engine/Core/Utils/Defines.h"
 
 namespace lne 
 {
@@ -7,7 +8,7 @@ void GlobalUtils::PrintLine(const std::string& msg)
     std::cout << msg << '\n';
 }
 
-std::size_t GlobalUtils::HashU64(uint64_t value) noexcept
+std::size_t GlobalUtils::HashU64(u64 value) noexcept
 {
 #if SIZE_MAX == UINT64_MAX
     // SplitMix64
@@ -19,7 +20,7 @@ std::size_t GlobalUtils::HashU64(uint64_t value) noexcept
     return static_cast<std::size_t>(value);
 #else
     // 32-bit fallback Murmur3 fmix32-style
-    uint32_t y = static_cast<uint32_t>(value) ^ static_cast<uint32_t>(value >> 32);
+    u32 y = static_cast<u32>(value) ^ static_cast<u32>(value >> 32);
     y ^= y >> 16;
     y *= 0x85ebca6bU;
     y ^= y >> 13;

@@ -10,6 +10,7 @@
 #include "Engine/Core/SafePtr.h"
 #include "DynamicDescriptorAllocator.h"
 #include "Engine/Core/Utils/Log.h"
+#include "Engine/Core/Utils/_Defines.h"
 
 namespace lne
 {
@@ -17,10 +18,10 @@ class Texture;
 
 struct QueueFamilyIndices
 {
-    std::optional<uint32_t> GraphicsFamily;
-    std::optional<uint32_t> ComputeFamily;
-    std::optional<uint32_t> TransferFamily;
-    std::optional<uint32_t> PresentFamily;
+    std::optional<u32> GraphicsFamily;
+    std::optional<u32> ComputeFamily;
+    std::optional<u32> TransferFamily;
+    std::optional<u32> PresentFamily;
 
     bool                                    IsComplete() const
     {
@@ -34,7 +35,7 @@ struct QueueFamilyIndices
 class GfxContext : public RefCountBase
 {
 public:
-    static constexpr uint32_t   s_MaxSSBOsPerSet = 15;
+    static constexpr u32   s_MaxSSBOsPerSet = 15;
 
 public:
     GfxContext(vk::SurfaceKHR surface);
@@ -60,8 +61,8 @@ public:
     vk::PhysicalDevice                      GetPhysicalDevice() const { return m_PhysicalDevice; }
     vk::Device                              GetDevice() const { return m_Device; }
     // Gets the current frame in flight on the main thread
-    [[nodiscard]] constexpr uint32_t        GetCurrentFrameIndex() const { return m_CurrentFrameInFlight; }
-    [[nodiscard]] constexpr uint32_t        GetMaxFramesInFlight() const { return m_MaxFramesInFlight; }
+    [[nodiscard]] constexpr u32             GetCurrentFrameIndex() const { return m_CurrentFrameInFlight; }
+    [[nodiscard]] constexpr u32             GetMaxFramesInFlight() const { return m_MaxFramesInFlight; }
     [[nodiscard]] VmaAllocator              GetMemoryAllocator() const { return m_MemoryAllocator; }
     [[nodiscard]] class CommandPoolManager& GetCommandPoolManager() const
     { return *m_CommandPoolManager; };
@@ -72,7 +73,7 @@ public:
     [[nodiscard]] vk::Sampler               GetDepthSampler() const { return m_DepthSampler; }
 
     // numBindings MUST be in range [1, s_MaxSSBOsPerSet]
-    [[nodiscard]] vk::DescriptorSetLayout   GetStorageOnlyDescriptorSetLayout(uint32_t numBindings) const
+    [[nodiscard]] vk::DescriptorSetLayout   GetStorageOnlyDescriptorSetLayout(u32 numBindings) const
     { 
         LNE_ASSERT(numBindings >= 1 && numBindings <= s_MaxSSBOsPerSet, std::format("numBindings must be in range [1, {0}]", s_MaxSSBOsPerSet));
         return m_StorageOnlyDescriptorSetLayouts[numBindings - 1];
@@ -92,7 +93,7 @@ public:
 #pragma region Queues
     [[nodiscard]] const QueueFamilyIndices& GetQueueFamilyIndices() const { return m_QueueFamilyIndices; }
     [[nodiscard]] std::string               GetQueueFamilyName(EQueueFamilyType type) const;
-    [[nodiscard]] uint32_t                  GetQueueFamilyIndex(EQueueFamilyType type) const;
+    [[nodiscard]] u32                       GetQueueFamilyIndex(EQueueFamilyType type) const;
     [[nodiscard]] vk::Queue                 GetQueue(EQueueFamilyType type) const;
 
     void                                    SubmitToQueue(EQueueFamilyType type,
@@ -102,7 +103,7 @@ public:
 
 #pragma region CommandBuffers
 
-    [[nodiscard]] vk::CommandPool           CreateCommandPool(uint32_t queueFamilyIndex,
+    [[nodiscard]] vk::CommandPool           CreateCommandPool(u32 queueFamilyIndex,
                                                               vk::CommandPoolCreateFlags flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer) const;
 
     [[nodiscard]] vk::CommandBuffer         GetPrimaryCommandBuffer() const;
@@ -111,8 +112,11 @@ public:
 #pragma region Images
 
     [[nodiscard]] vk::ImageView             CreateImageView(vk::Image image, vk::ImageViewType viewType,
-        vk::Format format, uint32_t numMipLevels = 1,
-        uint32_t layers = 1, vk::ImageAspectFlags aspect = vk::ImageAspectFlagBits::eColor, const std::string& name = "");
+                                                            vk::Format format, u32 numMipLevels = 1,
+                                                            u32 layers = 1, 
+                                                            vk::ImageAspectFlags aspect = vk::ImageAspectFlagBits::eColor, 
+                                                            const std::string& name = "");
+
     [[nodiscard]] BindlessImageHandle       RegisterBindlessTexture(class Texture* texture);
     [[nodiscard]] BindlessImageHandle       RegisterBindlessImage(vk::ImageView imageView);
 
@@ -136,7 +140,7 @@ public:
 #pragma region Allocations
 
     void                                    AllocateBuffer(BufferAllocation& allocation, VkBufferCreateInfo bufferCI, VmaAllocationCreateInfo allocCI);
-    BufferAllocation                        AllocateStagingBuffer(uint64_t size);
+    BufferAllocation                        AllocateStagingBuffer(u64 size);
     void                                    FreeBufferAllocation(const BufferAllocation& allocation);
 
     void                                    AllocateImage(ImageAllocation& allocation, VkImageCreateInfo imageCI, VmaAllocationCreateInfo allocCI);
@@ -161,7 +165,7 @@ public:
     #if defined(VK_EXT_debug_utils) && defined(LNE_DEBUG)
         const vk::DebugUtilsObjectNameInfoEXT objectNameInfo(
             T::objectType,
-            reinterpret_cast<uint64_t>(static_cast<T::CType>(handle)),
+            reinterpret_cast<u64>(static_cast<T::CType>(handle)),
             name.data()
         );
         VK_CHECK(m_Device.setDebugUtilsObjectNameEXT(&objectNameInfo));
@@ -198,8 +202,8 @@ private:
     std::mutex                              m_TransferQueueMutex;
     std::mutex                              m_PresentQueueMutex;
 
-    uint32_t                                m_CurrentFrameInFlight{ 0 };
-    uint32_t                                m_MaxFramesInFlight{ 2 };
+    u32                                     m_CurrentFrameInFlight{ 0 };
+    u32                                     m_MaxFramesInFlight{ 2 };
 
     std::unique_ptr<class CommandPoolManager> m_CommandPoolManager;
 

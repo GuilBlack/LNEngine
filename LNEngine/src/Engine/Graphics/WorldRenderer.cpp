@@ -20,10 +20,10 @@ WorldRenderer::WorldRenderer(const SafePtr<FrameGraph>& frameGraph)
     : m_FrameGraph(frameGraph)
 {
     SafePtr<GfxContext> gfxContext = ApplicationBase::GetRenderer().GetGfxContext();
-    uint32_t maxFramesInFlight = gfxContext->GetMaxFramesInFlight();
+    u32 maxFramesInFlight = gfxContext->GetMaxFramesInFlight();
     m_WorldGlobalUniforms.reserve(maxFramesInFlight);
     
-    for (uint32_t i = 0; i < maxFramesInFlight; ++i)
+    for (u32 i = 0; i < maxFramesInFlight; ++i)
     {
         m_WorldGlobalUniforms.push_back(lnnew UniformBuffer(gfxContext, sizeof(WorldData)));
     }
@@ -34,9 +34,9 @@ WorldRenderer::WorldRenderer(const SafePtr<FrameGraph>& frameGraph)
     m_LightBuffersGPU.resize(maxFramesInFlight);
     m_LightsCPU.resize(maxFramesInFlight);
     m_NumLights.resize(maxFramesInFlight, 0);
-    uint32_t initialNumLights = 512;
+    u32 initialNumLights = 512;
 
-    for (uint32_t i = 0; i < maxFramesInFlight; ++i)
+    for (u32 i = 0; i < maxFramesInFlight; ++i)
     {
         m_TransformBuffers[i].Buffer.Reset(lnnew StandaloneStorageBuffer(gfxContext, sizeof(glm::mat4) * 1024 * 32, nullptr, StorageBufferType::eDynamic));
         m_TransformBuffers[i].Data = lnnew glm::mat4[1024*32];
@@ -48,7 +48,7 @@ WorldRenderer::WorldRenderer(const SafePtr<FrameGraph>& frameGraph)
 
 WorldRenderer::~WorldRenderer()
 {
-    for (uint32_t i = 0; i < m_TransformBuffers.size(); ++i)
+    for (u32 i = 0; i < m_TransformBuffers.size(); ++i)
     {
         m_TransformBuffers[i].Buffer.Reset();
         delete[] m_TransformBuffers[i].Data;
@@ -69,7 +69,7 @@ void WorldRenderer::BeginScene(Entity& cameraEntity)
         FrameGraphNode* node = m_FrameGraph->GetNode(nodeHandle);
         node->RenderPass->BeginFrame();
     }
-    uint32_t currentFrameIndex = ApplicationBase::GetRenderer().GetCurrentFrameIndexOnMainThread();
+    u32 currentFrameIndex = ApplicationBase::GetRenderer().GetCurrentFrameIndexOnMainThread();
     m_Transforms[currentFrameIndex].clear();
     CameraComponent& cameraComponent = cameraEntity.GetComponent<CameraComponent>();
     m_GlobalData = WorldData{
@@ -89,8 +89,8 @@ void WorldRenderer::Render(EntityRegistry& registry)
 {
     LNE_PROFILE_FUNCTION()
     auto& renderer = ApplicationBase::GetRenderer();
-    uint32_t currentFrameIndex = renderer.GetCurrentFrameIndexOnMainThread();
-    uint32_t totalSizeBytes;
+    u32 currentFrameIndex = renderer.GetCurrentFrameIndexOnMainThread();
+    u32 totalSizeBytes;
     auto staticMeshView = registry.GetView<TransformComponent, StaticMeshComponent>();
     {
         LNE_PROFILE_SCOPE("Update Transform Buffer")
@@ -112,12 +112,12 @@ void WorldRenderer::Render(EntityRegistry& registry)
                 continue;
             // TODO: will probably insert frustum culling here
             auto& subMeshes = staticMesh.Mesh->GetSubMeshes();
-            for (uint32_t i = 0; i < subMeshes.size(); ++i)
+            for (u32 i = 0; i < subMeshes.size(); ++i)
             {
                 const SubMesh& subMesh = subMeshes[i];
 
                 glm::mat4 model = transform.GetModelMatrix() * subMesh.WorldTransform;
-                StaticMeshHash hash{ (uint64_t)staticMesh.Mesh.GetPtr(), i };
+                StaticMeshHash hash{ (u64)staticMesh.Mesh.GetPtr(), i };
                 auto& submeshTransformArray = currTransforms[hash];
                 submeshTransformArray.Mesh = staticMesh.Mesh;
                 submeshTransformArray.Transforms.emplace_back(model);
@@ -130,10 +130,10 @@ void WorldRenderer::Render(EntityRegistry& registry)
                 drawStaticMeshesAdder->AddStaticMeshDrawCommand(hash, array.Mesh, hash.SubMeshIndex);
         }
 
-        uint32_t offset = 0;
+        u32 offset = 0;
         for (auto& [hash, subMeshArray] : currTransforms)
         {
-            uint32_t size = (uint32_t)subMeshArray.Transforms.size();
+            u32 size = (u32)subMeshArray.Transforms.size();
             if (size == 0)
                 continue;
             subMeshArray.Offset = offset;
@@ -149,9 +149,9 @@ void WorldRenderer::Render(EntityRegistry& registry)
         LNE_PROFILE_SCOPE("Update Light Buffer")
         auto lightView = registry.GetView<TransformComponent, LightComponent>();
 
-        uint32_t& numLights = m_NumLights[currentFrameIndex];
+        u32& numLights = m_NumLights[currentFrameIndex];
         auto& lightsCPU = m_LightsCPU[currentFrameIndex];
-        uint32_t sunLightCount = m_Environment->IsSunEnabled ? 1 : 0;
+        u32 sunLightCount = m_Environment->IsSunEnabled ? 1 : 0;
         numLights = lightView.TotalSize() + sunLightCount;
 
         if (numLights > lightsCPU.capacity())
@@ -184,13 +184,13 @@ void WorldRenderer::Render(EntityRegistry& registry)
             LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
             auto& renderer = ApplicationBase::GetRenderer();
             vk::CommandBuffer cmdBuffer = renderer.GetGfxContext()->GetPrimaryCommandBuffer();
-            uint32_t currentFrameIndex = renderer.GetCurrentFrameIndex();
+            u32 currentFrameIndex = renderer.GetCurrentFrameIndex();
 
             m_TransformBuffers[currentFrameIndex].Buffer->CopyData(
                 cmdBuffer,
                 m_TransformBuffers[currentFrameIndex].Data, totalSizeBytes, 0);
 
-            uint32_t numLights = m_NumLights[currentFrameIndex];
+            u32 numLights = m_NumLights[currentFrameIndex];
             if (m_LightBuffersGPU[currentFrameIndex]->GetSize() < numLights * sizeof(LightGPUData))
             {
                 m_LightBuffersGPU[currentFrameIndex]->Grow(
@@ -202,7 +202,7 @@ void WorldRenderer::Render(EntityRegistry& registry)
             // (dunno if it's really necessary tho. need to test)
             m_LightBuffersGPU[currentFrameIndex]->CopyData(
                 cmdBuffer, &numLights,
-                sizeof(uint32_t), 0);
+                sizeof(u32), 0);
             m_LightBuffersGPU[currentFrameIndex]->CopyData(
                 cmdBuffer, m_LightsCPU[currentFrameIndex].data(),
                 numLights * sizeof(LightGPUData), 4);

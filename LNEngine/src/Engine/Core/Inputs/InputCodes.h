@@ -1,11 +1,12 @@
 #pragma once
+#include "Engine/Core/Utils/Defines.h"
 
 namespace lne
 {
-using KeyCode = uint16_t;
-using KeyState = uint8_t;
-using MouseButtonState = uint8_t;
-using MouseButton = uint16_t;
+using KeyCode = u16;
+using KeyState = u8;
+using MouseButtonState = u8;
+using MouseButton = u16;
 
 #define MAX_KEYS 512
 #define MAX_MOUSE_BUTTONS 8

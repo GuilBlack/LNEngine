@@ -1,11 +1,12 @@
 #pragma once
+#include "Engine/Core/Utils/Defines.h"
 
 namespace lne
 {
 
 namespace LightType
 {
-enum Enum : uint32_t
+enum Enum : u32
 {
     eDirectional = 0,
     ePoint = 1,
@@ -15,7 +16,7 @@ enum Enum : uint32_t
 
 namespace ShaderStage
 {
-enum Enum : byte
+enum Enum : u8
 {
     eVertex = 0,
     eTessellationControl = 1,
@@ -54,7 +55,7 @@ inline Mask ToMask(Enum type)
 
 namespace ShaderElementType
 {
-enum Enum : byte
+enum Enum : u8
 {
     eUnknown,
     eFloat, eFloat2, eFloat3, eFloat4,
@@ -73,7 +74,7 @@ inline std::string_view ToString(Enum type)
 
 namespace DescriptorType
 {
-enum Enum : byte
+enum Enum : u8
 {
     eUniformOnly =          0,
     eStorageOnly =          1,
@@ -99,7 +100,7 @@ enum Enum : char
     eCompute =      3,
 };
 
-constexpr uint32_t NUM_MATERIAL_TYPES = 4;
+constexpr u32 NUM_MATERIAL_TYPES = 4;
 }
 
 namespace ShaderSetIndexType
@@ -117,12 +118,12 @@ enum Enum : char
     eCustom =               7, // will probably be used at some point
 };
 
-constexpr uint32_t NUM_MATERIAL_SET_INDICES = 8;
+constexpr u32 NUM_MATERIAL_SET_INDICES = 8;
 }
 
 namespace FrameGraphResourceType
 {
-enum Enum : byte
+enum Enum : u8
 {
     eUnknown = 0,
     eTexture,
@@ -141,7 +142,7 @@ inline std::string_view ToString(Enum type)
 
 namespace ResourceType
 {
-enum Enum : byte
+enum Enum : u8
 {
     eUnknown = 0,
     eTexture,
@@ -162,7 +163,7 @@ inline std::string_view ToString(Enum type)
 
 namespace StorageBufferType
 {
-enum Enum : byte
+enum Enum : u8
 {
     eStatic = 0,
     eDynamic
@@ -171,7 +172,7 @@ enum Enum : byte
 
 namespace GeometryType
 {
-enum Enum : byte
+enum Enum : u8
 {
     eClassic = 0, // traditional vertex/index buffer
     eMeshlet
@@ -180,7 +181,7 @@ enum Enum : byte
 
 namespace RenderPassType
 {
-enum Enum : byte
+enum Enum : u8
 {
     eGraphics = 0,
     eCompute,
@@ -190,7 +191,7 @@ enum Enum : byte
 
 namespace TextureUsageType
 {
-enum Enum : byte
+enum Enum : u8
 {
     eUnknown = 0,
     eSampled,
@@ -201,7 +202,7 @@ enum Enum : byte
 
 namespace TransparencyMode
 {
-enum Enum : byte
+enum Enum : u8
 {
     eOpaque,                // no blending
     eTransparent,           // standard src alpha
@@ -216,7 +217,7 @@ enum Enum : byte
 
 namespace DepthMode
 {
-enum Enum : byte
+enum Enum : u8
 {
     eNone = 0,
     eReadOnly = 1,
@@ -225,14 +226,14 @@ enum Enum : byte
 }
 
 // TODO: convert these to enum namespaces
-enum class EFillMode : byte
+enum class EFillMode : u8
 {
     Solid = 0,
     Wireframe = 1,
     Point = 2
 };
 
-enum class ECullMode : byte
+enum class ECullMode : u8
 {
     None = 0,
     Front = 1,
@@ -240,7 +241,7 @@ enum class ECullMode : byte
     FrontAndBack = 3
 };
 
-enum class EBlendColorWriteMask : byte
+enum class EBlendColorWriteMask : u8
 {
     Red = 1 << 0,
     Green = 1 << 1,
@@ -249,13 +250,13 @@ enum class EBlendColorWriteMask : byte
     All = Red | Green | Blue | Alpha
 };
 
-enum class EWindingOrder : byte
+enum class EWindingOrder : u8
 {
     CounterClockwise = 0,
     Clockwise = 1,
 };
 
-enum class ECompareOperation : byte
+enum class ECompareOperation : u8
 {
     Never = 0,
     Less = 1,
@@ -267,7 +268,7 @@ enum class ECompareOperation : byte
     Always = 7
 };
 
-enum class EQueueFamilyType : uint8_t
+enum class EQueueFamilyType : u8
 {
     Graphics,
     Compute,

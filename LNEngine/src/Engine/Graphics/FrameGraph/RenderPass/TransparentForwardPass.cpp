@@ -21,7 +21,7 @@ void TransparentForwardPass::Execute(vk::CommandBuffer commandBuffer, WorldRende
     FrameGraphNode* node)
 {
     auto& renderer = ApplicationBase::GetRenderer();
-    uint32_t frameIndex = renderer.GetCurrentFrameIndex();
+    u32 frameIndex = renderer.GetCurrentFrameIndex();
     auto lightBuffer = worldRenderer->GetLightBufferGPU(frameIndex);
     const TransformBuffer& transformBuffer = worldRenderer->GetTransformBuffer(frameIndex);
     DrawMeshArgs drawArgs{
@@ -43,13 +43,13 @@ void TransparentForwardPass::Execute(vk::CommandBuffer commandBuffer, WorldRende
     }
 }
 
-void lne::TransparentForwardPass::AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, uint32_t subMeshIndex)
+void lne::TransparentForwardPass::AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, u32 subMeshIndex)
 {
     const SubMesh& submesh = mesh->GetSubMeshes()[hash.SubMeshIndex];
     SafePtr material = mesh->GetMaterial(submesh.MaterialIndex);
     if (material->CanRenderToPass(GetID()) == false)
         return;
-    uint32_t frameIndex = ApplicationBase::GetRenderer().GetCurrentFrameIndexOnMainThread();
+    u32 frameIndex = ApplicationBase::GetRenderer().GetCurrentFrameIndexOnMainThread();
     auto& drawCommands = m_DrawCommands[frameIndex][hash];
     drawCommands.Mesh = mesh;
     drawCommands.SubMeshIndex = subMeshIndex;

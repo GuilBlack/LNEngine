@@ -19,8 +19,8 @@ Effect::Effect(SafePtr<GfxContext> context, const std::string& shaderPath)
         return;
     }
     m_Name = m_Shader->GetName();
-    uint32_t matSetIndex = m_Shader->GetSetIndex(ShaderSetIndexType::eMaterial);
-    uint32_t maxFramesInFlight = m_Context->GetMaxFramesInFlight();
+    u32 matSetIndex = m_Shader->GetSetIndex(ShaderSetIndexType::eMaterial);
+    u32 maxFramesInFlight = m_Context->GetMaxFramesInFlight();
 
     if (m_Shader->GetReflectedData().DescriptorSets.find(matSetIndex) == m_Shader->GetReflectedData().DescriptorSets.end())
     {
@@ -42,19 +42,19 @@ Effect::Effect(SafePtr<GfxContext> context, const std::string& shaderPath)
     writeDescSets.resize(maxFramesInFlight);
     std::vector<std::vector<vk::DescriptorBufferInfo>> bufferInfos;
     bufferInfos.resize(maxFramesInFlight);
-    for (uint32_t i = 0; i < maxFramesInFlight; i++)
+    for (u32 i = 0; i < maxFramesInFlight; i++)
     {
         writeDescSets[i].reserve(numStorageBuffer);
         bufferInfos[i].reserve(numStorageBuffer);
     }
-    for (uint32_t i = 0; i < maxFramesInFlight; i++)
+    for (u32 i = 0; i < maxFramesInFlight; i++)
     {
         m_Bank.FrameDescSets.emplace_back(m_Context->AllocateDescriptorSet(
-            m_Context->GetStorageOnlyDescriptorSetLayout((uint32_t)numStorageBuffer),
+            m_Context->GetStorageOnlyDescriptorSetLayout((u32)numStorageBuffer),
             DescriptorType::eStorageOnly));
     }
 
-    uint32_t initialCapacity{};
+    u32 initialCapacity{};
     switch (m_Shader->GetShaderDomain())
     {
     case ShaderDomain::eMesh:
@@ -73,15 +73,15 @@ Effect::Effect(SafePtr<GfxContext> context, const std::string& shaderPath)
     for (const auto& [name, binding] : matSet.StorageBuffers)
     {
         SafePtr<StorageBuffer> buffer;
-        uint32_t elementSize = binding.Size;
+        u32 elementSize = binding.Size;
         BankItem& item = m_Bank.Items[binding.BindingIndex];
         item.ElementSize = elementSize;
 
         item.FrameBuffer.resize(maxFramesInFlight);
-        for (uint32_t i = 0; i < maxFramesInFlight; i++)
+        for (u32 i = 0; i < maxFramesInFlight; i++)
         {
             item.FrameBuffer[i] = lnnew StorageBuffer(m_Context, 
-                                                      (uint64_t)elementSize * initialCapacity, 
+                                                      (u64)elementSize * initialCapacity, 
                                                       nullptr, StorageBufferType::Enum::eDynamic);
             bufferInfos[i].emplace_back(item.FrameBuffer[0]->GetDescriptorInfo());
             vk::WriteDescriptorSet writeDescSet{
@@ -97,15 +97,15 @@ Effect::Effect(SafePtr<GfxContext> context, const std::string& shaderPath)
             writeDescSets[i].emplace_back(writeDescSet);
         }
     }
-    for (uint32_t i = 0; i < maxFramesInFlight; i++)
+    for (u32 i = 0; i < maxFramesInFlight; i++)
         m_Context->GetDevice().updateDescriptorSets(writeDescSets[i], nullptr);
 
     // creating the free slots
     m_Bank.Count = initialCapacity;
     m_Bank.FreeSlots.reserve(initialCapacity);
 
-    for (int64_t i = initialCapacity - 1; i >= 0; --i)
-        m_Bank.FreeSlots.push_back((uint32_t)i);
+    for (s64 i = initialCapacity - 1; i >= 0; --i)
+        m_Bank.FreeSlots.push_back((u32)i);
 }
 
 Effect::~Effect()
@@ -180,16 +180,16 @@ void Effect::FreeMaterialSlot(MaterialSlot slot)
 
 void Effect::GrowFreeSlots()
 {
-    uint32_t oldCount = m_Bank.Count;
-    uint32_t newCount = oldCount * 2;
+    u32 oldCount = m_Bank.Count;
+    u32 newCount = oldCount * 2;
     m_Bank.Count = newCount;
     m_Bank.FreeSlots.reserve(newCount);
 
-    for (uint64_t i = newCount - 1; i >= oldCount; --i)
-        m_Bank.FreeSlots.push_back((uint32_t)i);
+    for (u64 i = newCount - 1; i >= oldCount; --i)
+        m_Bank.FreeSlots.push_back((u32)i);
 }
 
-void Effect::GrowBank(vk::CommandBuffer cmdBuffer, uint32_t currentFrameInFlight)
+void Effect::GrowBank(vk::CommandBuffer cmdBuffer, u32 currentFrameInFlight)
 {
     std::vector<vk::WriteDescriptorSet> writeDescSets;
     std::vector<vk::DescriptorBufferInfo> bufferInfos;
@@ -199,7 +199,7 @@ void Effect::GrowBank(vk::CommandBuffer cmdBuffer, uint32_t currentFrameInFlight
         bufferInfos.emplace_back(bankItem.FrameBuffer[currentFrameInFlight]->GetDescriptorInfo());
         vk::WriteDescriptorSet writeDescSet{
             m_Bank.FrameDescSets[currentFrameInFlight],
-            static_cast<uint32_t>(&bankItem - &m_Bank.Items[0]),
+            static_cast<u32>(&bankItem - &m_Bank.Items[0]),
             0,
             1,
             vk::DescriptorType::eStorageBuffer,
@@ -213,9 +213,9 @@ void Effect::GrowBank(vk::CommandBuffer cmdBuffer, uint32_t currentFrameInFlight
 }
 
 bool Effect::CopyMaterialDataToBuffer(vk::CommandBuffer cmdBuffer,
-                                      uint32_t currentFrameInFlight,
+                                      u32 currentFrameInFlight,
                                       MaterialSlot matSlot,
-                                      uint32_t binding,
+                                      u32 binding,
                                       void* data)
 {
     if (m_HasMaterialSet == false)
@@ -252,8 +252,8 @@ lne::PipelineHandle Effect::MakeHandle(const lne::GraphicsPipelineDescV2& d)
     mix(s2);
 
     PipelineHandle out;
-    out.H1 = static_cast<uint64_t>(s1);
-    out.H2 = static_cast<uint64_t>(s2);
+    out.H1 = static_cast<u64>(s1);
+    out.H2 = static_cast<u64>(s2);
     return out;
 }
 

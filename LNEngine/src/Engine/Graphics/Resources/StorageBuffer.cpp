@@ -13,7 +13,7 @@
 
 namespace lne
 {
-StorageBuffer::StorageBuffer(SafePtr<class GfxContext> ctx, uint64_t size, const void* data, StorageBufferType::Enum type)
+StorageBuffer::StorageBuffer(SafePtr<class GfxContext> ctx, u64 size, const void* data, StorageBufferType::Enum type)
     : m_Context(ctx), m_Size(size), m_Type(type)
 {
     switch (type)
@@ -41,7 +41,7 @@ StorageBuffer::~StorageBuffer()
     m_Context->EnqueueResourceDeletion(deletion);
 }
 
-void StorageBuffer::CopyData(vk::CommandBuffer cb, const void* data, uint64_t size, uint64_t offset)
+void StorageBuffer::CopyData(vk::CommandBuffer cb, const void* data, u64 size, u64 offset)
 {
     if (m_Type == StorageBufferType::eStatic)
     {
@@ -115,7 +115,7 @@ void StorageBuffer::CopyData(vk::CommandBuffer cb, const void* data, uint64_t si
     }
 }
 
-void StorageBuffer::Grow(vk::CommandBuffer cb, uint64_t newSize, bool shouldCopyData)
+void StorageBuffer::Grow(vk::CommandBuffer cb, u64 newSize, bool shouldCopyData)
 {
     if (newSize == m_Size)
         return;
@@ -126,7 +126,7 @@ void StorageBuffer::Grow(vk::CommandBuffer cb, uint64_t newSize, bool shouldCopy
     }
 
     // 1. Create new buffer
-    uint64_t oldSize = m_Size;
+    u64 oldSize = m_Size;
     m_Size = newSize;
     vk::BufferCreateInfo bufferCI{};
     VmaAllocationCreateInfo allocCI{};
@@ -267,8 +267,8 @@ void StorageBuffer::InitDynamic()
 
 void StorageBuffer::CopyBufferToBuffer(vk::CommandBuffer cb, 
                                        BufferAllocation src, BufferAllocation dst, 
-                                       uint64_t size, 
-                                       uint64_t srcOffset /*= 0*/, uint64_t dstOffset /*= 0*/)
+                                       u64 size, 
+                                       u64 srcOffset /*= 0*/, u64 dstOffset /*= 0*/)
 {
     if (src.MemoryFlags & vk::MemoryPropertyFlagBits::eHostVisible)
     {
@@ -315,7 +315,7 @@ void StorageBuffer::CopyBufferToBuffer(vk::CommandBuffer cb,
                        {}, {}, postCopyDstBarrier, {});
 }
 
-StandaloneStorageBuffer::StandaloneStorageBuffer(SafePtr<class GfxContext> ctx, uint64_t size, const void* data, StorageBufferType::Enum type /*= StorageBufferType::eStatic*/)
+StandaloneStorageBuffer::StandaloneStorageBuffer(SafePtr<class GfxContext> ctx, u64 size, const void* data, StorageBufferType::Enum type /*= StorageBufferType::eStatic*/)
     : StorageBuffer(ctx, size, data, type)
 {
     m_DescSet = m_Context->AllocateDescriptorSet(ctx->GetStorageOnlyDescriptorSetLayout(1), DescriptorType::eStorageOnly);
@@ -347,7 +347,7 @@ StandaloneStorageBuffer::~StandaloneStorageBuffer()
     });
 }
 
-void StandaloneStorageBuffer::Grow(vk::CommandBuffer cb, uint64_t newSize, bool shouldCopyData /*= true*/)
+void StandaloneStorageBuffer::Grow(vk::CommandBuffer cb, u64 newSize, bool shouldCopyData /*= true*/)
 {
     StorageBuffer::Grow(cb, newSize, shouldCopyData);
     vk::DescriptorBufferInfo bufferInfo = GetDescriptorInfo();

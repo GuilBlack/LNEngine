@@ -26,16 +26,16 @@ struct Vertex
 
 struct MeshletData
 {
-    uint32_t        VertexOffset;
-    uint32_t        TriangleOffset;
-    uint32_t        VertexCount;
-    uint32_t        TriangleCount;
+    u32             VertexOffset;
+    u32             TriangleOffset;
+    u32             VertexCount;
+    u32             TriangleCount;
 
     glm::vec3       BoundsCenter;
     float           BoundsRadius;
 
     glm::i8vec3     ConeAxis;
-    int8_t          ConeCutoff;
+    s8              ConeCutoff;
 };
 
 class Geometry
@@ -45,7 +45,7 @@ public:
              SafePtr<StorageBuffer> vertexGPUBuffer, 
              SafePtr<StorageBuffer> indexGPUBuffer,
              void* vertices, void* indices,
-             uint32_t vertexCount, uint32_t indexCount);
+             u32 vertexCount, u32 indexCount);
 
     Geometry(GfxContext* ctx,
              SafePtr<StorageBuffer> vertexGPUBuffer,
@@ -54,21 +54,21 @@ public:
              SafePtr<StorageBuffer> meshletVertexIndicesGPUBuffer,
              SafePtr<StorageBuffer> meshletTriangleIndicesGPUBuffer,
              void* meshlets, void* meshletVertexIndices, void* meshletTriangleIndices,
-             void* vertices, uint32_t vertexCount, uint32_t meshletCount);
+             void* vertices, u32 vertexCount, u32 meshletCount);
 
     ~Geometry();
 
     Geometry(Geometry&& other) noexcept;
     Geometry& operator=(Geometry&& other) noexcept;
 
-    [[nodiscard]] uint32_t          GetVertexCount() const { return m_VertexCount; }
-    [[nodiscard]] uint32_t          GetIndexCount() const { return m_IndexCount; }
+    [[nodiscard]] u32          GetVertexCount() const { return m_VertexCount; }
+    [[nodiscard]] u32          GetIndexCount() const { return m_IndexCount; }
     [[nodiscard]] SafePtr<StorageBuffer> GetVertexBuffer() const { return m_VertexGPUBuffer; }
     [[nodiscard]] SafePtr<StorageBuffer> GetIndexBuffer() const { return m_IndexGPUBuffer; }
     [[nodiscard]] void*             GetVertices() const { return m_Vertices; }
     [[nodiscard]] void*             GetIndices() const { return m_Indices; }
     [[nodiscard]] vk::DescriptorSet GetDescSet() const { return m_DescSet; }
-    [[nodiscard]] uint32_t          GetMeshletCount() const { return m_MeshletCount; }
+    [[nodiscard]] u32          GetMeshletCount() const { return m_MeshletCount; }
 
     // abstract it as an interface instead of using enum checks?
     [[nodiscard]] GeometryType::Enum GetType() const
@@ -90,9 +90,9 @@ private:
     void*                   m_MeshletVertexIndices{};
     void*                   m_MeshletTriangleIndices{};
 
-    uint32_t                m_VertexCount{};
-    uint32_t                m_IndexCount{};
-    uint32_t                m_MeshletCount{};
+    u32                m_VertexCount{};
+    u32                m_IndexCount{};
+    u32                m_MeshletCount{};
 
     vk::DescriptorSet       m_DescSet{};
 private:
@@ -117,22 +117,22 @@ public:
     std::vector<SubMesh>&               GetSubMeshes() { return m_SubMeshes; }
     const Geometry&                     GetGeometry() const { return *m_Geometry.get(); }
 
-    [[nodiscard]] SafePtr<Material>     GetMaterial(uint32_t index)
+    [[nodiscard]] SafePtr<Material>     GetMaterial(u32 index)
     {
         return m_Materials[index];
     }
 
     void                                SetMaterial(SafePtr<Material> mat,
-                                                    uint32_t index);
+                                                    u32 index);
 
-    [[nodiscard]] static SafePtr<StaticMesh> GenerateCube(uint32_t tesselationLevel);
+    [[nodiscard]] static SafePtr<StaticMesh> GenerateCube(u32 tesselationLevel);
     [[nodiscard]] static SafePtr<StaticMesh> GenerateUVSphere(float radius = 1.f,
-                                                              uint32_t nLatitude = 32,
-                                                              uint32_t nLongitude = 32);
+                                                              u32 nLatitude = 32,
+                                                              u32 nLongitude = 32);
 
     static SafePtr<StaticMesh> GenerateUVSphereMeshlets(float radius = 1.f,
-                                                                 uint32_t nLatitude = 32,
-                                                                 uint32_t nLongitude = 32);
+                                                                 u32 nLatitude = 32,
+                                                                 u32 nLongitude = 32);
 
     SafePtr<StaticMesh>                 Clone() const;
 
@@ -141,8 +141,8 @@ private:
 
     std::vector<SubMesh>                    m_SubMeshes{};
     std::shared_ptr<Geometry>               m_Geometry;
-    uint32_t                                m_TotalVertexCount{};
-    uint32_t                                m_TotalIndexCount{};
+    u32                                m_TotalVertexCount{};
+    u32                                m_TotalIndexCount{};
 
     // TODO: move to a resource manager
     std::vector<SafePtr<Material>>          m_Materials;
@@ -157,10 +157,10 @@ private:
     void LoadMaterials(const struct aiScene* scene, GeometryType::Enum geometryType);
     void                                TraverseNodes(const struct aiNode* node, const glm::mat4& parentTransform);
 
-    static void                         GenerateUVSphereData(uint32_t nLatitude, uint32_t nLongitude,
+    static void                         GenerateUVSphereData(u32 nLatitude, u32 nLongitude,
                                                              float radius,
-                                                             Vertex* oVertices, uint32_t* oIndices,
-                                                             uint32_t nVertices);
+                                                             Vertex* oVertices, u32* oIndices,
+                                                             u32 nVertices);
 };
 
 }

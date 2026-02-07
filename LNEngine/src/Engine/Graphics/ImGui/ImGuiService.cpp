@@ -18,7 +18,7 @@ namespace lne
 // I NEEDED TO DO A CUSTOM BACKEND SINCE I'M USING BINSLESS TEXTURES
 
 // check the imgui.glsl file for the shaders
-static uint32_t g_GlslVertSpv[] = {
+static u32 g_GlslVertSpv[] = {
     0x07230203,0x00010000,0x0008000b,0x00000035,0x00000000,0x00020011,0x00000001,0x0006000b,
     0x00000001,0x4c534c47,0x6474732e,0x3035342e,0x00000000,0x0003000e,0x00000000,0x00000001,
     0x000b000f,0x00000000,0x00000004,0x6e69616d,0x00000000,0x0000000b,0x0000000f,0x00000015,
@@ -70,7 +70,7 @@ static uint32_t g_GlslVertSpv[] = {
     0x00000025,0x0000000d,0x0003003e,0x00000034,0x00000033,0x000100fd,0x00010038
 };
 
-static uint32_t g_GlslFragSpv[] = {
+static u32 g_GlslFragSpv[] = {
     0x07230203,0x00010000,0x0008000b,0x00000026,0x00000000,0x00020011,0x00000001,0x00020011,
     0x000014b5,0x00020011,0x000014b6,0x00020011,0x000014bb,0x0008000a,0x5f565053,0x5f545845,
     0x63736564,0x74706972,0x695f726f,0x7865646e,0x00676e69,0x0006000b,0x00000001,0x4c534c47,
@@ -120,8 +120,8 @@ static uint32_t g_GlslFragSpv[] = {
 // [Please zero-clear before use!]
 struct ImGuiVulkanWindowRenderBuffers
 {
-    uint32_t            Index;
-    uint32_t            Count;
+    u32            Index;
+    u32            Count;
     ImGuiVulkanFrameRenderBuffers* FrameRenderBuffers;
 };
 
@@ -226,7 +226,7 @@ static void ImGuiNukeFrameRenderBuffers(VkDevice device, ImGuiVulkanFrameRenderB
 
 void ImGuiNukeWindowRenderBuffers(VkDevice device, ImGuiVulkanWindowRenderBuffers* buffers)
 {
-    for (uint32_t n = 0; n < buffers->Count; n++)
+    for (u32 n = 0; n < buffers->Count; n++)
         ImGuiNukeFrameRenderBuffers(device, &buffers->FrameRenderBuffers[n]);
     IM_FREE(buffers->FrameRenderBuffers);
     buffers->FrameRenderBuffers = nullptr;
@@ -374,7 +374,7 @@ void ImGuiService::EndFrame()
         auto imGuiRenderCommand = [this, ddCopy = std::move(ddCopy)]()
             {
                 LNE_PROFILE_SCOPE("ImGui Render");
-                uint32_t imageIndex = m_Swapchain->GetCurrentFrameIndex();
+                u32 imageIndex = m_Swapchain->GetCurrentFrameIndex();
                 auto& renderer = ApplicationBase::GetRenderer();
                 auto cmdBuffer = m_GraphicsContext->GetPrimaryCommandBuffer();
 
@@ -402,7 +402,7 @@ void ImGuiService::CreateFontsTexture()
     if (bd->FontTexture != nullptr)
         bd->FontTexture = nullptr;
 
-    byte* pixels;
+    u8* pixels;
     int width, height;
     io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
 
@@ -423,7 +423,7 @@ void ImGuiService::CreateFontsTexture()
 
     ApplicationBase::GetRenderer().GetGfxLoader()->Upload(gpuRequest);
     bd->FontTexture = texture;
-    io.Fonts->SetTexID((ImTextureID)(uint64_t)texture->GetBindlessTextureHandle());
+    io.Fonts->SetTexID((ImTextureID)(u64)texture->GetBindlessTextureHandle());
 }
 
 void ImGuiService::InitVulkanBackend()
@@ -532,7 +532,7 @@ void ImGuiService::CreateDeviceObjects()
     // create descriptor set layout
     if (!bd->DescriptorSetLayout)
     {
-        uint32_t bindlessPoolSize = 2048;
+        u32 bindlessPoolSize = 2048;
 
         std::array<vk::DescriptorSetLayoutBinding, 2> bindlessLayoutBindings{
             vk::DescriptorSetLayoutBinding{
@@ -577,7 +577,7 @@ void ImGuiService::CreateDeviceObjects()
         vk::PushConstantRange pushConstantRange[1] = {};
         pushConstantRange[0].stageFlags = vk::ShaderStageFlagBits::eVertex;
         pushConstantRange[0].offset = 0;
-        pushConstantRange[0].size = sizeof(float) * 4 + sizeof(uint32_t); // 2 vec2 + 1 uint
+        pushConstantRange[0].size = sizeof(float) * 4 + sizeof(u32); // 2 vec2 + 1 uint
 
         vk::DescriptorSetLayout setLayouts[1] = { bd->DescriptorSetLayout };
         vk::PipelineLayoutCreateInfo pipelineLayoutCI = {};
@@ -721,7 +721,7 @@ void ImGuiService::CreateShaderModules()
         VkShaderModuleCreateInfo vert_info = {};
         vert_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         vert_info.codeSize = sizeof(g_GlslVertSpv);
-        vert_info.pCode = (uint32_t*)g_GlslVertSpv;
+        vert_info.pCode = (u32*)g_GlslVertSpv;
         bd->ShaderModuleVert = m_GraphicsContext->GetDevice().createShaderModule(vert_info, nullptr);
     }
 
@@ -730,7 +730,7 @@ void ImGuiService::CreateShaderModules()
         VkShaderModuleCreateInfo frag_info = {};
         frag_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         frag_info.codeSize = sizeof(g_GlslFragSpv);
-        frag_info.pCode = (uint32_t*)g_GlslFragSpv;
+        frag_info.pCode = (u32*)g_GlslFragSpv;
         bd->ShaderModuleFrag = m_GraphicsContext->GetDevice().createShaderModule(frag_info, nullptr);
     }
 }
@@ -766,12 +766,12 @@ void ImGuiService::CreateOrResizeBuffer(VkBuffer& buffer, VkDeviceMemory& buffer
     buffer_size = buffer_size_aligned;
 }
 
-uint32_t ImGuiService::VulkanMemoryType(VkMemoryPropertyFlags properties, uint32_t type_bits)
+u32 ImGuiService::VulkanMemoryType(VkMemoryPropertyFlags properties, u32 type_bits)
 {
     ImGuiVulkanData* bd = ImGuiGetBackendData();
     VkPhysicalDeviceMemoryProperties prop;
     vkGetPhysicalDeviceMemoryProperties(m_GraphicsContext->GetPhysicalDevice(), &prop);
-    for (uint32_t i = 0; i < prop.memoryTypeCount; i++)
+    for (u32 i = 0; i < prop.memoryTypeCount; i++)
         if ((prop.memoryTypes[i].propertyFlags & properties) == properties && type_bits & (1 << i))
             return i;
     return 0xFFFFFFFF; // Unable to find memoryType
@@ -890,22 +890,22 @@ void ImGuiService::RenderDrawData(const DrawDataCopy& draw_data, vk::CommandBuff
 
                 // Apply scissor/clipping rectangle
                 VkRect2D scissor;
-                scissor.offset.x = (int32_t)(clip_min.x);
-                scissor.offset.y = (int32_t)(clip_min.y);
-                scissor.extent.width = (uint32_t)(clip_max.x - clip_min.x);
-                scissor.extent.height = (uint32_t)(clip_max.y - clip_min.y);
+                scissor.offset.x = (s32)(clip_min.x);
+                scissor.offset.y = (s32)(clip_min.y);
+                scissor.extent.width = (u32)(clip_max.x - clip_min.x);
+                scissor.extent.height = (u32)(clip_max.y - clip_min.y);
                 vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
                 // Bind DescriptorSet with font or user texture
                 VkDescriptorSet desc_set[1] = { (VkDescriptorSet)m_GraphicsContext->GetBindlessDescriptorSet() };
-                uint32_t texId = pcmd->TextureId ? (uint32_t)(intptr_t)pcmd->TextureId : 0;
-                vkCmdPushConstants(cmdBuffer, bd->PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, sizeof(float) * 4, sizeof(uint32_t), &texId);
+                u32 texId = pcmd->TextureId ? (u32)(intptr_t)pcmd->TextureId : 0;
+                vkCmdPushConstants(cmdBuffer, bd->PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, sizeof(float) * 4, sizeof(u32), &texId);
                 if (sizeof(ImTextureID) < sizeof(ImU64))
                 {
                     // We don't support texture switches if ImTextureID hasn't been redefined to be 64-bit. Do a flaky check that other textures haven't been used.
-                    LNE_ASSERT(pcmd->TextureId == (ImTextureID)(uint64_t)bd->FontTexture->GetBindlessTextureHandle(), "");
+                    LNE_ASSERT(pcmd->TextureId == (ImTextureID)(u64)bd->FontTexture->GetBindlessTextureHandle(), "");
                     texId = bd->FontTexture->GetBindlessTextureHandle();
-                    vkCmdPushConstants(cmdBuffer, bd->PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, sizeof(float) * 4, sizeof(uint32_t), &texId);
+                    vkCmdPushConstants(cmdBuffer, bd->PipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, sizeof(float) * 4, sizeof(u32), &texId);
                 }
                 vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, bd->PipelineLayout, 0, 1, desc_set, 0, nullptr);
 
@@ -916,7 +916,7 @@ void ImGuiService::RenderDrawData(const DrawDataCopy& draw_data, vk::CommandBuff
         global_idx_offset += (int)cmd_list.Idx.size();
         global_vtx_offset += (int)cmd_list.Vtx.size();
     }
-    VkRect2D scissor = { { 0, 0 }, { (uint32_t)fb_width, (uint32_t)fb_height } };
+    VkRect2D scissor = { { 0, 0 }, { (u32)fb_width, (u32)fb_height } };
     vkCmdSetScissor(cmdBuffer, 0, 1, &scissor);
 }
 

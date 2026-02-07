@@ -14,16 +14,16 @@ public:
 class WindowResizeEvent : public Event
 {
 public:
-    WindowResizeEvent(uint32_t width, uint32_t height)
+    WindowResizeEvent(u32 width, u32 height)
         : m_Width(width), m_Height(height) {}
 
-    uint32_t GetWidth() const { return m_Width; }
-    uint32_t GetHeight() const { return m_Height; }
+    u32 GetWidth() const { return m_Width; }
+    u32 GetHeight() const { return m_Height; }
 
     EVENT_CLASS_METHODS(WindowResize)
 
 private:
-    uint32_t m_Width;
-    uint32_t m_Height;
+    u32 m_Width;
+    u32 m_Height;
 };
 }

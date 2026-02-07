@@ -17,18 +17,18 @@ public:
     // Pure virtual binding method
     void Bind(const vk::CommandBuffer& cmdBuffer) const;
 
-    SafePtr<GfxContext> GetContext() const { return m_Context; }
-    vk::PipelineLayout GetLayout() const { return m_Layout; }
-    vk::Pipeline GetPipeline() const { return m_Pipeline; }
+    SafePtr<GfxContext>                         GetContext() const { return m_Context; }
+    vk::PipelineLayout                          GetLayout() const { return m_Layout; }
+    vk::Pipeline                                GetPipeline() const { return m_Pipeline; }
     [[nodiscard]] std::vector<vk::DescriptorSetLayout> GetDescriptorSetLayouts() const { return m_Shader->GetDescriptorSetLayouts(); }
 
 protected:
     PipelineBase(SafePtr<GfxContext> ctx, const std::string& name, vk::PipelineBindPoint bindPoint);
 
-    vk::PipelineLayout CreatePipelineLayout(const std::vector<vk::DescriptorSetLayout>& layouts,
+    vk::PipelineLayout                          CreatePipelineLayout(const std::vector<vk::DescriptorSetLayout>& layouts,
                                             const std::vector<vk::PushConstantRange>& pcRanges);
 
-    virtual std::string_view GetDebugName() const override
+    virtual std::string_view                    GetDebugName() const override
     {
         return m_Name;
     }
@@ -48,7 +48,7 @@ struct DepthState
 {
     bool                DepthTestEnable = false;
     bool                DepthWriteEnable = false;
-    ECompareOperation       DepthCompareOp = ECompareOperation::Less;
+    ECompareOperation   DepthCompareOp = ECompareOperation::Less;
     bool                StencilTestEnable = false;
 
     DepthState& SetDepthTest(bool read, bool write, ECompareOperation compare);
@@ -82,13 +82,13 @@ struct GraphicsPipelineDesc
     std::unordered_set<ShaderStage::Enum>    ShaderStages{};
 
     // rasterization settings
-    ECullMode   CullMode = ECullMode::Back;
-    EWindingOrder WindingOrder = EWindingOrder::CounterClockwise;
-    EFillMode Fill = EFillMode::Solid;
+    ECullMode                           CullMode = ECullMode::Back;
+    EWindingOrder                       WindingOrder = EWindingOrder::CounterClockwise;
+    EFillMode                           Fill = EFillMode::Solid;
 
     // depth stencil settings
-    DepthState   Depth{};
-    BlendState  Blend{};
+    DepthState                          Depth{};
+    BlendState                          Blend{};
 
     FrameGraph* FrameGraph = nullptr;
 
@@ -226,7 +226,7 @@ public:
 private:
     GraphicsPipelineDesc        m_Desc{};
     std::string                 m_AssociatedRenderPassName{};
-    uint64_t                    m_AssociatedRenderPassNameHash{};
+    u64                         m_AssociatedRenderPassNameHash{};
 
     friend class Material;
 };

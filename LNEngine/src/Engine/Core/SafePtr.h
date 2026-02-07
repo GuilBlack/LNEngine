@@ -1,4 +1,5 @@
 #pragma once
+#include "Engine/Core/Utils/Defines.h"
 
 namespace lne
 {
@@ -15,7 +16,7 @@ public:
     }
 #endif // LNE_DEBUG
 
-    uint32_t Release() const
+    u32 Release() const
 #ifdef LNE_DEBUG
 ;
 #else
@@ -23,7 +24,7 @@ public:
         return m_Count.fetch_sub(1, std::memory_order_acq_rel) - 1;
     }
 #endif // LNE_DEBUG
-    uint32_t GetCount() const
+    u32 GetCount() const
     {
         return m_Count.load(std::memory_order_acquire);
     }
@@ -34,7 +35,7 @@ protected:
         return unknown; 
     }
 private:
-    mutable std::atomic<uint32_t> m_Count = 0;
+    mutable std::atomic<u32> m_Count = 0;
 };
 
 template<typename RefCountType>

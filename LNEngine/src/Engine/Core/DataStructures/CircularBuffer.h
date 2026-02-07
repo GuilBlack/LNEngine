@@ -19,7 +19,7 @@ public:
     /// Constructor for the CircularBuffer class.
     /// </summary>
     /// <param name="capacity"> is the size reserved for the buffer containing all the data. Default = 16</param>
-    explicit CircularBuffer(uint32_t capacity = 16) noexcept
+    explicit CircularBuffer(u32 capacity = 16) noexcept
         : m_Head(0)
         , m_Tail(0)
         , m_Count(0)
@@ -233,7 +233,7 @@ public:
     /// the current capacity, the buffer will be truncated.
     /// </summary>
     /// <param name="newCapacity"> the new capacity of the buffer</param>
-    void Resize(uint32_t newCapacity)
+    void Resize(u32 newCapacity)
     {
         if (newCapacity < m_Count)
             return;
@@ -295,17 +295,17 @@ public:
     /// <summary>
     /// Return the size of the buffer
     /// </summary>
-    [[nodiscard]] inline constexpr uint32_t GetSize() const noexcept { return m_Count; }
+    [[nodiscard]] inline constexpr u32 GetSize() const noexcept { return m_Count; }
     /// <summary>
     /// Return the capacity of the buffer
     /// </summary>
-    [[nodiscard]] inline constexpr uint32_t GetCapacity() const noexcept { return m_Capacity; }
+    [[nodiscard]] inline constexpr u32 GetCapacity() const noexcept { return m_Capacity; }
 
     void Clear() noexcept
     {
         if constexpr (std::is_destructible_v<T>)
         {
-            for (uint32_t i = 0; i < m_Count; i++)
+            for (u32 i = 0; i < m_Count; i++)
             {
                 m_Buffer[(m_Head + i) % m_Capacity].~T();
             }
@@ -320,7 +320,7 @@ public:
     class Iterator
     {
     public:
-        Iterator(T* buffer, uint32_t index, uint32_t head, uint32_t capacity) noexcept
+        Iterator(T* buffer, u32 index, u32 head, u32 capacity) noexcept
             : m_Buffer(buffer)
             , m_Index(index)
             , m_Head(head)
@@ -339,9 +339,9 @@ public:
 
     private:
         T* m_Buffer;
-        uint32_t m_Index;
-        uint32_t m_Head;
-        uint32_t m_Capacity;
+        u32 m_Index;
+        u32 m_Head;
+        u32 m_Capacity;
     };
 
     Iterator begin() noexcept { return Iterator(m_Buffer, 0, m_Head, m_Capacity); }
@@ -350,7 +350,7 @@ public:
     class ConstIterator
     {
     public:
-        ConstIterator(const T* buffer, uint32_t index, uint32_t head, uint32_t capacity) noexcept
+        ConstIterator(const T* buffer, u32 index, u32 head, u32 capacity) noexcept
             : m_Buffer(buffer)
             , m_Index(index)
             , m_Head(head)
@@ -369,9 +369,9 @@ public:
 
     private:
         const T* m_Buffer;
-        uint32_t m_Index;
-        uint32_t m_Head;
-        uint32_t m_Capacity;
+        u32 m_Index;
+        u32 m_Head;
+        u32 m_Capacity;
     };
 
     ConstIterator begin() const noexcept { return ConstIterator(m_Buffer, 0, m_Head, m_Capacity); }
@@ -379,12 +379,12 @@ public:
 #pragma endregion
 
 #pragma region OperatorLogic
-    [[nodiscard]] constexpr T& operator[](uint32_t index) {
+    [[nodiscard]] constexpr T& operator[](u32 index) {
         if (index >= m_Count)
             throw CircularBufferException("Index out of range");
         return m_Buffer[(m_Head + index) % m_Capacity];
     }
-    [[nodiscard]] constexpr const T& operator[](uint32_t index) const {
+    [[nodiscard]] constexpr const T& operator[](u32 index) const {
         if (index >= m_Count)
             throw CircularBufferException("Index out of range");
         return m_Buffer[(m_Head + index) % m_Capacity];
@@ -441,10 +441,10 @@ public:
 
 private:
     T* m_Buffer;
-    uint32_t m_Head;
-    uint32_t m_Tail;
-    uint32_t m_Count;
-    uint32_t m_Capacity;
+    u32 m_Head;
+    u32 m_Tail;
+    u32 m_Count;
+    u32 m_Capacity;
 
 private:
     
@@ -456,17 +456,17 @@ private:
         if (m_Count < m_Capacity)
             return;
 
-        uint32_t newCapacity;
-        if (m_Capacity == std::numeric_limits<uint32_t>::max())
+        u32 newCapacity;
+        if (m_Capacity == std::numeric_limits<u32>::max())
             throw CircularBufferException("CircularBuffer is full and its capacity is at the limit");
 
-        if (m_Capacity > std::numeric_limits<uint32_t>::max() / 2)
+        if (m_Capacity > std::numeric_limits<u32>::max() / 2)
         {
-            newCapacity = std::numeric_limits<uint32_t>::max();
+            newCapacity = std::numeric_limits<u32>::max();
         }
         else
         {
-            newCapacity = uint32_t(m_Capacity * 2);
+            newCapacity = u32(m_Capacity * 2);
         }
         Resize(newCapacity);
     }

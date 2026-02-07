@@ -6,14 +6,15 @@
 #include "Events/WindowEvents.h"
 #include "Inputs/Inputs.h"
 #include "Clock.h"
+#include "Engine/Core/Utils/Defines.h"
 
 namespace lne
 {
 struct ApplicationSettings
 {
     std::string Name;
-    uint32_t    Width{};
-    uint32_t    Height{};
+    u32    Width{};
+    u32    Height{};
     bool        IsResizable{};
 };
 

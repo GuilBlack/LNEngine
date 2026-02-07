@@ -8,7 +8,7 @@ namespace lne
 template <typename T>
 concept DefaultConstructible = std::is_default_constructible_v<T>;
 
-using ObjectPoolHandle = uint32_t;
+using ObjectPoolHandle = u32;
 static constexpr ObjectPoolHandle INVALID_OBJECT_POOL_HANDLE = (ObjectPoolHandle)-1;
 
 template <DefaultConstructible ObjType>
@@ -22,17 +22,17 @@ public:
         m_PoolSize{ capacity * m_ObjectSize }
     {
         m_IsAllocated.resize(capacity, false);
-        m_Pool = static_cast<byte*>(std::malloc(m_PoolSize));
+        m_Pool = static_cast<u8*>(std::malloc(m_PoolSize));
     }
 
     ~ObjectPool()
     {
         std::sort(m_FreeIndices.begin(), m_FreeIndices.end());
 
-        uint32_t holeIndex = 0;
-        uint32_t holeCount = (uint32_t)m_FreeIndices.size();
+        u32 holeIndex = 0;
+        u32 holeCount = (u32)m_FreeIndices.size();
         // loop through all indices and deallocate them while skipping free indices
-        for (uint32_t i = 0; i < m_NextIndex; ++i)
+        for (u32 i = 0; i < m_NextIndex; ++i)
         {
             if (holeIndex < holeCount && m_FreeIndices[holeIndex] == i)
             {
@@ -112,10 +112,10 @@ private:
     SizeT m_ObjectSize;
 
     SizeT m_PoolSize;
-    byte* m_Pool{ nullptr };
+    u8* m_Pool{ nullptr };
 
     ObjectPoolHandle m_NextIndex{ 0 };
-    std::vector<uint32_t> m_FreeIndices;
+    std::vector<u32> m_FreeIndices;
     std::vector<bool> m_IsAllocated;
 
 private:
