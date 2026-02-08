@@ -6,7 +6,6 @@ namespace lne
 class GlobalUtils
 {
 public:
-    static void PrintLine(const std::string& msg);
     static std::size_t HashU64(u64 value) noexcept;
 
     static size_t NextPow2(size_t v)
@@ -39,6 +38,17 @@ public:
     static void HashPtr(std::size_t& seed, T const* p) noexcept
     {
         HashCombine(seed, reinterpret_cast<std::uintptr_t>(p));
+    }
+
+    static constexpr std::size_t AlignmentRoundUp(std::size_t size, std::size_t alignment)
+    {
+        return (size + alignment - 1) / alignment * alignment;
+    }
+
+    // faster than the normal but only works with alignments that are pow of 2 (so in theory, any alignment)
+    static constexpr std::size_t PowOf2AlignmentRoundUp(std::size_t size, std::size_t alignment)
+    {
+        return (size + alignment - 1) & ~(alignment - 1);
     }
 };
 }

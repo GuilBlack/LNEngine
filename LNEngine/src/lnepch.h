@@ -26,11 +26,6 @@
 #include <tuple>
 #include <variant>
 
-// Platform
-#ifdef LNE_PLATFORM_WINDOWS
-#   include <Windows.h>
-#endif // LNE_PLATFORM_WINDOWS
-
 #ifdef _MSC_VER
 #   pragma warning(disable : 4390)
 #   pragma warning(disable : 4552)

@@ -3,11 +3,6 @@
 
 namespace lne 
 {
-void GlobalUtils::PrintLine(const std::string& msg) 
-{
-    std::cout << msg << '\n';
-}
-
 std::size_t GlobalUtils::HashU64(u64 value) noexcept
 {
 #if SIZE_MAX == UINT64_MAX
