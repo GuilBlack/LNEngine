@@ -1,7 +1,7 @@
 #pragma once
 
 extern lne::ApplicationBase* lne::CreateApplication();
-#if defined(LNE_DEBUG) || !defined(LNE_PLATFORM_WINDOWS)
+#if defined(LNE_DEBUG) && defined(LNE_PLATFORM_WINDOWS)
 
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
@@ -22,7 +22,7 @@ int main(int argc, char** argv)
     app->Run();
     delete app;
 
-    _CrtDumpMemoryLeaks();
+    //_CrtDumpMemoryLeaks();
 }
 
 #elif defined(LNE_PLATFORM_WINDOWS) && !defined(LNE_DEBUG)

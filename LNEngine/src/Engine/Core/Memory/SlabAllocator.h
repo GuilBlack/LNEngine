@@ -24,6 +24,10 @@ public:
      */
     void                Deallocate(void* block);
 
+    std::size_t         GetBlockSize() const { return m_BlockSize; }
+    std::size_t         GetAlignment() const { return m_Alignment; }
+    std::size_t         GetSlabSize() const { return m_SlabSize; }
+
 private:
     struct SlabNode
     {

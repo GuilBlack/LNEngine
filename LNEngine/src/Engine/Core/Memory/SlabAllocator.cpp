@@ -24,7 +24,7 @@ SlabAllocator::~SlabAllocator()
     {
         m_SlabSize /= 2;
         SlabNode* tmp = m_CurrentSlab->Next;
-        OSFreeVPages(m_CurrentSlab, m_SlabSize);
+        LneVirtualFree(m_CurrentSlab, m_SlabSize);
         m_CurrentSlab = tmp;
     }
 }
@@ -55,7 +55,7 @@ void SlabAllocator::Deallocate(void* block)
 
 void SlabAllocator::Grow()
 {
-    SlabNode* allocation = (SlabNode*)OSAllocVPages(m_SlabSize);
+    SlabNode* allocation = (SlabNode*)LneVirtualAlloc(m_SlabSize);
     allocation->Next = m_CurrentSlab;
     m_CurrentSlab = allocation;
 

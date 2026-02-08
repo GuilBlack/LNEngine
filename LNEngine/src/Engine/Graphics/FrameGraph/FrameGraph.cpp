@@ -19,16 +19,16 @@ namespace lne
 ////////////////////////////////////////////////////////////////////
 #define PROFILING_COL 0xFFF43E
 FrameGraph::FrameGraph()
-    : m_ResourceCache{ MAX_RESOURCE_COUNT }
-    , m_NodeCache{ MAX_RENDERPASS_NODE_COUNT }
+    : m_ResourceCache{}
+    , m_NodeCache{}
 {
     m_Context = ApplicationBase::GetWindow().GetGfxContext();
 }
 
 FrameGraph::FrameGraph(const std::string& name)
     : m_Name(name)
-    , m_ResourceCache{ MAX_RESOURCE_COUNT }
-    , m_NodeCache{ MAX_RENDERPASS_NODE_COUNT }
+    , m_ResourceCache{}
+    , m_NodeCache{}
 {
     m_Context = ApplicationBase::GetWindow().GetGfxContext();
 }
@@ -557,12 +557,13 @@ void FrameGraph::SortGraph(std::vector<FrameGraphNodeHandle>& nodes)
 {
     std::stack<FrameGraphNodeHandle> nodeStack;
 
-    std::vector<u8> visited(nodes.size(), 0);
+    FlatHashMap<FrameGraphNodeHandle, u8> visited;
     std::vector<FrameGraphNodeHandle> sortedNodes;
 
     for (int n = 0; n < nodes.size(); ++n)
     {
-        if (visited[n])
+        FrameGraphNodeHandle nodeHandle = nodes[n];
+        if (visited[nodeHandle])
             continue;
 
         nodeStack.push(nodes[n]);

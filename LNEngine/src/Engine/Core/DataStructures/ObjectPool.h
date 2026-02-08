@@ -1,6 +1,9 @@
 #pragma once
 #include "Engine/Core/Utils/_Defines.h"
 #include "Engine/Core/Utils/Log.h"
+#include "Engine/Core/Memory/SlabAllocator.h"
+#include "Engine/GlobalUtils.h"
+#include <new>
 // !!!! THIS IS ONLY FOR DEFAULT CONSTRUCTIBLE TYPES !!!!
 
 namespace lne
@@ -8,120 +11,183 @@ namespace lne
 template <typename T>
 concept DefaultConstructible = std::is_default_constructible_v<T>;
 
-using ObjectPoolHandle = u32;
-static constexpr ObjectPoolHandle INVALID_OBJECT_POOL_HANDLE = (ObjectPoolHandle)-1;
+using ObjectPoolHandle = void*;
+static constexpr ObjectPoolHandle INVALID_OBJECT_POOL_HANDLE = nullptr;
 
-template <DefaultConstructible ObjType>
+/**
+ * Object Pool used to store any type of object. It's your job to deallocate a used object
+ * After you're done using it and before the pool is destroyed because it's prone to
+ * UB behavior and leaks if not since the object is ONLY destroyed IF the Deallocate
+ * method is called.
+ */
+template <typename ObjType>
 class ObjectPool
 {
 public:
+    // for bookkeeping unfortunately
+    struct Node
+    {
+        Node*                       Next;
+        Node*                       Prev;
+        alignas(ObjType) u8         Allocation[sizeof(ObjType)];
+
+        ObjType*                    GetObjectPtr()
+        {
+            // launder is used to make the compiler police happy about the object's lifetime and type
+            return std::launder(reinterpret_cast<ObjType*>(Allocation));
+        }
+    };
 
 public:
-    ObjectPool(SizeT capacity = 16)
-        : m_Capacity{ capacity }, m_ObjectSize{ sizeof(ObjType) },
-        m_PoolSize{ capacity * m_ObjectSize }
+    /**
+     * Constructor.
+     * @param allocator OPTIONAL. If nullptr, it will create its own SlabAllocator. 
+     * It's optional if we ever have the need for an external allocator.
+     */
+    explicit ObjectPool(SlabAllocator* allocator = nullptr)
     {
-        m_IsAllocated.resize(capacity, false);
-        m_Pool = static_cast<u8*>(std::malloc(m_PoolSize));
+        const std::size_t blockSize = GlobalUtils::AlignmentRoundUp(sizeof(Node), alignof(Node));
+        const std::size_t alignment = alignof(Node);
+
+        if (allocator)
+        {
+            LNE_ASSERT(allocator->GetBlockSize() == blockSize &&
+                       allocator->GetAlignment() == alignment,
+                       std::format("SlabAllocator mismatch for ObjectPool."));
+            m_Allocator = allocator;
+            m_OwnsAllocator = false;
+        }
+        else
+        {
+            m_Allocator = lnnew SlabAllocator(blockSize, alignment);
+            m_OwnsAllocator = true;
+        }
     }
 
     ~ObjectPool()
     {
-        std::sort(m_FreeIndices.begin(), m_FreeIndices.end());
+        if constexpr (std::is_trivial_v<ObjType> == false)
+            Clear();
 
-        u32 holeIndex = 0;
-        u32 holeCount = (u32)m_FreeIndices.size();
-        // loop through all indices and deallocate them while skipping free indices
-        for (u32 i = 0; i < m_NextIndex; ++i)
-        {
-            if (holeIndex < holeCount && m_FreeIndices[holeIndex] == i)
-            {
-                ++holeIndex;
-                continue;
-            }
-
-            ObjType* ptr = GetPointerFromHandle(i);
-            ptr->~ObjType();
-        }
-
-        std::free(m_Pool);
+        if (m_OwnsAllocator)
+            delete m_Allocator;
     }
 
-    ObjectPoolHandle Allocate()
+    ObjectPoolHandle            Allocate()
     {
-        ObjectPoolHandle handle = INVALID_OBJECT_POOL_HANDLE;
+        Node* n = static_cast<Node*>(m_Allocator->Allocate());
 
-        if (m_FreeIndices.empty())
+        if constexpr (!std::is_trivially_default_constructible_v<ObjType>)
         {
-            if (m_NextIndex >= m_Capacity)
+            try
             {
-                LNE_ERROR("Pool is full, cannot allocate!\n");
-                return INVALID_OBJECT_POOL_HANDLE;
+                new (n->GetObjectPtr()) ObjType();
             }
-
-            ObjType* ptr = GetPointerFromHandle(m_NextIndex);
-            new (ptr) ObjType();
-
-            handle = m_NextIndex++;
+            catch (...)
+            {
+                m_Allocator->Deallocate(n);
+                throw;
+            }
         }
-        else
-        {
-            handle = m_FreeIndices.back();
-            m_FreeIndices.pop_back();
-
-            ObjType* ptr = GetPointerFromHandle(handle);
-            new (ptr) ObjType();
-        }
-
-        m_IsAllocated[handle] = true;
-
-        return handle;
+        LinkLive(n);
+        return static_cast<ObjectPoolHandle>(n);
     }
 
-    void Deallocate(ObjectPoolHandle objHandle)
+    template <class... Args>
+    ObjectPoolHandle            Emplace(Args&&... args)
     {
-        ObjType* ptr = Access(objHandle);
-        if (!ptr)
+        Node* node = static_cast<Node*>(m_Allocator->Allocate());
+        try
+        {
+            new (node->GetObjectPtr()) ObjType(std::forward<Args>(args)...);
+        }
+        catch (...)
+        {
+            m_Allocator->Deallocate(node);
+            throw;
+        }
+
+        LinkLive(node);
+        return static_cast<ObjectPoolHandle>(node);
+    }
+
+    void                        Deallocate(ObjectPoolHandle objHandle)
+    {
+        if (objHandle == INVALID_OBJECT_POOL_HANDLE)
             return;
+        Node* node = static_cast<Node*>(objHandle);
 
-        ptr->~ObjType();
+        if constexpr (!std::is_trivially_destructible_v<ObjType>)
+            std::destroy_at(node->GetObjectPtr());
 
-        m_FreeIndices.push_back(objHandle);
-        m_IsAllocated[objHandle] = false;
+        UnlinkLive(node);
+        m_Allocator->Deallocate(node);
     }
 
-    ObjType* Access(ObjectPoolHandle objHandle) const
+    ObjType*                    Access(ObjectPoolHandle objHandle) const
     {
-        if (objHandle == INVALID_OBJECT_POOL_HANDLE || objHandle >= m_Capacity)
-        {
-            LNE_WARN("Trying to get invalid handle!\n");
+        if (objHandle == INVALID_OBJECT_POOL_HANDLE)
             return nullptr;
-        }
-
-        if (!m_IsAllocated[objHandle])
-        {
-            LNE_WARN("Trying to get handle that is not allocated!\n");
-            return nullptr;
-        }
-
-        return GetPointerFromHandle(objHandle);
+        return static_cast<Node*>(objHandle)->GetObjectPtr();
     }
 
-private:
-    SizeT m_Capacity;
-    SizeT m_ObjectSize;
-
-    SizeT m_PoolSize;
-    u8* m_Pool{ nullptr };
-
-    ObjectPoolHandle m_NextIndex{ 0 };
-    std::vector<u32> m_FreeIndices;
-    std::vector<bool> m_IsAllocated;
-
-private:
-    ObjType* GetPointerFromHandle(ObjectPoolHandle index) const
+    void                        Clear()
     {
-        return reinterpret_cast<ObjType*>(m_Pool + index * m_ObjectSize);
+        Node* it = m_LiveHead;
+        while (it)
+        {
+            Node* next = it->Next;
+
+            if constexpr (!std::is_trivially_destructible_v<ObjType>)
+                std::destroy_at(it->GetObjectPtr());
+            m_Allocator->Deallocate(it);
+
+            it = next;
+        }
+        m_LiveHead = nullptr;
+        m_LiveTail = nullptr;
+    }
+
+    bool                        IsEmpty() const noexcept { return m_LiveHead == nullptr; }
+
+    const SlabAllocator&        GetAllocator() const { return *m_Allocator; }
+    bool                        OwnsAllocator() const { return m_OwnsAllocator; }
+
+    // FOR DEBUGGING PURPOSES!!
+    const Node* const           GetLiveHead() const { return m_LiveHead; }
+    const Node* const           GetLiveTail() const { return m_LiveTail; }
+
+private:
+    SlabAllocator*          m_Allocator{};
+    bool                    m_OwnsAllocator{};
+    bool                    m_ShouldDeallocateWhenDestroyed{};
+
+    Node*                   m_LiveHead{};
+    Node*                   m_LiveTail{};
+
+private:
+    void LinkLive(Node* node)
+    {
+        if (m_LiveHead == nullptr)
+            m_LiveHead = node;
+        node->Prev = m_LiveTail;
+        node->Next = nullptr;
+        if (m_LiveTail)
+            m_LiveTail->Next = node;
+        m_LiveTail = node;
+    }
+
+    void UnlinkLive(Node* node)
+    {
+        if (node->Prev)
+            node->Prev->Next = node->Next;
+        else
+            m_LiveHead = node->Next;
+
+        if (node->Next)
+            node->Next->Prev = node->Prev;
+        else
+            m_LiveTail = node->Prev;
     }
 };
 }
