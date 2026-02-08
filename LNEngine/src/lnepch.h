@@ -63,10 +63,6 @@
 // Window
 #include <GLFW/glfw3.h>
 
-#if defined(LNE_DEBUG) && defined(LNE_PLATFORM_WINDOWS)
-#include "crtdbg.h"
-#endif
-
 // ImGui
 #include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
