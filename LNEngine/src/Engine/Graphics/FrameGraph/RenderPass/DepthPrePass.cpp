@@ -26,7 +26,7 @@ void DepthPrePass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worl
     LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     using namespace lne;
     auto& renderer = ApplicationBase::GetRenderer();
-    uint32_t frameIndex = renderer.GetCurrentFrameIndex();
+    u32 frameIndex = renderer.GetCurrentFrameIndex();
     auto lightBuffer = worldRenderer->GetLightBufferGPU(frameIndex);
     const TransformBuffer& transformBuffer = worldRenderer->GetTransformBuffer(frameIndex);
     DrawMeshArgs drawArgs{
@@ -48,13 +48,13 @@ void DepthPrePass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worl
     }
 }
 
-void DepthPrePass::AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, uint32_t subMeshIndex)
+void DepthPrePass::AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, u32 subMeshIndex)
 {
     const SubMesh& submesh = mesh->GetSubMeshes()[hash.SubMeshIndex];
     SafePtr material = mesh->GetMaterial(submesh.MaterialIndex);
     if (material->CanRenderToPass(GetID()) == false)
         return;
-    uint32_t frameIndex = ApplicationBase::GetRenderer().GetCurrentFrameIndexOnMainThread();
+    u32 frameIndex = ApplicationBase::GetRenderer().GetCurrentFrameIndexOnMainThread();
     auto& drawCommands = m_DrawCommands[frameIndex][hash];
     drawCommands.Mesh = mesh;
     drawCommands.SubMeshIndex = subMeshIndex;

@@ -1,6 +1,7 @@
 #pragma once
 #include "Enums.h"
 #include "Engine/Core/SafePtr.h"
+#include "Engine/Core/Utils/Defines.h"
 
 namespace lne
 {
@@ -14,10 +15,10 @@ struct FrameCommands
 class CommandPoolManager
 {
 public:
-    CommandPoolManager(GfxContext* ctx, uint32_t numThreads);
+    CommandPoolManager(GfxContext* ctx, u32 numThreads);
     ~CommandPoolManager();
 
-    vk::CommandBuffer           BeginOrGetPrimaryFrameCommandBuffer(uint32_t frameIndex);
+    vk::CommandBuffer               BeginOrGetPrimaryFrameCommandBuffer(u32 frameIndex);
 
     /**
      * Begins a render pass command buffer.
@@ -26,15 +27,15 @@ public:
      * @param frameIndex The index of the current frame in flight.
      * @param fb The framebuffer to use for the render pass.
      */
-    vk::CommandBuffer           BeginRenderPassCommandBuffer(uint32_t frameIndex,
-                                                             Framebuffer* fb = nullptr);
-    void                        ResetFrameCommands(uint32_t frameIndex);
+    vk::CommandBuffer               BeginRenderPassCommandBuffer(u32 frameIndex,
+                                                                 Framebuffer* fb = nullptr);
+    void                            ResetFrameCommands(u32 frameIndex);
 
-    [[nodiscard]] FrameCommands EndFrame(uint32_t frameIndex);
+    [[nodiscard]] FrameCommands     EndFrame(u32 frameIndex);
 
-    [[nodiscard]] vk::CommandBuffer                 BeginOrGetSingleUseCommandBuffer(EQueueFamilyType queueFamily);
+    [[nodiscard]] vk::CommandBuffer BeginOrGetSingleUseCommandBuffer(EQueueFamilyType queueFamily);
 
-    void                                            EndSingleUseCommandBuffer(
+    void                            EndSingleUseCommandBuffer(
         EQueueFamilyType queueFamily, 
         vk::PipelineStageFlags* pipelineStage = nullptr, 
         vk::Semaphore* semaphore = nullptr);
@@ -46,13 +47,13 @@ private:
         vk::CommandBuffer               PrimaryCommandBuffer{};
         bool                            IsPrimaryCommandBufferUsed{ false };
         std::vector<vk::CommandBuffer>  SecondaryCommandBuffers{}; // associated with render passes
-        uint32_t                        CurrentSecondaryIndex{ 0 };
+        u32                             CurrentSecondaryIndex{ 0 };
     };
 
     struct ThreadIdIndex
     {
-        std::thread::id ThreadId{};
-        int32_t Index{ -1 }; // index in the command buffer array
+        std::thread::id                 ThreadId{};
+        s32                             Index{ -1 }; // index in the command buffer array
 
         bool operator ==(const std::thread::id& threadId) const
         {
@@ -64,7 +65,7 @@ private:
     {
         std::vector<ThreadCommandContext>           ThreadContexts{};
         vk::Fence                                   WaitFence{};
-        std::vector<int32_t>                        AreUnused{};
+        std::vector<s32>                            AreUnused{};
         std::vector<ThreadIdIndex>                  AreUsed{}; // which command buffers are currently in use
         std::mutex                                  Mutex; // to protect access to the command buffers
 
@@ -101,12 +102,12 @@ private:
     {
         std::vector<ThreadCommandContext>       ThreadContexts{};
         std::vector<vk::Fence>                  WaitFences{};
-        std::vector<uint32_t>                   AreUnused{}; // which command buffers are currently unused
+        std::vector<u32>                        AreUnused{}; // which command buffers are currently unused
         std::vector<ThreadIdIndex>              AreUsed{}; // which command buffers are currently in use
         std::mutex                              Mutex; // to protect access to the command buffers
     };
 
-    GfxContext* m_Context;
+    GfxContext*                         m_Context;
 
     std::vector<FrameCommandContext>    m_GraphicsFrameContexts{};
     SingleUseCommandContext             m_GraphicsSingleUseContext{};
@@ -114,11 +115,13 @@ private:
     SingleUseCommandContext             m_ComputeSingleUseContext{};
 
 private:
-    void InitSingleUseContext(
-        SingleUseCommandContext& context, uint32_t numThreads, EQueueFamilyType queueFamily);
-    void NukeSingleUseContext(SingleUseCommandContext& context);
-    void InitFrameContext(uint32_t numThreads);
-    void NukeFrameContext();
+    void                                    InitSingleUseContext(SingleUseCommandContext& context,
+                                                                 u32 numThreads, 
+                                                                 EQueueFamilyType queueFamily);
+
+    void                                    NukeSingleUseContext(SingleUseCommandContext& context);
+    void                                    InitFrameContext(u32 numThreads);
+    void                                    NukeFrameContext();
 
     [[nodiscard]] vk::CommandBuffer         AllocateCommandBuffer(
         vk::CommandPool pool, vk::CommandBufferLevel level,

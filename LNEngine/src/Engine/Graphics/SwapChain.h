@@ -1,6 +1,7 @@
 #pragma once
 #include "Enums.h"
 #include "Engine/Core/SafePtr.h"
+#include "Engine/Core/Utils/Defines.h"
 
 namespace lne
 {
@@ -20,7 +21,7 @@ struct Viewport
     }
 
     vk::Extent2D                                    GetExtent() const
-    { return { static_cast<uint32_t>(m_Viewport.width), static_cast<uint32_t>(m_Viewport.height) }; }
+    { return { static_cast<u32>(m_Viewport.width), static_cast<u32>(m_Viewport.height) }; }
 
     vk::Viewport&                                   GetViewport()
     { return m_Viewport; }
@@ -47,20 +48,20 @@ public:
 
     void                                            CreateSwapchain();
 
-    [[nodiscard]] uint32_t                          GetImageCount() const
+    [[nodiscard]] u32                               GetImageCount() const
     { 
-        return static_cast<uint32_t>(m_ColorAttachments.size());
+        return static_cast<u32>(m_ColorAttachments.size());
     }
-    [[nodiscard]] uint32_t                          GetCurrentFrameIndex() const { return m_CurrentImageIndex; }
+    [[nodiscard]] u32                               GetCurrentFrameIndex() const { return m_CurrentImageIndex; }
     [[nodiscard]] vk::SubmitInfo                    GetSubmitInfo(
-        vk::PipelineStageFlags* submitStageFlag, uint32_t frameInFlight
+        vk::PipelineStageFlags* submitStageFlag, u32 frameInFlight
     ) const;
     [[nodiscard]] SafePtr<class Texture>            GetCurrentImage() const;
-    [[nodiscard]] SafePtr<class Texture>            GetImage(uint32_t index) const;
+    [[nodiscard]] SafePtr<class Texture>            GetImage(u32 index) const;
     [[nodiscard]] const Viewport&                   GetViewport() const { return m_Viewport; }
     [[nodiscard]] const vk::SurfaceFormatKHR&       GetSurfaceFormat() const { return m_SurfaceFormat; }
 
-    [[nodiscard]] class Framebuffer&                GetFramebuffer(uint32_t index);
+    [[nodiscard]] class Framebuffer&                GetFramebuffer(u32 index);
     [[nodiscard]] std::vector<class Framebuffer>&   GetFramebuffers() { return m_Framebuffers; }
 
     [[nodiscard]] bool                              IsDirty() const { return m_IsDirty.load(std::memory_order_acquire); }
@@ -88,7 +89,7 @@ private:
     std::vector<SwapchainSemaphores>        m_Semaphores;
     std::vector<vk::Fence>                  m_AcquireFences;
 
-    uint32_t                                m_CurrentImageIndex{ 0 };
+    u32                                     m_CurrentImageIndex{ 0 };
     std::atomic<bool>                       m_IsDirty{ false };
 private:
     void                                            CreateSyncObjects();

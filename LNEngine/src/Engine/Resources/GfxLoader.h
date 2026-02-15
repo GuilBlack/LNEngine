@@ -17,7 +17,7 @@ class GfxContext;
 class enki::TaskScheduler;
 namespace ResourceTypes
 {
-enum Enum : uint8_t
+enum Enum : u8
 {
     eTexture,
     eCubemap,
@@ -33,7 +33,7 @@ struct UploadRequest
 {
     ResourceTypes::Enum Type{};
     SafePtr<class RefCountBase> Resource{};
-    uint32_t Size{};
+    u32 Size{};
     void* Data{};
     glm::uvec3 Dimensions{ 0, 0, 0 };
     bool ShouldFreeData{true};
@@ -70,7 +70,7 @@ struct GfxLoaderSettings
     SafePtr<GfxContext> Context{};
     std::shared_ptr<enki::TaskScheduler> Scheduler{};
     bool LoadAsync{ true };
-    uint32_t RadianceTextureMaxSize{ 512 };
+    u32 RadianceTextureMaxSize{ 512 };
 };
 
 class GfxLoader : public RefCountBase
@@ -118,7 +118,7 @@ private:
     SafePtr<class ComputeProgram> m_PrefilterProgram;
     SafePtr<class ComputeProgram> m_IrradianceProgram;
 
-    uint32_t m_RadianceTextureMaxSize;
+    u32 m_RadianceTextureMaxSize;
     bool m_LoadAsync;
 private:
     void ProcessUploadRequests();

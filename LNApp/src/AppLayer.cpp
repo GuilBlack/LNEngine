@@ -111,7 +111,7 @@ void AppLayer::SkyboxPass::OnImGuiRender()
     m_IsDebugOpen = ImGui::TreeNode("Skybox Pass Output");
     if (m_IsDebugOpen)
     {
-        ImGui::Image((ImTextureID)(uint64_t)m_DebugTexture->GetBindlessTextureHandle(), ImVec2(windowWidth, windowWidth / textureRatio));
+        ImGui::Image((ImTextureID)(u64)m_DebugTexture->GetBindlessTextureHandle(), ImVec2(windowWidth, windowWidth / textureRatio));
         ImGui::TreePop();
     }
 }
@@ -213,7 +213,7 @@ void AppLayer::ToneMappingPass::OnImGuiRender()
     m_IsDebugOpen = ImGui::TreeNode("Tone Mapping Pass Output");
     if (m_IsDebugOpen)
     {
-        ImGui::Image((ImTextureID)(uint64_t)m_DebugTexture->GetBindlessTextureHandle(), ImVec2(windowWidth, windowWidth / textureRatio));
+        ImGui::Image((ImTextureID)(u64)m_DebugTexture->GetBindlessTextureHandle(), ImVec2(windowWidth, windowWidth / textureRatio));
         ImGui::TreePop();
     }
 }
@@ -260,7 +260,7 @@ void AppLayer::OnAttach()
     m_SphereEntity.EmplaceComponent<StaticMeshComponent>();
 
     m_LightEntities.reserve(1);
-    for (uint32_t i = 0; i < 10; ++i)
+    for (u32 i = 0; i < 10; ++i)
     {
         lne::Entity lightEntity = m_Scene->CreateEntity();
         auto& lightComp = lightEntity.EmplaceComponent<lne::LightComponent>();

@@ -173,10 +173,10 @@ ShaderDomain::Enum MapMaterialTypeToken(std::string_view token)
 struct PackedSpvHeader
 {
     // magiv value = LSPV
-    constexpr static uint32_t   MagicValue = ('L' << 24) | ('S' << 16) | ('P' << 8) | 'V';
-    uint32_t                    Magic;
-    uint32_t                    StageCount;
-    uint32_t                    HeadersCount; // Number of glslh.
+    constexpr static u32   MagicValue = ('L' << 24) | ('S' << 16) | ('P' << 8) | 'V';
+    u32                    Magic;
+    u32                    StageCount;
+    u32                    HeadersCount; // Number of glslh.
 
     void Serialize(std::ostream& os) const
     {
@@ -194,7 +194,7 @@ struct PackedSpvHeader
 struct PackedSpvEntry
 {
     ShaderStage::Enum Stage;
-    uint32_t WordCount;
+    u32 WordCount;
 
     void Serialize(std::ostream& os) const
     {
@@ -208,7 +208,7 @@ struct PackedSpvEntry
     }
 };
 
-uint64_t FileTimeToNs(std::filesystem::file_time_type t)
+u64 FileTimeToNs(std::filesystem::file_time_type t)
 {
     using namespace std::chrono;
     return duration_cast<nanoseconds>(t.time_since_epoch()).count();
@@ -216,15 +216,15 @@ uint64_t FileTimeToNs(std::filesystem::file_time_type t)
 
 void SaveCombinedSpv(
     const std::filesystem::path& outPath,
-    const FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>>& stages,
+    const FlatHashMap<ShaderStage::Enum, std::vector<u32>>& stages,
     const std::vector<GlslhInfo> glslHeadersInfo)
 {
     namespace fs = std::filesystem;
     // Prepare header and entries
     PackedSpvHeader hdr{};
     hdr.Magic = PackedSpvHeader::MagicValue;
-    hdr.StageCount = static_cast<uint32_t>(stages.size());
-    hdr.HeadersCount = static_cast<uint32_t>(glslHeadersInfo.size());
+    hdr.StageCount = static_cast<u32>(stages.size());
+    hdr.HeadersCount = static_cast<u32>(glslHeadersInfo.size());
 
     std::vector<PackedSpvEntry> entries;
     entries.reserve(stages.size());
@@ -233,7 +233,7 @@ void SaveCombinedSpv(
     {
         PackedSpvEntry e{};
         e.Stage = stage;
-        e.WordCount = static_cast<uint32_t>(words.size());
+        e.WordCount = static_cast<u32>(words.size());
 
         entries.push_back(e);
     }
@@ -261,8 +261,8 @@ void SaveCombinedSpv(
             fs::weakly_canonical(glslHeader.FullPath),
             fs::weakly_canonical(ApplicationBase::GetAssetsPath())
         );
-        uint64_t lastModifiedNs = FileTimeToNs(glslHeader.LastModified);
-        uint32_t pathLength = static_cast<uint32_t>(relativeAssetPath.string().length());
+        u64 lastModifiedNs = FileTimeToNs(glslHeader.LastModified);
+        u32 pathLength = static_cast<u32>(relativeAssetPath.string().length());
         os.write(reinterpret_cast<const char*>(&pathLength), sizeof(pathLength));
         os.write(relativeAssetPath.string().c_str(), pathLength);
         os.write(reinterpret_cast<const char*>(&lastModifiedNs), sizeof(lastModifiedNs));
@@ -285,7 +285,7 @@ void SaveCombinedSpv(
         }
         os.write(
             reinterpret_cast<const char*>(words.data()),
-            static_cast<uint32_t>(words.size()) * sizeof(uint32_t)
+            static_cast<u32>(words.size()) * sizeof(u32)
         );
     }
 
@@ -297,7 +297,7 @@ void SaveCombinedSpv(
     }
 }
 
-bool LoadCombinedSpv(const std::filesystem::path& iPath, FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>>& oResult)
+bool LoadCombinedSpv(const std::filesystem::path& iPath, FlatHashMap<ShaderStage::Enum, std::vector<u32>>& oResult)
 {
     namespace fs = std::filesystem;
     std::ifstream is(iPath, std::ios::binary | std::ios::ate);
@@ -331,7 +331,7 @@ bool LoadCombinedSpv(const std::filesystem::path& iPath, FlatHashMap<ShaderStage
     oResult.clear();
     oResult.reserve(hdr.StageCount);
     std::vector<PackedSpvEntry> entries(hdr.StageCount);
-    for (uint32_t i = 0; i < hdr.StageCount; ++i)
+    for (u32 i = 0; i < hdr.StageCount; ++i)
     {
         entries[i].Deserialize(is);
         if (entries[i].WordCount == 0)
@@ -343,9 +343,9 @@ bool LoadCombinedSpv(const std::filesystem::path& iPath, FlatHashMap<ShaderStage
     if (hdr.HeadersCount > 0)
     {
         std::vector<GlslhInfo> glslHeadersInfo(hdr.HeadersCount);
-        for (uint32_t i = 0; i < hdr.HeadersCount; ++i)
+        for (u32 i = 0; i < hdr.HeadersCount; ++i)
         {
-            uint32_t pathLength = 0;
+            u32 pathLength = 0;
             is.read(reinterpret_cast<char*>(&pathLength), sizeof(pathLength));
             if (!is || pathLength == 0)
             {
@@ -359,7 +359,7 @@ bool LoadCombinedSpv(const std::filesystem::path& iPath, FlatHashMap<ShaderStage
                 LNE_ERROR("Failed to read shader header path: {}", iPath.string());
                 return false;
             }
-            uint64_t lastModifiedNs = 0;
+            u64 lastModifiedNs = 0;
             is.read(reinterpret_cast<char*>(&lastModifiedNs), sizeof(lastModifiedNs));
             if (!is)
             {
@@ -384,8 +384,8 @@ bool LoadCombinedSpv(const std::filesystem::path& iPath, FlatHashMap<ShaderStage
     {
         if (entry.WordCount == 0)
             continue; // Skip empty stages
-        std::vector<uint32_t> words(entry.WordCount);
-        is.read(reinterpret_cast<char*>(words.data()), entry.WordCount * sizeof(uint32_t));
+        std::vector<u32> words(entry.WordCount);
+        is.read(reinterpret_cast<char*>(words.data()), entry.WordCount * sizeof(u32));
         if (!is)
         {
             LNE_ERROR("Failed to read SPIR-V data for stage: {}", ShaderStage::ToString(entry.Stage));
@@ -409,8 +409,8 @@ Shader::Shader(SafePtr<class GfxContext> ctx, std::string_view filePath)
 {
     auto[shaderCode, shaderHeader] = ReadFile(m_FilePath);
 
-    uint32_t offset = (uint32_t)m_FilePath.find_last_of("\\/") + 1;
-    uint32_t count = (uint32_t)m_FilePath.find_last_of(".") - offset;
+    u32 offset = (u32)m_FilePath.find_last_of("\\/") + 1;
+    u32 count = (u32)m_FilePath.find_last_of(".") - offset;
     m_Name = m_FilePath.substr(offset, count);
 
     m_SpirvCode = CompileToSpirv(shaderCode, shaderHeader);
@@ -540,7 +540,7 @@ Shader::Header Shader::ParseHeader(std::string& headerSource)
     return header;
 }
 
-FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>> Shader::CompileToSpirv(const std::string& sourceCode, Shader::Header header)
+FlatHashMap<ShaderStage::Enum, std::vector<u32>> Shader::CompileToSpirv(const std::string& sourceCode, Shader::Header header)
 {
     // Check if the shader has been compiled before && if the source code hasn't changed
     std::filesystem::path cachePath = ApplicationBase::GetRenderer().GetShaderCachePath() / (m_Name + ".pspv"); // Packed SPIR-V file
@@ -553,7 +553,7 @@ FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>> Shader::CompileToSpirv(con
         if (fileTime <= cacheTime)
         {
             LNE_INFO("Using cached SPIR-V for shader: {}", m_Name);
-            FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>> cachedSpirv;
+            FlatHashMap<ShaderStage::Enum, std::vector<u32>> cachedSpirv;
             bool success = LoadCombinedSpv(cachePath, cachedSpirv);
             if (success && !cachedSpirv.empty())
                 return cachedSpirv;
@@ -578,9 +578,9 @@ FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>> Shader::CompileToSpirv(con
         ApplicationBase::GetRenderer().GetShaderIncludeDirs(),
         shaderHeaderCallback
     ));
-    FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>> spirvCode;
+    FlatHashMap<ShaderStage::Enum, std::vector<u32>> spirvCode;
     std::vector<shaderc::CompileOptions> optionsForShaders(header.StageHeaders.size(), options);
-    uint32_t optionsIndex = 0;
+    u32 optionsIndex = 0;
 
     for (auto& [stage, headerInfo] : header.StageHeaders)
     {
@@ -611,7 +611,7 @@ FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>> Shader::CompileToSpirv(con
     return spirvCode;
 }
 
-void Shader::ReflectOnSpirv(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>> spirvCode)
+void Shader::ReflectOnSpirv(FlatHashMap<ShaderStage::Enum, std::vector<u32>> spirvCode)
 {
     MatTypeInfo matTypeInfo{};
     bool isUnknownMatType = (m_Header.ShaderDomain == ShaderDomain::eUnknown);
@@ -627,10 +627,10 @@ void Shader::ReflectOnSpirv(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>
         // =============== UNIFORM BUFFERS ===============
         for (const auto& res : resources.uniform_buffers)
         {
-            uint32_t set = compiler.get_decoration(res.id, spv::DecorationDescriptorSet);
-            uint32_t binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+            u32 set = compiler.get_decoration(res.id, spv::DecorationDescriptorSet);
+            u32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
             spirv_cross::SPIRType type = compiler.get_type(res.base_type_id);
-            uint32_t bufferSize = static_cast<uint32_t>(compiler.get_declared_struct_size(type));
+            u32 bufferSize = static_cast<u32>(compiler.get_declared_struct_size(type));
 
             if (!m_ReflectedData.DescriptorSets.contains(set))
                 m_ReflectedData.DescriptorSets[set] = DescriptorSet{ .SetIndex = set };
@@ -657,11 +657,11 @@ void Shader::ReflectOnSpirv(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>
                  set != matTypeInfo.SetIndices[ShaderSetIndexType::eVertex])))
                 LNE_INFO("    UBO Name: {}, Set: {}, Binding: {}, Size: {}", res.name, set, binding, bufferSize);
 
-            for (uint32_t i = 0; i < type.member_types.size(); ++i)
+            for (u32 i = 0; i < type.member_types.size(); ++i)
             {
                 std::string memberName = compiler.get_member_name(res.base_type_id, i);
-                uint32_t offset = compiler.get_member_decoration(res.base_type_id, i, spv::DecorationOffset);
-                uint32_t size = static_cast<uint32_t>(compiler.get_declared_struct_member_size(type, i));
+                u32 offset = compiler.get_member_decoration(res.base_type_id, i, spv::DecorationOffset);
+                u32 size = static_cast<u32>(compiler.get_declared_struct_member_size(type, i));
                 spirv_cross::SPIRType memberType = compiler.get_type(type.member_types[i]);
 
                 if (!(isUnknownMatType == false &&
@@ -683,10 +683,10 @@ void Shader::ReflectOnSpirv(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>
         // =============== STORAGE BUFFERS ===============
         for (const auto& res : resources.storage_buffers)
         {
-            uint32_t set = compiler.get_decoration(res.id, spv::DecorationDescriptorSet);
-            uint32_t binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+            u32 set = compiler.get_decoration(res.id, spv::DecorationDescriptorSet);
+            u32 binding = compiler.get_decoration(res.id, spv::DecorationBinding);
             spirv_cross::SPIRType type = compiler.get_type(res.base_type_id);
-            uint32_t bufferSize = static_cast<uint32_t>(compiler.get_declared_struct_size(type));
+            u32 bufferSize = static_cast<u32>(compiler.get_declared_struct_size(type));
 
             if (!m_ReflectedData.DescriptorSets.contains(set))
                 m_ReflectedData.DescriptorSets[set] = DescriptorSet{ .SetIndex = set };
@@ -720,16 +720,16 @@ void Shader::ReflectOnSpirv(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>
         for (const auto& res : resources.push_constant_buffers)
         {
             spirv_cross::SPIRType type = compiler.get_type(res.base_type_id);
-            const uint32_t declaredSize = static_cast<uint32_t>(compiler.get_declared_struct_size(type));
+            const u32 declaredSize = static_cast<u32>(compiler.get_declared_struct_size(type));
 
             const auto ranges = compiler.get_active_buffer_ranges(res.id);
 
-            uint32_t stageMin = UINT32_MAX;
-            uint32_t stageMax = 0;
+            u32 stageMin = UINT32_MAX;
+            u32 stageMax = 0;
             for (const auto& r : ranges)
             {
-                stageMin = std::min(stageMin, (uint32_t)r.offset);
-                stageMax = std::max(stageMax, (uint32_t)r.offset + (uint32_t)r.range);
+                stageMin = std::min(stageMin, (u32)r.offset);
+                stageMax = std::max(stageMax, (u32)r.offset + (u32)r.range);
             }
             if (ranges.empty())
             {
@@ -745,9 +745,9 @@ void Shader::ReflectOnSpirv(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>
             }
             else
             {
-                const uint32_t curEnd = block.Offset + block.Size;
-                const uint32_t newMin = std::min(block.Offset, stageMin);
-                const uint32_t newMax = std::max(curEnd, stageMax);
+                const u32 curEnd = block.Offset + block.Size;
+                const u32 newMin = std::min(block.Offset, stageMin);
+                const u32 newMax = std::max(curEnd, stageMax);
                 block.Offset = newMin;
                 block.Size = newMax - newMin;
             }
@@ -757,11 +757,11 @@ void Shader::ReflectOnSpirv(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>
             LNE_INFO("    PUSH Name: {}, Stage: {}, DeclaredSize: {}, ActiveRange: [{}..{}), Merged: offset {}, size {}",
                      res.name, ShaderStageToDefine(stage), declaredSize, stageMin, stageMax, block.Offset, block.Size);
 
-            for (uint32_t i = 0; i < type.member_types.size(); ++i)
+            for (u32 i = 0; i < type.member_types.size(); ++i)
             {
                 const std::string memberName = compiler.get_member_name(res.base_type_id, i);
-                const uint32_t offset = compiler.get_member_decoration(res.base_type_id, i, spv::DecorationOffset);
-                const uint32_t size = static_cast<uint32_t>(compiler.get_declared_struct_member_size(type, i));
+                const u32 offset = compiler.get_member_decoration(res.base_type_id, i, spv::DecorationOffset);
+                const u32 size = static_cast<u32>(compiler.get_declared_struct_member_size(type, i));
                 const spirv_cross::SPIRType memberType = compiler.get_type(type.member_types[i]);
 
                 LNE_INFO("        PC Member: {} | Offset {}, Size {}, Type {}",
@@ -777,15 +777,15 @@ void Shader::ReflectOnSpirv(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>
     }
 }
 
-uint32_t Shader::ReflectSSBOStructMembers(spirv_cross::Compiler& compiler, uint32_t struct_type_id, const std::string& prefix, uint32_t set, uint32_t binding)
+u32 Shader::ReflectSSBOStructMembers(spirv_cross::Compiler& compiler, u32 struct_type_id, const std::string& prefix, u32 set, u32 binding)
 {
     MatTypeInfo matTypeInfo{};
     bool isUnknownMatType = (m_Header.ShaderDomain == ShaderDomain::eUnknown);
     if (isUnknownMatType == false)
         matTypeInfo = MatTypeInfos[m_Header.ShaderDomain];
 
-    auto LogMember = [&](const std::string& qname, uint32_t set, uint32_t binding,
-                         uint32_t offset, uint32_t size, const spirv_cross::SPIRType& memberType)
+    auto LogMember = [&](const std::string& qname, u32 set, u32 binding,
+                         u32 offset, u32 size, const spirv_cross::SPIRType& memberType)
         {
             if (isUnknownMatType == false &&
                 (set != matTypeInfo.SetIndices[ShaderSetIndexType::eMaterial] &&
@@ -796,24 +796,24 @@ uint32_t Shader::ReflectSSBOStructMembers(spirv_cross::Compiler& compiler, uint3
         };
 
     const spirv_cross::SPIRType& st = compiler.get_type(struct_type_id);
-    uint32_t fullStride{};
-    for (uint32_t i = 0; i < st.member_types.size(); ++i)
+    u32 fullStride{};
+    for (u32 i = 0; i < st.member_types.size(); ++i)
     {
         const std::string memberName = compiler.get_member_name(struct_type_id, i);
         const std::string qname = prefix.empty() ? memberName : (prefix + "." + memberName);
 
-        const uint32_t offset = compiler.get_member_decoration(struct_type_id, i, spv::DecorationOffset);
-        const uint32_t size = static_cast<uint32_t>(compiler.get_declared_struct_member_size(st, i));
+        const u32 offset = compiler.get_member_decoration(struct_type_id, i, spv::DecorationOffset);
+        const u32 size = static_cast<u32>(compiler.get_declared_struct_member_size(st, i));
         const spirv_cross::SPIRType& memberType = compiler.get_type(st.member_types[i]);
 
         LogMember(qname, set, binding, offset, size, memberType);
 
         auto TryReflectArrayElementStruct = [&](const std::string& arrayQname)
             {
-                const uint32_t arrayStride =
-                    static_cast<uint32_t>(compiler.type_struct_member_array_stride(st, i));
+                const u32 arrayStride =
+                    static_cast<u32>(compiler.type_struct_member_array_stride(st, i));
 
-                uint32_t elem_type_id = memberType.parent_type;
+                u32 elem_type_id = memberType.parent_type;
                 if (elem_type_id == 0)
                     return arrayStride;
 
@@ -821,20 +821,20 @@ uint32_t Shader::ReflectSSBOStructMembers(spirv_cross::Compiler& compiler, uint3
                 if (elemType.basetype != spirv_cross::SPIRType::Struct)
                     return arrayStride;
 
-                const uint32_t elemSize =
-                    static_cast<uint32_t>(compiler.get_declared_struct_size(elemType));
+                const u32 elemSize =
+                    static_cast<u32>(compiler.get_declared_struct_size(elemType));
 
                 LNE_INFO("        Array: {} | arrayStride {}, elementSize {}",
                          arrayQname, arrayStride, elemSize);
 
-                for (uint32_t j = 0; j < elemType.member_types.size(); ++j)
+                for (u32 j = 0; j < elemType.member_types.size(); ++j)
                 {
                     const std::string elemMemberName = compiler.get_member_name(elem_type_id, j);
 
-                    const uint32_t elemOffset =
+                    const u32 elemOffset =
                         compiler.get_member_decoration(elem_type_id, j, spv::DecorationOffset);
-                    const uint32_t elemMemberSize =
-                        static_cast<uint32_t>(compiler.get_declared_struct_member_size(elemType, j));
+                    const u32 elemMemberSize =
+                        static_cast<u32>(compiler.get_declared_struct_member_size(elemType, j));
                     const spirv_cross::SPIRType& elemMemberType =
                         compiler.get_type(elemType.member_types[j]);
 
@@ -885,19 +885,19 @@ uint32_t Shader::ReflectSSBOStructMembers(spirv_cross::Compiler& compiler, uint3
     return fullStride;
 }
 
-FlatHashMap<ShaderStage::Enum, vk::ShaderModule> Shader::CreateModules(FlatHashMap<ShaderStage::Enum, std::vector<uint32_t>> spirvCode)
+FlatHashMap<ShaderStage::Enum, vk::ShaderModule> Shader::CreateModules(FlatHashMap<ShaderStage::Enum, std::vector<u32>> spirvCode)
 {
     vk::ShaderModuleCreateInfo createInfo;
     FlatHashMap<ShaderStage::Enum, vk::ShaderModule> modules;
 
     for (auto& [stage, code] : spirvCode)
     {
-        createInfo.codeSize = code.size() * sizeof(uint32_t);
+        createInfo.codeSize = code.size() * sizeof(u32);
         createInfo.pCode = code.data();
 
         modules[stage] = m_Context->GetDevice().createShaderModule(createInfo);
-        uint32_t offset = (uint32_t)m_FilePath.find_last_of("\\/") + 1;
-        uint32_t count = (uint32_t)m_FilePath.find_last_of(".") - offset;
+        u32 offset = (u32)m_FilePath.find_last_of("\\/") + 1;
+        u32 count = (u32)m_FilePath.find_last_of(".") - offset;
         std::string fileName = m_FilePath.substr(offset, count);
         m_Context->SetVkObjectName(modules[stage], std::string(ShaderStageToDefine(stage) + " " + m_Name));
 
@@ -914,7 +914,7 @@ void Shader::CreateDescriptorSetLayouts()
     if (m_Header.ShaderDomain != ShaderDomain::eUnknown)
         matTypeInfo = MatTypeInfos[m_Header.ShaderDomain];
 
-    auto setStageIfNeeded = [&matTypeInfo, this](int32_t setIndex, vk::ShaderStageFlags& stages)
+    auto setStageIfNeeded = [&matTypeInfo, this](s32 setIndex, vk::ShaderStageFlags& stages)
     {
         if (m_Header.ShaderDomain == ShaderDomain::eUnknown)
             return;
@@ -929,12 +929,12 @@ void Shader::CreateDescriptorSetLayouts()
     {
         if (set.StorageBuffers.empty() == false && set.UniformBuffers.empty())
         {
-            m_DescriptorSetLayouts[setIndex] = m_Context->GetStorageOnlyDescriptorSetLayout((uint32_t)set.StorageBuffers.size());
+            m_DescriptorSetLayouts[setIndex] = m_Context->GetStorageOnlyDescriptorSetLayout((u32)set.StorageBuffers.size());
             continue;
         }
 
         vk::DescriptorSetLayoutCreateInfo descSetLayoutCI{};
-        descSetLayoutCI.setBindingCount((uint32_t)set.UniformBuffers.size() + (uint32_t)set.StorageBuffers.size());
+        descSetLayoutCI.setBindingCount((u32)set.UniformBuffers.size() + (u32)set.StorageBuffers.size());
         std::vector<vk::DescriptorSetLayoutBinding> bindings{};
         bindings.reserve(descSetLayoutCI.bindingCount);
         for (auto& [name, buffer] : set.UniformBuffers)

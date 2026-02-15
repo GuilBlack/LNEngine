@@ -26,7 +26,7 @@ Material::Material(SafePtr<GfxTechnique> technique)
     for (auto& [passId, passBinding] : technique->GetPasses())
     {
         SafePtr shader = passBinding.PassEffect->GetShader();
-        uint32_t matSetIndex = shader->GetSetIndex(ShaderSetIndexType::eMaterial);
+        u32 matSetIndex = shader->GetSetIndex(ShaderSetIndexType::eMaterial);
         for (const auto& [name, element] : shader->GetReflectedData().StorageArrays)
         {
             if (element.SetIndex != matSetIndex)
@@ -36,8 +36,8 @@ Material::Material(SafePtr<GfxTechnique> technique)
                 .SetIndex = matSetIndex,
                 .Binding = element.BindingIndex
             };
-            byte* passData = new byte[element.ElementSize];
-            std::memset(passData, 0, element.ElementSize * sizeof(byte));
+            u8* passData = new u8[element.ElementSize];
+            std::memset(passData, 0, element.ElementSize * sizeof(u8));
             m_PassData.emplace(hash, passData);
         }
 
@@ -88,7 +88,7 @@ bool Material::CanRenderToPass(PassID passId) const
 
 void Material::SetTexture(const std::string& name, SafePtr<Texture> texture)
 {
-    bool success = SetProperty<uint32_t>(name, texture->GetBindlessTextureHandle());
+    bool success = SetProperty<u32>(name, texture->GetBindlessTextureHandle());
     if (!success)
     {
         LNE_WARN("Texture property '{}' not found in material", name);
@@ -115,11 +115,11 @@ bool Material::IsOfShaderElementType(TypeId typeId, ShaderElementType::Enum elem
         { TypeIdHelper<glm::vec2>::Get(), ShaderElementType::eFloat2 },
         { TypeIdHelper<glm::vec3>::Get(), ShaderElementType::eFloat3 },
         { TypeIdHelper<glm::vec4>::Get(), ShaderElementType::eFloat4 },
-        { TypeIdHelper<int32_t>::Get(), ShaderElementType::eInt },
+        { TypeIdHelper<s32>::Get(), ShaderElementType::eInt },
         { TypeIdHelper<glm::ivec2>::Get(), ShaderElementType::eInt2 },
         { TypeIdHelper<glm::ivec3>::Get(), ShaderElementType::eInt3 },
         { TypeIdHelper<glm::ivec4>::Get(), ShaderElementType::eInt4 },
-        { TypeIdHelper<uint32_t>::Get(), ShaderElementType::eUInt },
+        { TypeIdHelper<u32>::Get(), ShaderElementType::eUInt },
         { TypeIdHelper<glm::uvec2>::Get(), ShaderElementType::eUInt2 },
         { TypeIdHelper<glm::uvec3>::Get(), ShaderElementType::eUInt3 },
         { TypeIdHelper<glm::uvec4>::Get(), ShaderElementType::eUInt4 },
@@ -132,7 +132,7 @@ bool Material::IsOfShaderElementType(TypeId typeId, ShaderElementType::Enum elem
     return typeMap.at(typeId) == elemType;
 }
 
-bool Material::CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, uint32_t frameIndex)
+bool Material::CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, u32 frameIndex)
 {
     bool success = true;
     std::lock_guard<std::mutex> lock(m_DataMutex);
@@ -151,7 +151,7 @@ lne::SafePtr<class GfxPipeline> Material::GetPipeline(PassID passId, SafePtr<Fra
 {
     MaterialPipelineHash hash{
         .PassId = passId,
-        .FrameGraphHash = (uint64_t)frameGraph.GetPtr()
+        .FrameGraphHash = (u64)frameGraph.GetPtr()
     };
     auto it = m_AllocatedPipelines.find(hash);
     if (it != m_AllocatedPipelines.end())
@@ -222,9 +222,9 @@ void ComputeProgram::SetTexture(vk::CommandBuffer cmdBuffer, const std::string& 
 {
     bool success = false;
     if (isStorage)
-        success = SetProperty<uint32_t>(cmdBuffer, std::string(name), texture->GetBindlessStorageHandle());
+        success = SetProperty<u32>(cmdBuffer, std::string(name), texture->GetBindlessStorageHandle());
     else
-        success = SetProperty<uint32_t>(cmdBuffer, std::string(name), texture->GetBindlessTextureHandle());
+        success = SetProperty<u32>(cmdBuffer, std::string(name), texture->GetBindlessTextureHandle());
 
     if (!success)
     {
@@ -237,14 +237,14 @@ void ComputeProgram::SetTexture(vk::CommandBuffer cmdBuffer, const std::string& 
         m_Textures.emplace(name, texture);
 }
 
-void ComputeProgram::Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ, bool immediate)
+void ComputeProgram::Dispatch(u32 groupCountX, u32 groupCountY, u32 groupCountZ, bool immediate)
 {
     ApplicationBase::GetRenderer().Dispatch(this, groupCountX, groupCountY, groupCountZ, immediate);
 }
 
 
 // TODO: make sure we use it just once instead of updating it for every single changes in the compute program
-void ComputeProgram::SetUniformBuffer(vk::CommandBuffer cmdBuffer, uint32_t binding, const void* data, uint32_t size, uint32_t offset)
+void ComputeProgram::SetUniformBuffer(vk::CommandBuffer cmdBuffer, u32 binding, const void* data, u32 size, u32 offset)
 {
     auto ub = m_UniformBuffers.at(binding);
     auto& renderer = ApplicationBase::GetRenderer();

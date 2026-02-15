@@ -4,7 +4,7 @@
 
 namespace lne
 {
-UniformBuffer::UniformBuffer(SafePtr<class GfxContext> ctx, uint32_t size)
+UniformBuffer::UniformBuffer(SafePtr<class GfxContext> ctx, u32 size)
     : m_Context(ctx), m_Size(size)
 {
     vk::BufferCreateInfo bufferCI{
@@ -71,7 +71,7 @@ void UniformBuffer::Nuke()
     m_IsNuked = true;
 }
 
-void UniformBuffer::CopyData(vk::CommandBuffer cb, const void* data, uint32_t size, uint32_t offset)
+void UniformBuffer::CopyData(vk::CommandBuffer cb, const void* data, u32 size, u32 offset)
 {
     if (m_MainAllocation.MemoryFlags & vk::MemoryPropertyFlagBits::eHostVisible)
     {

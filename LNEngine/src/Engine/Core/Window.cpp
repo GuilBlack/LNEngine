@@ -36,7 +36,7 @@ Window::Window(WindowSettings&& settings)
         m_Settings.Height = mode->height;
     }
 
-    m_Handle = glfwCreateWindow((int32_t)m_Settings.Width, (int32_t)m_Settings.Height, m_Settings.Name.c_str(), monitor, nullptr);
+    m_Handle = glfwCreateWindow((s32)m_Settings.Width, (s32)m_Settings.Height, m_Settings.Name.c_str(), monitor, nullptr);
     if (!m_Handle)
         LNE_ASSERT(false, "Failed to create window");
 
@@ -63,7 +63,7 @@ Window::~Window()
     glfwDestroyWindow(m_Handle);
 }
 
-lne::Framebuffer& Window::GetFramebuffer(uint32_t index) const
+lne::Framebuffer& Window::GetFramebuffer(u32 index) const
 {
     return m_Swapchain->GetFramebuffer(index);
 }

@@ -137,7 +137,7 @@ vk::Extent3D Framebuffer::GetExtent() const
     return {};
 }
 
-uint32_t Framebuffer::GetLayerCount() const
+u32 Framebuffer::GetLayerCount() const
 {
     if (m_ColorAttachments.size() > 0)
         return m_ColorAttachments[0].Texture->GetNumLayers();

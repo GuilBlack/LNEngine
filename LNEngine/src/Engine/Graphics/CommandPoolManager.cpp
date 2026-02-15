@@ -9,7 +9,7 @@
 
 namespace lne
 {
-CommandPoolManager::CommandPoolManager(GfxContext* ctx, uint32_t numThreads)
+CommandPoolManager::CommandPoolManager(GfxContext* ctx, u32 numThreads)
     : m_Context(ctx), m_GraphicsFrameContexts{}, m_GraphicsSingleUseContext{},
     m_TransferSingleUseContext{}, m_ComputeSingleUseContext{}
 {
@@ -27,10 +27,10 @@ CommandPoolManager::~CommandPoolManager()
     NukeFrameContext();
 }
 
-vk::CommandBuffer CommandPoolManager::BeginOrGetPrimaryFrameCommandBuffer(uint32_t frameIndex)
+vk::CommandBuffer CommandPoolManager::BeginOrGetPrimaryFrameCommandBuffer(u32 frameIndex)
 {
     FrameCommandContext& frameContext = m_GraphicsFrameContexts[frameIndex];
-    int32_t index;
+    s32 index;
     {
         std::lock_guard lock(m_GraphicsFrameContexts[frameIndex].Mutex);
         auto it = std::find_if(
@@ -64,7 +64,7 @@ vk::CommandBuffer CommandPoolManager::BeginOrGetPrimaryFrameCommandBuffer(uint32
     return cb;
 }
 
-vk::CommandBuffer CommandPoolManager::BeginRenderPassCommandBuffer(uint32_t frameIndex,
+vk::CommandBuffer CommandPoolManager::BeginRenderPassCommandBuffer(u32 frameIndex,
                                                                    Framebuffer* fb /*= nullptr*/)
 {
     FrameCommandContext& frameContext = m_GraphicsFrameContexts[frameIndex];
@@ -82,7 +82,7 @@ vk::CommandBuffer CommandPoolManager::BeginRenderPassCommandBuffer(uint32_t fram
             }
         );
 
-        int32_t index;
+        s32 index;
         if (it == frameContext.AreUsed.end())
         {
             index = frameContext.AreUnused.back();
@@ -136,7 +136,7 @@ vk::CommandBuffer CommandPoolManager::BeginRenderPassCommandBuffer(uint32_t fram
     return cb;
 }
 
-void CommandPoolManager::ResetFrameCommands(uint32_t frameIndex)
+void CommandPoolManager::ResetFrameCommands(u32 frameIndex)
 {
     FrameCommandContext& frameContext = m_GraphicsFrameContexts[frameIndex];
     vk::Device device = m_Context->GetDevice();
@@ -161,7 +161,7 @@ void CommandPoolManager::ResetFrameCommands(uint32_t frameIndex)
 }
 
 // TODO: the management of used primary command buffers shouldn't be done here?
-FrameCommands CommandPoolManager::EndFrame(uint32_t frameIndex)
+FrameCommands CommandPoolManager::EndFrame(u32 frameIndex)
 {
     FrameCommandContext& frameContext = m_GraphicsFrameContexts[frameIndex];
     FrameCommands fc{};
@@ -180,7 +180,7 @@ FrameCommands CommandPoolManager::EndFrame(uint32_t frameIndex)
 vk::CommandBuffer CommandPoolManager::BeginOrGetSingleUseCommandBuffer(EQueueFamilyType queueFamily)
 {
     SingleUseCommandContext* singleUseContext = ChooseSingleUseContext(queueFamily);
-    int32_t index{};
+    s32 index{};
     {
         const std::lock_guard<std::mutex> lock(singleUseContext->Mutex);
 
@@ -211,7 +211,7 @@ void CommandPoolManager::EndSingleUseCommandBuffer(EQueueFamilyType queueFamily,
 )
 {
     SingleUseCommandContext* context = ChooseSingleUseContext(queueFamily);
-    int32_t index{};
+    s32 index{};
     std::vector<CommandPoolManager::ThreadIdIndex>::iterator it;
     {
         const std::lock_guard<std::mutex> lock(context->Mutex);
@@ -248,7 +248,7 @@ void CommandPoolManager::EndSingleUseCommandBuffer(EQueueFamilyType queueFamily,
 }
 
 void CommandPoolManager::InitSingleUseContext(SingleUseCommandContext& context, 
-    uint32_t numThreads, 
+    u32 numThreads, 
     EQueueFamilyType queueFamily)
 {
     context.ThreadContexts.reserve(numThreads);
@@ -256,7 +256,7 @@ void CommandPoolManager::InitSingleUseContext(SingleUseCommandContext& context,
     context.AreUnused.reserve(numThreads);
     context.AreUsed.reserve(numThreads);
 
-    for (uint32_t i = 0; i < numThreads; ++i)
+    for (u32 i = 0; i < numThreads; ++i)
     {
         ThreadCommandContext threadContext{};
 
@@ -288,7 +288,7 @@ void CommandPoolManager::NukeSingleUseContext(SingleUseCommandContext& context)
     }
 }
 
-void CommandPoolManager::InitFrameContext(uint32_t numThreads)
+void CommandPoolManager::InitFrameContext(u32 numThreads)
 {
     m_GraphicsFrameContexts.resize(m_Context->GetMaxFramesInFlight());
     int index{ 0 };
@@ -297,7 +297,7 @@ void CommandPoolManager::InitFrameContext(uint32_t numThreads)
         frameContext.ThreadContexts.resize(numThreads);
         frameContext.AreUnused.reserve(numThreads);
         frameContext.AreUsed.reserve(numThreads);
-        for (uint32_t j = 0; j < numThreads; ++j)
+        for (u32 j = 0; j < numThreads; ++j)
         {
             auto& threadContext = frameContext.ThreadContexts[j];
             threadContext.CommandPool = m_Context->CreateCommandPool(m_Context->GetQueueFamilyIndex(EQueueFamilyType::Graphics));

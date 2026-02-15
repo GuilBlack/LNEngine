@@ -1,12 +1,12 @@
 #pragma once
+#include "Engine/Core/Utils/Defines.h"
 
 namespace lne 
 {
 class GlobalUtils
 {
 public:
-    static void PrintLine(const std::string& msg);
-    static std::size_t HashU64(uint64_t value) noexcept;
+    static std::size_t HashU64(u64 value) noexcept;
 
     static size_t NextPow2(size_t v)
     {
@@ -38,6 +38,36 @@ public:
     static void HashPtr(std::size_t& seed, T const* p) noexcept
     {
         HashCombine(seed, reinterpret_cast<std::uintptr_t>(p));
+    }
+
+    static constexpr std::size_t AlignmentRoundUp(std::size_t size, std::size_t alignment)
+    {
+        return (size + alignment - 1) / alignment * alignment;
+    }
+
+    // faster than the normal but only works with alignments that are pow of 2 (so in theory, any alignment)
+    static constexpr std::size_t PowOfTwoAlignmentRoundUp(std::size_t size, std::size_t alignment)
+    {
+        return  (size + alignment - 1) & ~(alignment - 1);
+    }
+
+
+    static constexpr bool IsPowOfTwo(u64 number)
+    {
+        return number && (number & (number - 1)) == 0;
+    }
+
+    static constexpr u64 NextPowOfTwo(u64 number)
+    {
+        if (number <= 1) return 1;
+        --number;
+        number |= number >> 1;
+        number |= number >> 2;
+        number |= number >> 4;
+        number |= number >> 8;
+        number |= number >> 16;
+        number |= number >> 32;
+        return number + 1;
     }
 };
 }

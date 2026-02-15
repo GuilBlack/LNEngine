@@ -9,18 +9,19 @@
 #else
 #define ECS_FORCE_INLINE inline
 #endif
+#include "Engine/Core/Utils/Defines.h"
 
 #include <bitset>
 
 namespace lne
 {
-using EntityID = uint32_t;
-using SystemTypeID = uint32_t;
-constexpr uint32_t MAX_COMPONENTS = 64;
+using EntityID = u32;
+using SystemTypeID = u32;
+constexpr u32 MAX_COMPONENTS = 64;
 constexpr EntityID INVALID_ENTITY_ID = std::numeric_limits<EntityID>::max();
 using ComponentTypeID = std::bitset<MAX_COMPONENTS>;
 using EntitySignature = std::bitset<MAX_COMPONENTS>;
-using ComponentTypeIndex = uint32_t;
+using ComponentTypeIndex = u32;
 
 class BaseSystem;
 class EntityRegistry;
@@ -39,7 +40,7 @@ concept SystemConstraint = DerivedFromConstraint<BaseSystem, T>&& std::is_defaul
 
 ECS_FORCE_INLINE const ComponentTypeIndex CreateComponentTypeIndex()
 {
-    static uint32_t typeCounter{ 0 };
+    static u32 typeCounter{ 0 };
     return typeCounter++;
 }
 
@@ -53,7 +54,7 @@ ECS_FORCE_INLINE ComponentTypeIndex GetComponentTypeIndex()
 template<ComponentConstraint T>
 ECS_FORCE_INLINE const ComponentTypeID ComponentType()
 {
-    static const ComponentTypeID compId = ComponentTypeID((uint64_t)1 << GetComponentTypeIndex<T>());
+    static const ComponentTypeID compId = ComponentTypeID((u64)1 << GetComponentTypeIndex<T>());
     return compId;
 }
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include "Engine/Core/Utils/_Defines.h"
 #include "Engine/Core/Utils/Log.h"
+#include "Engine/Core/DataStructures/FlatHashClasses.h"
 #include "ObjectPool.h"
 
 namespace lne
@@ -9,9 +10,15 @@ template<typename KeyType, DefaultConstructible ValueType>
 class ObjectCache
 {
 public:
-    ObjectCache(SizeT capacity = 16)
-        : m_Pool{ capacity }
+    ObjectCache()
+        : m_Pool{}
     {}
+
+    ~ObjectCache()
+    {
+        if constexpr (std::is_trivial_v<ValueType> == false)
+            m_Pool.Clear();
+    }
 
     ObjectPool<ValueType>& GetPool() { return m_Pool; }
     const ObjectPool<ValueType>& GetPool() const { return m_Pool; }
@@ -53,7 +60,7 @@ public:
 
 private:
     ObjectPool<ValueType> m_Pool;
-    std::unordered_map<KeyType, ObjectPoolHandle> m_Cache;
+    FlatHashMap<KeyType, ObjectPoolHandle> m_Cache;
 };
 }
 

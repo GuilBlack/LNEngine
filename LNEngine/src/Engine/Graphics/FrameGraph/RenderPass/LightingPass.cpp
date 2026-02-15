@@ -135,7 +135,7 @@ void LightingPass::OnImGuiRender()
     m_IsDebugOpen = ImGui::TreeNode("Lighting Pass Output");
     if (m_IsDebugOpen)
     {
-        ImGui::Image((ImTextureID)(uint64_t)m_DebugTexture->GetBindlessTextureHandle(), ImVec2(windowWidth, windowWidth / textureRatio));
+        ImGui::Image((ImTextureID)(u64)m_DebugTexture->GetBindlessTextureHandle(), ImVec2(windowWidth, windowWidth / textureRatio));
         ImGui::TreePop();
     }
 }

@@ -110,7 +110,7 @@ project "LNEngine"
         }
         defines
         { 
-            "_DEBUG", "DEBUG", "LNE_DEBUG", "TRACY_ENABLE"
+            "_DEBUG", "DEBUG", "LNE_DEBUG"
         }
         links 
         {
@@ -132,7 +132,7 @@ project "LNEngine"
         }
         defines
         { 
-            "LNE_DEBUG", "TRACY_ENABLE"
+            "LNE_DEBUG"
         }
         links 
         {

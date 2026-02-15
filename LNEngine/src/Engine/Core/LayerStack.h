@@ -1,4 +1,5 @@
 #pragma once
+#include "Engine/Core/Utils/Defines.h"
 
 namespace lne
 {

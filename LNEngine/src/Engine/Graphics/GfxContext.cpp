@@ -87,7 +87,7 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
     m_CommandPoolManager.reset(lnnew CommandPoolManager(this, ApplicationBase::GetTaskScheduler()->GetNumTaskThreads()));
 
 #pragma region Bindless
-    static constexpr uint32_t bindlessPoolSize = 2048;
+    static constexpr u32 bindlessPoolSize = 2048;
 
     std::vector<vk::DescriptorPoolSize> poolSizesBindless{
         vk::DescriptorPoolSize{ vk::DescriptorType::eCombinedImageSampler,  bindlessPoolSize },
@@ -96,7 +96,7 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
 
     vk::DescriptorPoolCreateInfo poolInfoBindless{
         vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind,
-        bindlessPoolSize* (uint32_t)poolSizesBindless.size(),
+        bindlessPoolSize* (u32)poolSizesBindless.size(),
         poolSizesBindless
     };
 
@@ -146,8 +146,8 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
     m_BindlessDescriptorSet = result.back();
     SetVkObjectName(m_BindlessDescriptorSet, "BindlessDescriptorSet");
 
-    m_FreeBindlessTextureIndices = std::queue<uint32_t>();
-    for (uint32_t i = 0; i < bindlessPoolSize; i++)
+    m_FreeBindlessTextureIndices = std::queue<u32>();
+    for (u32 i = 0; i < bindlessPoolSize; i++)
     {
         m_FreeBindlessTextureIndices.push(i);
         m_FreeBindlessImageIndices.push(i);
@@ -174,7 +174,7 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
 
     std::vector<vk::DescriptorSetLayoutBinding> ssboLayoutBindings{};
     ssboLayoutBindings.reserve(4);
-    for (uint32_t i = 0; i < s_MaxSSBOsPerSet; ++i)
+    for (u32 i = 0; i < s_MaxSSBOsPerSet; ++i)
     {
         ssboLayoutBindings.emplace_back(
             vk::DescriptorSetLayoutBinding{
@@ -352,13 +352,13 @@ void GfxContext::UploadDefaultResources()
         FSVertex{ { 1.0f, -1.0f, 0.0f }, { 1.0f, 1.0f } }
     };
 
-    uint32_t* indices = lnnew uint32_t[] {
+    u32* indices = lnnew u32[] {
         0, 1, 2,
         1, 3, 2
     };
 
     SafePtr vertexBuffer = lnnew StorageBuffer(this, sizeof(FSVertex) * 4, vertices);
-    SafePtr indexBuffer = lnnew StorageBuffer(this, sizeof(uint32_t) * 6, indices);
+    SafePtr indexBuffer = lnnew StorageBuffer(this, sizeof(u32) * 6, indices);
 
     m_DefaultFullscreenQuad = lnnew Geometry(this, vertexBuffer, indexBuffer, vertices, indices, 4U, 6U);
 }
@@ -489,7 +489,7 @@ std::string GfxContext::GetQueueFamilyName(EQueueFamilyType type) const
     return std::string();
 }
 
-uint32_t GfxContext::GetQueueFamilyIndex(EQueueFamilyType type) const
+u32 GfxContext::GetQueueFamilyIndex(EQueueFamilyType type) const
 {
     switch (type)
     {
@@ -554,7 +554,7 @@ void GfxContext::SubmitToQueue(EQueueFamilyType type, const vk::SubmitInfo& subm
     }
 }
 
-vk::CommandPool GfxContext::CreateCommandPool(uint32_t queueFamilyIndex, vk::CommandPoolCreateFlags flags) const
+vk::CommandPool GfxContext::CreateCommandPool(u32 queueFamilyIndex, vk::CommandPoolCreateFlags flags) const
 {
     vk::CommandPoolCreateInfo poolInfo(flags, queueFamilyIndex);
     auto cp = m_Device.createCommandPool(poolInfo);
@@ -567,7 +567,7 @@ vk::CommandBuffer GfxContext::GetPrimaryCommandBuffer() const
     return m_CommandPoolManager->BeginOrGetPrimaryFrameCommandBuffer(ApplicationBase::GetRenderer().GetCurrentFrameIndex());
 }
 
-vk::ImageView GfxContext::CreateImageView(vk::Image image, vk::ImageViewType viewType, vk::Format format, uint32_t numMipLevels, uint32_t layers, vk::ImageAspectFlags aspectMask, const std::string& name)
+vk::ImageView GfxContext::CreateImageView(vk::Image image, vk::ImageViewType viewType, vk::Format format, u32 numMipLevels, u32 layers, vk::ImageAspectFlags aspectMask, const std::string& name)
 {
     vk::ImageViewCreateInfo createInfo(
         {},
@@ -688,7 +688,7 @@ void GfxContext::AllocateBuffer(BufferAllocation& allocation, VkBufferCreateInfo
     allocation.MemoryFlags = vk::MemoryPropertyFlags(memPropFlags);
 }
 
-BufferAllocation GfxContext::AllocateStagingBuffer(uint64_t size)
+BufferAllocation GfxContext::AllocateStagingBuffer(u64 size)
 {
     vk::BufferCreateInfo stagingBufferCI{
         {},

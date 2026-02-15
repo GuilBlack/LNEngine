@@ -20,8 +20,8 @@ class FrameGraph;
 struct MatPassDataHash
 {
     PassID          PassId;
-    uint32_t        SetIndex;
-    uint32_t        Binding;
+    u32        SetIndex;
+    u32        Binding;
 
     bool operator==(const MatPassDataHash& other) const
     {
@@ -52,8 +52,8 @@ public:
     MaterialPassSlot            GetMaterialPassSlot(PassID passId) const;
     bool                        CanRenderToPass(PassID passId) const;
 
-    bool                        SetProperty(const std::string& name, uint32_t value)
-    { return SetProperty<uint32_t>(name, value); }
+    bool                        SetProperty(const std::string& name, u32 value)
+    { return SetProperty<u32>(name, value); }
     bool                        SetProperty(const std::string& name, const glm::uvec2& value)
     { return SetProperty<glm::uvec2>(name, value); }
     bool                        SetProperty(const std::string& name, const glm::uvec3& value)
@@ -61,8 +61,8 @@ public:
     bool                        SetProperty(const std::string& name, const glm::uvec4& value)
     { return SetProperty<glm::uvec4>(name, value); }
 
-    bool                        SetProperty(const std::string& name, int32_t value)
-    { return SetProperty<int32_t>(name, value); }
+    bool                        SetProperty(const std::string& name, s32 value)
+    { return SetProperty<s32>(name, value); }
     bool                        SetProperty(const std::string& name, const glm::ivec2& value)
     { return SetProperty<glm::ivec2>(name, value); }
     bool                        SetProperty(const std::string& name, const glm::ivec3& value)
@@ -98,7 +98,7 @@ private:
     };
 
     friend class Renderer;
-    using MatPassDataMap = FlatHashMap<MatPassDataHash, byte*, MatPassDataHasher>;
+    using MatPassDataMap = FlatHashMap<MatPassDataHash, u8*, MatPassDataHasher>;
     using MaterialElementsMap = FlatHashMap<std::string, std::vector<MaterialElement>>;
     using TextureMap = FlatHashMap<std::string, SafePtr<Texture>>;
 
@@ -110,7 +110,7 @@ private:
     FlatHashMap<MaterialPipelineHash, PipelineHandle, boost::hash<lne::MaterialPipelineHash>>       m_AllocatedPipelines;
     bool                                            m_IsTransparent{ false };
     TextureMap                                      m_Textures;
-    uint32_t                                        m_DirtyFrames{ 0 };
+    u32                                        m_DirtyFrames{ 0 };
     ShaderDomain::Enum                              m_MaterialType{ ShaderDomain::eUnknown };
 
 private:
@@ -140,7 +140,7 @@ private:
                 LNE_ERROR("Pass data not found in material... what??");
                 success = false;
             }
-            byte* passData = m_PassData.at(hash);
+            u8* passData = m_PassData.at(hash);
             memcpy(passData + matConst.Element.Offset, &value, sizeof(T));
             InvalidateMaterial();
         }
@@ -149,7 +149,7 @@ private:
     }
     void                        InvalidateMaterial();
     bool                        IsOfShaderElementType(TypeId typeId, ShaderElementType::Enum elemType);
-    bool                        CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, uint32_t frameIndex);
+    bool                        CopyPassDataToBuffers(vk::CommandBuffer cmdBuffer, u32 frameIndex);
 };
 
 
@@ -167,13 +167,13 @@ public:
     {
         SetProperty<float>(cmdBuffer, name, value);
     }
-    void                        SetProperty(vk::CommandBuffer cmdBuffer, const std::string& name, uint32_t value)
+    void                        SetProperty(vk::CommandBuffer cmdBuffer, const std::string& name, u32 value)
     {
-        SetProperty<uint32_t>(cmdBuffer, name, value);
+        SetProperty<u32>(cmdBuffer, name, value);
     }
-    void                        SetProperty(vk::CommandBuffer cmdBuffer, const std::string& name, int32_t value)
+    void                        SetProperty(vk::CommandBuffer cmdBuffer, const std::string& name, s32 value)
     {
-        SetProperty<int32_t>(cmdBuffer, name, value);
+        SetProperty<s32>(cmdBuffer, name, value);
     }
 
     void                        SetProperty(vk::CommandBuffer cmdBuffer, const std::string& name, const glm::vec2& value)
@@ -205,9 +205,9 @@ public:
     void                        SetTexture(vk::CommandBuffer cmdBuffer, const std::string& name, SafePtr<class Texture> texture, bool isStorage = true);
 
     // Dispatch method: bind the compute pipeline and launch compute work.
-    void Dispatch(uint32_t groupCountX,
-        uint32_t groupCountY,
-        uint32_t groupCountZ,
+    void Dispatch(u32 groupCountX,
+        u32 groupCountY,
+        u32 groupCountZ,
         bool async = true);
 
 private:
@@ -217,7 +217,7 @@ private:
 
     // A map of uniform metadata. This should be populated during shader reflection.
     FlatHashMap<std::string, UniformElement>                m_ProgramConstants;
-    FlatHashMap<uint32_t, SafePtr<UniformBuffer>>           m_UniformBuffers;
+    FlatHashMap<u32, SafePtr<UniformBuffer>>           m_UniformBuffers;
     FlatHashMap<std::string, SafePtr<Texture>>              m_Textures;
 
     friend class Renderer;
@@ -239,6 +239,6 @@ private:
     }
 
     // Function to update the uniform buffer for a given binding.
-    void SetUniformBuffer(vk::CommandBuffer cmdBuffer, uint32_t binding, const void* data, uint32_t size, uint32_t offset = 0);
+    void SetUniformBuffer(vk::CommandBuffer cmdBuffer, u32 binding, const void* data, u32 size, u32 offset = 0);
 };
 }

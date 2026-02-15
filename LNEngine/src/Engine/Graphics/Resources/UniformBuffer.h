@@ -11,7 +11,7 @@ class UniformBuffer : public RefCountBase
 {
 public:
     UniformBuffer() = default;
-    UniformBuffer(SafePtr<class GfxContext> ctx, uint32_t size);
+    UniformBuffer(SafePtr<class GfxContext> ctx, u32 size);
     UniformBuffer(UniformBuffer&& other) noexcept;
     UniformBuffer& operator=(UniformBuffer&& other) noexcept;
 
@@ -27,17 +27,17 @@ public:
     }
 
     template<typename T> requires std::is_trivially_copyable_v<T> && (std::is_pointer_v<T> == false)
-    void CopyData(vk::CommandBuffer cb, const T& data, uint32_t offset = 0)
+    void CopyData(vk::CommandBuffer cb, const T& data, u32 offset = 0)
     {
         CopyData(cb, (const void*)&data, sizeof(T), offset * sizeof(T));
     }
-    void CopyData(vk::CommandBuffer cb, const void* data, uint32_t size, uint32_t byteOffset);
+    void CopyData(vk::CommandBuffer cb, const void* data, u32 size, u32 byteOffset);
 
 private:
     SafePtr<class GfxContext> m_Context;
     BufferAllocation m_MainAllocation;
     BufferAllocation m_StagingAllocation;
-    uint32_t m_Size{ 0 };
+    u32 m_Size{ 0 };
     bool m_IsNuked{ false };
 };
 }

@@ -12,6 +12,7 @@
 #include "Graphics/CommandPoolManager.h"
 #include "Graphics/ImGui/ImGuiService.h"
 #include "Graphics/GfxContext.h"
+#include "Memory/Alloc.h"
 
 namespace lne
 {
@@ -79,6 +80,7 @@ ApplicationBase::~ApplicationBase()
     m_Renderer.reset();
     m_Window.reset();
     glfwTerminate();
+    CheckForVLeaks();
     LNE_INFO("Application {0} nuked", m_Settings.Name);
     Log::Nuke();
 }

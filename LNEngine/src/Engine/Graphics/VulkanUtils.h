@@ -1,5 +1,6 @@
 #pragma once
 #include "Enums.h"
+#include "Engine/Core/Utils/Defines.h"
 
 namespace lne
 {

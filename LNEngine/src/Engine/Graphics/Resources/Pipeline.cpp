@@ -217,13 +217,13 @@ GfxPipeline::GfxPipeline(SafePtr<GfxContext> ctx, const GraphicsPipelineDesc& de
         {},
         desc.Blend.BlendEnable,
         vk::LogicOp::eCopy,
-        (uint32_t)blendAttachments.size(),
+        (u32)blendAttachments.size(),
         blendAttachments.data(),
         { 0.0f, 0.0f, 0.0f, 0.0f }
     );
 
     vk::PipelineDynamicStateCreateInfo dynamicStateInfo = vk::PipelineDynamicStateCreateInfo(
-        {}, (uint32_t)dynamicStates.size(), dynamicStates.data());
+        {}, (u32)dynamicStates.size(), dynamicStates.data());
 
     m_Layout = CreatePipelineLayout(m_Shader->GetDescriptorSetLayouts(), m_Shader->GetPushConstantRanges());
 
@@ -399,13 +399,13 @@ GfxPipeline::GfxPipeline(SafePtr<Shader> shader, GraphicsPipelineDescV2& desc)
         {},
         blend.BlendEnable,
         vk::LogicOp::eCopy,
-        (uint32_t)blendAttachments.size(),
+        (u32)blendAttachments.size(),
         blendAttachments.data(),
         { 0.0f, 0.0f, 0.0f, 0.0f }
     );
 
     vk::PipelineDynamicStateCreateInfo dynamicStateInfo = vk::PipelineDynamicStateCreateInfo(
-        {}, (uint32_t)dynamicStates.size(), dynamicStates.data());
+        {}, (u32)dynamicStates.size(), dynamicStates.data());
 
     m_Layout = CreatePipelineLayout(m_Shader->GetDescriptorSetLayouts(), m_Shader->GetPushConstantRanges());
 

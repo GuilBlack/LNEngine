@@ -1,6 +1,7 @@
 #pragma once
 #include "Engine/Core/SafePtr.h"
 #include "Engine/Graphics/Resources/Texture.h"
+#include "Engine/Core/Utils/Defines.h"
 
 namespace lne
 {
@@ -25,29 +26,30 @@ public:
         AttachmentDesc depth = {});
     ~Framebuffer() = default;
 
-    void Init(SafePtr<class GfxContext> ctx,
-        std::vector<AttachmentDesc> attachments,
-        AttachmentDesc depth = {});
+    void                                    Init(SafePtr<class GfxContext> ctx,
+                                                 std::vector<AttachmentDesc> attachments,
+                                                 AttachmentDesc depth = {});
 
-    void SetClearColor(const vk::ClearColorValue& color);
-    void ChangeColorAttachmentsOps(vk::AttachmentLoadOp loadOp, vk::AttachmentStoreOp storeOp);
+    void                                    SetClearColor(const vk::ClearColorValue& color);
+    void                                    ChangeColorAttachmentsOps(vk::AttachmentLoadOp loadOp,
+                                                                      vk::AttachmentStoreOp storeOp);
 
-    void Bind(vk::CommandBuffer cmdBuffer) const;
-    void Unbind(vk::CommandBuffer cmdBuffer) const;
+    void                                    Bind(vk::CommandBuffer cmdBuffer) const;
+    void                                    Unbind(vk::CommandBuffer cmdBuffer) const;
 
     [[nodiscard]] const std::vector<AttachmentDesc>& GetColorAttachments() const { return m_ColorAttachments; }
-    [[nodiscard]] const AttachmentDesc& GetDepthAttachment() const { return m_DepthAttachment; }
+    [[nodiscard]] const AttachmentDesc&     GetDepthAttachment() const { return m_DepthAttachment; }
     [[nodiscard]] vk::CommandBufferInheritanceRenderingInfo GetInheritanceRenderingInfo() const;
-    [[nodiscard]] vk::Extent3D GetExtent() const;
-    [[nodiscard]] uint32_t GetLayerCount() const;
-    [[nodiscard]] bool HasDepth() const { return m_HasDepth; }
+    [[nodiscard]] vk::Extent3D              GetExtent() const;
+    [[nodiscard]] u32                       GetLayerCount() const;
+    [[nodiscard]] bool                      HasDepth() const { return m_HasDepth; }
 
 
 private:
-    SafePtr<class GfxContext> m_Context;
-    std::vector<AttachmentDesc> m_ColorAttachments;
-    std::vector<vk::Format> m_ColorFormats{};
-    AttachmentDesc m_DepthAttachment;
-    bool m_HasDepth = false;
+    SafePtr<class GfxContext>           m_Context;
+    std::vector<AttachmentDesc>         m_ColorAttachments;
+    std::vector<vk::Format>             m_ColorFormats{};
+    AttachmentDesc                      m_DepthAttachment;
+    bool                                m_HasDepth{ false };
 };
 }

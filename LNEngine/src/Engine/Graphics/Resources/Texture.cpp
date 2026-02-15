@@ -13,7 +13,7 @@ namespace lne
 
 SafePtr<Texture> Texture::CreateDepthTexture(
     SafePtr<class GfxContext> ctx,
-    uint32_t width, uint32_t height,
+    u32 width, u32 height,
     TextureUsageType::Enum usage,
     const std::string& name)
 {
@@ -40,7 +40,7 @@ SafePtr<Texture> Texture::CreateDepthTexture(
 
 SafePtr<Texture> Texture::CreateColorAttachmentTexture(
     SafePtr<class GfxContext> ctx,
-    uint32_t width, uint32_t height, vk::Format format,
+    u32 width, u32 height, vk::Format format,
     TextureUsageType::Enum usage,
     const std::string& name, bool useMips)
 {
@@ -67,7 +67,7 @@ SafePtr<Texture> Texture::CreateColorAttachmentTexture(
 
 SafePtr<Texture> Texture::CreateColorTexture2D(
     SafePtr<class GfxContext> ctx,
-    uint32_t width, uint32_t height, vk::Format format,
+    u32 width, u32 height, vk::Format format,
     TextureUsageType::Enum usage,
     bool generateMips,
     const std::string& name)
@@ -96,7 +96,7 @@ SafePtr<Texture> Texture::CreateColorTexture2D(
 
 SafePtr<Texture> Texture::CreateCubemapTexture(
     SafePtr<class GfxContext> ctx,
-    uint32_t width, uint32_t height, vk::Format format,
+    u32 width, u32 height, vk::Format format,
     TextureUsageType::Enum usage,
     bool generateMips,
     const std::string& name)
@@ -122,7 +122,7 @@ SafePtr<Texture> Texture::CreateCubemapTexture(
     return SafePtr<Texture>(lnnew Texture(ctx, imageInfo, usage, {}, name));
 }
 
-Texture::Texture(SafePtr<class GfxContext> ctx, vk::Image image, vk::Format format, vk::Extent3D extents, uint32_t numlayers, const std::string& name)
+Texture::Texture(SafePtr<class GfxContext> ctx, vk::Image image, vk::Format format, vk::Extent3D extents, u32 numlayers, const std::string& name)
     : m_Context{ ctx }
     , m_Format{ format }
     , m_Extents{ extents }
@@ -223,9 +223,9 @@ bool Texture::IsStencil()
 }
 
 void Texture::TransitionLayout(vk::CommandBuffer cmdBuffer, vk::ImageLayout oldLayout, vk::ImageLayout newLayout,
-    uint32_t baseMip, uint32_t mipLevels,
-    uint32_t baseLayer, uint32_t numLayers,
-    uint32_t srcQueueFamily, uint32_t dstQueueFamily,
+    u32 baseMip, u32 mipLevels,
+    u32 baseLayer, u32 numLayers,
+    u32 srcQueueFamily, u32 dstQueueFamily,
     bool changeTextureLayout)
 {
     vk::AccessFlags srcAccessMask = vk::AccessFlagBits::eNone;
@@ -363,9 +363,9 @@ void Texture::TransitionLayout(vk::CommandBuffer cmdBuffer, vk::ImageLayout oldL
 
 void Texture::UploadData(const void* data)
 {
-    uint32_t bytesPerPixel = FormatToBytesPerPixel(m_Format);
+    u32 bytesPerPixel = FormatToBytesPerPixel(m_Format);
 
-    uint64_t imageSize = m_Extents.width * m_Extents.height * bytesPerPixel;
+    u64 imageSize = m_Extents.width * m_Extents.height * bytesPerPixel;
 
     if (m_NumLayers > 1)
         imageSize *= m_NumLayers;
@@ -382,7 +382,7 @@ void Texture::UploadData(const void* data)
     TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferDstOptimal);
 
     std::vector<vk::BufferImageCopy> regions;
-    for (uint32_t layer = 0; layer < m_NumLayers; layer++)
+    for (u32 layer = 0; layer < m_NumLayers; layer++)
     {
         regions.emplace_back(vk::BufferImageCopy{
             m_Extents.width * m_Extents.height * bytesPerPixel * layer,
@@ -414,10 +414,10 @@ void Texture::UploadData(const void* data)
     TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
 }
 
-void Texture::UploadData(vk::CommandBuffer cmdBuffer, BufferAllocation stagingBuffer, const void* data, int32_t size, bool autoTransitionLayout)
+void Texture::UploadData(vk::CommandBuffer cmdBuffer, BufferAllocation stagingBuffer, const void* data, s32 size, bool autoTransitionLayout)
 {
-    uint64_t imageSize{};
-    uint32_t bytesPerPixel{};
+    u64 imageSize{};
+    u32 bytesPerPixel{};
     if (size == -1)
     {
         bytesPerPixel = FormatToBytesPerPixel(m_Format);
@@ -426,7 +426,7 @@ void Texture::UploadData(vk::CommandBuffer cmdBuffer, BufferAllocation stagingBu
     else
     {
         imageSize = size;
-        bytesPerPixel = (uint32_t)imageSize / (m_Extents.width * m_Extents.height * m_NumLayers);
+        bytesPerPixel = (u32)imageSize / (m_Extents.width * m_Extents.height * m_NumLayers);
     }
 
     if (m_NumLayers > 1)
@@ -439,7 +439,7 @@ void Texture::UploadData(vk::CommandBuffer cmdBuffer, BufferAllocation stagingBu
         TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferDstOptimal);
 
     std::vector<vk::BufferImageCopy> regions;
-    for (uint32_t layer = 0; layer < m_NumLayers; layer++)
+    for (u32 layer = 0; layer < m_NumLayers; layer++)
     {
         regions.emplace_back(vk::BufferImageCopy{
             m_Extents.width * m_Extents.height * bytesPerPixel * layer,
@@ -466,7 +466,7 @@ void Texture::UploadData(vk::CommandBuffer cmdBuffer, BufferAllocation stagingBu
     }
 }
 
-constexpr uint32_t Texture::FormatToBytesPerPixel(vk::Format format)
+constexpr u32 Texture::FormatToBytesPerPixel(vk::Format format)
 {
     switch (format)
     {
@@ -531,10 +531,10 @@ void Texture::GenerateMipmaps(vk::CommandBuffer cmdBuffer)
 {
     TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferSrcOptimal);
 
-    int32_t width = m_Extents.width;
-    int32_t height = m_Extents.height;
+    s32 width = m_Extents.width;
+    s32 height = m_Extents.height;
 
-    for (uint32_t i = 1; i < m_MipLevels; i++)
+    for (u32 i = 1; i < m_MipLevels; i++)
     {
         TransitionLayoutMips(cmdBuffer, m_Layout, vk::ImageLayout::eTransferDstOptimal, i, 1);
         vk::ImageBlit blit{};
@@ -562,7 +562,7 @@ void Texture::GenerateMipmaps(vk::CommandBuffer cmdBuffer)
     }
 }
 
-vk::ImageView Texture::CreateImageViewForMip(uint32_t mipLevel) const
+vk::ImageView Texture::CreateImageViewForMip(u32 mipLevel) const
 {
     vk::ImageViewType viewType = vk::ImageViewType::e2D;
     if (m_ImageType == vk::ImageType::e3D)

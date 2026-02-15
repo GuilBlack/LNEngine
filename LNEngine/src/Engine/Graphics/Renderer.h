@@ -6,6 +6,7 @@
 #include "Engine/GlobalUtils.h"
 #include "Engine/Core/DataStructures/FlatHashClasses.h"
 #include "../../vendor/ENKITS/enkiTS/src/TaskScheduler.h"
+#include "Engine/Core/Utils/Defines.h"
 
 namespace enki
 {
@@ -33,7 +34,7 @@ class WorldRenderer;
 class FrameGraph;
 class StandaloneStorageBuffer;
 
-constexpr uint32_t RENDER_THREAD_ID = 1;
+constexpr u32 RENDER_THREAD_ID = 1;
 using RenderTaskFunction = enki::PinnedTaskFunction;
 
 struct RenderTask
@@ -41,17 +42,17 @@ struct RenderTask
     using InvokeFunc = void(*)(void*);
 
     InvokeFunc                                      Invoke;
-    uint32_t                                        Size;
+    u32                                             Size;
 };
 
 struct RenderTasksLauncher : enki::ITaskSet
 {
     //std::vector<RenderTaskFunction>*                m_pRenderTaskFuncs = nullptr;
-    uint8_t*                                        m_RenderTasksAllocation{};
-    uint64_t                                        m_RenderTasksAllocationOffset{};
+    u8*                                             m_RenderTasksAllocation{};
+    u64                                             m_RenderTasksAllocationOffset{};
 
     void                                            ExecuteRange(enki::TaskSetPartition range,
-                                                                 uint32_t threadnum) override;
+                                                                 u32 threadnum) override;
 };
 
 struct DrawMeshArgs
@@ -60,9 +61,9 @@ struct DrawMeshArgs
     SafePtr<StandaloneStorageBuffer>                TransformBuffer;
     SafePtr<StandaloneStorageBuffer>                LightsBuffer;
     PassID                                          PassId;
-    uint32_t                                        Offset;
-    uint32_t                                        SubMeshIndex;
-    uint32_t                                        InstanceCount;
+    u32                                             Offset;
+    u32                                             SubMeshIndex;
+    u32                                             InstanceCount;
 };
 
 class Renderer
@@ -78,9 +79,9 @@ public:
     void                                            NukeResources();
 
     // Gets the current frame index on the render thread.
-    [[nodiscard]] uint32_t                          GetCurrentFrameIndex() const { return m_CurrentFrameInFlight; }
-    [[nodiscard]] uint32_t                          GetCurrentFrameIndexOnMainThread() const { return m_CurrentFrameInFlightMain; }
-    [[nodiscard]] uint32_t                          GetCurrentSwapchainImageIndex() const { return m_CurrentSwapchainImageIndex; }
+    [[nodiscard]] u32                               GetCurrentFrameIndex() const { return m_CurrentFrameInFlight; }
+    [[nodiscard]] u32                               GetCurrentFrameIndexOnMainThread() const { return m_CurrentFrameInFlightMain; }
+    [[nodiscard]] u32                               GetCurrentSwapchainImageIndex() const { return m_CurrentSwapchainImageIndex; }
     [[nodiscard]] SafePtr<class GfxContext>         GetGfxContext() const;
     [[nodiscard]] SafePtr<class GfxLoader>          GetGfxLoader() const;
 
@@ -116,11 +117,11 @@ public:
                                                                        PassID passId);
 
     void                                            Dispatch(SafePtr<class ComputeProgram> program, 
-                                                             uint32_t x, uint32_t y, uint32_t z, 
+                                                             u32 x, u32 y, u32 z, 
                                                              bool async);
     void                                            Dispatch(vk::CommandBuffer cmdBuffer, 
                                                              SafePtr<class ComputeProgram> program, 
-                                                             uint32_t x, uint32_t y, uint32_t z);
+                                                             u32 x, u32 y, u32 z);
 
     void                                            Blit(vk::CommandBuffer cmdBuffer, 
                                                          SafePtr<class Texture> src, 
@@ -135,7 +136,7 @@ public:
 
     [[nodiscard]] SafePtr<class Texture>            CreateCubemapTexture(const std::vector<std::string>& faces);
     [[nodiscard]] SafePtr<class WorldEnvironment>   CreateEnvironmentMap(std::string_view pathToEnvMap, 
-                                                                         uint32_t dimensions = 1024);
+                                                                         u32 dimensions = 1024);
 
     SafePtr<Shader>                                 CreateOrGetShader(const std::string& path);
     SafePtr<Effect>                                 CreateOrGetEffect(const std::string& path);
@@ -183,13 +184,13 @@ private:
     std::mutex                                      m_DirtyEffectsMutex{};
     std::vector<SafePtr<Material>>                  m_DirtyMaterials{};
     std::mutex                                      m_DirtyMaterialsMutex{};
-    uint32_t                                        m_PrevFrameInFlightMain{ 0 };
-    uint32_t                                        m_CurrentFrameInFlightMain{ 0 };
-    std::atomic<uint32_t>                           m_CurrentFrameInFlight{ 0 };
-    std::atomic<uint32_t>                           m_CurrentSwapchainImageIndex{ 0 };
+    u32                                             m_PrevFrameInFlightMain{ 0 };
+    u32                                             m_CurrentFrameInFlightMain{ 0 };
+    std::atomic<u32>                                m_CurrentFrameInFlight{ 0 };
+    std::atomic<u32>                                m_CurrentSwapchainImageIndex{ 0 };
 
-    std::vector<uint8_t*>                           m_FrameRenderTasksAllocation;
-    std::vector<uint64_t>                           m_FrameRenderTasksAllocationOffsets;
+    std::vector<u8*>                                m_FrameRenderTasksAllocation;
+    std::vector<u64>                                m_FrameRenderTasksAllocationOffsets;
     std::vector<RenderTasksLauncher*>               m_RenderTasksLauncher;
 
     std::vector<FrameData>                          m_FrameData;
@@ -218,7 +219,7 @@ private:
     bool m_IsAsync{ true };
 
 private:
-    void                                            InitFrameData(uint32_t index);
+    void                                            InitFrameData(u32 index);
     void                                            UpdateTextures(vk::CommandBuffer cmdBuffer);
 
     // grows the material table bank for the effect
@@ -229,7 +230,7 @@ private:
     void                                            CleanupDirtyEffects();
     void                                            ProcessDirtyMaterials(vk::CommandBuffer cmdBuffer);
 
-    void*                                           AllocateRenderTask(RenderTask&& renderTask, uint32_t size);
+    void*                                           AllocateRenderTask(RenderTask&& renderTask, u32 size);
 };
 
 template<typename RenderTaskLambda>

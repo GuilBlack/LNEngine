@@ -94,12 +94,12 @@ project "LNApp"
         defines 
         { 
             "_DEBUG", "DEBUG", "LNE_DEBUG",
-            "TRACY_ENABLE",
+            -- "TRACY_ENABLE",
         }
-        files
-        {
-            "%{IncludeDir.Tracy}/TracyClient.cpp",
-        }
+        -- files
+        -- {
+        --     "%{IncludeDir.Tracy}/TracyClient.cpp",
+        -- }
 
         linkoptions { "/ignore:4099" }
 
@@ -114,11 +114,11 @@ project "LNApp"
         }
         defines
         { 
-            "LNE_DEBUG", "TRACY_ENABLE",
+            "LNE_DEBUG", -- "TRACY_ENABLE",
         }
         files 
         {
-            "%{IncludeDir.Tracy}/TracyClient.cpp",
+            -- "%{IncludeDir.Tracy}/TracyClient.cpp",
         }
 
     filter "configurations:Dist"

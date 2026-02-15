@@ -1,13 +1,14 @@
 ﻿#pragma once
 #include "Engine/Graphics/Framebuffer.h"
 #include "Engine/Core/SafePtr.h"
+#include "Engine/Core/Utils/Defines.h"
 
 namespace lne
 {
 struct WindowSettings
 {
     std::string Name;
-    uint32_t    Width{}, Height{};
+    u32    Width{}, Height{};
     bool        Resizable{ false };
     bool        Fullscreen{ false };
 };
@@ -22,11 +23,11 @@ public:
     [[nodiscard]] SafePtr<class Swapchain>      GetSwapchain() const { return m_Swapchain; }
     [[nodiscard]] struct GLFWwindow*            GetHandle() const { return m_Handle; }
 
-    [[nodiscard]] uint32_t                      GetWidth() const { return m_Settings.Width; }
-    [[nodiscard]] uint32_t                      GetHeight() const { return m_Settings.Height; }
+    [[nodiscard]] u32                      GetWidth() const { return m_Settings.Width; }
+    [[nodiscard]] u32                      GetHeight() const { return m_Settings.Height; }
     [[nodiscard]] const WindowSettings&         GetSettings() const { return m_Settings; }
 
-    [[nodiscard]] Framebuffer&                  GetFramebuffer(uint32_t index) const;
+    [[nodiscard]] Framebuffer&                  GetFramebuffer(u32 index) const;
 
     void                                        PollEvents() const;
     void                                        Present();

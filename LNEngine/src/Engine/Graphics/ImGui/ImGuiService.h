@@ -52,8 +52,8 @@ private:
     vk::DescriptorPool m_DescriptorPool;
     std::vector<class Framebuffer> m_Framebuffers;
 
-    uint32_t m_MinImageCount{};
-    uint32_t m_ImageCount{};
+    u32 m_MinImageCount{};
+    u32 m_ImageCount{};
 
 private:
     void                        InitVulkanBackend();
@@ -68,8 +68,8 @@ private:
                                                      size_t new_size, 
                                                      VkBufferUsageFlagBits usage);
 
-    uint32_t                    VulkanMemoryType(VkMemoryPropertyFlags properties, 
-                                                 uint32_t type_bits);
+    u32                    VulkanMemoryType(VkMemoryPropertyFlags properties, 
+                                                 u32 type_bits);
 
     void                        RenderDrawData(const DrawDataCopy& draw_data,
                                                vk::CommandBuffer cmdBuffer);

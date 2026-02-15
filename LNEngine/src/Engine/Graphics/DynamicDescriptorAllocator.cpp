@@ -8,7 +8,7 @@ namespace lne
 DynamicDescriptorAllocator::DynamicDescriptorAllocator(GfxContext* ctx, 
     const std::vector<vk::DescriptorPoolSize>& setBindingSize,
     std::string_view debugName,
-    uint32_t numSetsPerPool, float growthFactor, 
+    u32 numSetsPerPool, float growthFactor, 
     vk::DescriptorPoolCreateFlags poolFlags)
     : m_Context(ctx), m_DebugName(debugName), m_GrowthFactor(growthFactor), m_NextPoolSizes(setBindingSize),
     m_PoolFlags(poolFlags), m_MaxSetsPerPool(numSetsPerPool)
@@ -74,7 +74,7 @@ void DynamicDescriptorAllocator::Clear()
         m_SetToPoolIndexMap.clear();
 
     m_FreePoolIndices.clear();
-    for (uint32_t i = 0; i < m_PoolInfos.size(); ++i)
+    for (u32 i = 0; i < m_PoolInfos.size(); ++i)
         m_FreePoolIndices.emplace_back(i);
 }
 
@@ -84,7 +84,7 @@ vk::DescriptorSet DynamicDescriptorAllocator::Allocate(vk::DescriptorSetLayout l
     if (m_FreePoolIndices.empty())
         AllocateNewPool();
 
-    uint32_t poolIdx = m_FreePoolIndices.back();
+    u32 poolIdx = m_FreePoolIndices.back();
     auto& poolInfo = m_PoolInfos[poolIdx];
 
     vk::DescriptorSetAllocateInfo allocInfo{
@@ -116,7 +116,7 @@ vk::DescriptorSet DynamicDescriptorAllocator::Allocate(vk::DescriptorSetLayout l
     }
 }
 
-vk::DescriptorSet DynamicDescriptorAllocator::Allocate(vk::DescriptorSetLayout layout, uint32_t variableCount)
+vk::DescriptorSet DynamicDescriptorAllocator::Allocate(vk::DescriptorSetLayout layout, u32 variableCount)
 {
     std::lock_guard<std::mutex> lock(m_Mutex);
     if (m_FreePoolIndices.empty())
@@ -126,7 +126,7 @@ vk::DescriptorSet DynamicDescriptorAllocator::Allocate(vk::DescriptorSetLayout l
     varInfo.descriptorSetCount = 1;
     varInfo.pDescriptorCounts = &variableCount;
 
-    uint32_t poolIdx = m_FreePoolIndices.back();
+    u32 poolIdx = m_FreePoolIndices.back();
     auto& poolInfo = m_PoolInfos[poolIdx];
     
     vk::DescriptorSetAllocateInfo allocInfo{};
@@ -174,7 +174,7 @@ void DynamicDescriptorAllocator::Free(vk::DescriptorSet set)
         return;
     }
 
-    uint32_t poolIdx = it->second;
+    u32 poolIdx = it->second;
     auto device = m_Context->GetDevice();
     auto& poolInfo = m_PoolInfos[poolIdx];
     device.freeDescriptorSets(poolInfo.Pool, 1, &set);
@@ -209,10 +209,10 @@ void DynamicDescriptorAllocator::AllocateNewPool()
         .Pool = m_Context->GetDevice().createDescriptorPool(descPoolCI),
         .CapacitySets = m_MaxSetsPerPool,
     });
-    m_FreePoolIndices.emplace_back((uint32_t)m_PoolInfos.size() - 1);
+    m_FreePoolIndices.emplace_back((u32)m_PoolInfos.size() - 1);
 
     m_Context->SetVkObjectName(m_PoolInfos.back().Pool, std::format("{}_{}", m_DebugName, m_FreePoolIndices.back()));
 
-    m_MaxSetsPerPool = std::min((uint32_t)(m_MaxSetsPerPool * m_GrowthFactor), UINT32_MAX);
+    m_MaxSetsPerPool = std::min((u32)(m_MaxSetsPerPool * m_GrowthFactor), UINT32_MAX);
 }
 }

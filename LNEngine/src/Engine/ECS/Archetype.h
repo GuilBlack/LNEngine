@@ -3,6 +3,7 @@
 
 #include "Types.h"
 #include "Engine/Core/DataStructures/FlatHashClasses.h"
+#include "Engine/Core/Utils/Defines.h"
 
 namespace lne
 {
@@ -26,7 +27,7 @@ public:
     void AddEntity(EntityID entity)
     {
         m_Entities.push_back(entity);
-        m_EntityIndexMap[entity] = (uint32_t)m_Entities.size() - 1;
+        m_EntityIndexMap[entity] = (u32)m_Entities.size() - 1;
     }
 
     // Remove an entity from this archetype
@@ -35,8 +36,8 @@ public:
         if (!m_EntityIndexMap.contains(entity))
             return;
 
-        uint32_t index = m_EntityIndexMap[entity];
-        uint32_t lastIndex = (uint32_t)m_Entities.size() - 1;
+        u32 index = m_EntityIndexMap[entity];
+        u32 lastIndex = (u32)m_Entities.size() - 1;
 
         // Swap and pop to maintain contiguous storage
         if (index != lastIndex)
@@ -55,7 +56,7 @@ public:
         return m_EntityIndexMap.contains(entity);
     }
 
-    [[nodiscard]] uint32_t GetEntityIndex(EntityID entity) const
+    [[nodiscard]] u32 GetEntityIndex(EntityID entity) const
     {
         assert(m_EntityIndexMap.contains(entity) && "This archetype doesn't contain this entity");
         return m_EntityIndexMap.at(entity);
@@ -71,9 +72,9 @@ public:
         return &m_Entities;
     }
 
-    [[nodiscard]] uint32_t GetEntityCount() const
+    [[nodiscard]] u32 GetEntityCount() const
     {
-        return (uint32_t)m_Entities.size();
+        return (u32)m_Entities.size();
     }
 
     template<ComponentConstraint Comp, typename... Args>
@@ -145,7 +146,7 @@ public:
     }
 
     template<ComponentConstraint Comp>
-    [[nodiscard]] Comp& GetComponentByIndex(uint32_t index)
+    [[nodiscard]] Comp& GetComponentByIndex(u32 index)
     {
         auto type = GetComponentTypeIndex<Comp>();
         assert(m_ComponentStorages.contains(type) && "Component storage doesn't exist.");
@@ -184,7 +185,7 @@ public:
 
 private:
     std::vector<EntityID>                                               m_Entities;
-    FlatHashMap<EntityID, uint32_t>                                     m_EntityIndexMap;
+    FlatHashMap<EntityID, u32>                                     m_EntityIndexMap;
     FlatHashMap<ComponentTypeIndex, std::unique_ptr<IComponentStorage>> m_ComponentStorages;
 
     friend class EntityRegistry;
@@ -197,11 +198,11 @@ public:
     struct Index
     {
         EntityID Entity;
-        uint32_t ArchetypeIndex;
-        uint32_t ComponentIndex;
-        uint32_t ComposedIndex; // Global index in the view
+        u32 ArchetypeIndex;
+        u32 ComponentIndex;
+        u32 ComposedIndex; // Global index in the view
 
-        Index(EntityID entity, uint32_t archetypeIndex, uint32_t componentIndex)
+        Index(EntityID entity, u32 archetypeIndex, u32 componentIndex)
             : Entity(entity)
             , ArchetypeIndex(archetypeIndex)
             , ComponentIndex(componentIndex)
@@ -226,8 +227,8 @@ public:
         using reference = Index&;
 
         Iterator(Index index,
-            uint32_t totalSize,
-            const std::vector<uint32_t>& archetypeSizes,
+            u32 totalSize,
+            const std::vector<u32>& archetypeSizes,
             const std::vector<std::vector<EntityID>*>& entityData)
             : m_Index(index)
             , m_TotalSize(totalSize)
@@ -265,9 +266,9 @@ public:
             return tmp;
         }
 
-        Iterator& operator+=(uint32_t n)
+        Iterator& operator+=(u32 n)
         {
-            uint32_t numComponentsLeft = m_ArchetypeSizes[m_Index.ArchetypeIndex] - m_Index.ComponentIndex;
+            u32 numComponentsLeft = m_ArchetypeSizes[m_Index.ArchetypeIndex] - m_Index.ComponentIndex;
             if (n < numComponentsLeft)
             {
                 m_Index.ComponentIndex += n;
@@ -276,7 +277,7 @@ public:
                 return *this;
             }
             n -= numComponentsLeft;
-            for (uint32_t i = m_Index.ArchetypeIndex + 1; i < m_ArchetypeSizes.size(); ++i)
+            for (u32 i = m_Index.ArchetypeIndex + 1; i < m_ArchetypeSizes.size(); ++i)
             {
                 if (n < m_ArchetypeSizes[i])
                 {
@@ -291,7 +292,7 @@ public:
             throw std::out_of_range("Iterator out of range");
         }
 
-        Iterator operator+(uint32_t n) const
+        Iterator operator+(u32 n) const
         {
             Iterator tmp = *this;
             return tmp += n;
@@ -309,8 +310,8 @@ public:
             }
             else
             {
-                uint32_t prefix = 0;
-                for (uint32_t i = 0; i < m_Index.ArchetypeIndex; i++)
+                u32 prefix = 0;
+                for (u32 i = 0; i < m_Index.ArchetypeIndex; i++)
                 {
                     prefix += m_ArchetypeSizes[i];
                 }
@@ -319,8 +320,8 @@ public:
         }
 
         Index m_Index;
-        uint32_t m_TotalSize;
-        const std::vector<uint32_t>& m_ArchetypeSizes;
+        u32 m_TotalSize;
+        const std::vector<u32>& m_ArchetypeSizes;
         const std::vector<std::vector<EntityID>*>& m_EntityData;
     };
 
@@ -334,7 +335,7 @@ public:
             if (entityData->empty())
                 continue;
             m_EntityData.push_back(entityData);
-            uint32_t count = archetype->GetEntityCount();
+            u32 count = archetype->GetEntityCount();
             m_ArchetypeSizes.push_back(count);
             m_TotalSize += count;
             m_ComponentData.push_back(archetype->GetComponentStorages<Comps...>());
@@ -349,7 +350,7 @@ public:
         return { std::get<ComponentStorage<Comps>&>(m_ComponentData[index.ArchetypeIndex]).Components[index.ComponentIndex]... };
     }
 
-    ECS_FORCE_INLINE constexpr uint32_t TotalSize() const { return m_TotalSize; }
+    ECS_FORCE_INLINE constexpr u32 TotalSize() const { return m_TotalSize; }
 
     ECS_FORCE_INLINE Iterator begin() const
     {
@@ -370,22 +371,22 @@ public:
                              m_ArchetypeSizes,
                              m_EntityData };
         }
-        return Iterator{ Index{ m_EntityData.back()->back(), static_cast<uint32_t>(m_ArchetypeSizes.size()), 0 },
+        return Iterator{ Index{ m_EntityData.back()->back(), static_cast<u32>(m_ArchetypeSizes.size()), 0 },
                          m_TotalSize,
                          m_ArchetypeSizes,
                          m_EntityData };
     }
 
-    ECS_FORCE_INLINE constexpr Index operator[](uint32_t composedIndex) const
+    ECS_FORCE_INLINE constexpr Index operator[](u32 composedIndex) const
     {
         if (composedIndex >= m_TotalSize)
             throw std::out_of_range("ComponentView index out of range");
-        uint32_t runningSum = 0;
-        for (uint32_t i = 0; i < m_ArchetypeSizes.size(); i++)
+        u32 runningSum = 0;
+        for (u32 i = 0; i < m_ArchetypeSizes.size(); i++)
         {
             if (composedIndex < runningSum + m_ArchetypeSizes[i])
             {
-                uint32_t compIndex = composedIndex - runningSum;
+                u32 compIndex = composedIndex - runningSum;
                 return Index{ (*m_EntityData[i])[compIndex], i, compIndex };
             }
             runningSum += m_ArchetypeSizes[i];
@@ -396,8 +397,8 @@ public:
 private:
     std::vector<std::vector<EntityID>*> m_EntityData;
     std::vector<std::tuple<ComponentStorage<Comps>&...>> m_ComponentData;
-    std::vector<uint32_t> m_ArchetypeSizes;
-    uint32_t m_TotalSize{ 0 };
+    std::vector<u32> m_ArchetypeSizes;
+    u32 m_TotalSize{ 0 };
 
     friend class EntityRegistry;
 };

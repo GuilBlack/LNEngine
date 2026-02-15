@@ -19,16 +19,16 @@ namespace lne
 ////////////////////////////////////////////////////////////////////
 #define PROFILING_COL 0xFFF43E
 FrameGraph::FrameGraph()
-    : m_ResourceCache{ MAX_RESOURCE_COUNT }
-    , m_NodeCache{ MAX_RENDERPASS_NODE_COUNT }
+    : m_ResourceCache{}
+    , m_NodeCache{}
 {
     m_Context = ApplicationBase::GetWindow().GetGfxContext();
 }
 
 FrameGraph::FrameGraph(const std::string& name)
     : m_Name(name)
-    , m_ResourceCache{ MAX_RESOURCE_COUNT }
-    , m_NodeCache{ MAX_RENDERPASS_NODE_COUNT }
+    , m_ResourceCache{}
+    , m_NodeCache{}
 {
     m_Context = ApplicationBase::GetWindow().GetGfxContext();
 }
@@ -140,11 +140,11 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRe
     secondaryCommandBuffers.resize(m_Nodes.size());
 
     //enki::TaskSet set(
-    //    (uint32_t)m_Nodes.size(),
-    //    [this, &secondaryCommandBuffers, worldRenderer](enki::TaskSetPartition range, uint32_t threadnum)
+    //    (u32)m_Nodes.size(),
+    //    [this, &secondaryCommandBuffers, worldRenderer](enki::TaskSetPartition range, u32 threadnum)
     //    {
-    //        uint32_t currentFrameIndex = ApplicationBase::GetRenderer().GetCurrentFrameIndex();
-    //        for (uint32_t i = range.start; i < range.end; ++i)
+    //        u32 currentFrameIndex = ApplicationBase::GetRenderer().GetCurrentFrameIndex();
+    //        for (u32 i = range.start; i < range.end; ++i)
     //        {
     //            auto& commandPoolManager = m_Context->GetCommandPoolManager();
     //            FrameGraphNode* node = m_NodeCache.GetPool().Access(m_Nodes[i]);
@@ -171,7 +171,7 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRe
     //ApplicationBase::GetTaskScheduler()->AddTaskSetToPipe(&set);
     //ApplicationBase::GetTaskScheduler()->WaitforTask(&set);
 
-    for (uint32_t i = 0; i < m_Nodes.size(); ++i)
+    for (u32 i = 0; i < m_Nodes.size(); ++i)
     {
         FrameGraphNodeHandle nodeHandle = m_Nodes[i];
         FrameGraphNode* node = m_NodeCache.GetPool().Access(nodeHandle);
@@ -559,12 +559,13 @@ void FrameGraph::SortGraph(std::vector<FrameGraphNodeHandle>& nodes)
 {
     std::stack<FrameGraphNodeHandle> nodeStack;
 
-    std::vector<byte> visited(nodes.size(), 0);
+    FlatHashMap<FrameGraphNodeHandle, u8> visited;
     std::vector<FrameGraphNodeHandle> sortedNodes;
 
     for (int n = 0; n < nodes.size(); ++n)
     {
-        if (visited[n])
+        FrameGraphNodeHandle nodeHandle = nodes[n];
+        if (visited[nodeHandle])
             continue;
 
         nodeStack.push(nodes[n]);
@@ -729,7 +730,7 @@ std::vector<SafePtr<RenderPass>> FrameGraph::GetRenderPassesWithSignature(Entity
 ////// FrameGraphResourceDescBuilder ///////////////////////////////
 ////////////////////////////////////////////////////////////////////
 
-FrameGraphResourceDescBuilder& FrameGraphResourceDescBuilder::SetImageDimension(uint32_t width, uint32_t height, uint32_t depth)
+FrameGraphResourceDescBuilder& FrameGraphResourceDescBuilder::SetImageDimension(u32 width, u32 height, u32 depth)
 {
     m_Extent.width = width;
     m_Extent.height = height;
@@ -810,9 +811,9 @@ FrameGraphNodeDesc FrameGraphNodeDescBuilder::Build()
     return m_Desc;
 }
 
-void RenderPassTask::ExecuteRange(enki::TaskSetPartition range, uint32_t threadnum)
+void RenderPassTask::ExecuteRange(enki::TaskSetPartition range, u32 threadnum)
 {
-    for (uint32_t i = range.start; i < range.end; ++i)
+    for (u32 i = range.start; i < range.end; ++i)
     {
     }
 }

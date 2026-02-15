@@ -2,14 +2,15 @@
 #include "Enums.h"
 #include <variant>
 #include "../vendor/VMA/vk_mem_alloc.h"
+#include "Engine/Core/Utils/Defines.h"
 
 namespace lne
 {
 
 using ResourceDeletionHandle = void*;
-using BindlessImageHandle = uint32_t;
-using MaterialSlot = uint32_t;
-using PassID = uint64_t;
+using BindlessImageHandle = u32;
+using MaterialSlot = u32;
+using PassID = u64;
 
 struct BufferAllocation
 {
@@ -85,21 +86,21 @@ struct ResourceDeletion
         PipelineResourceDeletion,
         ShaderResourceDeletion,
         DescriptorSetDeletion>              Resource;
-    uint32_t                                ElapsedFrames;
+    u32                                ElapsedFrames;
 };
 
 struct SubMesh
 {
     std::string Name;
-    uint32_t    BaseVertex;
-    uint32_t    BaseIndex;
-    uint32_t    VertexCount;
-    uint32_t    IndexCount;
-    uint32_t    MaterialIndex;
+    u32    BaseVertex;
+    u32    BaseIndex;
+    u32    VertexCount;
+    u32    IndexCount;
+    u32    MaterialIndex;
     AABB        BoundingBox;
 
-    uint32_t    BaseMeshlet;
-    uint32_t    MeshletCount;
+    u32    BaseMeshlet;
+    u32    MeshletCount;
 
     glm::mat4   WorldTransform = glm::mat4(1.0f);
 };
@@ -107,8 +108,8 @@ struct SubMesh
 struct StaticMeshHash
 {
     // TODO: Should probably change this to an ID instead of a pointer...
-    uint64_t                                MeshAddress;
-    uint32_t                                SubMeshIndex;
+    u64                                     MeshAddress;
+    u32                                     SubMeshIndex;
 
     bool operator==(const StaticMeshHash& other) const
     {
@@ -124,8 +125,8 @@ struct MaterialPassSlot
 
 struct PipelineHandle
 {
-    uint64_t                                H1 = 0; // used for indexing
-    uint64_t                                H2 = 0; // verification tag
+    u64                                     H1 = 0; // used for indexing
+    u64                                     H2 = 0; // verification tag
     bool operator==(const PipelineHandle& o) const { return H1 == o.H1 && H2 == o.H2; }
     bool operator!=(const PipelineHandle& o) const { return !(*this == o); }
 };
@@ -134,7 +135,7 @@ struct PipelineHandle
 struct MaterialPipelineHash
 {
     PassID                                  PassId;
-    uint64_t                                FrameGraphHash;
+    u64                                     FrameGraphHash;
 
     bool operator==(const MaterialPipelineHash& other) const
     {
@@ -149,9 +150,9 @@ struct MaterialPipelineHash
 struct MeshletPushConstants
 {
     MaterialSlot                            MatId;
-    uint32_t                                InstanceOffset;
-    uint32_t                                BaseMeshlet;
-    uint32_t                                MeshletCount;
+    u32                                     InstanceOffset;
+    u32                                     BaseMeshlet;
+    u32                                     MeshletCount;
 };
 
 struct LightGPUData

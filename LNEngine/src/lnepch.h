@@ -26,11 +26,6 @@
 #include <tuple>
 #include <variant>
 
-// Platform
-#ifdef LNE_PLATFORM_WINDOWS
-#   include <Windows.h>
-#endif // LNE_PLATFORM_WINDOWS
-
 #ifdef _MSC_VER
 #   pragma warning(disable : 4390)
 #   pragma warning(disable : 4552)
@@ -67,10 +62,6 @@
 
 // Window
 #include <GLFW/glfw3.h>
-
-#if defined(LNE_DEBUG) && defined(LNE_PLATFORM_WINDOWS)
-#include "crtdbg.h"
-#endif
 
 // ImGui
 #include "imgui.h"
