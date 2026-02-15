@@ -46,9 +46,28 @@ public:
     }
 
     // faster than the normal but only works with alignments that are pow of 2 (so in theory, any alignment)
-    static constexpr std::size_t PowOf2AlignmentRoundUp(std::size_t size, std::size_t alignment)
+    static constexpr std::size_t PowOfTwoAlignmentRoundUp(std::size_t size, std::size_t alignment)
     {
-        return (size + alignment - 1) & ~(alignment - 1);
+        return  (size + alignment - 1) & ~(alignment - 1);
+    }
+
+
+    static constexpr bool IsPowOfTwo(u64 number)
+    {
+        return number && (number & (number - 1)) == 0;
+    }
+
+    static constexpr u64 NextPowOfTwo(u64 number)
+    {
+        if (number <= 1) return 1;
+        --number;
+        number |= number >> 1;
+        number |= number >> 2;
+        number |= number >> 4;
+        number |= number >> 8;
+        number |= number >> 16;
+        number |= number >> 32;
+        return number + 1;
     }
 };
 }

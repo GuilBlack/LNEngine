@@ -46,8 +46,8 @@ public:
      */
     explicit ObjectPool(SlabAllocator* allocator = nullptr)
     {
-        const std::size_t blockSize = GlobalUtils::AlignmentRoundUp(sizeof(Node), alignof(Node));
-        const std::size_t alignment = alignof(Node);
+        constexpr std::size_t blockSize = GlobalUtils::AlignmentRoundUp(sizeof(Node), alignof(Node));
+        constexpr std::size_t alignment = alignof(Node);
 
         if (allocator)
         {
