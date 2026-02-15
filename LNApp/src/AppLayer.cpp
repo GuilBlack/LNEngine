@@ -335,6 +335,7 @@ void AppLayer::OnAttach()
     m_CameraTarget.Position = cameraTransform.Position;
     m_CameraTarget.Rotation = cameraTransform.EulerAngles;
     cameraComponent.UpdateView(cameraTransform);
+    auto frustumCorners = cameraComponent.GetFrustumCorners();
 
     m_WorldRenderer->SetEnvironmentMap(ApplicationBase::GetAssetsPath() + "Textures\\HDRIs\\pisa.hdr");
     m_WorldRenderer->SetSunLightDirection(m_LightDirection);

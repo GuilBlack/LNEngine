@@ -86,7 +86,7 @@ struct CameraComponent
     };
     ProjectionType Projection{};
     bool IsPrimary{ false };
-
+    
     glm::mat4 GetViewProj() const
     {
         return Proj * View;
@@ -129,6 +129,81 @@ struct CameraComponent
         glm::vec3 eye = transform.Position;
         glm::vec3 center = transform.Position + glm::vec3(transform.GetForward());
         View = glm::lookAt(eye, center, glm::vec3(0.0f, 1.0f, 0.0f));
+    }
+
+    /**
+     * elem[0] = near top left    | elem[1] = near top right
+     * elem[2] = near bottom left | elem[3] = near bottom right
+     * elem[4] = far top left     | elem[5] = far top right
+     * elem[6] = far bottom left  | elem[7] = far bottom right
+     */
+    std::array<glm::vec3, 8> GetFrustumCorners()
+    {
+        if (Projection == ProjectionType::Perspective)
+            return GetPerspectiveFrustumCorners();
+
+        return GetOrthographicFrustumCorners();
+    }
+private:
+    std::array<glm::vec3, 8> GetPerspectiveFrustumCorners()
+    {
+        std::array<glm::vec4, 8> inter{};
+        std::array<glm::vec3, 8> r{};
+
+        // my depth is reversed so it's normal that near = 1 and far = 0;
+        glm::mat4 invVP = glm::inverse(Proj * View);
+        inter[0] = invVP * glm::vec4{ -1.0f,  1.0f,  1.0f, 1.0f }; // near top left
+        inter[1] = invVP * glm::vec4{  1.0f,  1.0f,  1.0f, 1.0f }; // near top right
+        inter[2] = invVP * glm::vec4{ -1.0f, -1.0f,  1.0f, 1.0f }; // near bottom left
+        inter[3] = invVP * glm::vec4{  1.0f, -1.0f,  1.0f, 1.0f }; // near bottom right
+        inter[4] = invVP * glm::vec4{ -1.0f,  1.0f,  0.0f, 1.0f }; // far top left
+        inter[5] = invVP * glm::vec4{  1.0f,  1.0f,  0.0f, 1.0f }; // far top right
+        inter[6] = invVP * glm::vec4{ -1.0f, -1.0f,  0.0f, 1.0f }; // far bottom left
+        inter[7] = invVP * glm::vec4{  1.0f, -1.0f,  0.0f, 1.0f }; // far bottom right
+
+        for (u32 i = 0; i < 8; ++i)
+        {
+            inter[i] /= inter[i].w;
+            r[i] = glm::vec3(inter[i]);
+        }
+
+        return r;
+        // code that does the same thing but without the inv proj matrix  directly
+        //float tanHalfFovx = 1.0f / Proj[0][0];
+        //float tanHalfFovy = 1.0f / Proj[1][1];
+        //// solve system of equations where:
+        //// Proj[2][2] = nearPlane / (farPlane - nearPlane);
+        //// Proj[3][2] = (farPlane * nearPlane) / (farPlane - nearPlane);
+        //float nearPlane = Proj[3][2] / (Proj[2][2] + 1.0f);
+        //float farPlane = Proj[3][2] / Proj[2][2];
+        //float yNearHalfLength = tanHalfFovy * nearPlane;
+        //float xNearHalfLength = tanHalfFovx * nearPlane;
+        //float yFarHalfLength = tanHalfFovy * farPlane;
+        //float xFarHalfLength = tanHalfFovx * farPlane;
+        //glm::mat4 camTransform = glm::inverse(View);
+        //inter[0] = camTransform * glm::vec4{ -xNearHalfLength,  yNearHalfLength,  -nearPlane, 1.0f };
+        //inter[1] = camTransform * glm::vec4{  xNearHalfLength,  yNearHalfLength,  -nearPlane, 1.0f };
+        //inter[2] = camTransform * glm::vec4{ -xNearHalfLength, -yNearHalfLength,  -nearPlane, 1.0f };
+        //inter[3] = camTransform * glm::vec4{  xNearHalfLength, -yNearHalfLength,  -nearPlane, 1.0f };
+        //inter[4] = camTransform * glm::vec4{ -xFarHalfLength,  yFarHalfLength,  -farPlane, 1.0f };
+        //inter[5] = camTransform * glm::vec4{  xFarHalfLength,  yFarHalfLength,  -farPlane, 1.0f };
+        //inter[6] = camTransform * glm::vec4{ -xFarHalfLength, -yFarHalfLength,  -farPlane, 1.0f };
+        //inter[7] = camTransform * glm::vec4{  xFarHalfLength, -yFarHalfLength,  -farPlane, 1.0f };
+        //r[0] = glm::vec3(inter[0].x, inter[0].y, inter[0].z);
+        //r[1] = glm::vec3(inter[1].x, inter[1].y, inter[1].z);
+        //r[2] = glm::vec3(inter[2].x, inter[2].y, inter[2].z);
+        //r[3] = glm::vec3(inter[3].x, inter[3].y, inter[3].z);
+        //r[4] = glm::vec3(inter[4].x, inter[4].y, inter[4].z);
+        //r[5] = glm::vec3(inter[5].x, inter[5].y, inter[5].z);
+        //r[6] = glm::vec3(inter[6].x, inter[6].y, inter[6].z);
+        //r[7] = glm::vec3(inter[7].x, inter[7].y, inter[7].z);
+        //return r;
+    }
+
+    // TODO: support orthographic projection
+    std::array<glm::vec3, 8> GetOrthographicFrustumCorners()
+    {
+        return {};
     }
 };
 
