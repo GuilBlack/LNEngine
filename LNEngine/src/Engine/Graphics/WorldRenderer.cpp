@@ -127,7 +127,7 @@ void WorldRenderer::Render(EntityRegistry& registry)
         for (auto& [hash, array] : currTransforms)
         {
             for (auto& drawStaticMeshesAdder : drawStaticMeshesAdders)
-                drawStaticMeshesAdder->AddStaticMeshDrawCommand(hash, array.Mesh, hash.SubMeshIndex);
+                drawStaticMeshesAdder->AddStaticMeshDrawCommand(hash, array.Mesh, hash.SubMeshIndex, (u32)array.Transforms.size());
         }
 
         u32 offset = 0;

@@ -136,7 +136,7 @@ void GBufferPass::OnImGuiRender()
     }
 }
 
-void GBufferPass::AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, u32 subMeshIndex)
+void GBufferPass::AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, u32 subMeshIndex, u32 instanceCount)
 {
     const SubMesh& submesh = mesh->GetSubMeshes()[hash.SubMeshIndex];
     SafePtr material = mesh->GetMaterial(submesh.MaterialIndex);
@@ -146,7 +146,7 @@ void GBufferPass::AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<c
     auto& drawCommands = m_DrawCommands[frameIndex][hash];
     drawCommands.Mesh = mesh;
     drawCommands.SubMeshIndex = subMeshIndex;
-    drawCommands.InstanceCount++;
+    drawCommands.InstanceCount = instanceCount;
 }
 
 }

@@ -18,7 +18,7 @@ struct SubMeshTransformArray
 {
     SafePtr<StaticMesh>         Mesh;
     std::vector<glm::mat4>      Transforms;
-    u32                    Offset;
+    u32                         Offset;
 };
 
 struct TransformBuffer

@@ -48,7 +48,7 @@ void DepthPrePass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worl
     }
 }
 
-void DepthPrePass::AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, u32 subMeshIndex)
+void DepthPrePass::AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, u32 subMeshIndex, u32 instanceCount)
 {
     const SubMesh& submesh = mesh->GetSubMeshes()[hash.SubMeshIndex];
     SafePtr material = mesh->GetMaterial(submesh.MaterialIndex);
@@ -58,7 +58,7 @@ void DepthPrePass::AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<
     auto& drawCommands = m_DrawCommands[frameIndex][hash];
     drawCommands.Mesh = mesh;
     drawCommands.SubMeshIndex = subMeshIndex;
-    drawCommands.InstanceCount++;
+    drawCommands.InstanceCount = instanceCount;
 }
 
 }

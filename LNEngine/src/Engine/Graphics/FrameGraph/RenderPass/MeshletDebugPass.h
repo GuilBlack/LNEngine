@@ -21,7 +21,7 @@ public:
 
     void OnImGuiRender() override;
 
-    void AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, u32 subMeshIndex) override;
+    void AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, u32 subMeshIndex, u32 instanceCount) override;
 
 private:
     SafePtr<Material> m_Material;

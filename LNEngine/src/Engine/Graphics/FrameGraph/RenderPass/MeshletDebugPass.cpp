@@ -84,7 +84,7 @@ void lne::MeshletDebugPass::OnImGuiRender()
     ImGui::Checkbox("Is Enabled", &m_AttachedNodeRef->Enabled);
 }
 
-void lne::MeshletDebugPass::AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, u32 subMeshIndex)
+void lne::MeshletDebugPass::AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, u32 subMeshIndex, u32 instanceCount)
 {
     if (mesh->GetGeometry().GetType() != GeometryType::eMeshlet)
         return;
@@ -93,5 +93,5 @@ void lne::MeshletDebugPass::AddStaticMeshDrawCommand(const StaticMeshHash& hash,
     auto& drawCommands = m_DrawCommands[frameIndex][hash];
     drawCommands.Mesh = mesh;
     drawCommands.SubMeshIndex = subMeshIndex;
-    drawCommands.InstanceCount++;
+    drawCommands.InstanceCount = instanceCount;
 }
