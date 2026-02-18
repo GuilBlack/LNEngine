@@ -191,7 +191,7 @@ private:
     friend class EntityRegistry;
 };
 
-template<ComponentConstraint... Comps>
+template<typename... Comps>
 class ComponentView
 {
 public:
@@ -345,7 +345,7 @@ public:
     ~ComponentView() = default;
 
     // Retrieve components for the given index.
-    ECS_FORCE_INLINE constexpr std::tuple<Comps&...> Get(const Index& index)
+    ECS_FORCE_INLINE constexpr std::tuple<const Comps&...> Get(const Index& index)
     {
         return { std::get<ComponentStorage<Comps>&>(m_ComponentData[index.ArchetypeIndex]).Components[index.ComponentIndex]... };
     }
