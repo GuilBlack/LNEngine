@@ -1,4 +1,5 @@
 ﻿#include "RenderPass.h"
+#include "Interfaces/IDrawStaticMeshesAdder.h"
 #include "Graphics/Resources/Mesh.h"
 #include "Graphics/Resources/Material.h"
 #include "Graphics/Resources/GfxTechnique.h"
@@ -28,16 +29,15 @@ lne::PassID MakePassID(std::string_view name)
     return hash;
 }
 
-IDrawStaticMeshes::IDrawStaticMeshes()
+IDrawStaticMeshesAdder::IDrawStaticMeshesAdder()
 {
     u32 maxFrames = ApplicationBase::GetRenderer().GetGfxContext()->GetMaxFramesInFlight();
     m_DrawCommands.resize(maxFrames);
 }
 
-void IDrawStaticMeshes::ClearDrawCommands()
+void IDrawStaticMeshesAdder::ClearDrawCommands()
 {
     u32 frameIndex = ApplicationBase::GetRenderer().GetCurrentFrameIndexOnMainThread();
     m_DrawCommands[frameIndex].clear();
 }
-
 }

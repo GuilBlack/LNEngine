@@ -1,9 +1,10 @@
 ﻿#pragma once
 #include "Engine/Core/SafePtr.h"
-#include "Engine/ECS/Types.h"
+#include "Engine/ECS/ecs.h"
 #include "Engine/Graphics/Structs.h"
 #include "Engine/Graphics/StructsHashes.h"
 #include "Engine/Core/DataStructures/FlatHashClasses.h"
+#include "Engine/Scene/Components.h"
 
 namespace lne
 {
@@ -76,24 +77,6 @@ protected:
 
 private:
     PassID          m_ID{};
-};
-
-class IDrawStaticMeshes
-{
-public:
-    struct DrawCommand
-    {
-        SafePtr<class StaticMesh>   Mesh;
-        u32                    SubMeshIndex;
-        u32                    InstanceCount;
-    };
-public:
-    IDrawStaticMeshes();
-    virtual ~IDrawStaticMeshes() = default;
-    virtual void AddStaticMeshDrawCommand(const StaticMeshHash& hash, SafePtr<class StaticMesh> mesh, u32 subMeshIndex, u32 instanceCount) = 0;
-    void ClearDrawCommands();
-protected:
-    std::vector<FlatHashMap<StaticMeshHash, DrawCommand>> m_DrawCommands;
 };
 }
 

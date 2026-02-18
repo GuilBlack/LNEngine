@@ -7,12 +7,12 @@
 #include "CommandPoolManager.h"
 #include "WorldRenderer.h"
 #include <Graphics/FrameGraph/RenderPass/RenderPass.h>
+#include "Graphics/FrameGraph/RenderPass/Interfaces/IDrawStaticMeshesAdder.h"
 #include "ECS/EntityRegistry.h"
 #include "Scene/Components.h"
 #include "Resources/Mesh.h"
 #include "Core/Utils/Profiling.h"
 #include <Scene/Entity.h>
-
 
 namespace lne
 {
@@ -95,11 +95,11 @@ void WorldRenderer::Render(EntityRegistry& registry)
     {
         LNE_PROFILE_SCOPE("Update Transform Buffer")
         std::vector<SafePtr<RenderPass>> staticMeshRenderPasses = m_FrameGraph->GetRenderPassesWithSignature(ComponentType<StaticMeshComponent>());
-        std::vector<IDrawStaticMeshes*> drawStaticMeshesAdders;
+        std::vector<IDrawStaticMeshesAdder*> drawStaticMeshesAdders;
 
         for (auto& renderPass : staticMeshRenderPasses)
         {
-            IDrawStaticMeshes* drawStaticMeshesAdder = dynamic_cast<IDrawStaticMeshes*>(renderPass.GetPtr());
+            IDrawStaticMeshesAdder* drawStaticMeshesAdder = dynamic_cast<IDrawStaticMeshesAdder*>(renderPass.GetPtr());
             if (drawStaticMeshesAdder)
                 drawStaticMeshesAdders.push_back(drawStaticMeshesAdder);
         }
