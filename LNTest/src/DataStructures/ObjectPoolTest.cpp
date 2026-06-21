@@ -107,8 +107,7 @@ static void DeallocateAll(PoolT& pool, const std::vector<lne::ObjectPoolHandle>&
 }
 
 class ObjectPoolTest_Trivial : public ::testing::Test
-{
-};
+{};
 
 TEST_F(ObjectPoolTest_Trivial, InternalAllocator_Basics_AllocateAccessDeallocate)
 {
@@ -354,7 +353,7 @@ TEST_F(ObjectPoolTest_Trivial, EmplaceWorksForTrivialToo)
     };
 
     ObjectPool<TrivialWithCtorLikeInit> pool(nullptr);
-    pool.Emplace();
+    pool.Allocate();
 }
 
 // ------------------------------------------------------------
@@ -489,7 +488,7 @@ TEST_F(ObjectPoolTest_NotTrivial, InternalAllocator_EmplaceCallsArgCtor_AndDeall
 {
     ObjectPool<NonTrivial> pool(nullptr);
 
-    auto h = pool.Emplace(123);
+    auto h = pool.Allocate(123);
     ASSERT_NE(h, INVALID_OBJECT_POOL_HANDLE);
 
     EXPECT_EQ(NonTrivialCounters::argCtor.load(), 1);
@@ -512,7 +511,7 @@ TEST_F(ObjectPoolTest_NotTrivial, InternalAllocator_EmplacePerfectForwarding_Mov
 
     ObjectPool<TakesMoveOnly> pool(nullptr);
 
-    auto h = pool.Emplace(MoveOnly{ 77 });
+    auto h = pool.Allocate(MoveOnly{ 77 });
     ASSERT_NE(h, INVALID_OBJECT_POOL_HANDLE);
     EXPECT_EQ(TakesMoveOnly::ctor.load(), 1);
 
@@ -586,7 +585,7 @@ TEST_F(ObjectPoolTest_NotTrivial, ExternalAllocator_AllocateEmplaceDestroy_Basic
     EXPECT_EQ(&pool.GetAllocator(), &extAlloc);
 
     auto h1 = pool.Allocate();
-    auto h2 = pool.Emplace(9, 10);
+    auto h2 = pool.Allocate(9, 10);
 
     EXPECT_EQ(NonTrivialCounters::defaultCtor.load(), 1);
     EXPECT_EQ(NonTrivialCounters::argCtor.load(), 1);
@@ -721,7 +720,7 @@ TEST_F(ObjectPoolTest_NotTrivial, AccessReturnsStablePointerUntilDeallocate)
 {
     ObjectPool<NonTrivial> pool(nullptr);
 
-    auto h = pool.Emplace(11, 22);
+    auto h = pool.Allocate(11, 22);
     auto* p1 = pool.Access(h);
     ASSERT_NE(p1, nullptr);
 
@@ -790,7 +789,7 @@ TEST_F(ObjectPoolTest_NotTrivial, Emplace_WhenCtorThrows_LeavesPoolConsistent)
 
     try
     {
-        (void)pool.Emplace();
+        (void)pool.Allocate();
         FAIL() << "Expected constructor to throw.";
     }
     catch (const std::runtime_error&)
@@ -809,4 +808,6 @@ TEST_F(ObjectPoolTest_NotTrivial, Emplace_WhenCtorThrows_LeavesPoolConsistent)
 #else
     GTEST_SKIP() << "Exceptions are disabled; cannot test throwing constructor behavior.";
 #endif
+}
+
 }
