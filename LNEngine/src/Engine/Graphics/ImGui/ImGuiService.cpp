@@ -300,7 +300,7 @@ void ImGuiService::Init(std::unique_ptr<Window>& window)
         style.Colors[ImGuiCol_WindowBg].w = 1.0f;
     }
 
-    ImGui_ImplGlfw_InitForVulkan(window->GetHandle(), true);
+    ImGui_ImplGlfw_InitForOther(window->GetHandle(), true);
 
     ImGui_ImplVulkan_InitInfo initInfo{
         .Instance = GfxContext::VulkanInstance(),
