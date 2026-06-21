@@ -36,6 +36,11 @@ public:
             // launder is used to make the compiler police happy about the object's lifetime and type
             return std::launder(reinterpret_cast<ObjType*>(Allocation));
         }
+
+        const ObjType* GetObjectPtr() const
+        {
+            return std::launder(reinterpret_cast<const ObjType*>(Allocation));
+        }
     };
 
 public:
@@ -73,33 +78,15 @@ public:
             delete m_Allocator;
     }
 
-    ObjectPoolHandle            Allocate()
-    {
-        Node* n = static_cast<Node*>(m_Allocator->Allocate());
-
-        if constexpr (!std::is_trivially_default_constructible_v<ObjType>)
-        {
-            try
-            {
-                new (n->GetObjectPtr()) ObjType();
-            }
-            catch (...)
-            {
-                m_Allocator->Deallocate(n);
-                throw;
-            }
-        }
-        LinkLive(n);
-        return static_cast<ObjectPoolHandle>(n);
-    }
-
     template <class... Args>
-    ObjectPoolHandle            Emplace(Args&&... args)
+    ObjectPoolHandle Allocate(Args&&... args) requires std::constructible_from<ObjType, Args...>
     {
         Node* node = static_cast<Node*>(m_Allocator->Allocate());
+
         try
         {
-            new (node->GetObjectPtr()) ObjType(std::forward<Args>(args)...);
+            std::construct_at(node);
+            std::construct_at(node->GetObjectPtr(), std::forward<Args>(args)...);
         }
         catch (...)
         {
@@ -111,16 +98,19 @@ public:
         return static_cast<ObjectPoolHandle>(node);
     }
 
-    void                        Deallocate(ObjectPoolHandle objHandle)
+    void Deallocate(ObjectPoolHandle objHandle)
     {
         if (objHandle == INVALID_OBJECT_POOL_HANDLE)
             return;
+
         Node* node = static_cast<Node*>(objHandle);
+
+        UnlinkLive(node);
 
         if constexpr (!std::is_trivially_destructible_v<ObjType>)
             std::destroy_at(node->GetObjectPtr());
 
-        UnlinkLive(node);
+        std::destroy_at(node);
         m_Allocator->Deallocate(node);
     }
 
@@ -131,19 +121,23 @@ public:
         return static_cast<Node*>(objHandle)->GetObjectPtr();
     }
 
-    void                        Clear()
+    void Clear()
     {
         Node* it = m_LiveHead;
+
         while (it)
         {
             Node* next = it->Next;
 
             if constexpr (!std::is_trivially_destructible_v<ObjType>)
                 std::destroy_at(it->GetObjectPtr());
+
+            std::destroy_at(it);
             m_Allocator->Deallocate(it);
 
             it = next;
         }
+
         m_LiveHead = nullptr;
         m_LiveTail = nullptr;
     }
@@ -160,7 +154,6 @@ public:
 private:
     SlabAllocator*          m_Allocator{};
     bool                    m_OwnsAllocator{};
-    bool                    m_ShouldDeallocateWhenDestroyed{};
 
     Node*                   m_LiveHead{};
     Node*                   m_LiveTail{};
@@ -189,6 +182,10 @@ private:
         else
             m_LiveTail = node->Prev;
     }
+
+private:
+    ObjectPool(const ObjectPool&) = delete;
+    ObjectPool& operator=(const ObjectPool&) = delete;
 };
 }
 

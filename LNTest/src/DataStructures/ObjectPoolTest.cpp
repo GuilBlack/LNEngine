@@ -7,6 +7,9 @@ static_assert(std::is_trivially_destructible_v<TrivialPod>);
 static_assert(std::is_trivial_v<TrivialSmall>);
 using namespace lne;
 
+namespace ObjectPoolTests
+{
+
 // these tests were generated using AI since I'm lazy...
 template <class ObjType>
 struct PoolNodeLayout
