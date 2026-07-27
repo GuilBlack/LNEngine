@@ -562,7 +562,7 @@ vk::CommandPool GfxContext::CreateCommandPool(u32 queueFamilyIndex, vk::CommandP
     return cp;
 }
 
-vk::CommandBuffer GfxContext::GetPrimaryCommandBuffer() const
+CommandBuffer* GfxContext::GetPrimaryCommandBuffer() const
 {
     return m_CommandPoolManager->BeginOrGetPrimaryFrameCommandBuffer(ApplicationBase::GetRenderer().GetCurrentFrameIndex());
 }

@@ -69,6 +69,37 @@ public:
         }
     }
 
+    ObjectPool(ObjectPool&& other) noexcept
+        : m_Allocator(other.m_Allocator), m_OwnsAllocator(other.m_OwnsAllocator),
+          m_LiveHead(other.m_LiveHead), m_LiveTail(other.m_LiveTail)
+    {
+        other.m_Allocator = nullptr;
+        other.m_OwnsAllocator = false;
+        other.m_LiveHead = nullptr;
+        other.m_LiveTail = nullptr;
+    }
+
+    ObjectPool& operator=(ObjectPool&& other) noexcept
+    {
+        if (this != &other)
+        {
+            if constexpr (std::is_trivial_v<ObjType> == false)
+                Clear();
+            if (m_OwnsAllocator)
+                delete m_Allocator;
+            m_Allocator = other.m_Allocator;
+            m_OwnsAllocator = other.m_OwnsAllocator;
+            m_LiveHead = other.m_LiveHead;
+            m_LiveTail = other.m_LiveTail;
+
+            other.m_Allocator = nullptr;
+            other.m_OwnsAllocator = false;
+            other.m_LiveHead = nullptr;
+            other.m_LiveTail = nullptr;
+        }
+        return *this;
+    }
+
     ~ObjectPool()
     {
         if constexpr (std::is_trivial_v<ObjType> == false)

@@ -5,6 +5,7 @@
 
 namespace lne
 {
+class CommandBuffer;
 
 struct AttachmentDesc
 {
@@ -34,8 +35,8 @@ public:
     void                                    ChangeColorAttachmentsOps(vk::AttachmentLoadOp loadOp,
                                                                       vk::AttachmentStoreOp storeOp);
 
-    void                                    Bind(vk::CommandBuffer cmdBuffer) const;
-    void                                    Unbind(vk::CommandBuffer cmdBuffer) const;
+    void                                    Bind(CommandBuffer* cmdBuffer) const;
+    void                                    Unbind(CommandBuffer* cmdBuffer) const;
 
     [[nodiscard]] const std::vector<AttachmentDesc>& GetColorAttachments() const { return m_ColorAttachments; }
     [[nodiscard]] const AttachmentDesc&     GetDepthAttachment() const { return m_DepthAttachment; }

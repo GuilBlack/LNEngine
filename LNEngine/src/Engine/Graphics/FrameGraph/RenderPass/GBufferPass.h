@@ -17,9 +17,9 @@ public:
 
     void BeginFrame() override;
 
-    void Execute(vk::CommandBuffer cmdBuffer, class WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
+    void Execute(CommandBuffer* cmdBuffer, class WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
 
-    void PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
+    void PostExecute(CommandBuffer* cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
 
     void OnImGuiRender() override;
 

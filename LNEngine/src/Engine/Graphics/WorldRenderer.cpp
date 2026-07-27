@@ -183,33 +183,33 @@ void WorldRenderer::Render(EntityRegistry& registry)
         {
             LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
             auto& renderer = ApplicationBase::GetRenderer();
-            vk::CommandBuffer cmdBuffer = renderer.GetGfxContext()->GetPrimaryCommandBuffer();
+            CommandBuffer* cmdBuffer = renderer.GetGfxContext()->GetPrimaryCommandBuffer();
             u32 currentFrameIndex = renderer.GetCurrentFrameIndex();
 
             m_TransformBuffers[currentFrameIndex].Buffer->CopyData(
-                cmdBuffer,
+                cmdBuffer->GetVkCommandBuffer(),
                 m_TransformBuffers[currentFrameIndex].Data, totalSizeBytes, 0);
 
             u32 numLights = m_NumLights[currentFrameIndex];
             if (m_LightBuffersGPU[currentFrameIndex]->GetSize() < numLights * sizeof(LightGPUData))
             {
                 m_LightBuffersGPU[currentFrameIndex]->Grow(
-                    cmdBuffer,
+                    cmdBuffer->GetVkCommandBuffer(),
                     4 + numLights * sizeof(LightGPUData) * 2, false);
             }
 
             // TODO: Mayby reduce this to a since copy instead of two
             // (dunno if it's really necessary tho. need to test)
             m_LightBuffersGPU[currentFrameIndex]->CopyData(
-                cmdBuffer, &numLights,
+                cmdBuffer->GetVkCommandBuffer(), &numLights,
                 sizeof(u32), 0);
             m_LightBuffersGPU[currentFrameIndex]->CopyData(
-                cmdBuffer, m_LightsCPU[currentFrameIndex].data(),
+                cmdBuffer->GetVkCommandBuffer(), m_LightsCPU[currentFrameIndex].data(),
                 numLights * sizeof(LightGPUData), 4);
 
-            renderer.PushLabel(cmdBuffer, "Frame");
+            cmdBuffer->PushLabel("Frame");
             m_FrameGraph->Execute(cmdBuffer, this);
-            renderer.PopLabel(cmdBuffer);
+            cmdBuffer->PopLabel();
         };
     if (renderer.IsAsync())
         renderer.AddRenderTask(renderTask);

@@ -1,9 +1,10 @@
 #include "lnepch.h"
 #include "Framebuffer.h"
-#include "GfxContext.h"
-#include "Graphics/Resources/Texture.h"
 #include "Engine/Core/Utils/_Defines.h"
 #include "Engine/Core/Utils/Log.h"
+#include "Graphics/GfxContext.h"
+#include "Graphics/CommandBuffer.h"
+#include "Graphics/Resources/Texture.h"
 
 namespace lne
 {
@@ -52,7 +53,7 @@ void Framebuffer::ChangeColorAttachmentsOps(vk::AttachmentLoadOp loadOp, vk::Att
     }
 }
 
-void Framebuffer::Bind(vk::CommandBuffer cmdBuffer) const
+void Framebuffer::Bind(CommandBuffer* cmdBuffer) const
 {
     if (!(m_ColorAttachments.size() > 0 || m_DepthAttachment.Texture != nullptr))
         return;
@@ -101,15 +102,14 @@ void Framebuffer::Bind(vk::CommandBuffer cmdBuffer) const
         m_HasDepth ? &depthRenderingAttachmentInfo : nullptr
     };
 
-    cmdBuffer.beginRendering(renderingInfo);
+    cmdBuffer->GetVkCommandBuffer().beginRendering(renderingInfo);
 }
 
-void Framebuffer::Unbind(vk::CommandBuffer cmdBuffer) const
+void Framebuffer::Unbind(CommandBuffer* cmdBuffer) const
 {
     if (!(m_ColorAttachments.size() > 0 || m_DepthAttachment.Texture != nullptr))
         return;
-    cmdBuffer.endRendering();
-
+    cmdBuffer->GetVkCommandBuffer().endRendering();
     for (const auto& attachment : m_ColorAttachments)
         attachment.Texture->TransitionLayout(cmdBuffer, attachment.FinalLayout);
 

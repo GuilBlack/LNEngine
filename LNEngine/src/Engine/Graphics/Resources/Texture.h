@@ -6,6 +6,7 @@
 
 namespace lne
 {
+class CommandBuffer;
 
 class Texture : public RefCountBase
 {
@@ -73,7 +74,8 @@ public:
     [[nodiscard]] bool                      IsDepth();
     [[nodiscard]] bool                      IsStencil();
 
-    inline void                             TransitionLayout(vk::CommandBuffer cmdBuffer,
+    // TODO: Move all the TransitionLayout methods to CommandBuffer.
+    inline void                             TransitionLayout(CommandBuffer* cmdBuffer,
                                                              vk::ImageLayout newLayout,
                                                              u32 srcQueueFamily = VK_QUEUE_FAMILY_IGNORED,
                                                              u32 dstQueueFamily = VK_QUEUE_FAMILY_IGNORED)
@@ -81,7 +83,7 @@ public:
         TransitionLayout(cmdBuffer, m_Layout, newLayout, 0, m_MipLevels, 0, m_NumLayers, srcQueueFamily, dstQueueFamily, true);
     }
 
-    inline void                             TransitionLayoutMips(vk::CommandBuffer cmdBuffer, 
+    inline void                             TransitionLayoutMips(CommandBuffer* cmdBuffer, 
                                                                  vk::ImageLayout oldLayout, vk::ImageLayout newLayout,
                                                                  u32 baseMip, u32 mipLevels,
                                                                  u32 srcQueueFamily = VK_QUEUE_FAMILY_IGNORED,
@@ -90,7 +92,7 @@ public:
         TransitionLayout(cmdBuffer, oldLayout, newLayout, baseMip, mipLevels, 0, m_NumLayers, srcQueueFamily, dstQueueFamily, false);
     }
 
-    inline void                             TransitionLayoutLayers(vk::CommandBuffer cmdBuffer, 
+    inline void                             TransitionLayoutLayers(CommandBuffer* cmdBuffer, 
                                                                    vk::ImageLayout oldLayout, vk::ImageLayout newLayout, 
                                                                    u32 baseLayer, u32 numLayers,
                                                                    u32 srcQueueFamily = VK_QUEUE_FAMILY_IGNORED,
@@ -99,20 +101,19 @@ public:
         TransitionLayout(cmdBuffer, oldLayout, newLayout, 0, m_MipLevels, baseLayer, numLayers, srcQueueFamily, dstQueueFamily, false);
     }
 
-    void                                    TransitionLayout(vk::CommandBuffer cmdBuffer,
+    void                                    TransitionLayout(CommandBuffer* cmdBuffer,
                                                              vk::ImageLayout oldLayout, vk::ImageLayout newLayout,
                                                              u32 baseMip, u32 mipLevels,
                                                              u32 baseLayer, u32 numLayers,
                                                              u32 srcQueueFamily, u32 dstQueueFamily,
                                                              bool changeTextureLayout);
 
-    void                                    GenerateMipmaps(vk::CommandBuffer cmdBuffer);
     vk::ImageView                           CreateImageViewForMip(u32 mipLevel) const;
 
     void                                    UploadData(const void* data);
 
     // TODO: remove the autoTransitionLayout parameter. It shouldn't be the responsibility of this method.
-    void                                    UploadData(vk::CommandBuffer cmdBuffer,
+    void                                    UploadData(CommandBuffer* cmdBuffer,
                                                        BufferAllocation stagingBuffer, const void* data,
                                                        s32 size = -1, bool autoTransitionLayout = true);
 
@@ -141,6 +142,7 @@ private:
 
     friend class Renderer;
     friend class GfxLoader;
+    friend class CommandBuffer;
 
 private:
     constexpr u32                           FormatToBytesPerPixel(vk::Format format);

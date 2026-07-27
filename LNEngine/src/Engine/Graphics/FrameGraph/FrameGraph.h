@@ -247,7 +247,7 @@ public:
     [[nodiscard]] const FrameGraphNode*             GetNode(const std::string& name) const { return m_NodeCache.Access(name); }
 
     void                                            Compile();
-    void                                            Execute(vk::CommandBuffer commandBuffer,
+    void                                            Execute(CommandBuffer* commandBuffer,
                                                             class WorldRenderer* worldRenderer);
     void                                            OnResize(class WindowResizeEvent& e);
 

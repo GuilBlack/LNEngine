@@ -123,11 +123,6 @@ public:
                                                              SafePtr<class ComputeProgram> program, 
                                                              u32 x, u32 y, u32 z);
 
-    void                                            Blit(vk::CommandBuffer cmdBuffer, 
-                                                         SafePtr<class Texture> src, 
-                                                         SafePtr<class Texture> dst);
-
-
     // TODO: move to a resource manager
     [[nodiscard]] SafePtr<class GfxPipeline>        CreateGraphicsPipeline(const struct GraphicsPipelineDesc& createInfo);
     [[nodiscard]] SafePtr<class StorageBuffer>      CreateGeometryBuffer(const void* data, size_t size);
@@ -220,7 +215,7 @@ private:
 
 private:
     void                                            InitFrameData(u32 index);
-    void                                            UpdateTextures(vk::CommandBuffer cmdBuffer);
+    void                                            UpdateTextures(CommandBuffer* cmdBuffer);
 
     // grows the material table bank for the effect
     void                                            ProcessDirtyEffects(vk::CommandBuffer cmdBuffer);

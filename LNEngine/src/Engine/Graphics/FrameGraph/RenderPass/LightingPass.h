@@ -14,8 +14,8 @@ public:
     }
     void OnBind(FrameGraph* frameGraph, FrameGraphNode* node) override;
     void OnResize(FrameGraph* frameGraph, FrameGraphNode* node) override;
-    void Execute(vk::CommandBuffer cmdBuffer, class WorldRenderer* worldRenderer, FrameGraph* frameGraph, FrameGraphNode* node) override;
-    void PostExecute(vk::CommandBuffer cmdBuffer, FrameGraph* frameGraph, FrameGraphNode* node) override;
+    void Execute(CommandBuffer* cmdBuffer, class WorldRenderer* worldRenderer, FrameGraph* frameGraph, FrameGraphNode* node) override;
+    void PostExecute(CommandBuffer* cmdBuffer, FrameGraph* frameGraph, FrameGraphNode* node) override;
     void OnImGuiRender() override;
     
 private:

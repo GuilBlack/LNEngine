@@ -1,14 +1,15 @@
 #include "GBufferPass.h"
 #include "Core/ApplicationBase.h"
 #include "Core/Window.h"
-#include "Graphics/WorldRenderer.h"
+#include "Graphics/GfxContext.h"
 #include "Graphics/Renderer.h"
+#include "Graphics/WorldRenderer.h"
+#include "Graphics/CommandBuffer.h"
 #include "Graphics/FrameGraph/FrameGraph.h"
 #include "Graphics/Resources/Pipeline.h"
 #include "Graphics/Resources/Material.h"
 #include "Graphics/Resources/Mesh.h"
 #include "Graphics/Resources/Texture.h"
-#include "Graphics/GfxContext.h"
 #include "Core/Utils/Profiling.h"
 
 namespace lne
@@ -55,7 +56,7 @@ void GBufferPass::BeginFrame()
     ClearDrawCommands();
 }
 
-void GBufferPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
+void GBufferPass::Execute(CommandBuffer* cmdBuffer, lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
     LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     auto& renderer = ApplicationBase::GetRenderer();
@@ -77,11 +78,11 @@ void GBufferPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* world
         drawArgs.Offset = transforms.Offset;
         drawArgs.SubMeshIndex = drawCommand.SubMeshIndex;
         drawArgs.InstanceCount = drawCommand.InstanceCount;
-        renderer.Draw(cmdBuffer, drawArgs);
+        renderer.Draw(cmdBuffer->GetVkCommandBuffer(), drawArgs);
     }
 }
 
-void GBufferPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
+void GBufferPass::PostExecute(CommandBuffer* cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
     LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     Renderer& renderer = ApplicationBase::GetRenderer();
@@ -99,7 +100,7 @@ void GBufferPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* fram
             if (m_IsDebugOpen[texture->GetName()] == false)
                 continue;
             debugTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
-            renderer.Blit(cmdBuffer, texture, debugTexture);
+            cmdBuffer->Blit(texture.GetPtr(), debugTexture.GetPtr());
             debugTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
         }
     }
@@ -115,7 +116,7 @@ void GBufferPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* fram
             if (m_IsDebugOpen[texture->GetName()] == false)
                 continue;
             debugTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
-            renderer.Blit(cmdBuffer, texture, debugTexture);
+            cmdBuffer->Blit(texture.GetPtr(), debugTexture.GetPtr());
             debugTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
         }
     }

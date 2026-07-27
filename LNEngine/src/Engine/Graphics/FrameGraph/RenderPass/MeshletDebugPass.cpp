@@ -4,9 +4,10 @@
 #include "Core/Window.h"
 #include "Core/Utils/Profiling.h"
 
-#include "Graphics/Renderer.h"
 #include "Graphics/GfxContext.h"
+#include "Graphics/Renderer.h"
 #include "Graphics/WorldRenderer.h"
+#include "Graphics/CommandBuffer.h"
 
 #include "Graphics/Resources/Mesh.h"
 #include "Graphics/Resources/Material.h"
@@ -47,7 +48,7 @@ void lne::MeshletDebugPass::OnBind(FrameGraph* frameGraph, FrameGraphNode* node)
     m_AttachedNodeRef = node;
 }
 
-void lne::MeshletDebugPass::Execute(vk::CommandBuffer cmdBuffer, class WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
+void lne::MeshletDebugPass::Execute(CommandBuffer* cmdBuffer, class WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
     LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     auto& renderer = ApplicationBase::GetRenderer();
@@ -71,11 +72,11 @@ void lne::MeshletDebugPass::Execute(vk::CommandBuffer cmdBuffer, class WorldRend
         drawArgs.InstanceCount = drawCommand.InstanceCount;
 
         auto& submesh = mesh->GetSubMeshes()[drawCommand.SubMeshIndex];
-        renderer.DrawMeshlets(cmdBuffer, drawArgs, m_Material);
+        renderer.DrawMeshlets(cmdBuffer->GetVkCommandBuffer(), drawArgs, m_Material);
     }
 }
 
-void lne::MeshletDebugPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
+void lne::MeshletDebugPass::PostExecute(CommandBuffer* cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
 }
 

@@ -2,11 +2,15 @@
 #include "Enums.h"
 #include "Engine/Core/SafePtr.h"
 #include "Engine/Core/Utils/Defines.h"
+#include "Engine/Core/DataStructures/ObjectPool.h"
+#include "CommandBuffer.h"
 
 namespace lne
 {
 class GfxContext;
 class Framebuffer;
+using CommandBufferHandle = ObjectPoolHandle;
+
 struct FrameCommands
 {
     std::vector<vk::CommandBuffer>  CommandBuffers;
@@ -18,7 +22,7 @@ public:
     CommandPoolManager(GfxContext* ctx, u32 numThreads);
     ~CommandPoolManager();
 
-    vk::CommandBuffer               BeginOrGetPrimaryFrameCommandBuffer(u32 frameIndex);
+    CommandBuffer*                  BeginOrGetPrimaryFrameCommandBuffer(u32 frameIndex);
 
     /**
      * Begins a render pass command buffer.
@@ -27,13 +31,13 @@ public:
      * @param frameIndex The index of the current frame in flight.
      * @param fb The framebuffer to use for the render pass.
      */
-    vk::CommandBuffer               BeginRenderPassCommandBuffer(u32 frameIndex,
+    CommandBuffer*                  BeginRenderPassCommandBuffer(u32 frameIndex,
                                                                  Framebuffer* fb = nullptr);
     void                            ResetFrameCommands(u32 frameIndex);
 
     [[nodiscard]] FrameCommands     EndFrame(u32 frameIndex);
 
-    [[nodiscard]] vk::CommandBuffer BeginOrGetSingleUseCommandBuffer(EQueueFamilyType queueFamily);
+    [[nodiscard]] CommandBuffer*    BeginOrGetSingleUseCommandBuffer(EQueueFamilyType queueFamily);
 
     void                            EndSingleUseCommandBuffer(
         EQueueFamilyType queueFamily, 
@@ -43,11 +47,12 @@ public:
 private:
     struct ThreadCommandContext
     {
-        vk::CommandPool                 CommandPool{};
-        vk::CommandBuffer               PrimaryCommandBuffer{};
-        bool                            IsPrimaryCommandBufferUsed{ false };
-        std::vector<vk::CommandBuffer>  SecondaryCommandBuffers{}; // associated with render passes
-        u32                             CurrentSecondaryIndex{ 0 };
+        vk::CommandPool                     CommandPool{};
+        ObjectPool<CommandBuffer>           CommandBuffers{};
+        CommandBufferHandle                 PrimaryCommandBuffer{};
+        bool                                IsPrimaryCommandBufferUsed{ false };
+        std::vector<CommandBufferHandle>    SecondaryCommandBuffers{}; // associated with render passes
+        u32                                 CurrentSecondaryIndex{ 0 };
     };
 
     struct ThreadIdIndex
@@ -96,8 +101,8 @@ private:
             }
             return *this;
         }
-
     };
+
     struct SingleUseCommandContext
     {
         std::vector<ThreadCommandContext>       ThreadContexts{};
@@ -108,6 +113,8 @@ private:
     };
 
     GfxContext*                         m_Context;
+    ObjectPool<CommandBuffer>           m_CommandBufferPool{};
+    std::mutex                          m_CommandBufferPoolMutex{};
 
     std::vector<FrameCommandContext>    m_GraphicsFrameContexts{};
     SingleUseCommandContext             m_GraphicsSingleUseContext{};
@@ -118,14 +125,10 @@ private:
     void                                    InitSingleUseContext(SingleUseCommandContext& context,
                                                                  u32 numThreads, 
                                                                  EQueueFamilyType queueFamily);
-
     void                                    NukeSingleUseContext(SingleUseCommandContext& context);
+
     void                                    InitFrameContext(u32 numThreads);
     void                                    NukeFrameContext();
-
-    [[nodiscard]] vk::CommandBuffer         AllocateCommandBuffer(
-        vk::CommandPool pool, vk::CommandBufferLevel level,
-        std::string_view cbName = "CommandBuffer");
 
     [[nodiscard]] SingleUseCommandContext* ChooseSingleUseContext(
         EQueueFamilyType queueFamily);

@@ -15,6 +15,7 @@
 namespace lne
 {
 class Texture;
+class CommandBuffer;
 
 struct QueueFamilyIndices
 {
@@ -106,7 +107,7 @@ public:
     [[nodiscard]] vk::CommandPool           CreateCommandPool(u32 queueFamilyIndex,
                                                               vk::CommandPoolCreateFlags flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer) const;
 
-    [[nodiscard]] vk::CommandBuffer         GetPrimaryCommandBuffer() const;
+    [[nodiscard]] CommandBuffer*            GetPrimaryCommandBuffer() const;
 #pragma endregion
 
 #pragma region Images

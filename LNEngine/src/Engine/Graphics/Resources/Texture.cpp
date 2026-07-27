@@ -222,143 +222,13 @@ bool Texture::IsStencil()
     return vkut::IsStencilFormat(m_Format);
 }
 
-void Texture::TransitionLayout(vk::CommandBuffer cmdBuffer, vk::ImageLayout oldLayout, vk::ImageLayout newLayout,
+void Texture::TransitionLayout(CommandBuffer* cmdBuffer, vk::ImageLayout oldLayout, vk::ImageLayout newLayout,
     u32 baseMip, u32 mipLevels,
     u32 baseLayer, u32 numLayers,
     u32 srcQueueFamily, u32 dstQueueFamily,
     bool changeTextureLayout)
 {
-    vk::AccessFlags srcAccessMask = vk::AccessFlagBits::eNone;
-    vk::AccessFlags dstAccessMask = vk::AccessFlagBits::eNone;
-    vk::PipelineStageFlags sourceStage = vk::PipelineStageFlagBits::eTopOfPipe;
-    vk::PipelineStageFlags destinationStage = vk::PipelineStageFlagBits::eBottomOfPipe;
-
-    static constexpr vk::PipelineStageFlags depthStageMask =
-        (vk::PipelineStageFlagBits)0 | vk::PipelineStageFlagBits::eEarlyFragmentTests |
-        vk::PipelineStageFlagBits::eLateFragmentTests;
-
-    static constexpr vk::PipelineStageFlags sampledStageMask =
-        (vk::PipelineStageFlagBits)0 | vk::PipelineStageFlagBits::eVertexShader | vk::PipelineStageFlagBits::eFragmentShader |
-        vk::PipelineStageFlagBits::eComputeShader;
-
-    switch (oldLayout)
-    {
-    case vk::ImageLayout::eUndefined:
-        break;
-
-    case vk::ImageLayout::eGeneral:
-        sourceStage = vk::PipelineStageFlagBits::eAllCommands;
-        srcAccessMask = vk::AccessFlagBits::eMemoryWrite;
-        break;
-
-    case vk::ImageLayout::eColorAttachmentOptimal:
-        sourceStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-        srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-        break;
-
-    case vk::ImageLayout::eDepthStencilAttachmentOptimal:
-        sourceStage = depthStageMask;
-        srcAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
-        break;
-
-    case vk::ImageLayout::eDepthStencilReadOnlyOptimal:
-        sourceStage = depthStageMask | sampledStageMask;
-        break;
-
-    case vk::ImageLayout::eShaderReadOnlyOptimal:
-        sourceStage = sampledStageMask;
-        break;
-
-    case vk::ImageLayout::eTransferSrcOptimal:
-        sourceStage = vk::PipelineStageFlagBits::eTransfer;
-        break;
-
-    case vk::ImageLayout::eTransferDstOptimal:
-        sourceStage = vk::PipelineStageFlagBits::eTransfer;
-        srcAccessMask = vk::AccessFlagBits::eTransferWrite;
-        break;
-
-    case vk::ImageLayout::ePreinitialized:
-        sourceStage = vk::PipelineStageFlagBits::eHost;
-        srcAccessMask = vk::AccessFlagBits::eHostWrite;
-        break;
-
-    case vk::ImageLayout::ePresentSrcKHR:
-        break;
-
-    default:
-        LNE_ASSERT(false, "Unknown image layout.");
-        break;
-    }
-
-    switch (newLayout)
-    {
-    case vk::ImageLayout::eGeneral:
-    case vk::ImageLayout::eFragmentDensityMapOptimalEXT:
-        destinationStage = vk::PipelineStageFlagBits::eAllCommands;
-        dstAccessMask = vk::AccessFlagBits::eMemoryRead | vk::AccessFlagBits::eMemoryWrite;
-        break;
-
-    case vk::ImageLayout::eColorAttachmentOptimal:
-        destinationStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-        dstAccessMask =
-            vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite;
-        break;
-
-    case vk::ImageLayout::eDepthStencilAttachmentOptimal:
-        destinationStage = depthStageMask;
-        dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentRead |
-            vk::AccessFlagBits::eDepthStencilAttachmentWrite;
-        break;
-
-    case vk::ImageLayout::eDepthStencilReadOnlyOptimal:
-        destinationStage = depthStageMask | sampledStageMask;
-        dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentRead |
-            vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eInputAttachmentRead;
-        break;
-
-    case vk::ImageLayout::eShaderReadOnlyOptimal:
-        destinationStage = sampledStageMask;
-        dstAccessMask = vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eInputAttachmentRead;
-        break;
-
-    case vk::ImageLayout::eTransferSrcOptimal:
-        destinationStage = vk::PipelineStageFlagBits::eTransfer;
-        dstAccessMask = vk::AccessFlagBits::eTransferRead;
-        break;
-
-    case vk::ImageLayout::eTransferDstOptimal:
-        destinationStage = vk::PipelineStageFlagBits::eTransfer;
-        dstAccessMask = vk::AccessFlagBits::eTransferWrite;
-        break;
-
-    case vk::ImageLayout::ePresentSrcKHR:
-        break;
-
-    default:
-        LNE_ASSERT(false, "Unknown image layout.");
-        break;
-    }
-
-    const vk::ImageAspectFlags aspectMask =
-        IsDepth() ? vk::ImageAspectFlagBits::eDepth
-        : (IsStencil() ? vk::ImageAspectFlagBits::eStencil : vk::ImageAspectFlagBits::eColor);
-
-    vk::ImageMemoryBarrier barrier(
-        srcAccessMask,
-        dstAccessMask,
-        oldLayout,
-        newLayout,
-        srcQueueFamily,
-        dstQueueFamily,
-        m_Allocation.Image,
-        vk::ImageSubresourceRange(aspectMask, baseMip, mipLevels, baseLayer, numLayers)
-    );
-
-    cmdBuffer.pipelineBarrier(sourceStage, destinationStage, vk::DependencyFlags(), nullptr, nullptr, barrier);
-
-    if (changeTextureLayout)
-        m_Layout = newLayout;
+    cmdBuffer->TransitionLayout(this, oldLayout, newLayout, baseMip, mipLevels, baseLayer, numLayers, srcQueueFamily, dstQueueFamily, changeTextureLayout);
 }
 
 void Texture::UploadData(const void* data)
@@ -377,7 +247,7 @@ void Texture::UploadData(const void* data)
     memcpy(stagingBuffer.AllocationInfo.pMappedData, data, imageSize);
 
     auto& cpManager = m_Context->GetCommandPoolManager();
-    vk::CommandBuffer cmdBuffer = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Transfer);
+    CommandBuffer* cmdBuffer = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Transfer);
 
     TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferDstOptimal);
 
@@ -400,21 +270,21 @@ void Texture::UploadData(const void* data)
         });
     }
 
-    cmdBuffer.copyBufferToImage(stagingBuffer.Buffer, m_Allocation.Image, vk::ImageLayout::eTransferDstOptimal, regions);
+    cmdBuffer->CopyBufferToImage(stagingBuffer, this, vk::ImageLayout::eTransferDstOptimal, regions);
 
     cpManager.EndSingleUseCommandBuffer(EQueueFamilyType::Transfer);
 
     m_Context->FreeBufferAllocation(stagingBuffer);
 
     cmdBuffer = ApplicationBase::GetRenderer().GetGfxContext()->GetPrimaryCommandBuffer();
-    
-    if (m_GenerateMips)
-        GenerateMipmaps(cmdBuffer);
 
-    TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
+    if (m_GenerateMips)
+        cmdBuffer->GenerateMips(this);
+
+    cmdBuffer->TransitionLayout(this, vk::ImageLayout::eShaderReadOnlyOptimal);
 }
 
-void Texture::UploadData(vk::CommandBuffer cmdBuffer, BufferAllocation stagingBuffer, const void* data, s32 size, bool autoTransitionLayout)
+void Texture::UploadData(CommandBuffer* cmdBuffer, BufferAllocation stagingBuffer, const void* data, s32 size, bool autoTransitionLayout)
 {
     u64 imageSize{};
     u32 bytesPerPixel{};
@@ -436,7 +306,7 @@ void Texture::UploadData(vk::CommandBuffer cmdBuffer, BufferAllocation stagingBu
     memcpy(stagingBuffer.AllocationInfo.pMappedData, data, imageSize);
 
     if (autoTransitionLayout)
-        TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferDstOptimal);
+        cmdBuffer->TransitionLayout(this, vk::ImageLayout::eTransferDstOptimal);
 
     std::vector<vk::BufferImageCopy> regions;
     for (u32 layer = 0; layer < m_NumLayers; layer++)
@@ -457,12 +327,13 @@ void Texture::UploadData(vk::CommandBuffer cmdBuffer, BufferAllocation stagingBu
         });
     }
 
-    cmdBuffer.copyBufferToImage(stagingBuffer.Buffer, m_Allocation.Image, vk::ImageLayout::eTransferDstOptimal, regions);
+    cmdBuffer->CopyBufferToImage(stagingBuffer, this, vk::ImageLayout::eTransferDstOptimal, regions);
 
     if (autoTransitionLayout)
     {
-    TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferDstOptimal,
-        m_Context->GetQueueFamilyIndex(EQueueFamilyType::Transfer), m_Context->GetQueueFamilyIndex(EQueueFamilyType::Graphics));
+        TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferDstOptimal,
+                         m_Context->GetQueueFamilyIndex(EQueueFamilyType::Transfer),
+                         m_Context->GetQueueFamilyIndex(EQueueFamilyType::Graphics));
     }
 }
 
@@ -524,41 +395,6 @@ constexpr u32 Texture::FormatToBytesPerPixel(vk::Format format)
     default:
         LNE_ASSERT(false, "Unsupported format, must implement it");
         return 0;
-    }
-}
-
-void Texture::GenerateMipmaps(vk::CommandBuffer cmdBuffer)
-{
-    TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferSrcOptimal);
-
-    s32 width = m_Extents.width;
-    s32 height = m_Extents.height;
-
-    for (u32 i = 1; i < m_MipLevels; i++)
-    {
-        TransitionLayoutMips(cmdBuffer, m_Layout, vk::ImageLayout::eTransferDstOptimal, i, 1);
-        vk::ImageBlit blit{};
-        blit.srcSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
-        blit.srcSubresource.layerCount = m_NumLayers;
-        blit.srcSubresource.mipLevel = i - 1;
-        blit.srcOffsets[1] = vk::Offset3D{ width, height, 1 };
-
-        width = std::max(1, width >> 1);
-        height = std::max(1, height >> 1);
-
-        blit.dstSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
-        blit.dstSubresource.layerCount = m_NumLayers;
-        blit.dstSubresource.mipLevel = i;
-        blit.dstOffsets[1] = vk::Offset3D{ width, height, 1 };
-
-        cmdBuffer.blitImage(
-            m_Allocation.Image, vk::ImageLayout::eTransferSrcOptimal,
-            m_Allocation.Image, vk::ImageLayout::eTransferDstOptimal,
-            blit,
-            vk::Filter::eLinear
-        );
-
-        TransitionLayoutMips(cmdBuffer, vk::ImageLayout::eTransferDstOptimal, m_Layout, i, 1);
     }
 }
 

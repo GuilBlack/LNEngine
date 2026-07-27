@@ -129,7 +129,7 @@ void FrameGraph::Compile()
     }
 }
 
-void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRenderer)
+void FrameGraph::Execute(CommandBuffer* commandBuffer, WorldRenderer* worldRenderer)
 {
     LNE_PROFILE_FUNCTION_C(PROFILING_COL);
     // init the command buffers for each nodes
@@ -170,7 +170,7 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRe
     //set.m_Priority = enki::TASK_PRIORITY_MED;
     //ApplicationBase::GetTaskScheduler()->AddTaskSetToPipe(&set);
     //ApplicationBase::GetTaskScheduler()->WaitforTask(&set);
-
+    auto vkCmdBuffer = commandBuffer->GetVkCommandBuffer();
     for (u32 i = 0; i < m_Nodes.size(); ++i)
     {
         FrameGraphNodeHandle nodeHandle = m_Nodes[i];
@@ -181,7 +181,7 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRe
 
         const std::string scopeName = "Execute Render Pass: " + node->Name;
         LNE_PROFILE_SCOPE_STR_C(scopeName, PROFILING_COL)
-        renderer.PushLabel(commandBuffer, node->Name);
+        commandBuffer->PushLabel(node->Name);
 
         for (FrameGraphResourceHandle inputResourceHandle : node->InputResources)
         {
@@ -192,7 +192,7 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRe
             case FrameGraphResourceType::eTexture:
             {
                 SafePtr<Texture> texture = inputResource->Resource.GetAs<Texture>();
-                texture->TransitionLayout(commandBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
+                commandBuffer->TransitionLayout(texture.GetPtr(), vk::ImageLayout::eShaderReadOnlyOptimal);
                 break;
             }
             default:
@@ -205,9 +205,9 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRe
             vk::Viewport viewport = { 0.0f, 0.0f, (float)extent.width, (float)extent.height, 0.0f, 1.0f };
             viewport.y += viewport.height;
             viewport.height *= -1;
-            commandBuffer.setViewport(0, viewport);
+            commandBuffer->SetViewport(viewport);
             vk::Rect2D scissor = { {0, 0}, vk::Extent2D{ extent.width, extent.height } };
-            commandBuffer.setScissor(0, scissor);
+            commandBuffer->SetScissor(scissor);
         }
 
         LNE_ASSERT(node->RenderPass != nullptr, "Node has no render pass");
@@ -224,7 +224,7 @@ void FrameGraph::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRe
             node->Framebuffer.Unbind(commandBuffer);
         node->RenderPass->PostExecute(commandBuffer, this, node);
 
-        renderer.PopLabel(commandBuffer);
+        commandBuffer->PopLabel();
     }
 }
 

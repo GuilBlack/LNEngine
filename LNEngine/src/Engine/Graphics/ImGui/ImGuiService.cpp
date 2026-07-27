@@ -376,15 +376,15 @@ void ImGuiService::EndFrame()
                 LNE_PROFILE_SCOPE("ImGui Render");
                 u32 imageIndex = m_Swapchain->GetCurrentFrameIndex();
                 auto& renderer = ApplicationBase::GetRenderer();
-                auto cmdBuffer = m_GraphicsContext->GetPrimaryCommandBuffer();
+                CommandBuffer* cmdBuffer = m_GraphicsContext->GetPrimaryCommandBuffer();
 
-                renderer.PushLabel(cmdBuffer, "ImGui");
+                cmdBuffer->PushLabel("ImGui");
                 m_Framebuffers[imageIndex].Bind(cmdBuffer);
 
-                RenderDrawData(ddCopy, cmdBuffer);
+                RenderDrawData(ddCopy, cmdBuffer->GetVkCommandBuffer());
 
                 m_Framebuffers[imageIndex].Unbind(cmdBuffer);
-                renderer.PopLabel(cmdBuffer);
+                cmdBuffer->PopLabel();
             };
 
         if (renderer.IsAsync())

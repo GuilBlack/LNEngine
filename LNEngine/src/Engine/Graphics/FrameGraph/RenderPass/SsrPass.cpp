@@ -4,6 +4,7 @@
 
 #include "Graphics/Renderer.h"
 #include "Graphics/WorldRenderer.h"
+#include "Graphics/CommandBuffer.h"
 #include "Graphics/FrameGraph/FrameGraph.h"
 #include "Graphics/Resources/GfxTechnique.h"
 #include "Graphics/Resources/Effect.h"
@@ -69,13 +70,13 @@ void SsrPass::OnBind(FrameGraph* frameGraph, FrameGraphNode* node)
     }
 }
 
-void SsrPass::Execute(vk::CommandBuffer cmdBuffer, class WorldRenderer* worldRenderer, FrameGraph* frameGraph, FrameGraphNode* node)
+void SsrPass::Execute(CommandBuffer* cmdBuffer, class WorldRenderer* worldRenderer, FrameGraph* frameGraph, FrameGraphNode* node)
 {
     LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL);
 
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
     auto lightBuffer = worldRenderer->GetLightBufferGPU(renderer.GetCurrentFrameIndex());
-    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, lightBuffer, GetID());
+    renderer.DrawFullscreenQuad(cmdBuffer->GetVkCommandBuffer(), m_Material, lightBuffer, GetID());
 }
 
 void SsrPass::OnResize(FrameGraph* frameGraph, FrameGraphNode* node)

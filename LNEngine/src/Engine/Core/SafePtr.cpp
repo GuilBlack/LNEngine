@@ -1,10 +1,15 @@
 #include "lnepch.h"
 #include "SafePtr.h"
 #include "Engine/Core/Utils/Log.h"
+#include "Engine/Core/DataStructures/FlatHashClasses.h"
 //#define SAFEPTR_DEBUG
 
 namespace lne
 {
+
+FlatHashMap<const void*, std::string> g_RefCountDebugNames{};
+std::mutex g_RefCountDebugNamesMutex;
+
 #ifdef LNE_DEBUG
 void RefCountBase::Capture() const
 {
@@ -13,7 +18,10 @@ void RefCountBase::Capture() const
 #ifdef SAFEPTR_DEBUG
         LNE_TRACE("Reference {}: {}", typeid(*this).name(), GetDebugName());
 #endif // LNE_DEBUG
-
+        std::lock_guard<std::mutex> lock(g_RefCountDebugNamesMutex);
+        if (g_RefCountDebugNames.find((const void*)this) != g_RefCountDebugNames.end())
+            LNE_ERROR("Reference count debug name already exists for {}: {}", typeid(*this).name(), GetDebugName());
+        g_RefCountDebugNames[(const void*)this] = std::string(GetDebugName());
     }
 }
 
@@ -25,8 +33,11 @@ u32 RefCountBase::Release() const
     {
 #ifdef SAFEPTR_DEBUG
         LNE_TRACE("Delete {}: {}", typeid(*this).name(), GetDebugName());
-#endif // 
-
+#endif //
+        std::lock_guard<std::mutex> lock(g_RefCountDebugNamesMutex);
+        if (g_RefCountDebugNames.find((const void*)this) == g_RefCountDebugNames.end())
+            LNE_ERROR("Reference count debug name not found for {}: {}", typeid(*this).name(), GetDebugName());
+        g_RefCountDebugNames.erase((const void*)this);
     }
     return newCount;
 }

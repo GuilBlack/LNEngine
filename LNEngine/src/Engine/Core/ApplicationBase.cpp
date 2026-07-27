@@ -110,7 +110,7 @@ void ApplicationBase::Run()
     auto graphicsContext = m_Renderer->GetGfxContext();
     CommandPoolManager& cpManager = graphicsContext->GetCommandPoolManager();
     cpManager.ResetFrameCommands(0);
-    vk::CommandBuffer cb = cpManager.BeginOrGetPrimaryFrameCommandBuffer(0);
+    vk::CommandBuffer cb = cpManager.BeginOrGetPrimaryFrameCommandBuffer(0)->GetVkCommandBuffer();
     graphicsContext->UploadDefaultResources();
     m_Renderer->InitResources();
     m_ImGuiService->CreateFontsTexture();

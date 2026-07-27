@@ -217,7 +217,7 @@ private:
 
     // A map of uniform metadata. This should be populated during shader reflection.
     FlatHashMap<std::string, UniformElement>                m_ProgramConstants;
-    FlatHashMap<u32, SafePtr<UniformBuffer>>           m_UniformBuffers;
+    FlatHashMap<u32, SafePtr<UniformBuffer>>                m_UniformBuffers;
     FlatHashMap<std::string, SafePtr<Texture>>              m_Textures;
 
     friend class Renderer;

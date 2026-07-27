@@ -2,6 +2,7 @@
 
 #include "Graphics/WorldRenderer.h"
 #include "Graphics/Renderer.h"
+#include "Graphics/CommandBuffer.h"
 
 #include "Graphics/FrameGraph/FrameGraph.h"
 
@@ -18,7 +19,7 @@ ScenePyramidPass::ScenePyramidPass(std::string_view passName, std::string_view i
     m_InputTextureName = inputTextureName;
 }
 
-void ScenePyramidPass::Execute(vk::CommandBuffer cmdBuffer, class WorldRenderer* worldRenderer, FrameGraph* frameGraph, FrameGraphNode* node)
+void ScenePyramidPass::Execute(CommandBuffer* cmdBuffer, class WorldRenderer* worldRenderer, FrameGraph* frameGraph, FrameGraphNode* node)
 {
     SafePtr<Texture> sceneTexture;
     for (auto res : node->InputResources)
@@ -32,7 +33,7 @@ void ScenePyramidPass::Execute(vk::CommandBuffer cmdBuffer, class WorldRenderer*
         }
     }
     if (sceneTexture)
-        sceneTexture->GenerateMipmaps(cmdBuffer);
+        cmdBuffer->GenerateMips(sceneTexture.GetPtr());
 }
 }
 

@@ -9,7 +9,7 @@ AppLayer::FinalPass::FinalPass()
     m_OutputTexture = lne::Texture::CreateColorAttachmentTexture(context, 1920, 1080, vk::Format::eR8G8B8A8Unorm, TextureUsageType::eSampledAndStorage, "Test");
 }
 
-void AppLayer::FinalPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worldRenderer, 
+void AppLayer::FinalPass::Execute(lne::CommandBuffer* cmdBuffer, lne::WorldRenderer* worldRenderer, 
     lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
     m_OutputTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
@@ -23,7 +23,7 @@ void AppLayer::FinalPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRendere
         return;
     }
     lne::SafePtr<lne::Texture> colorTexture = colorResource->Resource.GetAs<lne::Texture>();
-    renderer.Blit(cmdBuffer, colorTexture, renderTexture);
+    cmdBuffer->Blit(colorTexture.GetPtr(), renderTexture.GetPtr());
 }
 
 void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
@@ -66,7 +66,7 @@ void AppLayer::SkyboxPass::OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNo
     }
 }
 
-void AppLayer::SkyboxPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worldRenderer,
+void AppLayer::SkyboxPass::Execute(lne::CommandBuffer* cmdBuffer, lne::WorldRenderer* worldRenderer,
     lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
     LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL);
@@ -78,10 +78,10 @@ void AppLayer::SkyboxPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRender
 
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
     auto lightBuffer = worldRenderer->GetLightBufferGPU(renderer.GetCurrentFrameIndex());
-    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, lightBuffer, GetID());
+    renderer.DrawFullscreenQuad(cmdBuffer->GetVkCommandBuffer(), m_Material, lightBuffer, GetID());
 }
 
-void AppLayer::SkyboxPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
+void AppLayer::SkyboxPass::PostExecute(lne::CommandBuffer* cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
     using namespace lne;
     if (m_IsDebugOpen == false)
@@ -98,7 +98,7 @@ void AppLayer::SkyboxPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGr
                 continue;
             SafePtr<Texture> debugTexture = m_DebugTexture;
             debugTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
-            renderer.Blit(cmdBuffer, texture, debugTexture);
+            cmdBuffer->Blit(texture.GetPtr(), debugTexture.GetPtr());
             debugTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
         }
     }
@@ -170,7 +170,7 @@ void AppLayer::ToneMappingPass::OnResize(lne::FrameGraph* frameGraph, lne::Frame
     }
 }
 
-void AppLayer::ToneMappingPass::Execute(vk::CommandBuffer cmdBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
+void AppLayer::ToneMappingPass::Execute(lne::CommandBuffer* cmdBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
     LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     lne::Renderer& renderer = lne::ApplicationBase::GetRenderer();
@@ -180,10 +180,10 @@ void AppLayer::ToneMappingPass::Execute(vk::CommandBuffer cmdBuffer, class lne::
         lne::SafePtr<lne::Texture> sceneTexture = resource->Resource.GetAs<lne::Texture>();
     }
     auto lightBuffer = worldRenderer->GetLightBufferGPU(renderer.GetCurrentFrameIndex());
-    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, lightBuffer, GetID());
+    renderer.DrawFullscreenQuad(cmdBuffer->GetVkCommandBuffer(), m_Material, lightBuffer, GetID());
 }
 
-void AppLayer::ToneMappingPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
+void AppLayer::ToneMappingPass::PostExecute(lne::CommandBuffer* cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
     using namespace lne;
     if (m_IsDebugOpen == false)
@@ -200,7 +200,7 @@ void AppLayer::ToneMappingPass::PostExecute(vk::CommandBuffer cmdBuffer, lne::Fr
                 continue;
             SafePtr<Texture> debugTexture = m_DebugTexture;
             debugTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
-            renderer.Blit(cmdBuffer, texture, debugTexture);
+            cmdBuffer->Blit(texture.GetPtr(), debugTexture.GetPtr());
             debugTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
         }
     }

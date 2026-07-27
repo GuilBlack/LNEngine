@@ -268,7 +268,7 @@ lne::SafePtr<class WorldEnvironment> GfxLoader::CreateEnvironmentMap(std::string
     return env;
 }
 
-void GfxLoader::InitStaticStorageBuffer(SafePtr<class StorageBuffer> buffer, const void* data)
+void GfxLoader::InitStaticStorageBuffer(SafePtr<StorageBuffer> buffer, const void* data)
 {
     UploadRequest request{
         .Type = ResourceTypes::eBuffer,
@@ -321,7 +321,7 @@ void GfxLoader::ProcessUploadRequests()
     }
 
     auto& cpManager = m_GraphicsContext->GetCommandPoolManager();
-    vk::CommandBuffer cb = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Transfer);
+    CommandBuffer* cb = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Transfer);
 
     switch (request.Type)
     {
@@ -457,7 +457,7 @@ void GfxLoader::LoadEnvironment(LoadRequest& request)
     Upload(gpuRequest);
 }
 
-void GfxLoader::UploadTexture(UploadRequest& request, vk::CommandBuffer cb)
+void GfxLoader::UploadTexture(UploadRequest& request, CommandBuffer* cb)
 {
     request.Resource.GetAs<Texture>()->UploadData(cb, m_StagingBuffer, request.Data);
 
@@ -470,7 +470,7 @@ void GfxLoader::UploadTexture(UploadRequest& request, vk::CommandBuffer cb)
         delete[] request.Data;
 }
 
-void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cmdBuffer)
+void GfxLoader::UploadEnvironment(UploadRequest& request, CommandBuffer* cb)
 {
     auto& renderer = ApplicationBase::GetRenderer();
     SafePtr<WorldEnvironment> env = request.Resource.GetAs<WorldEnvironment>();
@@ -484,30 +484,30 @@ void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cmdB
     auto& cpManager = m_GraphicsContext->GetCommandPoolManager();
 
     // convert the HDR source to cubemap in the skybox texture & radiance texture
-    vk::CommandBuffer singleUseBuffer = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Compute);
+    CommandBuffer* cmdBuffer = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Compute);
 
-    hdrSource->TransitionLayout(singleUseBuffer, vk::ImageLayout::eTransferDstOptimal);
-    hdrSource->UploadData(singleUseBuffer, m_StagingBuffer, request.Data, request.Size, false);
-    hdrSource->TransitionLayout(singleUseBuffer, vk::ImageLayout::eGeneral);
-    
-    env->SkyboxTexture->TransitionLayout(singleUseBuffer, vk::ImageLayout::eGeneral);
+    cmdBuffer->TransitionLayout(hdrSource.GetPtr(), vk::ImageLayout::eTransferDstOptimal);
+    hdrSource->UploadData(cmdBuffer, m_StagingBuffer, request.Data, request.Size, false);
+    cmdBuffer->TransitionLayout(hdrSource.GetPtr(), vk::ImageLayout::eGeneral);
 
-    m_HDRToCubemapProgram->SetTexture(singleUseBuffer, "tHDRTexture", hdrSource, false);
-    m_HDRToCubemapProgram->SetTexture(singleUseBuffer, "tCubemapTexture", env->SkyboxTexture, true);
-    renderer.Dispatch(singleUseBuffer, m_HDRToCubemapProgram, env->SkyboxTexture->GetDimensions().width / 16, env->SkyboxTexture->GetDimensions().height / 16, 6);
+    cmdBuffer->TransitionLayout(env->SkyboxTexture.GetPtr(), vk::ImageLayout::eGeneral);
+
+    m_HDRToCubemapProgram->SetTexture(cmdBuffer->GetVkCommandBuffer(), "tHDRTexture", hdrSource, false);
+    m_HDRToCubemapProgram->SetTexture(cmdBuffer->GetVkCommandBuffer(), "tCubemapTexture", env->SkyboxTexture, true);
+    renderer.Dispatch(cmdBuffer->GetVkCommandBuffer(), m_HDRToCubemapProgram, env->SkyboxTexture->GetDimensions().width / 16, env->SkyboxTexture->GetDimensions().height / 16, 6);
 
     cpManager.EndSingleUseCommandBuffer(EQueueFamilyType::Compute);
-    singleUseBuffer = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Compute);
+    cmdBuffer = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Compute);
 
-    env->PrefilteredTexture->TransitionLayout(singleUseBuffer, vk::ImageLayout::eGeneral);
-    m_HDRToCubemapProgram->SetTexture(singleUseBuffer, "tCubemapTexture", env->PrefilteredTexture, true);
-    renderer.Dispatch(singleUseBuffer, m_HDRToCubemapProgram, env->PrefilteredTexture->GetDimensions().width / 16, env->PrefilteredTexture->GetDimensions().height / 16, 6);
+    env->PrefilteredTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eGeneral);
+    m_HDRToCubemapProgram->SetTexture(cmdBuffer->GetVkCommandBuffer(), "tCubemapTexture", env->PrefilteredTexture, true);
+    renderer.Dispatch(cmdBuffer->GetVkCommandBuffer(), m_HDRToCubemapProgram, env->PrefilteredTexture->GetDimensions().width / 16, env->PrefilteredTexture->GetDimensions().height / 16, 6);
 
     cpManager.EndSingleUseCommandBuffer(EQueueFamilyType::Compute);
 
     // generate skybox mipmaps
-    singleUseBuffer = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Graphics);
-    env->SkyboxTexture->GenerateMipmaps(singleUseBuffer);
+    cmdBuffer = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Graphics);
+    cmdBuffer->GenerateMips(env->SkyboxTexture.GetPtr());
     cpManager.EndSingleUseCommandBuffer(EQueueFamilyType::Graphics);
 
     // generate radiance prefiltered mipmaps
@@ -529,21 +529,22 @@ void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cmdB
         });
     }
 
-    singleUseBuffer = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Compute);
+    cmdBuffer = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Compute);
     
     std::vector<SafePtr<ComputeProgram>> programs;
     programs.reserve(numMips - 2);
+    auto vkCmdBuffer = cmdBuffer->GetVkCommandBuffer();
     for (u32 i = 1; i < numMips; ++i)
     {
         float roughness = (float)i / (float)(numMips - 1);
         SafePtr program = lnnew ComputeProgram(m_PrefilterProgram->GetPipeline());
-        program->SetTexture(singleUseBuffer, "tRadianceCubemap", env->SkyboxTexture, false);
-        program->SetProperty(singleUseBuffer, "tPrefilteredCubemap", tempImageViews[i - 1].BindlessTextureHandle);
-        program->SetProperty(singleUseBuffer, "uRoughness", roughness);
-        program->SetProperty(singleUseBuffer, "uNumSamples", 1024u);
+        program->SetTexture(vkCmdBuffer, "tRadianceCubemap", env->SkyboxTexture, false);
+        program->SetProperty(vkCmdBuffer, "tPrefilteredCubemap", tempImageViews[i - 1].BindlessTextureHandle);
+        program->SetProperty(vkCmdBuffer, "uRoughness", roughness);
+        program->SetProperty(vkCmdBuffer, "uNumSamples", 1024u);
         u32 dim = env->PrefilteredTexture->GetDimensions().width >> i;
         u32 numGroups = (dim + 31) / 32;
-        renderer.Dispatch(singleUseBuffer, program, numGroups, numGroups, 6);
+        renderer.Dispatch(vkCmdBuffer, program, numGroups, numGroups, 6);
         programs.push_back(program);
     }
 
@@ -558,18 +559,18 @@ void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cmdB
             .BindlessTextureHandle = imageHandle
         });
     }
-    env->IrradianceTexture->TransitionLayout(singleUseBuffer, vk::ImageLayout::eGeneral);
+    env->IrradianceTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eGeneral);
     std::vector<SafePtr<ComputeProgram>> irradiancePrograms;
     for (u32 i = 0; i < numMips; ++i)
     {
         SafePtr program = lnnew ComputeProgram(m_IrradianceProgram->GetPipeline());
-        program->SetTexture(singleUseBuffer, "tRadianceCubemap", env->SkyboxTexture, false);
-        program->SetProperty(singleUseBuffer, "tIrradianceCubemap", tempImageViews2[i].BindlessTextureHandle);
-        program->SetProperty(singleUseBuffer, "uPhiDelta", 0.025f);
-        program->SetProperty(singleUseBuffer, "uThetaDelta", 0.025f);
+        program->SetTexture(vkCmdBuffer, "tRadianceCubemap", env->SkyboxTexture, false);
+        program->SetProperty(vkCmdBuffer, "tIrradianceCubemap", tempImageViews2[i].BindlessTextureHandle);
+        program->SetProperty(vkCmdBuffer, "uPhiDelta", 0.025f);
+        program->SetProperty(vkCmdBuffer, "uThetaDelta", 0.025f);
         u32 dim = env->IrradianceTexture->GetDimensions().width >> i;
         u32 numGroups = (dim + 31) / 32;
-        renderer.Dispatch(singleUseBuffer, program, numGroups, numGroups, 6);
+        renderer.Dispatch(vkCmdBuffer, program, numGroups, numGroups, 6);
         irradiancePrograms.push_back(program);
     }
 
@@ -609,7 +610,7 @@ void GfxLoader::UploadEnvironment(UploadRequest& request, vk::CommandBuffer cmdB
         stbi_image_free(request.Data);
 }
 
-void GfxLoader::UploadBuffer(UploadRequest& request, vk::CommandBuffer cb)
+void GfxLoader::UploadBuffer(UploadRequest& request, CommandBuffer* cb)
 {
     SafePtr buffer = request.Resource.GetAs<StorageBuffer>();
     buffer->m_StagingAllocation = m_GraphicsContext->AllocateStagingBuffer(buffer->m_Size);
@@ -621,7 +622,7 @@ void GfxLoader::UploadBuffer(UploadRequest& request, vk::CommandBuffer cb)
         buffer->m_Size
     };
 
-    cb.copyBuffer(buffer->m_StagingAllocation.Buffer, buffer->m_Allocation.Buffer, copyRegion);
+    cb->CopyBuffer(buffer->m_StagingAllocation, buffer->m_Allocation, std::span{ &copyRegion, 1 });
 }
 
 }

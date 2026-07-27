@@ -1,17 +1,18 @@
 #include "LightingPass.h"
 
-#include <Core/ApplicationBase.h>
-#include <Core/Window.h>
-#include <Graphics/Renderer.h>
-#include <Graphics/FrameGraph/FrameGraph.h>
+#include "Core/ApplicationBase.h"
+#include "Core/Window.h"
 #include "Core/Utils/Profiling.h"
-#include <Graphics/Resources/Pipeline.h>
-#include <Graphics/Resources/Material.h>
-#include <Graphics/Resources/Texture.h>
-#include <Graphics/Resources/Mesh.h>
-#include "../../Resources/Effect.h"
-#include "../../Resources/GfxTechnique.h"
-#include "../../WorldRenderer.h"
+#include "Graphics/Renderer.h"
+#include "Graphics/WorldRenderer.h"
+#include "Graphics/CommandBuffer.h"
+#include "Graphics/FrameGraph/FrameGraph.h"
+#include "Graphics/Resources/Pipeline.h"
+#include "Graphics/Resources/Material.h"
+#include "Graphics/Resources/Texture.h"
+#include "Graphics/Resources/Mesh.h"
+#include "Graphics/Resources/Effect.h"
+#include "Graphics/Resources/GfxTechnique.h"
 
 namespace lne
 {
@@ -98,15 +99,15 @@ void LightingPass::OnResize(FrameGraph* frameGraph, FrameGraphNode* node)
     }
 }
 
-void LightingPass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
+void LightingPass::Execute(CommandBuffer* cmdBuffer, lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
     LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     Renderer& renderer = ApplicationBase::GetRenderer();
     auto lightBuffer = worldRenderer->GetLightBufferGPU(renderer.GetCurrentFrameIndex());
-    renderer.DrawFullscreenQuad(cmdBuffer, m_Material, lightBuffer, GetID());
+    renderer.DrawFullscreenQuad(cmdBuffer->GetVkCommandBuffer(), m_Material, lightBuffer, GetID());
 }
 
-void LightingPass::PostExecute(vk::CommandBuffer cmdBuffer, FrameGraph* frameGraph, FrameGraphNode* node)
+void LightingPass::PostExecute(CommandBuffer* cmdBuffer, FrameGraph* frameGraph, FrameGraphNode* node)
 {
     LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     if (m_IsDebugOpen == false)
@@ -121,7 +122,7 @@ void LightingPass::PostExecute(vk::CommandBuffer cmdBuffer, FrameGraph* frameGra
             SafePtr<Texture> texture = resource.Resource.GetAs<Texture>();
             SafePtr<Texture> debugTexture = m_DebugTexture;
             debugTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
-            renderer.Blit(cmdBuffer, texture, debugTexture);
+            cmdBuffer->Blit(texture.GetPtr(), debugTexture.GetPtr());
             debugTexture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
         }
     }

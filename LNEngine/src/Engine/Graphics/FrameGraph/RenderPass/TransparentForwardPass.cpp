@@ -1,10 +1,11 @@
 ﻿#include "TransparentForwardPass.h"
 
-#include <Core/ApplicationBase.h>
-#include <Graphics/Renderer.h>
-#include <Graphics/WorldRenderer.h>
-#include <Graphics/Resources/Mesh.h>
-#include <Graphics/Resources/Material.h>
+#include "Core/ApplicationBase.h"
+#include "Graphics/Renderer.h"
+#include "Graphics/CommandBuffer.h"
+#include "Graphics/WorldRenderer.h"
+#include "Graphics/Resources/Mesh.h"
+#include "Graphics/Resources/Material.h"
 
 namespace lne
 {
@@ -17,7 +18,7 @@ void TransparentForwardPass::BeginFrame()
     ClearDrawCommands();
 }
 
-void TransparentForwardPass::Execute(vk::CommandBuffer commandBuffer, WorldRenderer* worldRenderer, FrameGraph* frameGraph,
+void TransparentForwardPass::Execute(CommandBuffer* commandBuffer, WorldRenderer* worldRenderer, FrameGraph* frameGraph,
     FrameGraphNode* node)
 {
     auto& renderer = ApplicationBase::GetRenderer();
@@ -39,7 +40,7 @@ void TransparentForwardPass::Execute(vk::CommandBuffer commandBuffer, WorldRende
         drawArgs.Offset = transforms.Offset;
         drawArgs.SubMeshIndex = drawCommand.SubMeshIndex;
         drawArgs.InstanceCount = drawCommand.InstanceCount;
-        renderer.Draw(commandBuffer, drawArgs);
+        renderer.Draw(commandBuffer->GetVkCommandBuffer(), drawArgs);
     }
 }
 

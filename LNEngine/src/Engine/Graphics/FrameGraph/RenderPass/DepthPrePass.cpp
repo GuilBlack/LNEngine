@@ -1,11 +1,12 @@
 #include "lnepch.h"
 #include "DepthPrePass.h"
 #include "Core/ApplicationBase.h"
+#include "Core/Utils/Profiling.h"
 #include "Graphics/WorldRenderer.h"
 #include "Graphics/Renderer.h"
-#include "Core/Utils/Profiling.h"
+#include "Graphics/CommandBuffer.h"
 #include "Graphics/Resources/Mesh.h"
-#include <Graphics/Resources/Pipeline.h>
+#include "Graphics/Resources/Pipeline.h"
 #include "Graphics/Resources/Material.h"
 
 namespace lne
@@ -21,7 +22,7 @@ void DepthPrePass::BeginFrame()
     ClearDrawCommands();
 }
 
-void DepthPrePass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
+void DepthPrePass::Execute(CommandBuffer* cmdBuffer, lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node)
 {
     LNE_PROFILE_FUNCTION_C(LNE_PROFILING_RP_COL)
     using namespace lne;
@@ -44,7 +45,7 @@ void DepthPrePass::Execute(vk::CommandBuffer cmdBuffer, lne::WorldRenderer* worl
         drawArgs.Offset = transforms.Offset;
         drawArgs.SubMeshIndex = drawCommand.SubMeshIndex;
         drawArgs.InstanceCount = drawCommand.InstanceCount;
-        renderer.Draw(cmdBuffer, drawArgs);
+        renderer.Draw(cmdBuffer->GetVkCommandBuffer(), drawArgs);
     }
 }
 

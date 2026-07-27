@@ -57,6 +57,7 @@
 #include "Engine/Core/Inputs/InputCodes.h"
 #include "Engine/Graphics/GfxContext.h"
 #include "Engine/Graphics/CommandPoolManager.h"
+#include "Engine/Graphics/CommandBuffer.h"
 #include "Engine/Graphics/Renderer.h"
 #include "Engine/Graphics/Framebuffer.h"
 #include "Engine/Graphics/DynamicDescriptorAllocator.h"

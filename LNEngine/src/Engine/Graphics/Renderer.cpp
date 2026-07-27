@@ -96,9 +96,12 @@ void Renderer::Nuke()
 void Renderer::InitResources()
 {
     m_CurrentFrameInFlight = m_Context->GetCurrentFrameIndex();
+
+    CommandBuffer* commandBuffer = m_Context->GetCommandPoolManager().BeginOrGetPrimaryFrameCommandBuffer(m_CurrentFrameInFlight);
+    vk::CommandBuffer cmdBuffer  = commandBuffer->GetVkCommandBuffer();
+
     m_BRDFLut = Texture::CreateColorTexture2D(m_Context, 512, 512, vk::Format::eR16G16Sfloat, TextureUsageType::eSampledAndStorage, false, "BRDFLut");
-    vk::CommandBuffer cmdBuffer = m_Context->GetCommandPoolManager().BeginOrGetPrimaryFrameCommandBuffer(m_CurrentFrameInFlight);
-    m_BRDFLut->TransitionLayout(cmdBuffer, vk::ImageLayout::eGeneral);
+    commandBuffer->TransitionLayout(m_BRDFLut.GetPtr(), vk::ImageLayout::eGeneral);
 
     ComputePipelineDesc desc{};
     desc.Name = "GenerateBRDFLut";
@@ -109,7 +112,7 @@ void Renderer::InitResources()
     brdfProgram->SetTexture(cmdBuffer, "tBRDFLut", m_BRDFLut, true);
     Dispatch(cmdBuffer, brdfProgram, 512 / 32, 512 / 32, 1);
 
-    m_BRDFLut->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
+    commandBuffer->TransitionLayout(m_BRDFLut.GetPtr(), vk::ImageLayout::eShaderReadOnlyOptimal);
 
     SafePtr gbufferEffect = CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\GBuffer.glsl");
     SafePtr forwardTransparentEffect = CreateOrGetEffect(ApplicationBase::GetAssetsPath() + "Engine\\Shaders\\ForwardTransparent.glsl");
@@ -205,10 +208,11 @@ void Renderer::BeginFrame()
             u32 frameIndex = m_Context->GetCurrentFrameIndex();
             m_CurrentFrameInFlight = frameIndex;
             m_Context->GetCommandPoolManager().ResetFrameCommands(frameIndex);
-            vk::CommandBuffer cmdBuffer = m_Context->GetPrimaryCommandBuffer();
+            CommandBuffer* commandBuffer = m_Context->GetPrimaryCommandBuffer();
+            vk::CommandBuffer cmdBuffer = commandBuffer->GetVkCommandBuffer();
             m_CurrentSwapchainImageIndex = currentImageIndex;
             auto currentImage = m_Swapchain->GetImage(m_CurrentSwapchainImageIndex);
-            currentImage->TransitionLayout(cmdBuffer, vk::ImageLayout::eGeneral);
+            currentImage->TransitionLayout(commandBuffer, vk::ImageLayout::eGeneral);
 
             ProcessDirtyEffects(cmdBuffer);
             ProcessDirtyMaterials(cmdBuffer);
@@ -216,7 +220,7 @@ void Renderer::BeginFrame()
 
             if (m_IsAsync == false)
                 m_GfxLoader->Update();
-            UpdateTextures(cmdBuffer);
+            UpdateTextures(commandBuffer);
 
             m_FrameData[m_CurrentFrameInFlight].DescriptorAllocator->Clear();
         };
@@ -235,8 +239,9 @@ void Renderer::EndFrame()
             m_LastUsedStaticMesh.Reset();
             m_LastUsedPipeline.Reset();
             auto currentImage = m_Swapchain->GetImage(m_CurrentSwapchainImageIndex);
-            vk::CommandBuffer cb = m_Context->GetPrimaryCommandBuffer();
-            currentImage->TransitionLayout(cb, vk::ImageLayout::ePresentSrcKHR);
+            CommandBuffer* commandBuffer = m_Context->GetPrimaryCommandBuffer();
+            vk::CommandBuffer cb = commandBuffer->GetVkCommandBuffer();
+            currentImage->TransitionLayout(commandBuffer, vk::ImageLayout::ePresentSrcKHR);
 
             vk::PipelineStageFlags waitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
             vk::SubmitInfo submitInfo = m_Swapchain->GetSubmitInfo(waitStages, m_CurrentFrameInFlight);
@@ -268,7 +273,7 @@ void Renderer::BeginScene(SafePtr<WorldRenderer> worldRenderer,
             m_CurrentWorldRenderer = worldRenderer;
             m_CurrentFrameGraph = frameGraph;
             u32 imageIndex = m_CurrentFrameInFlight;
-            vk::CommandBuffer cmdBuffer = m_Context->GetPrimaryCommandBuffer();
+            vk::CommandBuffer cmdBuffer = m_Context->GetPrimaryCommandBuffer()->GetVkCommandBuffer();
             FrameData& frameData = m_FrameData[imageIndex];
             frameData.CurrentWorldDataUniforms = worldGlobalUniforms;
             frameData.CurrentWorldData = globalData;
@@ -510,9 +515,9 @@ void Renderer::Dispatch(SafePtr<ComputeProgram> program, u32 x, u32 y, u32 z, bo
     CommandPoolManager& cpManager = m_Context->GetCommandPoolManager();
 
     if (async == false)
-        cmdBuffer = cpManager.BeginOrGetPrimaryFrameCommandBuffer(m_CurrentFrameInFlight);
+        cmdBuffer = cpManager.BeginOrGetPrimaryFrameCommandBuffer(m_CurrentFrameInFlight)->GetVkCommandBuffer();
     else
-        cmdBuffer = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Compute);
+        cmdBuffer = cpManager.BeginOrGetSingleUseCommandBuffer(EQueueFamilyType::Compute)->GetVkCommandBuffer();
 
     Dispatch(cmdBuffer, program, x, y, z);
 
@@ -531,51 +536,6 @@ void Renderer::Dispatch(vk::CommandBuffer cmdBuffer, SafePtr<class ComputeProgra
     cmdBuffer.dispatch(x, y, z);
 
     PopLabel(cmdBuffer);
-}
-
-void Renderer::Blit(vk::CommandBuffer cmdBuffer, SafePtr<Texture> src, SafePtr<Texture> dst)
-{
-    LNE_PROFILE_FUNCTION_C(PROFILING_COL)
-    vk::ImageLayout srcLayout = src->GetLayout();
-    vk::ImageLayout dstLayout = dst->GetLayout();
-    src->TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferSrcOptimal);
-    dst->TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferDstOptimal);
-
-    auto srcExtent = src->GetDimensions();
-    auto dstExtent = dst->GetDimensions();
-    vk::ImageBlit blit{
-        vk::ImageSubresourceLayers{
-            vk::ImageAspectFlagBits::eColor,
-            0,
-            0,
-            1
-        },
-        {
-            vk::Offset3D{ 0, 0, 0 },
-            vk::Offset3D{ (int)srcExtent.width, (int)srcExtent.height, 1 }
-        },
-        vk::ImageSubresourceLayers{
-            vk::ImageAspectFlagBits::eColor,
-            0,
-            0,
-            1
-        },
-        {
-            vk::Offset3D{ 0, 0, 0 },
-            vk::Offset3D{ (int)dstExtent.width, (int)dstExtent.height, 1 }
-        }
-    };
-
-    cmdBuffer.blitImage(
-        src->m_Allocation.Image, vk::ImageLayout::eTransferSrcOptimal,
-        dst->m_Allocation.Image, vk::ImageLayout::eTransferDstOptimal,
-        1, &blit, vk::Filter::eLinear
-    );
-
-    if (srcLayout != vk::ImageLayout::eUndefined)
-        src->TransitionLayout(cmdBuffer, srcLayout);
-    if (dstLayout != vk::ImageLayout::eUndefined)
-        dst->TransitionLayout(cmdBuffer, dstLayout);
 }
 
 SafePtr<GfxPipeline> Renderer::CreateGraphicsPipeline(const GraphicsPipelineDesc& createInfo)
@@ -773,7 +733,7 @@ void Renderer::InitFrameData(u32 index)
     );
 }
 
-void Renderer::UpdateTextures(vk::CommandBuffer cmdBuffer)
+void Renderer::UpdateTextures(CommandBuffer* cmdBuffer)
 {
     LNE_PROFILE_FUNCTION_C(PROFILING_COL)
     std::lock_guard<std::mutex> lock(m_TexturesToUpdateMutex);
@@ -782,18 +742,18 @@ void Renderer::UpdateTextures(vk::CommandBuffer cmdBuffer)
 
     for (auto& texture : m_TexturesToUpdate)
     {
-        texture->TransitionLayout(cmdBuffer, vk::ImageLayout::eTransferDstOptimal,
+        cmdBuffer->TransitionLayout(texture.GetPtr(), vk::ImageLayout::eTransferDstOptimal,
                 m_Context->GetQueueFamilyIndex(EQueueFamilyType::Transfer), m_Context->GetQueueFamilyIndex(EQueueFamilyType::Graphics));
 
         if (texture->ShouldGenerateMips() == false)
         {
-            texture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
+            cmdBuffer->TransitionLayout(texture.GetPtr(), vk::ImageLayout::eShaderReadOnlyOptimal);
             continue;
         }
 
-        texture->GenerateMipmaps(cmdBuffer);
+        cmdBuffer->GenerateMips(texture.GetPtr());
 
-        texture->TransitionLayout(cmdBuffer, vk::ImageLayout::eShaderReadOnlyOptimal);
+        cmdBuffer->TransitionLayout(texture.GetPtr(), vk::ImageLayout::eShaderReadOnlyOptimal);
     }
     m_TexturesToUpdate.clear();
 }

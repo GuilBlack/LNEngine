@@ -14,7 +14,12 @@ namespace lne
 {
 class Renderer;
 class GfxContext;
+class CommandBuffer;
 class enki::TaskScheduler;
+class Texture;
+class WorldEnvironment;
+class ComputeProgram;
+
 namespace ResourceTypes
 {
 enum Enum : u8
@@ -85,14 +90,14 @@ public:
 
     void Update();
 
-    [[nodiscard]] SafePtr<class Texture>        CreateTexture(
+    [[nodiscard]] SafePtr<Texture>              CreateTexture(
         std::string_view fullPath, 
         vk::Format imageFormat = vk::Format::eR8G8B8A8Srgb);
-    [[nodiscard]] SafePtr<class Texture>        CreateCubemap(std::vector<std::string> faces);
-    [[nodiscard]] SafePtr<class WorldEnvironment> CreateEnvironmentMap(std::string_view pathToEnvMap);
+    [[nodiscard]] SafePtr<Texture>              CreateCubemap(std::vector<std::string> faces);
+    [[nodiscard]] SafePtr<WorldEnvironment>     CreateEnvironmentMap(std::string_view pathToEnvMap);
     void                                        InitStaticStorageBuffer(SafePtr<class StorageBuffer> buffer, const void* data);
 
-    void Upload(UploadRequest request)
+    void                                        Upload(UploadRequest request)
     {
         std::lock_guard<std::mutex> lock(m_UploadRequestsMutex);
         m_UploadRequests.push_back(request);
@@ -100,7 +105,7 @@ public:
 
 private:
     class Renderer* m_Renderer;
-    SafePtr<class GfxContext> m_GraphicsContext;
+    SafePtr<GfxContext> m_GraphicsContext;
     std::weak_ptr<enki::TaskScheduler> m_TaskScheduler;
     std::unique_ptr<GfxLoaderTask> m_GfxLoaderTask;
 
@@ -112,11 +117,11 @@ private:
     
     BufferAllocation m_StagingBuffer;
 
-    SafePtr<class Texture> m_ReadyTexture;
+    SafePtr<Texture> m_ReadyTexture;
 
-    SafePtr<class ComputeProgram> m_HDRToCubemapProgram;
-    SafePtr<class ComputeProgram> m_PrefilterProgram;
-    SafePtr<class ComputeProgram> m_IrradianceProgram;
+    SafePtr<ComputeProgram> m_HDRToCubemapProgram;
+    SafePtr<ComputeProgram> m_PrefilterProgram;
+    SafePtr<ComputeProgram> m_IrradianceProgram;
 
     u32 m_RadianceTextureMaxSize;
     bool m_LoadAsync;
@@ -128,8 +133,8 @@ private:
     void LoadCubemap(LoadRequest& request);
     void LoadEnvironment(LoadRequest& request);
 
-    void UploadTexture(UploadRequest& request, vk::CommandBuffer cb);
-    void UploadEnvironment(UploadRequest& request, vk::CommandBuffer cb);
-    void UploadBuffer(UploadRequest& request, vk::CommandBuffer cb);
+    void UploadTexture(UploadRequest& request, CommandBuffer* cb);
+    void UploadEnvironment(UploadRequest& request, CommandBuffer* cb);
+    void UploadBuffer(UploadRequest& request, CommandBuffer* cb);
 };
 }

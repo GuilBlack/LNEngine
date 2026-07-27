@@ -13,7 +13,7 @@ class ScenePyramidPass : public lne::RenderPass
 public:
     ScenePyramidPass(std::string_view passName, std::string_view inputTextureName);
 
-    virtual void Execute(vk::CommandBuffer cmdBuffer, class WorldRenderer* worldRenderer, FrameGraph* frameGraph, FrameGraphNode* node) override;
+    virtual void Execute(CommandBuffer* cmdBuffer, class WorldRenderer* worldRenderer, FrameGraph* frameGraph, FrameGraphNode* node) override;
 
 private:
     std::string m_InputTextureName;

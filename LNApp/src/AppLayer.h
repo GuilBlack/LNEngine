@@ -8,7 +8,7 @@ class AppLayer final : public lne::Layer
     public:
         FinalPass();
 
-        virtual void Execute(vk::CommandBuffer cmdBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
+        virtual void Execute(lne::CommandBuffer* cmdBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
 
     private:
         lne::SafePtr<lne::ComputePipeline> m_Pipeline{};
@@ -25,8 +25,8 @@ class AppLayer final : public lne::Layer
         }
 
         void OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
-        void Execute(vk::CommandBuffer cmdBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;    
-        void PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
+        void Execute(lne::CommandBuffer* cmdBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;    
+        void PostExecute(lne::CommandBuffer* cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
         void OnImGuiRender() override;
     private:
         lne::SafePtr<lne::Material> m_Material{};
@@ -46,8 +46,8 @@ class AppLayer final : public lne::Layer
         }
         void OnBind(lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
         void OnResize(lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
-        void Execute(vk::CommandBuffer cmdBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
-        void PostExecute(vk::CommandBuffer cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
+        void Execute(lne::CommandBuffer* cmdBuffer, class lne::WorldRenderer* worldRenderer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
+        void PostExecute(lne::CommandBuffer* cmdBuffer, lne::FrameGraph* frameGraph, lne::FrameGraphNode* node) override;
         void OnImGuiRender() override;
     private:
         lne::SafePtr<lne::Material> m_Material{};

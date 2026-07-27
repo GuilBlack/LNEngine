@@ -10,6 +10,7 @@ namespace lne
 {
 #define LNE_PROFILING_RP_COL 0xE2892F
 class FrameGraph;
+class CommandBuffer;
 struct FrameGraphNode;
 
 PassID MakePassID(std::string_view name);
@@ -35,7 +36,7 @@ public:
      * @param frameGraph The frame graph instance containing this node.
      * @param node The frame graph node associated with this render pass. Can be used to access input/output resources and other node-specific data.
      */
-    virtual void PreExecute(vk::CommandBuffer cmdBuffer, FrameGraph* frameGraph, FrameGraphNode* node) {}
+    virtual void PreExecute(CommandBuffer* cmdBuffer, FrameGraph* frameGraph, FrameGraphNode* node) {}
 
     /**
      * Execute is called to perform the rendering operations of this pass on the render thread.
@@ -44,7 +45,7 @@ public:
      * @param frameGraph The frame graph instance containing this node.
      * @param node The frame graph node associated with this render pass. Can be used to access input/output resources and other node-specific data.
      */
-    virtual void Execute(vk::CommandBuffer cmdBuffer, class WorldRenderer* worldRenderer, FrameGraph* frameGraph, FrameGraphNode* node) = 0;
+    virtual void Execute(CommandBuffer* cmdBuffer, class WorldRenderer* worldRenderer, FrameGraph* frameGraph, FrameGraphNode* node) = 0;
 
     /**
      * PostExecute is called after the Execute method on the render thread.
@@ -52,7 +53,7 @@ public:
      * @param frameGraph The frame graph instance containing this node.
      * @param node The frame graph node associated with this render pass. Can be used to access input/output resources and other node-specific data.
      */
-    virtual void PostExecute(vk::CommandBuffer cmdBuffer, FrameGraph* frameGraph, FrameGraphNode* node) {}
+    virtual void PostExecute(CommandBuffer* cmdBuffer, FrameGraph* frameGraph, FrameGraphNode* node) {}
 
     /**
      * This is called on the main thread after the render task has been submitted but before the frame is presented.

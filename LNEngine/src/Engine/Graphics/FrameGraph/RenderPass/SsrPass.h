@@ -15,7 +15,7 @@ public:
 
     void OnBind(FrameGraph* frameGraph, FrameGraphNode* node) override;
 
-    void Execute(vk::CommandBuffer cmdBuffer, class WorldRenderer* worldRenderer, FrameGraph* frameGraph, FrameGraphNode* node) override;
+    void Execute(CommandBuffer* cmdBuffer, class WorldRenderer* worldRenderer, FrameGraph* frameGraph, FrameGraphNode* node) override;
 
     void OnResize(FrameGraph* frameGraph, FrameGraphNode* node) override;
 

@@ -1,7 +1,8 @@
-#include "DynamicDescriptorAllocator.h"
-#include "Structs.h"
-#include "GfxContext.h"
 #include "Core/Utils/Log.h"
+#include "Graphics/DynamicDescriptorAllocator.h"
+#include "Graphics/Structs.h"
+#include "Graphics/GfxContext.h"
+#include "Graphics/VulkanUtils.h"
 
 namespace lne
 {
@@ -177,7 +178,7 @@ void DynamicDescriptorAllocator::Free(vk::DescriptorSet set)
     u32 poolIdx = it->second;
     auto device = m_Context->GetDevice();
     auto& poolInfo = m_PoolInfos[poolIdx];
-    device.freeDescriptorSets(poolInfo.Pool, 1, &set);
+    VK_CHECK(device.freeDescriptorSets(poolInfo.Pool, 1, &set));
     m_SetToPoolIndexMap.erase(it);
 
     bool wasFull = (poolInfo.UsedSets == poolInfo.CapacitySets);
