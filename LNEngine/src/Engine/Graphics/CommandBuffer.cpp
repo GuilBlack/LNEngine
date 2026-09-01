@@ -6,6 +6,7 @@
 
 #include "Graphics/VulkanUtils.h"
 #include "Graphics/GfxContext.h"
+#include "Graphics/Framebuffer.h"
 #include "Graphics/Resources/Texture.h"
 #include "Graphics/Resources/StorageBuffer.h"
 
@@ -283,7 +284,9 @@ void CommandBuffer::GenerateMips(Texture* texture)
 void CommandBuffer::Blit(Texture* src, Texture* dst)
 {
     LNE_PROFILE_FUNCTION_C(PROFILING_COL)
-        vk::ImageLayout srcLayout = src->GetLayout();
+    LNE_ASSERT(m_QueueType == EQueueFamilyType::Graphics,
+               "Blit must be done on a graphics queue.");
+    vk::ImageLayout srcLayout = src->GetLayout();
     vk::ImageLayout dstLayout = dst->GetLayout();
     TransitionLayout(src, vk::ImageLayout::eTransferSrcOptimal);
     TransitionLayout(dst, vk::ImageLayout::eTransferDstOptimal);
@@ -334,12 +337,117 @@ void CommandBuffer::CopyBuffer(const BufferAllocation& srcBuffer, const BufferAl
 #pragma region Frame Operations
 void CommandBuffer::SetViewport(const vk::Viewport& viewport)
 {
+    LNE_ASSERT(m_QueueType == EQueueFamilyType::Graphics,
+               "SetViewport can only be called on graphics command buffers.");
     m_CommandBuffer.setViewport(0, viewport);
 }
 
 void CommandBuffer::SetScissor(const vk::Rect2D& scissor)
 {
+    LNE_ASSERT(m_QueueType == EQueueFamilyType::Graphics,
+               "SetScissor can only be called on graphics command buffers.");
     m_CommandBuffer.setScissor(0, scissor);
+}
+
+void CommandBuffer::BeginRenderPass(Framebuffer* framebuffer)
+{
+    LNE_ASSERT(m_QueueType == EQueueFamilyType::Graphics,
+               "BeginRenderPass can only be called on graphics command buffers.");
+    LNE_ASSERT(m_BoundFramebuffer == nullptr, "A framebuffer is already bound. Unbind it before binding another one.");
+    LNE_ASSERT(framebuffer != nullptr, "Cannot bind a null framebuffer.");
+
+    m_BoundFramebuffer     = framebuffer;
+    auto& colorAttachments = m_BoundFramebuffer->GetColorAttachments();
+    auto& depthAttachment  = m_BoundFramebuffer->GetDepthAttachment();
+
+    if (!(colorAttachments.size() > 0 || depthAttachment.Texture != nullptr))
+    {
+        LNE_WARN("Framebuffer has no attachments. Cannot bind.");
+        return;
+    }
+
+    std::vector<vk::RenderingAttachmentInfo> colorRenderingAttachments;
+    colorRenderingAttachments.reserve(colorAttachments.size());
+
+    for (auto& colorRenderingAttachmentInfo : colorAttachments)
+    {
+        TransitionLayout(colorRenderingAttachmentInfo.Texture.GetPtr(), colorRenderingAttachmentInfo.InitialLayout);
+
+        colorRenderingAttachments.emplace_back(vk::RenderingAttachmentInfo(
+            colorRenderingAttachmentInfo.Texture->GetImageView(),
+            colorRenderingAttachmentInfo.InitialLayout,
+            vk::ResolveModeFlagBits::eNone,
+            nullptr,
+            vk::ImageLayout::eUndefined,
+            colorRenderingAttachmentInfo.LoadOp,
+            colorRenderingAttachmentInfo.StoreOp,
+            colorRenderingAttachmentInfo.ClearValue
+        ));
+    }
+
+    vk::RenderingAttachmentInfo depthRenderingAttachmentInfo;
+    if (m_BoundFramebuffer->HasDepth())
+    {
+        TransitionLayout(depthAttachment.Texture.GetPtr(), depthAttachment.InitialLayout);
+        depthRenderingAttachmentInfo = vk::RenderingAttachmentInfo(
+            depthAttachment.Texture->GetImageView(),
+            depthAttachment.InitialLayout,
+            vk::ResolveModeFlagBits::eNone,
+            nullptr,
+            vk::ImageLayout::eUndefined,
+            depthAttachment.LoadOp,
+            depthAttachment.StoreOp,
+            depthAttachment.ClearValue
+        );
+    }
+    vk::RenderingFlags renderingFlags{};
+    if (m_Type == Type::eSecondary)
+    {
+        renderingFlags |= vk::RenderingFlagBits::eContentsSecondaryCommandBuffers;
+        renderingFlags |= vk::RenderingFlagBits::eContentsInlineEXT;
+    }
+
+    vk::Extent3D extent = m_BoundFramebuffer->GetExtent();
+    vk::RenderingInfo renderingInfo = vk::RenderingInfo{
+        renderingFlags,
+        vk::Rect2D{ {0,0}, {extent.width, extent.height} },
+        m_BoundFramebuffer->GetLayerCount(),
+        0,
+        colorRenderingAttachments,
+        m_BoundFramebuffer->HasDepth() ? &depthRenderingAttachmentInfo : nullptr
+    };
+
+    m_CommandBuffer.beginRendering(renderingInfo);
+}
+
+void CommandBuffer::EndRenderPass()
+{
+    LNE_ASSERT(m_QueueType == EQueueFamilyType::Graphics,
+               "EndRenderPass can only be called on graphics command buffers.");
+#ifdef LNE_DEBUG
+    if (m_BoundFramebuffer == nullptr)
+    {
+        LNE_WARN("No framebuffer is currently bound. Cannot unbind.");
+        return;
+    }
+#endif
+    auto& colorAttachments = m_BoundFramebuffer->GetColorAttachments();
+    auto& depthAttachment  = m_BoundFramebuffer->GetDepthAttachment();
+    if (!(colorAttachments.size() > 0 || depthAttachment.Texture != nullptr))
+    {
+        LNE_WARN("Framebuffer has no attachments. Cannot unbind.");
+        return;
+    }
+
+    m_CommandBuffer.endRendering();
+
+    for (auto& attachment : colorAttachments)
+        TransitionLayout(attachment.Texture.GetPtr(), attachment.FinalLayout);
+
+    if (m_BoundFramebuffer->HasDepth())
+        TransitionLayout(depthAttachment.Texture.GetPtr(), depthAttachment.FinalLayout);
+
+    m_BoundFramebuffer = nullptr;
 }
 #pragma endregion
 

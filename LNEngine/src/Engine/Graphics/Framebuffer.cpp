@@ -8,9 +8,8 @@
 
 namespace lne
 {
-Framebuffer::Framebuffer(SafePtr<class GfxContext> ctx, std::vector<AttachmentDesc> attachments, AttachmentDesc depth)
-    : m_Context{ ctx }
-    , m_ColorAttachments{ attachments }
+Framebuffer::Framebuffer(std::vector<AttachmentDesc> attachments, AttachmentDesc depth)
+    : m_ColorAttachments{ attachments }
     , m_DepthAttachment{ depth }
 {
     m_ColorFormats.reserve(m_ColorAttachments.size());
@@ -20,10 +19,8 @@ Framebuffer::Framebuffer(SafePtr<class GfxContext> ctx, std::vector<AttachmentDe
         m_HasDepth = true;
 }
 
-void Framebuffer::Init(SafePtr<class GfxContext> ctx, std::vector<AttachmentDesc> attachments, AttachmentDesc depth)
+void Framebuffer::Init(std::vector<AttachmentDesc> attachments, AttachmentDesc depth)
 {
-    m_Context = ctx;
-
     m_ColorAttachments = attachments;
     m_ColorFormats.clear();
     m_ColorFormats.reserve(m_ColorAttachments.size());
@@ -38,10 +35,7 @@ void Framebuffer::Init(SafePtr<class GfxContext> ctx, std::vector<AttachmentDesc
 void Framebuffer::SetClearColor(const vk::ClearColorValue& color)
 {
     for (auto& attachment : m_ColorAttachments)
-    {
         attachment.ClearValue.color = color;
-    }
-
 }
 
 void Framebuffer::ChangeColorAttachmentsOps(vk::AttachmentLoadOp loadOp, vk::AttachmentStoreOp storeOp)
@@ -51,70 +45,6 @@ void Framebuffer::ChangeColorAttachmentsOps(vk::AttachmentLoadOp loadOp, vk::Att
         attachment.LoadOp = loadOp;
         attachment.StoreOp = storeOp;
     }
-}
-
-void Framebuffer::Bind(CommandBuffer* cmdBuffer) const
-{
-    if (!(m_ColorAttachments.size() > 0 || m_DepthAttachment.Texture != nullptr))
-        return;
-    std::vector<vk::RenderingAttachmentInfo> colorRenderingAttachments;
-    colorRenderingAttachments.reserve(m_ColorAttachments.size());
-
-    for (auto& colorRenderingAttachmentInfo : m_ColorAttachments)
-    {
-        colorRenderingAttachmentInfo.Texture->TransitionLayout(cmdBuffer, colorRenderingAttachmentInfo.InitialLayout);
-
-        colorRenderingAttachments.emplace_back(vk::RenderingAttachmentInfo(
-            colorRenderingAttachmentInfo.Texture->GetImageView(),
-            colorRenderingAttachmentInfo.InitialLayout,
-            vk::ResolveModeFlagBits::eNone,
-            nullptr,
-            vk::ImageLayout::eUndefined,
-            colorRenderingAttachmentInfo.LoadOp,
-            colorRenderingAttachmentInfo.StoreOp,
-            colorRenderingAttachmentInfo.ClearValue
-        ));
-    }
-
-    vk::RenderingAttachmentInfo depthRenderingAttachmentInfo;
-    if (m_HasDepth)
-    {
-        m_DepthAttachment.Texture->TransitionLayout(cmdBuffer, m_DepthAttachment.InitialLayout);
-        depthRenderingAttachmentInfo = vk::RenderingAttachmentInfo(
-            m_DepthAttachment.Texture->GetImageView(),
-            m_DepthAttachment.InitialLayout,
-            vk::ResolveModeFlagBits::eNone,
-            nullptr,
-            vk::ImageLayout::eUndefined,
-            m_DepthAttachment.LoadOp,
-            m_DepthAttachment.StoreOp,
-            m_DepthAttachment.ClearValue
-        );
-    }
-
-    vk::Extent3D extent = GetExtent();
-    vk::RenderingInfo renderingInfo = vk::RenderingInfo{
-        vk::RenderingFlagBits::eContentsSecondaryCommandBuffers,
-        vk::Rect2D{ {0,0}, {extent.width, extent.height} },
-        GetLayerCount(),
-        0,
-        colorRenderingAttachments,
-        m_HasDepth ? &depthRenderingAttachmentInfo : nullptr
-    };
-
-    cmdBuffer->GetVkCommandBuffer().beginRendering(renderingInfo);
-}
-
-void Framebuffer::Unbind(CommandBuffer* cmdBuffer) const
-{
-    if (!(m_ColorAttachments.size() > 0 || m_DepthAttachment.Texture != nullptr))
-        return;
-    cmdBuffer->GetVkCommandBuffer().endRendering();
-    for (const auto& attachment : m_ColorAttachments)
-        attachment.Texture->TransitionLayout(cmdBuffer, attachment.FinalLayout);
-
-    if (m_HasDepth)
-        m_DepthAttachment.Texture->TransitionLayout(cmdBuffer, m_DepthAttachment.FinalLayout);
 }
 
 vk::CommandBufferInheritanceRenderingInfo Framebuffer::GetInheritanceRenderingInfo() const

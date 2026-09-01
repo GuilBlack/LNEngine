@@ -379,11 +379,11 @@ void ImGuiService::EndFrame()
                 CommandBuffer* cmdBuffer = m_GraphicsContext->GetPrimaryCommandBuffer();
 
                 cmdBuffer->PushLabel("ImGui");
-                m_Framebuffers[imageIndex].Bind(cmdBuffer);
+                cmdBuffer->BeginRenderPass(&m_Framebuffers[imageIndex]);
 
                 RenderDrawData(ddCopy, cmdBuffer->GetVkCommandBuffer());
 
-                m_Framebuffers[imageIndex].Unbind(cmdBuffer);
+                cmdBuffer->EndRenderPass();
                 cmdBuffer->PopLabel();
             };
 

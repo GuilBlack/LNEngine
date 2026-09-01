@@ -215,7 +215,7 @@ void Swapchain::CreateSwapchain()
         m_ColorAttachments[i].Reset(lnnew Texture(m_Context, images[i], surfaceFormat.format, vk::Extent3D(sc.currentExtent, 1), 1, std::format("SwapchainColor{}", i)));
         colorAttachmentDesc.Texture = m_ColorAttachments[i];
         depthAttachmentDesc.Texture = m_DepthAttachment;
-        m_Framebuffers.emplace_back(Framebuffer(m_Context, { colorAttachmentDesc }, depthAttachmentDesc));
+        m_Framebuffers.emplace_back(Framebuffer({ colorAttachmentDesc }, depthAttachmentDesc));
     }
     m_Context->m_MaxFramesInFlight = (u32)m_ColorAttachments.size() - 1;
 }

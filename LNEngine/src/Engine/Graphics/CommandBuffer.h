@@ -6,6 +6,7 @@ namespace lne
 {
 class GfxContext;
 class Texture;
+class Framebuffer;
 
 class CommandBuffer
 {
@@ -65,8 +66,16 @@ public:
 #pragma region Frame Operations
     void                        SetViewport(const vk::Viewport& viewport);
     void                        SetScissor(const vk::Rect2D& scissor);
-#pragma endregion
 
+    /**
+    * keeps a reference to the framebuffer, so it must outlive the command buffer.
+    * The framebuffer will be unbound when the command buffer is reset or destroyed.
+    * You must use the EndRenderPass() function to unbind the framebuffer before binding another one.
+    * @param framebuffer The framebuffer to bind. Must not be nullptr.
+    */
+    void BeginRenderPass(Framebuffer* framebuffer);
+    void EndRenderPass();
+#pragma endregion
 
 #pragma region Utilities
     void                        PushLabel(std::string_view label, const glm::vec4& color = glm::vec4(1.0f));
@@ -80,6 +89,8 @@ private:
 
     vk::CommandPool             m_CommandPoolRef;
     vk::CommandBuffer           m_CommandBuffer;
+
+    Framebuffer*                m_BoundFramebuffer{ nullptr }; // resource that outlasts the command buffer, so we don't own it
 
 private:
     CommandBuffer(const CommandBuffer&) = delete;

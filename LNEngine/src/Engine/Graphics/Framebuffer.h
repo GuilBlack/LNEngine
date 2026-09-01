@@ -22,24 +22,19 @@ class Framebuffer
 public:
     Framebuffer() = default;
     Framebuffer(
-        SafePtr<class GfxContext> ctx,
         std::vector<AttachmentDesc> attachments,
         AttachmentDesc depth = {});
     ~Framebuffer() = default;
 
-    void                                    Init(SafePtr<class GfxContext> ctx,
-                                                 std::vector<AttachmentDesc> attachments,
+    void                                    Init(std::vector<AttachmentDesc> attachments,
                                                  AttachmentDesc depth = {});
 
     void                                    SetClearColor(const vk::ClearColorValue& color);
     void                                    ChangeColorAttachmentsOps(vk::AttachmentLoadOp loadOp,
                                                                       vk::AttachmentStoreOp storeOp);
 
-    void                                    Bind(CommandBuffer* cmdBuffer) const;
-    void                                    Unbind(CommandBuffer* cmdBuffer) const;
-
-    [[nodiscard]] const std::vector<AttachmentDesc>& GetColorAttachments() const { return m_ColorAttachments; }
-    [[nodiscard]] const AttachmentDesc&     GetDepthAttachment() const { return m_DepthAttachment; }
+    [[nodiscard]] std::vector<AttachmentDesc>& GetColorAttachments() { return m_ColorAttachments; }
+    [[nodiscard]] AttachmentDesc&           GetDepthAttachment() { return m_DepthAttachment; }
     [[nodiscard]] vk::CommandBufferInheritanceRenderingInfo GetInheritanceRenderingInfo() const;
     [[nodiscard]] vk::Extent3D              GetExtent() const;
     [[nodiscard]] u32                       GetLayerCount() const;
@@ -47,7 +42,6 @@ public:
 
 
 private:
-    SafePtr<class GfxContext>           m_Context;
     std::vector<AttachmentDesc>         m_ColorAttachments;
     std::vector<vk::Format>             m_ColorFormats{};
     AttachmentDesc                      m_DepthAttachment;

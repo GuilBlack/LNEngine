@@ -98,10 +98,6 @@ public:
                                                                WorldData globalData,
                                                                SafePtr<class UniformBuffer> worldGlobalUniforms);
 
-    void                                            BeginRenderPass(const class Framebuffer& framebuffer);
-    void                                            EndRenderPass(const class Framebuffer& framebuffer);
-
-
     void                                            Draw(vk::CommandBuffer cmdBuffer,
                                                          const DrawMeshArgs& drawArgs);
 

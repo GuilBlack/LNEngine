@@ -304,32 +304,6 @@ void Renderer::BeginScene(SafePtr<WorldRenderer> worldRenderer,
         beginScene();
 }
 
-void Renderer::BeginRenderPass(const Framebuffer& framebuffer)
-{
-    auto beginRenderPass = [this, framebuffer]()
-        {
-            LNE_PROFILE_FUNCTION_C(PROFILING_COL);
-            framebuffer.Bind(m_Context->GetPrimaryCommandBuffer());
-        };
-    if (m_IsAsync)
-        AddRenderTask(beginRenderPass);
-    else
-        beginRenderPass();
-}
-
-void Renderer::EndRenderPass(const Framebuffer& framebuffer)
-{
-    auto endRenderPass = [this, framebuffer]()
-        {
-            LNE_PROFILE_FUNCTION_C(PROFILING_COL);
-            framebuffer.Unbind(m_Context->GetPrimaryCommandBuffer());
-        };
-    if (m_IsAsync)
-        AddRenderTask(endRenderPass);
-    else
-        endRenderPass();
-}
-
 void Renderer::Draw(vk::CommandBuffer cmdBuffer,
                     const DrawMeshArgs& drawArgs)
 {

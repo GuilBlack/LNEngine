@@ -214,14 +214,15 @@ void FrameGraph::Execute(CommandBuffer* commandBuffer, WorldRenderer* worldRende
 
         node->RenderPass->PreExecute(commandBuffer, this, node);
         if (node->Type == RenderPassType::eGraphics)
-            node->Framebuffer.Bind(commandBuffer);
+            commandBuffer->BeginRenderPass(&node->Framebuffer);
 
         //commandBuffer.executeCommands(secondaryCommandBuffers[i]);
 
         node->RenderPass->Execute(commandBuffer, worldRenderer, this, node);
         
         if (node->Type == RenderPassType::eGraphics)
-            node->Framebuffer.Unbind(commandBuffer);
+            commandBuffer->EndRenderPass();
+
         node->RenderPass->PostExecute(commandBuffer, this, node);
 
         commandBuffer->PopLabel();
@@ -528,7 +529,7 @@ void FrameGraph::CreateFramebuffers(FrameGraphNodeHandle nodeHandle)
         }
         }
     }
-    node.Framebuffer = Framebuffer(m_Context, colorAttachments, depthAttachment);
+    node.Framebuffer = Framebuffer(colorAttachments, depthAttachment);
 }
 
 FrameGraphResourceInfo FrameGraph::GetProxyRealResourceInfo(FrameGraphResource* resource)
