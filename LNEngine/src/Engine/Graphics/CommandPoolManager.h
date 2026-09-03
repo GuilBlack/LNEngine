@@ -33,6 +33,7 @@ public:
      */
     CommandBuffer*                  BeginRenderPassCommandBuffer(u32 frameIndex,
                                                                  Framebuffer* fb = nullptr);
+    void                            WaitForFrameCommands(u32 frameIndex);
     void                            ResetFrameCommands(u32 frameIndex);
 
     [[nodiscard]] FrameCommands     EndFrame(u32 frameIndex);

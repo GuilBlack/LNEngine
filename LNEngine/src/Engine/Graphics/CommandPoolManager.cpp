@@ -124,12 +124,17 @@ CommandBuffer* CommandPoolManager::BeginRenderPassCommandBuffer(u32 frameIndex,
     return cb;
 }
 
+void CommandPoolManager::WaitForFrameCommands(u32 frameIndex)
+{
+    FrameCommandContext& frameContext = m_GraphicsFrameContexts[frameIndex];
+    VK_CHECK(m_Context->GetDevice().waitForFences(frameContext.WaitFence, VK_TRUE, UINT64_MAX));
+}
+
 void CommandPoolManager::ResetFrameCommands(u32 frameIndex)
 {
     FrameCommandContext& frameContext = m_GraphicsFrameContexts[frameIndex];
     vk::Device device = m_Context->GetDevice();
 
-    VK_CHECK(device.waitForFences(frameContext.WaitFence, VK_TRUE, UINT64_MAX));
     for (auto& threadContext : frameContext.ThreadContexts)
     {
         device.resetCommandPool(threadContext.CommandPool);

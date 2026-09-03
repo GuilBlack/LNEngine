@@ -203,11 +203,15 @@ void Renderer::BeginFrame()
     auto beginFrame = [this]()
         {
             LNE_PROFILE_FUNCTION_C(PROFILING_COL);
-            m_Swapchain->BeginFrame();
-            u32 currentImageIndex = m_Swapchain->GetCurrentFrameIndex();
             u32 frameIndex = m_Context->GetCurrentFrameIndex();
+            auto& commandPoolManager = m_Context->GetCommandPoolManager();
+
+            commandPoolManager.WaitForFrameCommands(frameIndex);
+            m_Swapchain->BeginFrame();
+
+            u32 currentImageIndex = m_Swapchain->GetCurrentFrameIndex();
             m_CurrentFrameInFlight = frameIndex;
-            m_Context->GetCommandPoolManager().ResetFrameCommands(frameIndex);
+            commandPoolManager.ResetFrameCommands(frameIndex);
             CommandBuffer* commandBuffer = m_Context->GetPrimaryCommandBuffer();
             vk::CommandBuffer cmdBuffer = commandBuffer->GetVkCommandBuffer();
             m_CurrentSwapchainImageIndex = currentImageIndex;

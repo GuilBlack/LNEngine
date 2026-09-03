@@ -109,6 +109,7 @@ void ApplicationBase::Run()
 {
     auto graphicsContext = m_Renderer->GetGfxContext();
     CommandPoolManager& cpManager = graphicsContext->GetCommandPoolManager();
+    cpManager.WaitForFrameCommands(0);
     cpManager.ResetFrameCommands(0);
     vk::CommandBuffer cb = cpManager.BeginOrGetPrimaryFrameCommandBuffer(0)->GetVkCommandBuffer();
     graphicsContext->UploadDefaultResources();

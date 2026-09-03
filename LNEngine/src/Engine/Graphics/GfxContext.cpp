@@ -75,6 +75,10 @@ GfxContext::GfxContext(vk::SurfaceKHR surface)
     m_GraphicsQueue = deviceVal.get_queue(vkb::QueueType::graphics).value();
     m_QueueFamilyIndices.PresentFamily = deviceVal.get_queue_index(vkb::QueueType::present).value();
     m_PresentQueue = deviceVal.get_queue(vkb::QueueType::present).value();
+    SetVkObjectName(m_GraphicsQueue, "GraphicsQueue");
+    SetVkObjectName(m_ComputeQueue, "ComputeQueue");
+    SetVkObjectName(m_TransferQueue, "TransferQueue");
+    SetVkObjectName(m_PresentQueue, "PresentQueue");
 
     LNE_ASSERT(m_QueueFamilyIndices.IsComplete(), "Failed to find all queue families");
 

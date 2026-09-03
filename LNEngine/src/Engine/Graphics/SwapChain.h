@@ -81,18 +81,15 @@ private:
     SafePtr<class Texture>                  m_DepthAttachment;
     std::vector<class Framebuffer>          m_Framebuffers;
 
-    struct SwapchainSemaphores
-    {
-        vk::Semaphore                       ImageAvailable;
-        vk::Semaphore                       RenderFinished;
-    };
-    std::vector<SwapchainSemaphores>        m_Semaphores;
+    std::vector<vk::Semaphore>              m_ImageAvailableSemaphores;
+    std::vector<vk::Semaphore>              m_RenderFinishedSemaphores;
     std::vector<vk::Fence>                  m_AcquireFences;
 
     u32                                     m_CurrentImageIndex{ 0 };
     std::atomic<bool>                       m_IsDirty{ false };
 private:
     void                                            CreateSyncObjects();
+    void                                            RecreateRenderFinishedSemaphores();
 
     vk::SurfaceFormatKHR                            PickSwapchainSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
     vk::PresentModeKHR                              PickSwapchainPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes);

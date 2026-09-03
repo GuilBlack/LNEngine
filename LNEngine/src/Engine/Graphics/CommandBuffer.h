@@ -74,6 +74,10 @@ public:
     * @param framebuffer The framebuffer to bind. Must not be nullptr.
     */
     void BeginRenderPass(Framebuffer* framebuffer);
+
+    /**
+    * Unbinds the currently bound framebuffer and does the necessary layout transitions.
+    */
     void EndRenderPass();
 #pragma endregion
 

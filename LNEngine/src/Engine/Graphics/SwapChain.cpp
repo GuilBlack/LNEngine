@@ -25,11 +25,11 @@ Swapchain::~Swapchain()
     auto device = m_Context->GetDevice();
     u32 framesInFlight = m_Context->GetMaxFramesInFlight();
     for (u32 i = 0; i < framesInFlight; i++)
-    {
-        device.destroySemaphore(m_Semaphores[i].ImageAvailable);
-        device.destroySemaphore(m_Semaphores[i].RenderFinished);
         device.destroyFence(m_AcquireFences[i]);
-    }
+    for (auto semaphore : m_ImageAvailableSemaphores)
+        device.destroySemaphore(semaphore);
+    for (auto semaphore : m_RenderFinishedSemaphores)
+        device.destroySemaphore(semaphore);
 
     m_ColorAttachments.clear();
 
@@ -41,12 +41,12 @@ vk::SubmitInfo Swapchain::GetSubmitInfo(vk::PipelineStageFlags* waitStages, u32 
 {
     vk::SubmitInfo submitInfo(
         1,
-        &m_Semaphores[frameInFlight].ImageAvailable,
+        &m_ImageAvailableSemaphores[frameInFlight],
         waitStages,
         1,
         {},
         1,
-        &m_Semaphores[frameInFlight].RenderFinished
+        &m_RenderFinishedSemaphores[m_CurrentImageIndex]
     );
 
     return submitInfo;
@@ -76,7 +76,7 @@ void Swapchain::BeginFrame()
     u32 currentFrameInFlight = m_Context->GetCurrentFrameIndex();
     VK_CHECK(device.waitForFences(m_AcquireFences[currentFrameInFlight], VK_TRUE, UINT64_MAX));
     device.resetFences(m_AcquireFences[currentFrameInFlight]);
-    auto result = device.acquireNextImageKHR(m_Swapchain, UINT64_MAX, m_Semaphores[currentFrameInFlight].ImageAvailable, m_AcquireFences[currentFrameInFlight]);
+    auto result = device.acquireNextImageKHR(m_Swapchain, UINT64_MAX, m_ImageAvailableSemaphores[currentFrameInFlight], m_AcquireFences[currentFrameInFlight]);
     m_CurrentImageIndex = result.value;
 
     if (result.result == vk::Result::eErrorOutOfDateKHR)
@@ -94,7 +94,7 @@ void Swapchain::Present()
 
             const auto presentInfo = vk::PresentInfoKHR(
                 1,
-                &m_Semaphores[m_Context->GetCurrentFrameIndex()].RenderFinished,
+                &m_RenderFinishedSemaphores[m_CurrentImageIndex],
                 1,
                 &m_Swapchain,
                 &m_CurrentImageIndex
@@ -218,6 +218,7 @@ void Swapchain::CreateSwapchain()
         m_Framebuffers.emplace_back(Framebuffer({ colorAttachmentDesc }, depthAttachmentDesc));
     }
     m_Context->m_MaxFramesInFlight = (u32)m_ColorAttachments.size() - 1;
+    RecreateRenderFinishedSemaphores();
 }
 
 void Swapchain::CreateSyncObjects()
@@ -230,20 +231,37 @@ void Swapchain::CreateSyncObjects()
     m_AcquireFences.reserve(count);
 
     vk::SemaphoreCreateInfo semaphoreCI{};
-    m_Semaphores.clear();
-    m_Semaphores.reserve(count);
+
+    m_ImageAvailableSemaphores.clear();
+    m_ImageAvailableSemaphores.reserve(count);
 
     for (u32 i = 0; i < count; ++i)
     {
         m_AcquireFences.push_back(device.createFence(fenceCI));
         m_Context->SetVkObjectName(m_AcquireFences[i], std::format("Swapchain Acquire Fence {}", i));
 
-        m_Semaphores.push_back(SwapchainSemaphores{
-            .ImageAvailable = device.createSemaphore(semaphoreCI),
-            .RenderFinished = device.createSemaphore(semaphoreCI)
-            });
-        m_Context->SetVkObjectName(m_Semaphores[i].ImageAvailable, std::format("Swapchain Semaphore ImageAvailable {}", i));
-        m_Context->SetVkObjectName(m_Semaphores[i].RenderFinished, std::format("Swapchain Semaphore RenderFinished {}", i));
+        m_ImageAvailableSemaphores.push_back(device.createSemaphore(semaphoreCI));
+        m_Context->SetVkObjectName(m_ImageAvailableSemaphores[i], std::format("Swapchain Image Available Semaphore {}", i));
+    }
+}
+
+void Swapchain::RecreateRenderFinishedSemaphores()
+{
+    auto device = m_Context->GetDevice();
+
+    for (vk::Semaphore semaphore : m_RenderFinishedSemaphores)
+        device.destroySemaphore(semaphore);
+
+    m_RenderFinishedSemaphores.clear();
+    m_RenderFinishedSemaphores.reserve(m_ColorAttachments.size());
+
+    const vk::SemaphoreCreateInfo semaphoreCI{};
+
+    for (u32 i = 0; i < m_ColorAttachments.size(); ++i)
+    {
+        m_RenderFinishedSemaphores.push_back(device.createSemaphore(semaphoreCI));
+
+        m_Context->SetVkObjectName(m_RenderFinishedSemaphores[i], std::format("Swapchain Semaphore RenderFinished Image {}", i));
     }
 }
 
