@@ -41,7 +41,7 @@ struct Meshlet {
     int8_t ConeCutoff;
 };
 
-layout(scalar, set = LIGHT_SET, binding = 0) buffer LightBuffer
+layout(scalar, set = LIGHT_SET, binding = 0) readonly buffer LightBuffer
 {
     uint lightCount;
     Light lights[];
